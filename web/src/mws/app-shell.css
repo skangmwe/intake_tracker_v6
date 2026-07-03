@@ -1,0 +1,218 @@
+/* App-shell layout + shell-control styling for the AI Solutions Tracker.
+   Companion to the McDermott design-system component CSS (components.css): it targets the
+   same global mws-* classes with app-shell state ([data-collapsed], drawer) and the app's
+   own ast-* shell controls (workspace switcher, account, search). Kept under src/mws/ next
+   to the design-system layer it extends — token-first throughout; the only raw values are
+   the sidebar-overlay rgba(255,255,255,…) idiom the design system itself uses on navy. */
+
+/* ── Full-screen bootstrap / sign-in status ──────────────────────────────── */
+.ast-loading {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-4); min-height: 100dvh;
+  background: var(--bg-page); color: var(--text-secondary);
+  font-family: var(--font-sans); font-size: 15px;
+}
+.ast-loading svg { color: var(--accent-interactive); }
+@media (prefers-reduced-motion: no-preference) {
+  .ast-spin { animation: ast-spin 800ms linear infinite; }
+}
+@keyframes ast-spin { to { transform: rotate(360deg); } }
+
+/* Drawer scrim rendered as a <button> so "click to close" is a real, labelled control
+   (keeps jsx-a11y happy) — reset button chrome; the design system supplies the fill. */
+button.mws-drawer-scrim { border: none; padding: 0; margin: 0; cursor: pointer; }
+
+/* ── App grid: sidebar + content column ──────────────────────────────────── */
+.app-shell {
+  display: flex;
+  min-height: 100dvh;
+  background: var(--bg-page);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  max-width: 100vw;
+  min-width: 0;
+}
+.app-shell__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.app-shell__main {
+  flex: 1;
+  padding: var(--space-6) clamp(16px, 4vw, 32px) var(--space-8);
+  min-width: 0;
+}
+.app-shell__main-inner {
+  max-width: min(100%, 1200px);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ── Nav-item icon parity (SVG in React, not the web-font <i>) ────────────── */
+.mws-nav-item svg { color: rgba(255, 255, 255, 0.6); flex-shrink: 0; }
+.mws-nav-item:hover svg { color: var(--color-white); }
+.mws-nav-item[aria-current="page"] svg { color: var(--color-teal); }
+/* Reset the button element defaults so a <button> nav item matches the <a> spec. */
+.mws-nav-item {
+  width: 100%;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* ── Workspace switcher (sidebar, on navy) ───────────────────────────────── */
+.ast-ws-switch { position: relative; padding: 0 var(--space-4) var(--space-3); }
+.ast-ws-button {
+  display: flex; align-items: center; gap: var(--space-2);
+  width: 100%; padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-sans); font-size: 13px;
+  cursor: pointer; text-align: left;
+  transition: color var(--duration-fast), border-color var(--duration-fast);
+}
+.ast-ws-button:hover { border-color: rgba(255, 255, 255, 0.4); color: var(--color-white); }
+.ast-ws-button:focus-visible { outline: 2px solid var(--color-white); outline-offset: 2px; }
+.ast-ws-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ast-ws-text-kind { opacity: 0.55; }
+.ast-ws-caret { opacity: 0.6; flex-shrink: 0; }
+.ast-ws-menu {
+  position: absolute; top: calc(100% - 4px); left: var(--space-4); z-index: 110;
+  min-width: 230px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-2) 0;
+}
+.ast-ws-menu__label {
+  padding: var(--space-2) var(--space-4);
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+.ast-ws-menu__item {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%; padding: var(--space-2) var(--space-4);
+  background: none; border: none;
+  font-family: var(--font-sans); font-size: 14px; color: var(--text-primary);
+  cursor: pointer; text-align: left;
+}
+.ast-ws-menu__item:hover,
+.ast-ws-menu__item:focus-visible { color: var(--accent-interactive); }
+.ast-ws-menu__item svg { color: var(--accent-interactive); flex-shrink: 0; }
+/* Fixed-width spacer aligning label-only items with the 14px check-icon column. */
+.ast-ws-menu__item-spacer { width: 14px; flex-shrink: 0; }
+.ast-ws-menu__item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ast-ws-menu__item-kind {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+.ast-ws-empty { padding: var(--space-3) var(--space-4); font-size: 13px; color: var(--text-secondary); }
+
+/* ── Collapse control (sidebar bottom) ───────────────────────────────────── */
+.ast-nav-collapse { display: flex; justify-content: flex-end; padding: var(--space-2) var(--space-4); }
+.ast-collapse-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  background: none; border: none; border-radius: var(--radius);
+  color: rgba(255, 255, 255, 0.6); cursor: pointer;
+}
+.ast-collapse-btn:hover { color: var(--color-white); }
+.ast-collapse-btn:focus-visible { outline: 2px solid var(--color-white); outline-offset: 2px; }
+
+/* ── Top-bar controls ────────────────────────────────────────────────────── */
+.ast-hamburger { display: none; }
+.ast-topbar-cluster { display: flex; align-items: center; gap: var(--space-3); }
+
+.ast-search { position: relative; display: inline-flex; }
+.ast-search__icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--text-secondary); pointer-events: none;
+}
+.ast-search__input {
+  height: 36px; width: min(280px, 34vw);
+  padding: 0 var(--space-3) 0 34px;
+  border: 1px solid var(--border-button); border-radius: var(--radius);
+  background: var(--bg-surface); color: var(--text-primary);
+  font-family: var(--font-sans); font-size: 14px;
+}
+.ast-search__input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ast-search__menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 70; width: 340px;
+  background: var(--bg-surface); border: 1px solid var(--border-light);
+  border-radius: var(--radius); box-shadow: var(--shadow-md); padding: var(--space-2) 0;
+}
+.ast-search__empty { padding: var(--space-3) var(--space-4); font-size: 13px; color: var(--text-secondary); }
+
+.ast-menu-anchor { position: relative; display: inline-flex; }
+.ast-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 60; min-width: 220px;
+  background: var(--bg-surface); border: 1px solid var(--border-light);
+  border-radius: var(--radius); box-shadow: var(--shadow-md); padding: var(--space-2) 0;
+}
+.ast-menu__item {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%; padding: var(--space-2) var(--space-4);
+  background: none; border: none;
+  font-family: var(--font-sans); font-size: 14px; color: var(--text-primary);
+  cursor: pointer; text-align: left;
+}
+.ast-menu__item:hover,
+.ast-menu__item:focus-visible { color: var(--accent-interactive); }
+
+.ast-account-btn {
+  width: 32px; height: 32px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border-light);
+  background: var(--color-navy); color: var(--color-white);
+  font-size: 12px; font-weight: 600; font-family: var(--font-sans);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.ast-account-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ast-account__header {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-light); min-width: 220px;
+}
+.ast-account__avatar {
+  width: 32px; height: 32px; border-radius: var(--radius-pill);
+  background: var(--color-pale-blue); color: var(--color-navy);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; flex-shrink: 0;
+}
+.ast-account__meta { display: flex; flex-direction: column; min-width: 0; }
+.ast-account__name { font-size: 14px; color: var(--text-primary); white-space: nowrap; }
+.ast-account__role { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+
+/* ── Desktop collapsed rail (≥1024px) ────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .mws-sidebar[data-collapsed="true"] { width: var(--sidebar-w-collapsed); }
+  .mws-sidebar[data-collapsed="true"] .mws-sidebar__header {
+    padding: 0 0 var(--space-5); display: flex; justify-content: center;
+  }
+  .mws-sidebar[data-collapsed="true"] .mws-nav-item {
+    justify-content: center; padding-left: 0; padding-right: 0;
+  }
+  .mws-sidebar[data-collapsed="true"] .mws-nav-item > span { display: none; }
+  .mws-sidebar[data-collapsed="true"] .mws-sidebar__section-label {
+    height: 1px; padding: 0; margin: var(--space-3) var(--space-4);
+    background: rgba(255, 255, 255, 0.12); overflow: hidden; text-indent: -999px;
+  }
+  .mws-sidebar[data-collapsed="true"] .ast-ws-switch { padding: 0 var(--space-2) var(--space-3); }
+  .mws-sidebar[data-collapsed="true"] .ast-ws-button { justify-content: center; }
+  .mws-sidebar[data-collapsed="true"] .ast-ws-text,
+  .mws-sidebar[data-collapsed="true"] .ast-ws-caret { display: none; }
+  .mws-sidebar[data-collapsed="true"] .ast-nav-collapse { justify-content: center; padding: var(--space-2) 0; }
+}
+
+/* ── Mobile: hamburger shows, in-sidebar collapse hides (drawer instead) ──── */
+@media (max-width: 1023px) {
+  .ast-hamburger { display: inline-flex; }
+  .ast-nav-collapse { display: none; }
+}

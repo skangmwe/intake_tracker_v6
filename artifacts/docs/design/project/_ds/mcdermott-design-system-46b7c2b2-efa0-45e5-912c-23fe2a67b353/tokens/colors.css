@@ -1,0 +1,73 @@
+/* McDermott color tokens — base palette + semantic theme aliases.
+   Never hardcode hex outside this file. */
+
+:root {
+  /* Primary */
+  --color-navy: #000042;
+  --color-blue: #0018F2;
+  --color-white: #FFFFFF;
+
+  /* Secondary */
+  --color-magenta: #F48DFF;
+  --color-orange: #FC561D;
+  --color-gold: #E5AC2E;
+
+  /* Highlights */
+  --color-teal: #00E2C1;      /* dark-mode accent + sidebar active + chart series only */
+  --color-neon: #D2FF3E;      /* use sparingly — max-attention only */
+
+  /* Pale — theme-stable; always pair with navy text */
+  --color-pale-blue: #E2E8FF;
+  --color-pale-magenta: #FFEDFF;
+  --color-pale-orange: #FFE2DE;
+  --color-pale-gold: #F9E9D2;
+  --color-pale-success: #DCF1D2;
+
+  /* Alerts — background fills only; text on alerts is always navy */
+  --color-error: #FF3333;
+  --color-success: #75D957;
+  --color-warning: #F1E53C;
+
+  /* Internal-only navy grays — never in client-facing UI */
+  --color-navy-gray-1: #EBEBF2;
+  --color-navy-gray-2: #DEDEE5;
+  --color-navy-gray-3: #D2D2D9;
+}
+
+/* Light theme (default) */
+:root,
+:root[data-theme="light"] {
+  --bg-page:            #F7F7FC;
+  --bg-surface:         #FFFFFF;
+  --bg-sidebar:         var(--color-navy);
+  --text-primary:       var(--color-navy);
+  --text-secondary:     rgba(0, 0, 66, 0.65);
+  --accent-interactive: var(--color-blue);
+  --icon-default:       var(--color-navy);
+  --border-light:       #E5E5EE;
+  --border-button:      #D9D9D9;
+  --focus-ring:         var(--color-blue);
+  --scrim:              rgba(0, 0, 66, 0.5);
+  --skeleton-base:      #EBEBF2;
+  --skeleton-pulse:     #DEDEE5;
+  --user-bubble-bg:     var(--color-navy);
+  --user-bubble-fg:     var(--color-white);
+}
+
+:root[data-theme="dark"] {
+  --bg-page:            #13134E;
+  --bg-surface:         #1C1C66;
+  --bg-sidebar:         #0D0D46;
+  --text-primary:       var(--color-white);
+  --text-secondary:     rgba(255, 255, 255, 0.7);
+  --accent-interactive: var(--color-teal);
+  --icon-default:       var(--color-teal);
+  --border-light:       #2C2C80;
+  --border-button:      #4D4DA8;
+  --focus-ring:         var(--color-teal);
+  --scrim:              rgba(0, 0, 0, 0.6);
+  --skeleton-base:      #2C2C80;
+  --skeleton-pulse:     #3D3DA3;
+  --user-bubble-bg:     var(--color-teal);
+  --user-bubble-fg:     var(--color-navy);
+}

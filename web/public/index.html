@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Development-scoped CSP. Production ships a stricter policy via the host / Azure Front
+         Door (scaffold-notes.md). script-src allows 'self' (the webpack bundle) plus the exact
+         hash of the theme-init inline script below — no 'unsafe-inline'. If that script's
+         bytes change, recompute the hash (openssl dgst -sha256 -binary | openssl base64). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self' http://localhost:5080; script-src 'self' 'sha256-/gLBSafpU+5h+HR6o35YZTpQG8CXIsGjAO8Mvyc3zvc='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'"
+    />
+    <title>AI Solutions Tracker</title>
+    <!-- Theme init (web-performance.md) — read the saved theme before first paint so the app
+         renders in the user's chosen scheme with no flash. Kept as a single line with no
+         surrounding whitespace so the CSP hash above matches the exact bytes. -->
+    <script>(function(){try{var t=localStorage.getItem('theme-preference');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

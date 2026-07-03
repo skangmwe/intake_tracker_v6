@@ -1,0 +1,13 @@
+// Clock abstraction — never use DateTime.UtcNow directly.
+
+namespace McDermott.AiTracker.Api.Shared.Time;
+
+public interface IClock
+{
+    DateTimeOffset UtcNow { get; }
+}
+
+public sealed class SystemClock : IClock
+{
+    public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
+}

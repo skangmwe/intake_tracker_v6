@@ -1,0 +1,12 @@
+/* McDermott token OVERRIDE layer — loaded AFTER mws/styles.css so it supersedes the
+   base token values (see .claude/rules/design/README.md — "named override variable").
+   Use this file for any prototype value that has no matching system token; reference it
+   via var(--…) from component styles, never inline a raw hex/px literal.
+
+   Slice 2 (Auth & app shell): the prototype's shell reuses the ported McDermott design
+   system verbatim, so there are no off-system token values yet — this file is the seam
+   later slices extend. */
+
+:root {
+  /* (no overrides yet) */
+}

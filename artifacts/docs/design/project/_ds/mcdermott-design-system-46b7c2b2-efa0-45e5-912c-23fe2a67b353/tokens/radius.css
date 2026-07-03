@@ -1,0 +1,6 @@
+/* McDermott radius — 2px for everything, 999px for pills. Nothing in between. */
+
+:root {
+  --radius:      2px;
+  --radius-pill: 999px;
+}
