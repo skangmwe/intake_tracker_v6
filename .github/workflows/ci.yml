@@ -9,136 +9,198 @@ on:
       - dev
       - main
 
-jobs:
-  # Variant detection: tier 1 supports two build variants (see the project
-  # root CLAUDE.md). The server-backed variant populates web/ with a
-  # React + Vite app (package.json present). The self-contained variant
-  # populates web/ with a single hand-written index.html (no package.json,
-  # no toolchain). CI branches on the presence of web/package.json — one
-  # of the two jobs below runs, the other skips silently.
-  detect:
-    runs-on: ubuntu-latest
-    outputs:
-      variant: ${{ steps.detect.outputs.variant }}
-    steps:
-      - uses: actions/checkout@v5
-      - id: detect
-        run: |
-          if [ -f web/package.json ]; then
-            echo "variant=server-backed" >> "$GITHUB_OUTPUT"
-          elif [ -f web/index.html ]; then
-            echo "variant=self-contained" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::Neither web/package.json nor web/index.html found — cannot determine variant."
-            exit 1
-          fi
+# Action versions are pinned to their latest majors per rules/dev/ci-pipeline.md, verified
+# against the live GitHub registry at authoring time (checkout v7, setup-node v6, setup-dotnet v5).
+# Never pin a major that runs on an end-of-life Node.js runtime — the verified latest always clears it.
 
-  # Reference job: shows how to pin Node for any Node-based gate
-  # (prettier, eslint, npm audit, jest, playwright). Add the rest of
-  # your web gates here per rules/dev/ci-pipeline.md; the npm audit
-  # split below is the security baseline per web-dependency-security.md.
-  #
-  # ACTION VERSIONS: always pin the latest major of each GitHub Action
-  # (checkout@v5, setup-node@v5, setup-dotnet@v5, ...). Do NOT use v4 or
-  # older — those run on Node.js 20, which GitHub has deprecated and will
-  # warn about on every run. See rules/dev/ci-pipeline.md.
+jobs:
+  # ── Web ──────────────────────────────────────────────────────────────
   web:
-    needs: detect
-    if: needs.detect.outputs.variant == 'server-backed'
+    name: web · lint / test / build
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./web
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
       - name: Install dependencies
         run: npm ci
 
-      # Blocking: shipped dependencies only. A High or Critical finding
-      # here reaches end users and must fail the build.
-      - name: npm audit (shipped deps) — blocking
-        run: npm audit --omit=dev --audit-level=high
+      # Formatting + linting (web-linting-formatting.md)
+      - name: prettier --check
+        run: npx prettier --check "src/**/*.{ts,tsx,scss,css,md}"
+      - name: eslint
+        run: npm run lint
 
-      # Non-blocking: full audit (including dev tooling) for visibility.
-      # High/Critical findings in dev-only deps (test runners, build tools,
-      # dev servers) do not fail the build but MUST be documented as an ADR
-      # entry in decisions.md per rules/dev/web-dependency-security.md.
-      - name: npm audit (all deps) — visibility only
+      # Dependency audit (web-dependency-security.md)
+      - name: npm audit (shipped) — blocking
+        run: npm audit --omit=dev --audit-level=high
+      - name: npm audit (all) — visibility
         run: npm audit --audit-level=high || true
 
-  # Self-contained variant: mirrors the static-analysis gates the /review
-  # skill runs against web/index.html. No toolchain to install — every
-  # check is a grep or a token scan against the single file. Every gate
-  # here is blocking; a failure here matches a "blocking High finding" in
-  # /review.
-  self-contained-web:
-    needs: detect
-    if: needs.detect.outputs.variant == 'self-contained'
+      # Type check + unit tests + coverage (web-testing.md; 80% floor)
+      - name: type check
+        run: npm run type-check
+      - name: jest + coverage
+        run: npm run test:coverage
+      - name: build
+        run: npm run build
+
+  # ── Web E2E ──────────────────────────────────────────────────────────
+  web-e2e:
+    name: web · playwright
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium msedge webkit
+      - name: playwright test
+        run: npm run test:e2e
 
-      - name: File present
-        run: |
-          test -f web/index.html || { echo "::error::web/index.html missing"; exit 1; }
+  # ── API ──────────────────────────────────────────────────────────────
+  api:
+    name: api · build / test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./api
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore Api.sln
+      - name: Build (warnings as errors)
+        run: dotnet build Api.sln --no-restore --configuration Release
+      - name: Test (Api.Tests)
+        run: dotnet test Api.Tests/Api.Tests.csproj --no-build --configuration Release
 
-      # Forbidden patterns (universal guardrails + variant gate). Keep this
-      # list in sync with rules/dev/_core-requirements.md "Self-contained
-      # file" tier and the /review test gate.
-      - name: Forbidden pattern grep
+  # ── Database ─────────────────────────────────────────────────────────
+  # Applies the schema (migrations → procedures) to a disposable SQL Server service
+  # container, installs tSQLt via PrepareServer.sql (certificate-signed CLR — NOT
+  # `TRUSTWORTHY ON`, honouring database/CLAUDE.md security), loads the test classes,
+  # and fails the build on any non-Success result (ci-pipeline.md → database-testing.md).
+  #
+  # The SA password is a throwaway credential for an ephemeral container that lives only
+  # for this job and is never reachable outside the runner. It is read from the repo
+  # secret CI_MSSQL_SA_PASSWORD (must satisfy SQL Server complexity: 8+ chars, 3 of
+  # upper/lower/digit/symbol) so no credential lives in source (api-secrets.md / gitleaks).
+  database:
+    name: database · tSQLt
+    runs-on: ubuntu-latest
+    env:
+      DB_NAME: AiSolutionsTracker
+      SA_PASSWORD: ${{ secrets.CI_MSSQL_SA_PASSWORD }}
+      SQLCMD: /opt/mssql-tools18/bin/sqlcmd
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: ${{ secrets.CI_MSSQL_SA_PASSWORD }}
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v7
+
+      # Cheap structural gate retained from the scaffold: migration presence + naming.
+      - name: Verify migrations present and named correctly
         run: |
           set -e
-          found=0
-          for pat in 'eval(' 'new Function(' 'document\.write' '\.innerHTML *=' '\.outerHTML *=' '\.insertAdjacentHTML(' '\.html('; do
-            if grep -nE "$pat" web/index.html; then
-              echo "::error::forbidden pattern found: $pat"
-              found=1
+          test -d database/migrations
+          test "$(ls database/migrations/*.sql | wc -l)" -gt 0
+          for f in database/migrations/*.sql; do
+            base=$(basename "$f")
+            if ! echo "$base" | grep -Eq '^[0-9]{8}_[0-9]{3}_[A-Za-z0-9]+(_Rollback)?\.sql$'; then
+              echo "::error::Migration filename does not match YYYYMMDD_NNN_Name.sql — $base"
+              exit 1
             fi
           done
-          # External script/style sources: only inline + data: allowed.
-          if grep -nE '<script[^>]+src=("|'\'')(?!data:)' web/index.html; then
-            echo "::error::external <script src> found (only inline or data: allowed)"; found=1
-          fi
-          if grep -nE '<link[^>]+rel=("|'\'')stylesheet("|'\'')[^>]+href=("|'\'')(?!data:)' web/index.html; then
-            echo "::error::external <link rel=stylesheet> found"; found=1
-          fi
-          if grep -nE '@import[^;]*url\(' web/index.html; then
-            echo "::error::@import url(...) found"; found=1
-          fi
-          if grep -nE '<img[^>]+src=("|'\'')https?://' web/index.html; then
-            echo "::error::external <img src> found"; found=1
-          fi
-          exit $found
 
-      - name: CSP meta tag present
-        run: |
-          grep -q 'http-equiv="Content-Security-Policy"' web/index.html || {
-            echo "::error::missing <meta http-equiv=\"Content-Security-Policy\"> in web/index.html";
-            exit 1;
-          }
-
-      # Every colour and radius in the <style> block must read from a token
-      # (var(--...)). Literal hex / rgb / hsl / off-spec radius is a
-      # blocking finding.
-      - name: Token-derived styling
+      - name: Install sqlcmd (mssql-tools18)
         run: |
           set -e
-          # Extract the first <style>...</style> block for scanning.
-          awk '/<style/,/<\/style>/' web/index.html > /tmp/style.css
-          bad=0
-          if grep -nE '#[0-9a-fA-F]{3,8}\b' /tmp/style.css; then
-            echo "::error::literal hex colour(s) in <style> — use var(--...)"; bad=1
-          fi
-          if grep -nE '\b(rgb|rgba|hsl|hsla)\(' /tmp/style.css; then
-            echo "::error::literal rgb/hsl colour(s) in <style> — use var(--...)"; bad=1
-          fi
-          # Radius must be var(--...), 2px, or 999px per the design rules.
-          if grep -nE 'border[-a-z]*radius:[^;]*' /tmp/style.css \
-               | grep -vE 'var\(--|:\s*(2px|999px)\s*[;\}]'; then
-            echo "::error::off-spec border-radius — must be var(--...), 2px, or 999px"; bad=1
-          fi
-          exit $bad
+          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+          curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list \
+            | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+
+      - name: Wait for SQL Server to accept connections
+        run: |
+          set -e
+          for i in $(seq 1 60); do
+            if "$SQLCMD" -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -l 3 -Q "SELECT 1" >/dev/null 2>&1; then
+              echo "SQL Server is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::SQL Server did not become ready in time."
+          exit 1
+
+      - name: Create test database
+        run: |
+          "$SQLCMD" -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -b \
+            -Q "IF DB_ID('$DB_NAME') IS NULL CREATE DATABASE [$DB_NAME];"
+
+      # Forward-only migrations, in numeric order, excluding rollback scripts
+      # (database-migrations.md — migrations before procedures).
+      - name: Apply migrations
+        run: |
+          set -e
+          for f in $(ls database/migrations/*.sql | grep -v '_Rollback\.sql$' | sort); do
+            echo "-- applying $f"
+            "$SQLCMD" -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -b -d "$DB_NAME" -i "$f"
+          done
+
+      # Stored procedures (CREATE OR ALTER — idempotent) after the tables exist.
+      - name: Apply stored procedures
+        run: |
+          set -e
+          for f in $(find database/procedures -name '*.sql' | sort); do
+            echo "-- applying $f"
+            "$SQLCMD" -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -b -d "$DB_NAME" -i "$f"
+          done
+
+      # tSQLt via PrepareServer.sql: enables CLR and signs the assembly with a certificate
+      # so no database is marked TRUSTWORTHY (database/CLAUDE.md — "no TRUSTWORTHY ON").
+      - name: Install tSQLt
+        run: |
+          set -e
+          curl -fsSL -o tsqlt.zip "https://tsqlt.org/download/tsqlt/"
+          unzip -o -q tsqlt.zip -d tsqlt
+          PREPARE=$(find tsqlt -name 'PrepareServer.sql' | head -1)
+          CLASS=$(find tsqlt -name 'tSQLt.class.sql' | head -1)
+          test -n "$PREPARE" && test -n "$CLASS"
+          "$SQLCMD" -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -b -i "$PREPARE"
+          "$SQLCMD" -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -b -d "$DB_NAME" -i "$CLASS"
+
+      - name: Load tSQLt test classes
+        run: |
+          set -e
+          for f in $(find database/tests -name '*.sql' | sort); do
+            echo "-- loading $f"
+            "$SQLCMD" -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -b -d "$DB_NAME" -i "$f"
+          done
+
+      - name: Run tSQLt.RunAll (fail on any non-Success)
+        run: |
+          "$SQLCMD" -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -b -d "$DB_NAME" -Q \
+            "SET NOCOUNT ON; EXEC tSQLt.RunAll; IF EXISTS (SELECT 1 FROM tSQLt.TestResult WHERE Result <> 'Success') THROW 50000, 'One or more tSQLt tests failed.', 1;"

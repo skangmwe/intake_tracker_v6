@@ -1,0 +1,144 @@
+// Request — the primary record. Full field schema in BS §17; the shape below carries
+// the fields the API surfaces, not the DB columns.
+
+import type { FieldDefinitionId, IsoDate, IsoDateTime, RecordId, UserId, WorkspaceId } from './common';
+
+/** AI Solutions delivery Outcome (BS §8) — the AI-side terminal states. */
+export type DeliveryOutcome = 'Live' | 'Declined' | 'Withdrawn' | 'Duplicate';
+
+/**
+ * PG-local Outcome — the template-local Outcome used when a Practice Group closes
+ * a request locally without escalating (BS §1.1).
+ */
+export type LocalOutcome = 'Withdrawn' | 'Duplicate' | 'NotPursued';
+
+/**
+ * The combined Outcome union sent over the wire. The `kind` disambiguates.
+ * `Live` renders as `Live` (delivered) — Display Status derives this.
+ */
+export interface Outcome {
+  kind: 'delivery' | 'local';
+  value: DeliveryOutcome | LocalOutcome;
+  notes: string;
+  duplicateOfRecordId?: RecordId;
+}
+
+/** SLA status — Phase 2 derivation. */
+export type SlaStatus = 'OnTrack' | 'DueSoon' | 'Overdue';
+
+/**
+ * The Request DTO returned by GET /requests/{id}. Carries content fields as an
+ * open map (fields are workspace-configurable via S30), plus fixed system and
+ * lifecycle fields.
+ */
+export interface RequestDto {
+  id: RecordId;
+  workspaceId: WorkspaceId;
+  /** The originating workspace's name — resolved via the platform prefix registry. */
+  origin: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+  createdBy: UserId;
+  updatedBy: UserId;
+  /**
+   * The record's `Legacy ID` — populated only by CSV import (BS §3.6). Searchable,
+   * not unique-constrained, not a crossing field.
+   */
+  legacyId?: string;
+
+  // Lifecycle
+  stage?: string;
+  hold?: { held: boolean; reason?: string };
+  outcome?: Outcome;
+  displayStatus: string;
+  slaStatus?: SlaStatus;
+
+  // Values
+  name: string;
+  description: string;
+  /** Every content field flows through this map — keys are FieldDefinitionId strings. */
+  fields: Record<string, unknown>;
+
+  // Bridge — present only on escalated records.
+  bridge?: BridgeBlock;
+
+  // For optimistic concurrency on PATCH.
+  eTag: string;
+}
+
+/** Escalation state summary for an escalated record. */
+export interface BridgeBlock {
+  isEscalated: true;
+  originWorkspaceId: WorkspaceId;
+  originWorkspaceName: string;
+  aiWorkspaceId: WorkspaceId;
+  escalatedAt: IsoDateTime;
+  /**
+   * The AI Solutions Status field value. Read-only for everyone (BS §6.4);
+   * written only by the bridge off the event spine.
+   */
+  aiSolutionsStatus: string;
+  /** Field definition IDs frozen on the PG side. */
+  lockedFields: FieldDefinitionId[];
+}
+
+/** POST /workspaces/{id}/requests. */
+export interface RequestCreateRequest {
+  name: string;
+  description: string;
+  fields: Record<string, unknown>;
+  /**
+   * Typed links queued on the draft during the similar-requests nudge (BS §9.8).
+   * Stamped as `related` links at submission.
+   */
+  queuedRelatedRecordIds?: RecordId[];
+}
+
+/** PATCH /requests/{id}. Sparse — send only fields that changed. */
+export interface RequestPatchRequest {
+  name?: string;
+  description?: string;
+  fields?: Record<string, unknown>;
+  hold?: { held: boolean; reason?: string };
+  /**
+   * ETag from the last-loaded record. Server returns 409 stale-record if it
+   * doesn't match; the client refetches and reapplies (`web-state-management.md`).
+   */
+  ifMatch: string;
+}
+
+/** POST /requests/{id}/stage. */
+export interface StageTransitionRequest {
+  toStage: string;
+}
+
+export type StageTransitionResult =
+  | { advanced: true; newStage: string }
+  | { advanced: false; gateOpened: import('./gates').ApprovalRequestDto };
+
+/** POST /requests/{id}/escalate. */
+export interface EscalateRequest {
+  /** Must be true when any crossing field has uncommitted edits. */
+  confirmPendingEdits: boolean;
+}
+
+export interface EscalateResult {
+  recordId: RecordId;
+  aiWorkspaceId: WorkspaceId;
+  aiRecord: RequestDto;
+}
+
+/** POST /requests/{id}/close. */
+export interface RequestCloseRequest {
+  outcome: Outcome;
+}
+
+/** A single row on the Requests list. Columns are the caller's saved view (S24). */
+export interface RequestListRow {
+  id: RecordId;
+  eTag: string;
+  /** The saved view's columns, projected. Boundary-enforced (BS §22.4). */
+  columns: Record<string, unknown>;
+  /** SLA state — drives aging tint on rows. */
+  slaStatus?: SlaStatus;
+}

@@ -1,0 +1,14 @@
+/* McDermott motion — purposeful, felt-not-noticed. Nothing over 500ms in UI. */
+
+:root {
+  --duration-fast:        100ms; /* @kind other */
+  --duration-base:        200ms; /* @kind other */
+  --duration-slow:        300ms; /* @kind other */
+  --duration-deliberate:  500ms; /* @kind other */
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --ease-emphasis: cubic-bezier(0.2, 0, 0, 1); /* @kind other */
+  --ease-exit:     cubic-bezier(0.4, 0, 1, 1); /* @kind other */
+
+  --transition: var(--duration-base) var(--ease-standard);
+}

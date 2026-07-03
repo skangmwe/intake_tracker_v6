@@ -1,0 +1,2735 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>McDermott Design System — v1.4</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+  /* =========================================================
+     McDermott DESIGN TOKENS — declared on :root per spec
+     ========================================================= */
+  :root {
+    --color-navy: #000042;
+    --color-blue: #0018F2;
+    --color-white: #FFFFFF;
+    --color-magenta: #F48DFF;
+    --color-orange: #FC561D;
+    --color-gold: #E5AC2E;
+    --color-teal: #00E2C1;
+    --color-neon: #D2FF3E;
+    --color-pale-gold: #F9E9D2;
+    --color-pale-magenta: #FFEDFF;
+    --color-pale-orange: #FFE2DE;
+    --color-pale-blue: #E2E8FF;
+    --color-pale-success: #DCF1D2;
+    --color-navy-gray-1: #EBEBF2;
+    --color-navy-gray-2: #DEDEE5;
+    --color-navy-gray-3: #D2D2D9;
+    --color-error: #FF3333;
+    --color-success: #75D957;
+    --color-warning: #F1E53C;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-mix: Georgia, 'Times New Roman', serif;
+    --font-serif: Georgia, serif;
+
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px; --space-9: 96px;
+
+    --sidebar-w: 260px;
+    --control-h: 40px;
+    --radius: 2px;
+    --radius-pill: 999px;
+
+    --duration-fast: 100ms;
+    --duration-base: 200ms;
+    --duration-slow: 300ms;
+    --duration-deliberate: 500ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    --transition: var(--duration-base) var(--ease-standard);
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+  }
+
+  :root[data-theme="light"] {
+    --bg-page: #F7F7FC;
+    --bg-surface: #FFFFFF;
+    --bg-sidebar: var(--color-navy);
+    --text-primary: var(--color-navy);
+    --text-secondary: rgba(0, 0, 66, 0.65);
+    --accent-interactive: var(--color-blue);
+    --icon-default: var(--color-navy);
+    --border-light: #E5E5EE;
+    --border-button: #D9D9D9;
+    --focus-ring: var(--color-blue);
+    --scrim: rgba(0, 0, 66, 0.5);
+    --skeleton-base: #EBEBF2;
+    --skeleton-pulse: #DEDEE5;
+    --user-bubble-bg: var(--color-navy);
+    --user-bubble-fg: var(--color-white);
+    --btn-destructive-disabled-bg: #FFB3B3;
+    --btn-destructive-disabled-fg: rgba(0, 0, 66, 0.55);
+  }
+  :root[data-theme="dark"] {
+    --bg-page: #13134E;
+    --bg-surface: #1C1C66;
+    --bg-sidebar: #0D0D46;
+    --text-primary: var(--color-white);
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --accent-interactive: var(--color-teal);
+    --icon-default: var(--color-teal);
+    --border-light: #2C2C80;
+    --border-button: #4D4DA8;
+    --focus-ring: var(--color-teal);
+    --scrim: rgba(0, 0, 0, 0.6);
+    --skeleton-base: #2C2C80;
+    --skeleton-pulse: #3D3DA3;
+    --user-bubble-bg: var(--color-teal);
+    --user-bubble-fg: var(--color-navy);
+    --btn-destructive-disabled-bg: #4A1E1E;
+    --btn-destructive-disabled-fg: rgba(255, 255, 255, 0.45);
+  }
+
+  /* =========================================================
+     BASE & RESET
+     ========================================================= */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  /* overflow-x: clip on html (not body) so we don't break sticky positioning on body's children */
+  html { scroll-padding-top: 80px; max-width: 100vw; overflow-x: clip; }
+  body {
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    transition: background var(--transition), color var(--transition);
+    -webkit-font-smoothing: antialiased;
+    max-width: 100vw;
+  }
+  /* Defense in depth — major layout containers constrained, but NEVER add overflow to .app or .main (would break sidebar sticky positioning) */
+  .app { max-width: 100vw; min-width: 0; }
+  /* The bare <div> wrapping topbar+main is the sole grid item at <1024px. Without min-width:0 the 1fr track sizes to min-content (forcing a hard ~934px floor from things like the data-table), pushing the page past the viewport. */
+  .app-body { min-width: 0; max-width: 100%; }
+  section { max-width: 100%; min-width: 0; }
+  *:focus { outline: none; }
+  *:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  a { color: var(--accent-interactive); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+
+  /* =========================================================
+     APP LAYOUT
+     ========================================================= */
+  .app { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 100vh; }
+  .nav-sidebar {
+    background: var(--bg-sidebar);
+    color: var(--color-white);
+    padding: var(--space-6) var(--space-5);
+    position: sticky; top: 0;
+    height: 100vh; overflow-y: auto;
+  }
+  /* Compound selector wins specificity over .btn { display: inline-flex } */
+  .btn.hamburger-btn { display: none; }
+  @media (max-width: 1023px) {
+    .app { grid-template-columns: 1fr; }
+    /* Sidebar becomes a slide-in drawer on mobile */
+    .nav-sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: min(85vw, 320px);
+      height: 100vh;
+      z-index: 110;
+      transform: translateX(-100%);
+      transition: transform var(--duration-slow) var(--ease-emphasis);
+      box-shadow: var(--shadow-lg);
+    }
+    .nav-sidebar.open { transform: translateX(0); }
+    .btn.hamburger-btn { display: inline-flex; }
+  }
+  .nav-sidebar .lockup { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--color-white); min-width: 0; margin-bottom: var(--space-2); }
+  .nav-sidebar .lockup__symbol { width: 32px; height: 32px; flex-shrink: 0; }
+  .nav-sidebar .lockup__symbol svg { width: 100%; height: 100%; display: block; fill: currentColor; }
+  .nav-sidebar .lockup__divider { width: 1px; align-self: stretch; min-height: 24px; flex-shrink: 0; background: color-mix(in srgb, currentColor 22%, transparent); }
+  .nav-sidebar .lockup__name { font-family: var(--font-mix); font-size: 18px; line-height: 1.15; }
+  .nav-sidebar .brand-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; margin-bottom: var(--space-7); }
+  .nav-sidebar nav { display: flex; flex-direction: column; gap: var(--space-1); }
+  .nav-sidebar nav a {
+    color: var(--color-white); text-decoration: none;
+    font-family: var(--font-mix); font-size: 16px;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    border-left: 3px solid transparent;
+    transition: all var(--transition);
+  }
+  .nav-sidebar nav a:hover { color: var(--color-teal); }
+  .nav-sidebar nav a.active { border-left-color: var(--color-teal); background: rgba(255, 255, 255, 0.05); color: var(--color-teal); }
+  .nav-section-label { font-family: var(--font-sans); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-teal); margin: var(--space-4) 0 var(--space-1); padding-left: var(--space-3); opacity: 0.85; }
+  .nav-section-label:first-of-type { margin-top: 0; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--bg-surface); border-bottom: 1px solid var(--border-light);
+    padding: var(--space-3) var(--space-7);
+    display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);
+  }
+  .topbar-left { display: flex; align-items: center; gap: var(--space-3); min-width: 0; flex: 1; }
+  .topbar .crumbs { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); display: flex; align-items: center; gap: var(--space-2); min-width: 0; overflow: hidden; }
+  .topbar .crumbs i { font-size: 14px; flex-shrink: 0; }
+  .topbar .crumbs span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar .actions { display: flex; gap: var(--space-2); align-items: center; flex-shrink: 0; }
+  @media (max-width: 640px) {
+    .topbar { padding: var(--space-3); }
+    .topbar .crumbs span:first-child,
+    .topbar .crumbs i { display: none; }
+  }
+  .main { padding: var(--space-7) var(--space-7) var(--space-9); max-width: min(100%, 1200px); min-width: 0; }
+  @media (max-width: 1023px) {
+    .main { padding: var(--space-5) var(--space-4) var(--space-9); }
+    .topbar { padding: var(--space-3) var(--space-4); }
+  }
+
+  /* =========================================================
+     TYPOGRAPHY UTILITIES
+     ========================================================= */
+  .display { font-family: var(--font-mix); font-size: 64px; line-height: 0.95; letter-spacing: -0.04em; margin: 0 0 var(--space-5); }
+  .h1 { font-family: var(--font-mix); font-size: 44px; line-height: 1.05; letter-spacing: -0.03em; margin: 0; }
+  .h2 { font-family: var(--font-mix); font-size: 32px; line-height: 1.1; letter-spacing: -0.02em; margin: 0; }
+  .h3 { font-family: var(--font-mix); font-size: 24px; line-height: 1.2; margin: 0; }
+  .body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; }
+  .body-lg { font-family: var(--font-sans); font-size: 20px; line-height: 1.4; font-weight: 300; }
+  .eyebrow { font-family: var(--font-sans); font-size: 13px; font-weight: 300; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin: 0 0 var(--space-3); }
+  .caption { font-family: var(--font-sans); font-size: 13px; color: var(--text-secondary); }
+  @media (max-width: 768px) {
+    .display { font-size: 44px; }
+    .h1 { font-size: 32px; }
+    .h2 { font-size: 26px; }
+  }
+  @media (max-width: 480px) {
+    .display { font-size: 32px; word-break: break-word; overflow-wrap: anywhere; }
+    .h1 { font-size: 26px; word-break: break-word; }
+    .h2 { font-size: 22px; word-break: break-word; }
+    .h3 { font-size: 20px; }
+  }
+
+  /* =========================================================
+     SECTIONS
+     ========================================================= */
+  section { margin-bottom: var(--space-9); scroll-margin-top: var(--space-7); }
+  .section-head { margin-bottom: var(--space-6); padding-bottom: var(--space-5); border-bottom: 1px solid var(--border-light); }
+  .section-head .h2 { margin-bottom: var(--space-2); }
+  .section-head .body { color: var(--text-secondary); max-width: 64ch; }
+  .subsection { margin-top: var(--space-7); }
+  .subsection-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin: 0 0 var(--space-4); }
+
+  .row { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%; }
+  .stack { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; max-width: 100%; }
+
+  /* =========================================================
+     COLOR SWATCHES
+     ========================================================= */
+  .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--space-4); }
+  .swatch { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; transition: transform var(--transition), box-shadow var(--transition); }
+  .swatch:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .swatch .chip { height: 88px; width: 100%; }
+  .swatch .meta { padding: var(--space-3); }
+  .swatch .meta .name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: var(--space-1); }
+  .swatch .meta .token { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
+  .swatch .meta .hex { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-secondary); margin-top: var(--space-1); }
+
+  /* =========================================================
+     BUTTONS — FIXED: nowrap, capped icon size, destructive variant
+     ========================================================= */
+  .btn {
+    font-family: var(--font-sans);
+    font-size: 14px; font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: var(--radius);
+    min-width: 140px; height: 36px;
+    padding: 0 var(--space-4);
+    border: none; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: var(--space-2);
+    white-space: nowrap;
+    transition: background var(--transition), color var(--transition), border-color var(--transition);
+  }
+  .btn i { font-size: 16px; line-height: 1; }
+  .btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+  .btn:disabled, .btn[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+  .btn[data-loading="true"] { pointer-events: none; }
+  .btn[data-loading="true"] i { animation: spin 800ms linear infinite; }
+
+  .btn-primary { background: var(--accent-interactive); color: var(--color-white); }
+  .btn-primary:hover { background: var(--color-navy); color: var(--color-white); }
+  [data-theme="dark"] .btn-primary { background: var(--color-teal); color: var(--color-navy); }
+  [data-theme="dark"] .btn-primary:hover { background: var(--color-white); color: var(--color-navy); }
+
+  .btn-secondary { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-button); }
+  [data-theme="dark"] .btn-secondary { background: transparent; border-color: var(--border-button); color: var(--text-primary); }
+  .btn-secondary:hover { background: var(--color-navy); color: var(--color-white); border-color: var(--color-navy); }
+  [data-theme="dark"] .btn-secondary:hover { background: var(--color-teal); color: var(--color-navy); border-color: var(--color-teal); }
+
+  .btn-destructive { background: var(--color-error); color: var(--color-navy); }
+  .btn-destructive:hover { background: #E62929; color: var(--color-navy); }
+  /* Disabled destructive: explicit muted color, not opacity (which gets muddy in dark mode) */
+  .btn-destructive:disabled, .btn-destructive[aria-disabled="true"] { opacity: 1; background: var(--btn-destructive-disabled-bg); color: var(--btn-destructive-disabled-fg); cursor: not-allowed; pointer-events: none; }
+
+  .btn-icon { min-width: 0; width: 36px; padding: 0; }
+  /* Below 480px the 140px floor forces side-by-side .btn pairs to overflow. Drop the floor; nowrap still applies so labels stay one line. */
+  @media (max-width: 480px) {
+    .btn { min-width: 0; }
+  }
+
+  /* Demo state attributes — preview hover/focus across themes in the showcase */
+  .btn[data-state="focus"] { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+  .btn-primary[data-state="hover"] { background: var(--color-navy); color: var(--color-white); }
+  [data-theme="dark"] .btn-primary[data-state="hover"] { background: var(--color-white); color: var(--color-navy); }
+  .btn-secondary[data-state="hover"] { background: var(--color-navy); color: var(--color-white); border-color: var(--color-navy); }
+  [data-theme="dark"] .btn-secondary[data-state="hover"] { background: var(--color-teal); color: var(--color-navy); border-color: var(--color-teal); }
+  .btn-destructive[data-state="hover"] { background: #E62929; color: var(--color-navy); }
+
+  /* =========================================================
+     LINKS
+     ========================================================= */
+  .link-cta { font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; font-size: 16px; color: var(--text-primary); text-decoration: none; display: inline-flex; align-items: center; gap: var(--space-2); transition: color var(--transition); }
+  .link-cta:hover { color: var(--accent-interactive); }
+  .link-hyper { font-weight: 300; font-size: 18px; text-decoration: underline; color: var(--text-primary); transition: color var(--transition); }
+  .link-hyper:hover { color: var(--accent-interactive); }
+  .link-title { font-weight: 300; font-size: 18px; letter-spacing: -0.02em; color: var(--text-primary); text-decoration: none; transition: color var(--transition); }
+  .link-title:hover { color: var(--accent-interactive); }
+
+  /* =========================================================
+     FORMS
+     ========================================================= */
+  .field { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-4); }
+  .field label { font-size: 14px; color: var(--text-primary); }
+  .field .helper { font-size: 13px; color: var(--text-secondary); }
+  .field .error-msg {
+    font-size: 13px; background: var(--color-pale-orange);
+    border-left: 3px solid var(--color-error);
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-navy);
+    display: flex; gap: var(--space-2); align-items: flex-start;
+  }
+  .input, .select, textarea {
+    font-family: var(--font-sans); font-size: 16px;
+    height: var(--control-h); padding: 0 var(--space-3);
+    background: var(--bg-surface); color: var(--text-primary);
+    border: 1px solid var(--border-light); border-radius: var(--radius);
+    transition: border-color var(--transition);
+  }
+  textarea { padding: var(--space-3); height: auto; min-height: 96px; resize: vertical; }
+  .input:hover, .select:hover, textarea:hover { border-color: var(--text-secondary); }
+  .input:focus-visible, .select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-color: var(--border-light); }
+  .input.has-error { border-color: var(--color-error); }
+  .input:disabled { opacity: 0.4; cursor: not-allowed; }
+  .input-group { position: relative; width: 100%; }
+  .input-group > i { position: absolute; left: var(--space-3); top: 50%; transform: translateY(-50%); color: var(--icon-default); font-size: 18px; pointer-events: none; }
+  .input-group .input { padding-left: 40px; padding-right: 40px; width: 100%; }
+  /* Hide native search clear (Safari/Chrome render with gradient + thicker stroke) */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+  .input-clear { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--icon-default); padding: 4px; border-radius: var(--radius); display: none; align-items: center; justify-content: center; }
+  .input-clear i { font-size: 16px; }
+  .input-clear:hover { background: var(--color-navy-gray-1); }
+  [data-theme="dark"] .input-clear:hover { background: rgba(255,255,255,0.06); }
+  .input-group.has-value .input-clear { display: inline-flex; }
+  .check-row { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); min-height: 24px; }
+  /* WCAG 2.5.8 AA: minimum 24×24 touch target */
+  .check { width: 24px; height: 24px; border: 2px solid var(--text-primary); border-radius: var(--radius); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: var(--bg-surface); }
+  .check:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  .check.checked { background: var(--accent-interactive); border-color: var(--accent-interactive); }
+  .check.checked::after { content: ''; width: 12px; height: 7px; border-left: 2px solid var(--color-white); border-bottom: 2px solid var(--color-white); transform: rotate(-45deg) translate(1px, -1px); }
+  [data-theme="dark"] .check.checked::after { border-color: var(--color-navy); }
+  .radio { border-radius: 999px; }
+  .radio.checked { background: var(--bg-surface); }
+  .radio.checked::after { content: ''; width: 12px; height: 12px; border-radius: 999px; background: var(--accent-interactive); border: none; transform: none; }
+  .toggle { position: relative; width: 44px; height: 24px; background: var(--color-navy-gray-2); border-radius: 999px; cursor: pointer; transition: background var(--transition); flex-shrink: 0; }
+  .toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: var(--color-white); border-radius: 999px; transition: transform var(--transition); box-shadow: var(--shadow-sm); }
+  .toggle.on { background: var(--accent-interactive); }
+  .toggle.on::after { transform: translateX(20px); }
+
+  /* =========================================================
+     CARDS
+     ========================================================= */
+  /* min(100%, 280px) so a single column on tiny screens collapses to viewport width instead of forcing 280px */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: var(--space-5); }
+  .card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; transition: transform var(--transition), box-shadow var(--transition); min-width: 0; }
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .card .top-stroke { height: 30px; width: 100%; }
+  .card .image-fill { height: 200px; background: linear-gradient(135deg, var(--color-pale-blue), var(--color-pale-magenta)); display: flex; align-items: center; justify-content: center; font-family: var(--font-mix); font-size: 64px; color: var(--color-navy); }
+  .card .text-area { padding: var(--space-5); }
+  .card .eyebrow-text { font-size: 14px; font-weight: 300; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: var(--space-2); }
+  .card .card-title { font-family: var(--font-mix); font-size: 28px; line-height: 1; letter-spacing: -0.04em; color: var(--text-primary); margin: 0 0 var(--space-3); word-break: break-word; }
+  .card .card-body { font-size: 16px; font-weight: 300; line-height: 1.4; color: var(--text-secondary); margin: 0; }
+
+  /* =========================================================
+     BADGES
+     ========================================================= */
+  .badge { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+  .badge.live { background: var(--color-pale-success); color: var(--color-navy); }
+  .badge.warning { background: var(--color-pale-gold); color: var(--color-navy); }
+  .badge.error { background: var(--color-pale-orange); color: var(--color-navy); }
+  .badge.draft { background: transparent; border: 1px solid var(--border-light); color: var(--text-primary); padding: 3px var(--space-3); }
+  .badge.archived { background: transparent; border: 1px solid var(--border-light); color: var(--text-secondary); padding: 3px var(--space-3); }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-success); flex-shrink: 0; }
+
+  /* =========================================================
+     ALERTS
+     ========================================================= */
+  .alert { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border-left: 4px solid; border-radius: var(--radius); color: var(--color-navy); margin-bottom: var(--space-3); }
+  .alert i { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+  .alert .alert-body { flex: 1; }
+  .alert .alert-title { font-weight: 600; margin-bottom: var(--space-1); }
+  .alert.info { background: var(--color-pale-blue); border-color: var(--color-blue); }
+  .alert.success { background: var(--color-pale-success); border-color: var(--color-success); }
+  .alert.warning { background: var(--color-pale-gold); border-color: var(--color-warning); }
+  .alert.error { background: var(--color-pale-orange); border-color: var(--color-error); }
+
+  /* =========================================================
+     ICONS GRID
+     ========================================================= */
+  .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 110px), 1fr)); gap: var(--space-3); }
+  .icon-cell { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-4); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); transition: border-color var(--transition); }
+  .icon-cell:hover { border-color: var(--accent-interactive); }
+  .icon-cell i { font-size: 24px; color: var(--icon-default); }
+  .icon-cell .name { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-secondary); }
+
+  /* =========================================================
+     TABS
+     ========================================================= */
+  /* Horizontal scroll on narrow widths preserves the row pattern (canonical for tabs) without overflow */
+  .tabs { display: flex; gap: var(--space-5); border-bottom: 1px solid var(--border-light); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+  .tabs::-webkit-scrollbar { height: 4px; }
+  .tabs::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: var(--radius-pill); }
+  .tab { background: none; border: none; padding: var(--space-3) 0; font-family: var(--font-sans); font-size: 14px; font-weight: 500; color: var(--text-secondary); cursor: pointer; position: relative; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color var(--transition), border-color var(--transition); white-space: nowrap; flex-shrink: 0; }
+  .tab:hover { color: var(--text-primary); }
+  .tab[aria-selected="true"] { color: var(--accent-interactive); border-bottom-color: var(--accent-interactive); }
+  .tab-panel { padding: var(--space-5) 0; }
+
+  /* =========================================================
+     STEPPERS — continuous track, four states, mobile-compact
+     ========================================================= */
+  .stepper { display: flex; align-items: flex-start; gap: 0; padding: var(--space-4) 0 var(--space-5); position: relative; min-width: 0; }
+  .stepper-item { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); position: relative; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
+  .stepper-item:focus-visible { outline: none; }
+  .stepper-item:focus-visible .stepper-circle { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+  .stepper-circle { width: 36px; height: 36px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-family: var(--font-sans); font-size: 13px; font-weight: 600; background: var(--bg-surface); border: 1.5px solid var(--border-light); color: var(--text-secondary); z-index: 1; position: relative; transition: background var(--transition), border-color var(--transition), color var(--transition); }
+  .stepper-circle i { font-size: 16px; }
+  .stepper-item.current .stepper-circle { background: var(--accent-interactive); border-color: var(--accent-interactive); color: var(--color-white); }
+  [data-theme="dark"] .stepper-item.current .stepper-circle { color: var(--color-navy); }
+  .stepper-item.completed .stepper-circle { background: var(--accent-interactive); border-color: var(--accent-interactive); color: var(--color-white); }
+  [data-theme="dark"] .stepper-item.completed .stepper-circle { color: var(--color-navy); }
+  .stepper-item.error .stepper-circle { background: var(--color-error); border-color: var(--color-error); color: var(--color-navy); }
+  .stepper-label { font-size: 13px; color: var(--text-secondary); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .stepper-item.current .stepper-label { color: var(--text-primary); font-weight: 500; }
+  .stepper-item.completed .stepper-label, .stepper-item.error .stepper-label { color: var(--text-primary); }
+  /* Connecting track — sits behind the circles, only between items */
+  .stepper-item:not(:last-child)::after { content: ''; position: absolute; top: 17.25px; left: calc(50% + 22px); right: calc(-50% + 22px); height: 1px; background: var(--border-light); z-index: 0; transition: background var(--transition); }
+  .stepper-item.completed:not(:last-child)::after { background: var(--accent-interactive); height: 2px; top: 17px; }
+
+  /* Mobile compact pattern */
+  @media (max-width: 640px) {
+    .stepper-circle { width: 28px; height: 28px; font-size: 12px; }
+    .stepper-circle i { font-size: 14px; }
+    .stepper-item:not(:last-child)::after { top: 13.25px; left: calc(50% + 18px); right: calc(-50% + 18px); }
+    .stepper-item.completed:not(:last-child)::after { top: 13px; }
+    .stepper-label { font-size: 11px; }
+  }
+
+  /* Active step content panel */
+  .stepper-panel { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-5); margin-top: var(--space-2); min-width: 0; max-width: 100%; }
+  .stepper-panel-title { font-family: var(--font-mix); font-size: 22px; line-height: 1.2; margin: 0 0 var(--space-2); color: var(--text-primary); }
+  .stepper-panel-body { margin: 0 0 var(--space-5); color: var(--text-secondary); font-size: 15px; line-height: 1.5; }
+  .stepper-actions { display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+  .stepper-actions-right { display: flex; gap: var(--space-2); margin-left: auto; flex-wrap: wrap; }
+
+  /* =========================================================
+     EMPTY STATES — FIXED: filtered-to-zero now uses pale fill
+     ========================================================= */
+  .empty { background: var(--color-pale-blue); border-radius: var(--radius); padding: var(--space-8) var(--space-5); text-align: center; color: var(--color-navy); }
+  .empty.subtle { background: var(--bg-surface); border: 1px solid var(--border-light); padding: var(--space-6) var(--space-5); color: var(--text-primary); }
+  .empty > i { font-size: 48px; color: var(--color-navy); margin-bottom: var(--space-4); display: inline-block; }
+  .empty .empty-title { font-family: var(--font-mix); font-size: 28px; line-height: 1.05; letter-spacing: -0.02em; color: var(--color-navy); margin: 0 0 var(--space-2); word-break: break-word; }
+  .empty.subtle .empty-title { font-size: 22px; color: var(--text-primary); }
+  .empty .empty-body { font-size: 16px; color: var(--color-navy); opacity: 0.75; margin: 0 0 var(--space-5); max-width: 40ch; margin-left: auto; margin-right: auto; }
+  .empty.subtle .empty-body { color: var(--text-secondary); opacity: 1; }
+  @media (max-width: 480px) {
+    .empty { padding: var(--space-6) var(--space-4); }
+    .empty .empty-title { font-size: 22px; }
+    .empty.subtle .empty-title { font-size: 20px; }
+  }
+
+  /* =========================================================
+     SKELETON — FIXED: theme-aware tones
+     ========================================================= */
+  .skeleton { background: var(--skeleton-base); border-radius: var(--radius); animation: skeleton-pulse 1.5s ease-in-out infinite; }
+  @keyframes skeleton-pulse { 0%, 100% { background: var(--skeleton-base); } 50% { background: var(--skeleton-pulse); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    /* Disable decorative loops outright */
+    .skeleton { animation: none; opacity: 0.6; }
+    .stream-cursor, .ai-thinking span, .toast { animation: none !important; }
+    /* Keep state transitions but make them instant — never disable transitions entirely */
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Decorative motion is opt-in: runs only when the user has NOT requested reduced motion. */
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+  .badge-new { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: var(--radius-pill, 999px); background: var(--color-pale-blue); color: var(--color-navy); font-family: var(--font-sans); font-size: 12px; font-weight: 600; }
+  @media (prefers-reduced-motion: no-preference) {
+    .badge-new { animation: pulse var(--duration-deliberate) var(--ease-emphasis) 2; }
+  }
+
+  /* Signature motion — loading & reveal (JS snaps it under reduced-motion) */
+  .seq-card { display: grid; gap: var(--space-4); padding: var(--space-5); border: 1px solid var(--border-light); border-radius: var(--radius); background: var(--bg-surface); max-width: 360px; }
+  .seq-kpi-label { font-family: var(--font-sans); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+  .seq-kpi-num { font-family: var(--font-mix); font-size: 44px; line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .seq-list { position: relative; display: grid; gap: var(--space-2); }
+  .seq-skeleton { position: absolute; inset: 0; display: grid; gap: var(--space-2); }
+  .seq-skeleton span { height: 22px; border-radius: var(--radius); background: var(--skeleton-base); }
+  .seq-item { height: 22px; border-radius: var(--radius); background: var(--color-pale-blue); opacity: 0; transform: translateY(8px); }
+  .seq-item.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .seq-skeleton { transition: opacity var(--duration-base) var(--ease-standard); }
+    .seq-item { transition: opacity var(--duration-base) var(--ease-emphasis), transform var(--duration-base) var(--ease-emphasis); }
+  }
+
+  /* =========================================================
+     SCRIM, MODAL, SHEET — FIXED: dialog IDs no longer collide with section IDs
+     ========================================================= */
+  .scrim { position: fixed; inset: 0; background: var(--scrim); backdrop-filter: blur(4px); z-index: 100; opacity: 0; pointer-events: none; transition: opacity var(--duration-slow) var(--ease-emphasis); }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+
+  .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.96); background: var(--bg-surface); border-radius: var(--radius); padding: var(--space-6); width: min(90vw, 480px); z-index: 110; opacity: 0; pointer-events: none; transition: opacity var(--duration-slow) var(--ease-emphasis), transform var(--duration-slow) var(--ease-emphasis); box-shadow: var(--shadow-lg); }
+  .modal.open { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+  .modal .modal-title { font-family: var(--font-mix); font-size: 24px; margin: 0 0 var(--space-3); color: var(--text-primary); }
+  .modal .modal-body { font-size: 16px; color: var(--text-secondary); margin: 0 0 var(--space-5); }
+  .modal .modal-actions { display: flex; justify-content: flex-end; gap: var(--space-3); flex-wrap: wrap; }
+
+  .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(90vw, 420px); background: var(--bg-surface); z-index: 110; transform: translateX(100%); transition: transform var(--duration-slow) var(--ease-emphasis); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+  .sheet.open { transform: translateX(0); }
+  .sheet .sheet-head { padding: var(--space-5); border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; }
+  .sheet .sheet-head h3 { font-family: var(--font-mix); font-size: 22px; margin: 0; color: var(--text-primary); }
+  .sheet .sheet-body { padding: var(--space-5); overflow-y: auto; flex: 1; }
+
+  /* =========================================================
+     POPOVER
+     ========================================================= */
+  .popover-anchor { position: relative; display: inline-block; }
+  /* min-width gives a comfortable click target on desktop; max-width prevents off-screen extension on narrow */
+  .popover { position: absolute; top: calc(100% + var(--space-2)); left: 0; background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); box-shadow: var(--shadow-md); min-width: 220px; max-width: calc(100vw - var(--space-5) * 2); padding: var(--space-2); z-index: 90; opacity: 0; pointer-events: none; transform: translateY(-4px); transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard); }
+  .popover.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .popover .menu-item { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); font-size: 14px; color: var(--text-primary); cursor: pointer; border-radius: var(--radius); text-decoration: none; }
+  .popover .menu-item:hover { background: var(--color-navy-gray-1); color: var(--color-navy); }
+  .popover .menu-item.destructive { color: #B00020; }
+  .popover .menu-item i { font-size: 16px; }
+
+  /* =========================================================
+     TOAST
+     ========================================================= */
+  /* On narrow viewports the toast must not extend past the viewport — left edge respects the same gutter as right */
+  .toast-stack { position: fixed; bottom: var(--space-5); right: var(--space-5); left: auto; display: flex; flex-direction: column-reverse; gap: var(--space-2); z-index: 200; max-width: min(360px, calc(100vw - var(--space-5) * 2)); }
+  .toast { background: var(--bg-surface); border-left: 4px solid; border-radius: var(--radius); padding: var(--space-3) var(--space-4); display: flex; align-items: center; gap: var(--space-3); box-shadow: var(--shadow-md); color: var(--text-primary); font-size: 14px; animation: toast-in var(--duration-slow) var(--ease-emphasis); }
+  .toast.info { border-color: var(--color-blue); }
+  .toast.success { border-color: var(--color-success); }
+  .toast.warning { border-color: var(--color-warning); }
+  .toast.error { border-color: var(--color-error); }
+  .toast i { font-size: 20px; }
+  .toast .toast-msg { flex: 1; }
+  .toast .toast-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0; font-size: 18px; line-height: 1; }
+  @keyframes toast-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* =========================================================
+     SPACING DEMO
+     ========================================================= */
+  .spacing-row { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-light); }
+  .spacing-row:last-child { border: none; }
+  .spacing-row .name { width: 90px; font-family: ui-monospace, monospace; font-size: 13px; color: var(--text-secondary); }
+  .spacing-row .px { width: 60px; font-family: ui-monospace, monospace; font-size: 13px; color: var(--text-secondary); }
+  .spacing-row .visual { background: var(--accent-interactive); height: 16px; border-radius: var(--radius); }
+
+  /* =========================================================
+     ANTI-PATTERNS
+     ========================================================= */
+  .anti-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: var(--space-4); }
+  .anti-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-4); border-left: 4px solid var(--color-error); }
+  .anti-card .anti-tag { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-error); margin-bottom: var(--space-2); }
+  .anti-card .anti-title { font-weight: 600; margin: 0 0 var(--space-1); }
+  .anti-card .anti-body { font-size: 14px; color: var(--text-secondary); margin: 0; }
+
+  .spec { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-4); font-family: ui-monospace, monospace; font-size: 13px; color: var(--text-secondary); margin-top: var(--space-3); overflow-x: auto; }
+
+  /* =========================================================
+     DATA VISUALIZATION
+     ========================================================= */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: var(--space-4); }
+  .kpi { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-5); min-width: 0; }
+  .kpi .kpi-label { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: var(--space-3); font-weight: 300; }
+  /* word-break covers the long-number edge case ($1,234,567) without breaking 'normal' values */
+  .kpi .kpi-value { font-family: var(--font-mix); font-size: 48px; line-height: 1; letter-spacing: -0.03em; color: var(--text-primary); margin-bottom: var(--space-2); word-break: break-word; }
+  @media (max-width: 480px) { .kpi .kpi-value { font-size: 36px; } }
+  .kpi .kpi-delta { font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: var(--space-1); }
+  .kpi .kpi-delta.up { color: #1F7A1F; }
+  .kpi .kpi-delta.down { color: #B00020; }
+  [data-theme="dark"] .kpi .kpi-delta.up { color: var(--color-success); }
+  [data-theme="dark"] .kpi .kpi-delta.down { color: #FF6B6B; }
+  .kpi .kpi-spark { margin-top: var(--space-3); height: 36px; }
+
+  .bar-chart { display: flex; flex-direction: column; gap: var(--space-3); }
+  .bar-row { display: grid; grid-template-columns: 100px 1fr 60px; align-items: center; gap: var(--space-3); }
+  .bar-row .bar-label { font-size: 13px; color: var(--text-primary); min-width: 0; overflow-wrap: anywhere; }
+  .bar-row .bar-track { background: var(--color-navy-gray-1); border-radius: var(--radius); height: 24px; overflow: hidden; min-width: 0; }
+  [data-theme="dark"] .bar-row .bar-track { background: var(--border-light); }
+  .bar-row .bar-fill { background: var(--accent-interactive); height: 100%; border-radius: var(--radius); }
+  .bar-row .bar-value { font-family: ui-monospace, monospace; font-size: 13px; color: var(--text-secondary); text-align: right; }
+  /* On narrow widths a fixed 100px label column is too greedy — stack label above the bar with value inline at the right */
+  @media (max-width: 480px) {
+    .bar-row { grid-template-columns: 1fr auto; grid-template-areas: "label value" "track track"; gap: var(--space-1) var(--space-3); }
+    .bar-row .bar-label { grid-area: label; }
+    .bar-row .bar-value { grid-area: value; }
+    .bar-row .bar-track { grid-area: track; }
+  }
+
+  .data-table { font-family: var(--font-sans); width: 100%; min-width: 900px; border-collapse: collapse; font-size: 14px; }
+  .data-table th { text-align: left; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); padding: var(--space-3); border-bottom: 1px solid var(--border-light); white-space: nowrap; background: var(--bg-surface); position: sticky; top: 0; z-index: 1; }
+  .data-table th.num { text-align: right; }
+  .data-table td { padding: var(--space-3); border-bottom: 1px solid var(--border-light); color: var(--text-primary); }
+  .data-table td.num { text-align: right; font-family: ui-monospace, monospace; }
+  .data-table tbody tr:hover { background: var(--color-navy-gray-1); }
+  [data-theme="dark"] .data-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+  .data-table tbody tr[aria-selected="true"] { background: var(--color-pale-blue); }
+  .data-table tbody tr[aria-selected="true"] td { color: var(--color-navy); }
+  [data-theme="dark"] .data-table tbody tr[aria-selected="true"] { background: rgba(0,24,242,0.18); }
+  [data-theme="dark"] .data-table tbody tr[aria-selected="true"] td { color: var(--color-white); }
+
+  /* TABLE SYSTEM — toolbar, bulk-bar, filters, scroll shell, pagination */
+  .table-system { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; max-width: 100%; }
+  .table-toolbar { display: flex; gap: var(--space-3); align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .table-toolbar .input-group { max-width: 360px; flex: 1 1 240px; min-width: 0; }
+  .table-toolbar-right { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+  .table-bulk-bar { display: none; padding: var(--space-3) var(--space-4); background: var(--color-pale-blue); border-radius: var(--radius); align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); color: var(--color-navy); }
+  .table-bulk-bar.active { display: flex; }
+  .table-bulk-bar .bulk-info { display: flex; gap: var(--space-3); align-items: center; font-size: 14px; color: var(--color-navy); }
+  .table-bulk-bar .bulk-info strong { font-weight: 600; }
+  .table-bulk-bar .bulk-info button { background: none; border: none; color: var(--color-navy); text-decoration: underline; font-family: var(--font-sans); font-size: 13px; cursor: pointer; padding: 0; }
+  .table-bulk-bar .bulk-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+  .table-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; min-height: 0; }
+  .table-filters:empty { display: none; }
+  .filter-chip { display: inline-flex; align-items: center; gap: 0; padding: var(--space-1) 0 var(--space-1) var(--space-3); border-radius: var(--radius-pill); background: var(--color-pale-blue); color: var(--color-navy); font-size: 12px; font-weight: 500; }
+  .filter-chip-remove { background: none; border: none; padding: 4px 8px; cursor: pointer; color: var(--color-navy); display: inline-flex; align-items: center; }
+  .filter-chip-remove i { font-size: 14px; }
+
+  .table-shell {
+    position: relative;
+    overflow: auto;
+    max-height: 480px;
+    min-width: 0;       /* CRITICAL: lets flex item shrink below table's 900px min-width so overflow:auto can trigger */
+    max-width: 100%;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius) var(--radius) 0 0;
+    background:
+      linear-gradient(to right, var(--bg-surface), transparent 40px) left center,
+      linear-gradient(to left, var(--bg-surface), transparent 40px) right center,
+      linear-gradient(to right, rgba(0,0,66,0.12), transparent) left center,
+      linear-gradient(to left, rgba(0,0,66,0.12), transparent) right center;
+    background-repeat: no-repeat;
+    background-size: 40px 100%, 40px 100%, 20px 100%, 20px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+  [data-theme="dark"] .table-shell {
+    background:
+      linear-gradient(to right, var(--bg-surface), transparent 40px) left center,
+      linear-gradient(to left, var(--bg-surface), transparent 40px) right center,
+      linear-gradient(to right, rgba(0,0,0,0.7), transparent) left center,
+      linear-gradient(to left, rgba(0,0,0,0.7), transparent) right center;
+    background-repeat: no-repeat;
+    background-size: 40px 100%, 40px 100%, 24px 100%, 24px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+
+  /* Sortable headers */
+  .data-table th[aria-sort] { cursor: pointer; user-select: none; transition: color var(--transition); }
+  .data-table th[aria-sort]:hover { color: var(--text-primary); }
+  .data-table th .sort-icon { display: inline-block; vertical-align: middle; margin-left: 4px; opacity: 0.3; font-size: 12px; transition: opacity var(--transition); }
+  .data-table th[aria-sort]:hover .sort-icon { opacity: 0.6; }
+  .data-table th[aria-sort="ascending"] .sort-icon,
+  .data-table th[aria-sort="descending"] .sort-icon { opacity: 1; color: var(--accent-interactive); }
+
+  /* Selection column */
+  .data-table th.col-check, .data-table td.col-check { width: 40px; padding-right: 0; }
+  .data-table .row-check { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-interactive); }
+
+  /* Actions column */
+  .data-table th.col-actions, .data-table td.col-actions { width: 72px; text-align: right; padding-left: 0; white-space: nowrap; }
+  .row-action-btn { width: 28px; height: 28px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius); display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: opacity var(--transition), background var(--transition), color var(--transition); }
+  .data-table tbody tr:hover .row-action-btn,
+  .data-table tbody tr:focus-within .row-action-btn { opacity: 1; }
+  .row-action-btn:hover { background: var(--color-navy-gray-1); color: var(--text-primary); }
+  [data-theme="dark"] .row-action-btn:hover { background: rgba(255,255,255,0.06); }
+  .row-action-btn i { font-size: 18px; }
+  .row-open-btn { width: 28px; height: 28px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius); display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: opacity var(--transition), background var(--transition), color var(--transition); }
+  .data-table tbody tr:hover .row-open-btn,
+  .data-table tbody tr:focus-within .row-open-btn { opacity: 1; }
+  .row-open-btn:hover { background: var(--color-navy-gray-1); color: var(--text-primary); }
+  [data-theme="dark"] .row-open-btn:hover { background: rgba(255,255,255,0.06); }
+  .row-open-btn[aria-expanded="true"] { opacity: 1; color: var(--accent-interactive); }
+  .row-open-btn i { font-size: 18px; }
+
+  /* Pagination */
+  .table-pagination { display: flex; justify-content: space-between; align-items: center; padding: var(--space-2) var(--space-4); border: 1px solid var(--border-light); border-top: none; border-radius: 0 0 var(--radius) var(--radius); background: var(--bg-surface); flex-wrap: wrap; gap: var(--space-2); }
+  .table-pagination-count { font-size: 13px; color: var(--text-secondary); }
+  .table-pagination-nav { display: flex; gap: var(--space-1); }
+  .pagination-btn { width: 32px; height: 32px; border: 1px solid transparent; background: transparent; color: var(--text-primary); border-radius: var(--radius); cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-sans); }
+  .pagination-btn:hover { border-color: var(--border-light); }
+  .pagination-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pagination-btn[aria-current="page"] { background: var(--accent-interactive); color: var(--color-white); border-color: var(--accent-interactive); }
+  [data-theme="dark"] .pagination-btn[aria-current="page"] { color: var(--color-navy); }
+
+  /* In-table empty state */
+  .table-empty-row td { padding: var(--space-7) var(--space-4); text-align: center; color: var(--text-secondary); }
+  .table-empty-row .empty-text { font-size: 14px; margin-bottom: var(--space-3); }
+
+  /* =========================================================
+     AI SURFACES
+     ========================================================= */
+  .ai-empty { background: var(--color-pale-blue); border-radius: var(--radius); padding: var(--space-7) var(--space-5); text-align: center; color: var(--color-navy); }
+  .ai-empty .ai-empty-title { font-family: var(--font-mix); font-size: 28px; line-height: 1.05; color: var(--color-navy); margin: 0 0 var(--space-2); word-break: break-word; }
+  .ai-empty .ai-empty-body { font-size: 15px; color: var(--color-navy); opacity: 0.75; margin: 0 0 var(--space-5); }
+  @media (max-width: 480px) {
+    .ai-empty { padding: var(--space-6) var(--space-4); }
+    .ai-empty .ai-empty-title { font-size: 22px; }
+  }
+  .prompt-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: center; }
+  .prompt-chip { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-pill); padding: var(--space-2) var(--space-4); font-size: 13px; color: var(--text-primary); cursor: pointer; transition: border-color var(--transition), color var(--transition); white-space: nowrap; }
+  .prompt-chip:hover { border-color: var(--accent-interactive); color: var(--accent-interactive); }
+
+  .chat { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; overflow: hidden; }
+  .msg-user { display: flex; justify-content: flex-end; min-width: 0; }
+  .msg-user .bubble { background: var(--user-bubble-bg); color: var(--user-bubble-fg); padding: var(--space-3) var(--space-4); border-radius: var(--radius); max-width: 70%; font-size: 15px; overflow-wrap: break-word; }
+  .msg-ai { display: flex; flex-direction: column; gap: var(--space-2); max-width: 100%; min-width: 0; }
+  .msg-ai .ai-tag { display: inline-flex; align-items: center; gap: var(--space-1); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); }
+  .msg-ai .ai-tag i { font-size: 12px; color: var(--accent-interactive); }
+  .msg-ai .ai-body { font-size: 15px; color: var(--text-primary); line-height: 1.55; white-space: pre-wrap; overflow-wrap: break-word; }
+  .msg-ai .ai-body sup.cite { color: var(--accent-interactive); font-weight: 600; cursor: pointer; padding: 0 2px; }
+  .msg-ai .stream-cursor { display: inline-block; width: 4px; height: 14px; background: var(--accent-interactive); vertical-align: middle; margin-left: 2px; animation: cursor-blink 1s steps(2) infinite; }
+  @keyframes cursor-blink { 50% { opacity: 0; } }
+  .ai-actions { display: flex; gap: var(--space-1); margin-top: var(--space-2); }
+  .ai-action { background: none; border: none; cursor: pointer; padding: var(--space-1); border-radius: var(--radius); color: var(--text-secondary); transition: color var(--transition), background var(--transition); display: inline-flex; align-items: center; gap: var(--space-1); font-size: 13px; }
+  .ai-action i { font-size: 16px; }
+  .ai-action:hover { color: var(--accent-interactive); background: var(--color-navy-gray-1); }
+  [data-theme="dark"] .ai-action:hover { background: rgba(255,255,255,0.06); }
+  .ai-action.active { color: var(--accent-interactive); }
+
+  .tool-call { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-3); display: flex; align-items: center; gap: var(--space-3); cursor: pointer; transition: border-color var(--transition); width: 100%; font-family: inherit; font-size: inherit; color: inherit; text-align: left; }
+  .tool-call:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  [data-theme="dark"] .tool-call { background: rgba(255,255,255,0.03); }
+  .tool-call:hover { border-color: var(--accent-interactive); }
+  .tool-call .tool-icon { width: 32px; height: 32px; background: var(--color-pale-blue); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .tool-call .tool-icon i { font-size: 18px; color: var(--color-navy); }
+  .tool-call .tool-name { font-weight: 500; font-size: 14px; color: var(--text-primary); white-space: nowrap; }
+  .tool-call .tool-summary { font-size: 13px; color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tool-call .tool-status { font-size: 18px; }
+  .tool-call .tool-status.ok { color: #1F7A1F; }
+  [data-theme="dark"] .tool-call .tool-status.ok { color: var(--color-success); }
+  .tool-call .tool-status.spin { color: var(--accent-interactive); animation: spin 800ms linear infinite; }
+  .tool-detail { background: var(--bg-surface); border: 1px solid var(--border-light); border-top: none; border-radius: 0 0 var(--radius) var(--radius); padding: var(--space-3); font-family: ui-monospace, monospace; font-size: 12px; color: var(--text-secondary); display: none; overflow-wrap: anywhere; }
+  .tool-detail.open { display: block; }
+
+  .followups { display: flex; gap: var(--space-2); margin-top: var(--space-3); flex-wrap: wrap; }
+  .followup { background: transparent; border: 1px solid var(--border-light); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); font-size: 12px; cursor: pointer; color: var(--text-primary); transition: border-color var(--transition), color var(--transition); white-space: nowrap; }
+  .followup:hover { border-color: var(--accent-interactive); color: var(--accent-interactive); }
+
+  .source-list { display: inline-block; margin-top: var(--space-3); color: var(--text-secondary); }
+  .source-list > summary { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: var(--space-1); }
+  .source-list > summary::-webkit-details-marker { display: none; }
+  .source-list > summary::after { content: '\203A'; font-size: 14px; line-height: 1; transition: transform var(--duration-base) var(--ease-standard); }
+  .source-list[open] > summary { margin-bottom: var(--space-2); }
+  .source-list[open] > summary::after { transform: rotate(90deg); }
+  .source-list > summary:hover { color: var(--text-primary); }
+  .source-list > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  .source-list .source-count { opacity: 0.6; }
+  .source-list ol { margin: 0; padding-left: var(--space-5); font-size: 13px; color: var(--text-primary); }
+  .source-list ol li { margin-bottom: var(--space-1); }
+  .source-list a { color: var(--accent-interactive); text-decoration: underline; }
+
+  .chat-input { display: flex; gap: var(--space-2); padding: var(--space-3); background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); }
+  .chat-input .chat-icon-btn { width: 36px; height: 36px; border: none; background: transparent; color: var(--icon-default); cursor: pointer; border-radius: var(--radius); display: inline-flex; align-items: center; justify-content: center; }
+  .chat-input .chat-icon-btn i { font-size: 18px; }
+  .chat-input .chat-icon-btn:hover { background: var(--color-navy-gray-1); }
+  [data-theme="dark"] .chat-input .chat-icon-btn:hover { background: rgba(255,255,255,0.06); }
+  /* min-width: 0 stops the input's intrinsic ~200px size from pushing the send button off-screen at narrow widths */
+  .chat-input input { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-primary); font-family: var(--font-sans); font-size: 15px; padding: 0 var(--space-2); }
+  .chat-input input:focus-visible { outline: none; }
+
+  .ai-thinking { display: inline-flex; align-items: center; gap: 4px; }
+  .ai-thinking span { width: 6px; height: 6px; background: var(--accent-interactive); border-radius: 50%; animation: dot-pulse 1.4s infinite ease-in-out both; }
+  .ai-thinking span:nth-child(1) { animation-delay: -0.32s; }
+  .ai-thinking span:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes dot-pulse { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+  .permission { background: var(--bg-surface); border: 1px solid var(--border-light); border-left: 4px solid var(--accent-interactive); border-radius: var(--radius); padding: var(--space-5); }
+  .permission .permission-title { font-family: var(--font-mix); font-size: 22px; margin: 0 0 var(--space-3); color: var(--text-primary); }
+  .permission .permission-detail { background: var(--color-pale-blue); border-radius: var(--radius); padding: var(--space-3); font-size: 13px; color: var(--color-navy); margin-bottom: var(--space-4); display: grid; grid-template-columns: 80px 1fr; gap: var(--space-2) var(--space-3); overflow-wrap: anywhere; }
+  .permission .permission-detail .label { color: var(--color-navy); opacity: 0.65; text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; padding-top: 2px; }
+  @media (max-width: 480px) {
+    .permission .permission-detail { grid-template-columns: 1fr; gap: var(--space-1); }
+    .permission .permission-detail .label { padding-top: var(--space-2); }
+    .permission .permission-detail .label:first-child { padding-top: 0; }
+  }
+  .permission .permission-actions { display: flex; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap; }
+
+  .refusal { background: var(--color-pale-gold); border-left: 4px solid var(--color-warning); border-radius: var(--radius); padding: var(--space-4); color: var(--color-navy); display: flex; gap: var(--space-3); align-items: flex-start; }
+  .refusal i { font-size: 20px; flex-shrink: 0; margin-top: 2px; color: var(--color-navy); }
+
+  .feedback-followup { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-3); margin-top: var(--space-2); }
+  .feedback-followup .label { font-size: 13px; color: var(--text-secondary); margin-bottom: var(--space-2); }
+  .feedback-chips { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+
+  /* =========================================================
+     RESPONSIVE GUIDE
+     ========================================================= */
+  .bp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: var(--space-3); }
+  .bp-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-left: 3px solid var(--accent-interactive); border-radius: var(--radius); padding: var(--space-4); }
+  .bp-card .bp-name { font-family: ui-monospace, monospace; font-size: 13px; color: var(--accent-interactive); margin-bottom: var(--space-1); }
+  .bp-card .bp-px { font-family: var(--font-mix); font-size: 24px; color: var(--text-primary); margin-bottom: var(--space-2); }
+  .bp-card .bp-use { font-size: 12px; color: var(--text-secondary); }
+
+  /* =========================================================
+     IMAGERY
+     ========================================================= */
+  .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--space-4); }
+  .img-tile { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border-light); }
+  .img-tile .img-area { aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; font-family: var(--font-mix); font-size: 56px; color: var(--color-navy); }
+  .img-tile.pale-blue .img-area { background: var(--color-pale-blue); }
+  .img-tile.pale-magenta .img-area { background: var(--color-pale-magenta); }
+  .img-tile.pale-orange .img-area { background: var(--color-pale-orange); }
+  .img-tile.pale-gold .img-area { background: var(--color-pale-gold); }
+  .img-tile.gradient .img-area { background: linear-gradient(135deg, var(--color-pale-blue), var(--color-pale-magenta)); }
+  .img-tile.gradient-2 .img-area { background: linear-gradient(135deg, var(--color-pale-orange), var(--color-pale-gold)); }
+  .img-tile .img-meta { padding: var(--space-3); background: var(--bg-surface); }
+  .img-tile .img-meta .name { font-size: 13px; color: var(--text-primary); }
+  .img-tile .img-meta .desc { font-size: 12px; color: var(--text-secondary); margin-top: var(--space-1); }
+
+  .illustration-card { background: var(--color-pale-blue); border-radius: var(--radius); padding: var(--space-7); display: flex; flex-direction: column; align-items: center; text-align: center; color: var(--color-navy); }
+  .illustration-svg { margin-bottom: var(--space-4); }
+
+  /* =========================================================
+     SKILLS LIBRARY
+     ========================================================= */
+  .skills-stack { display: flex; flex-direction: column; gap: var(--space-7); }
+  .skills-group-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin: 0 0 var(--space-4); }
+  .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--space-4); }
+  .skill-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-left: 3px solid var(--accent-interactive); border-radius: var(--radius); padding: var(--space-4) var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); transition: border-color var(--transition); }
+  .skill-card:hover { border-color: var(--accent-interactive); }
+  .skill-card .skill-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--text-primary); font-weight: 600; word-break: break-all; }
+  .skill-card .skill-desc { font-size: 14px; color: var(--text-secondary); margin: 0; line-height: 1.5; }
+  .skill-card .skill-section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); font-weight: 600; margin: 0 0 var(--space-1); }
+  .skill-card .skill-rules { margin: 0; padding-left: var(--space-4); font-size: 13px; color: var(--text-primary); line-height: 1.55; }
+  .skill-card .skill-rules li { margin-bottom: var(--space-1); }
+  .skill-card .skill-rules li:last-child { margin-bottom: 0; }
+  .skill-card.meta { border-left-color: var(--color-magenta); }
+  /* === Row detail (click a table row -> side sheet) === */
+  .data-table tbody tr { cursor: pointer; }
+  .data-table tbody tr.row-open { background: var(--color-pale-blue); box-shadow: inset 3px 0 0 var(--accent-interactive); }
+  .data-table tbody tr.row-open td { color: var(--color-navy); }
+  [data-theme="dark"] .data-table tbody tr.row-open { background: rgba(0,24,242,0.18); }
+  [data-theme="dark"] .data-table tbody tr.row-open td { color: var(--color-white); }
+  .sheet .detail-list { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4); align-items: baseline; margin: 0; }
+  .sheet .detail-list dt { font-family: var(--font-sans); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+  .sheet .detail-list dd { margin: 0; color: var(--text-primary); font-size: 14px; }
+
+  /* === Collapsible sidebar demo === */
+  .sbdemo { display: flex; border: 1px solid var(--border-light); border-radius: 2px; overflow: hidden; min-height: 340px; }
+  .sbdemo-nav { width: 220px; flex-shrink: 0; background: var(--bg-sidebar); color: var(--color-white); display: flex; flex-direction: column; padding: var(--space-4) 0; overflow: hidden; transition: width var(--duration-base) var(--ease-standard); }
+  .sbdemo.collapsed .sbdemo-nav { width: 72px; }
+  .sbdemo-brand { display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-4) var(--space-4); white-space: nowrap; }
+  .sbdemo-mark { width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center; }
+  .sbdemo-mark svg { width: 100%; height: 100%; fill: currentColor; }
+  .sbdemo-brand-name { font-family: var(--font-mix); font-size: 16px; }
+  .sbdemo-section { font-family: var(--font-sans); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.6; padding: var(--space-3) var(--space-4) var(--space-2); white-space: nowrap; }
+  .sbdemo-item { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4); border: none; background: none; color: var(--color-white); font-family: var(--font-mix); font-size: 15px; text-align: left; white-space: nowrap; cursor: pointer; }
+  .sbdemo-item i { font-size: 20px; flex-shrink: 0; }
+  .sbdemo-item:hover { background: rgba(255,255,255,0.08); }
+  .sbdemo-item.active { box-shadow: inset 3px 0 0 var(--accent-interactive); font-weight: 500; }
+  .sbdemo-label { transition: opacity var(--duration-fast) var(--ease-standard); }
+  .sbdemo.collapsed .sbdemo-label, .sbdemo.collapsed .sbdemo-section, .sbdemo.collapsed .sbdemo-brand-name { display: none; }
+  .sbdemo.collapsed .sbdemo-item, .sbdemo.collapsed .sbdemo-brand { justify-content: center; gap: 0; padding-left: 0; padding-right: 0; }
+  .sbdemo-toggle { margin-top: auto; }
+  .sbdemo-main { flex: 1; min-width: 0; background: var(--bg-page); padding: var(--space-5); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="nav-sidebar" aria-label="Section navigation">
+    <span class="lockup">
+      <span class="lockup__symbol"><svg viewBox="0 0 171.84 171.84" xmlns="http://www.w3.org/2000/svg" fill="currentColor" role="img" aria-label="McDermott"><path d="M43,85.12l22.6,36.87h-22.6v-36.87ZM113.34,121.9h16.81V47.95h-16.81v73.95ZM42.17,47.95l47.09,76.79,8.38-20.04-34.79-56.75h-20.67ZM171.84,85.92c0,47.37-38.55,85.92-85.92,85.92S0,133.29,0,85.92,38.55,0,85.92,0s85.92,38.55,85.92,85.92ZM162.77,85.92c0-42.37-34.47-76.85-76.85-76.85S9.07,43.55,9.07,85.92s34.47,76.85,76.85,76.85,76.85-34.47,76.85-76.85Z"/></svg></span>
+      <span class="lockup__divider" aria-hidden="true"></span>
+      <span class="lockup__name">Design System</span>
+    </span>
+    <div class="brand-tag">v1.4 · Toolkit</div>
+    <nav id="anchor-nav">
+      <div class="nav-section-label">Foundations</div>
+      <a href="#foundations" class="active">Overview</a>
+      <a href="#color">Color</a>
+      <a href="#typography">Typography</a>
+      <a href="#lockup">Lockup</a>
+      <a href="#spacing">Spacing</a>
+      <a href="#motion">Motion</a>
+      <div class="nav-section-label">Components</div>
+      <a href="#buttons">Buttons</a>
+      <a href="#links">Links</a>
+      <a href="#forms">Forms</a>
+      <a href="#cards">Cards</a>
+      <a href="#icons">Icons</a>
+      <a href="#badges">Badges</a>
+      <div class="nav-section-label">Patterns</div>
+      <a href="#alerts">Alerts</a>
+      <a href="#tabs-section">Tabs</a>
+      <a href="#stepper-section">Stepper</a>
+      <a href="#modal-section">Modal</a>
+      <a href="#sheet-section">Side sheet</a>
+      <a href="#popover-section">Popover</a>
+      <a href="#toasts">Toasts</a>
+      <a href="#empty">Empty states</a>
+      <a href="#loading">Loading</a>
+      <div class="nav-section-label">Data &amp; AI</div>
+      <a href="#dataviz">Data viz</a>
+      <a href="#ai">AI surfaces</a>
+      <div class="nav-section-label">System</div>
+      <a href="#sidebar-collapse">Sidebar collapse</a>
+       <a href="#responsive">Responsive</a>
+      <a href="#imagery">Imagery</a>
+      <div class="nav-section-label">Reference</div>
+      <a href="#skills-library">Skills library</a>
+      <a href="#anti">Anti-patterns</a>
+    </nav>
+  </aside>
+
+  <div class="app-body">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn btn-secondary btn-icon hamburger-btn" id="hamburger-btn" aria-label="Open navigation" aria-expanded="false" aria-controls="anchor-nav">
+          <i class="ph ph-list"></i>
+        </button>
+        <div class="crumbs">
+          <span>Design System</span>
+          <i class="ph ph-caret-right"></i>
+          <span>Showcase</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary btn-icon" id="theme-toggle" aria-label="Switch theme">
+          <i class="ph ph-moon" id="theme-icon"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+
+      <section id="foundations">
+        <p class="eyebrow">Brand toolkit</p>
+        <h1 class="display">Beautiful, consistent, enterprise-grade.</h1>
+        <p class="body-lg" style="max-width: 64ch; color: var(--text-secondary);">
+          Every component on this page is built from the McDermott design tokens. Toggle the theme in the top-right to see how the system adapts. Open the modal, slide the sheet, fire toasts, watch the AI stream a response, scan the data viz — every surface is live.
+        </p>
+      </section>
+
+      <section id="color">
+        <div class="section-head">
+          <p class="eyebrow">Foundations · Color</p>
+          <h2 class="h2">Color palette</h2>
+          <p class="body">Every color is a CSS custom property. Never hardcode a hex value — always reference the token.</p>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Primary</p>
+          <div class="swatch-grid">
+            <div class="swatch"><div class="chip" style="background: var(--color-navy);"></div><div class="meta"><div class="name">Navy</div><div class="token">--color-navy</div><div class="hex">#000042</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-blue);"></div><div class="meta"><div class="name">Blue</div><div class="token">--color-blue</div><div class="hex">#0018F2</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-white); border-bottom: 1px solid var(--border-light);"></div><div class="meta"><div class="name">White</div><div class="token">--color-white</div><div class="hex">#FFFFFF</div></div></div>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Secondary</p>
+          <div class="swatch-grid">
+            <div class="swatch"><div class="chip" style="background: var(--color-magenta);"></div><div class="meta"><div class="name">Magenta</div><div class="token">--color-magenta</div><div class="hex">#F48DFF</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-orange);"></div><div class="meta"><div class="name">Orange</div><div class="token">--color-orange</div><div class="hex">#FC561D</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-gold);"></div><div class="meta"><div class="name">Gold</div><div class="token">--color-gold</div><div class="hex">#E5AC2E</div></div></div>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Highlights</p>
+          <div class="swatch-grid">
+            <div class="swatch"><div class="chip" style="background: var(--color-teal);"></div><div class="meta"><div class="name">Teal · Primary CTA</div><div class="token">--color-teal</div><div class="hex">#00E2C1</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-neon);"></div><div class="meta"><div class="name">Neon · Use sparingly</div><div class="token">--color-neon</div><div class="hex">#D2FF3E</div></div></div>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Pale backgrounds (theme-stable — pair with navy text)</p>
+          <div class="swatch-grid">
+            <div class="swatch"><div class="chip" style="background: var(--color-pale-gold);"></div><div class="meta"><div class="name">Pale Gold</div><div class="token">--color-pale-gold</div><div class="hex">#F9E9D2</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-pale-magenta);"></div><div class="meta"><div class="name">Pale Magenta</div><div class="token">--color-pale-magenta</div><div class="hex">#FFEDFF</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-pale-orange);"></div><div class="meta"><div class="name">Pale Orange</div><div class="token">--color-pale-orange</div><div class="hex">#FFE2DE</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-pale-blue);"></div><div class="meta"><div class="name">Pale Blue</div><div class="token">--color-pale-blue</div><div class="hex">#E2E8FF</div></div></div>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Alerts (background fills only — text on alerts must be navy)</p>
+          <div class="swatch-grid">
+            <div class="swatch"><div class="chip" style="background: var(--color-error);"></div><div class="meta"><div class="name">Error</div><div class="token">--color-error</div><div class="hex">#FF3333</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-success);"></div><div class="meta"><div class="name">Success</div><div class="token">--color-success</div><div class="hex">#75D957</div></div></div>
+            <div class="swatch"><div class="chip" style="background: var(--color-warning);"></div><div class="meta"><div class="name">Warning</div><div class="token">--color-warning</div><div class="hex">#F1E53C</div></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="typography">
+        <div class="section-head">
+          <p class="eyebrow">Foundations · Typography</p>
+          <h2 class="h2">Type system</h2>
+          <p class="body">System fonts only. <code>--font-mix</code> (Georgia) for display and navigation; <code>--font-sans</code> for body and UI.</p>
+        </div>
+        <div class="stack">
+          <div><p class="caption" style="margin-bottom: var(--space-1);">Display · Mix · 64pt · -4% letter-spacing</p><div class="display" style="margin: 0;">Display headline</div></div>
+          <div><p class="caption" style="margin-bottom: var(--space-1);">H1 · Mix · 44pt</p><div class="h1">A large headline</div></div>
+          <div><p class="caption" style="margin-bottom: var(--space-1);">H2 · Mix · 32pt</p><div class="h2">A section heading</div></div>
+          <div><p class="caption" style="margin-bottom: var(--space-1);">H3 · Mix · 24pt</p><div class="h3">A subsection heading</div></div>
+          <div><p class="caption" style="margin-bottom: var(--space-1);">Body Large · Sans Light · 20pt</p><div class="body-lg">A larger body paragraph for intros and pull quotes that needs to feel airy and editorial.</div></div>
+          <div><p class="caption" style="margin-bottom: var(--space-1);">Body · Sans · 16pt · 1.5 line-height</p><div class="body" style="max-width: 64ch;">Standard body copy across product surfaces. The maximum measure is around 70 characters to keep reading comfortable.</div></div>
+          <div><p class="caption" style="margin-bottom: var(--space-1);">Eyebrow · Sans Light · ALL CAPS · 13pt · 10% tracking</p><div class="eyebrow" style="margin: 0;">Eyebrow label</div></div>
+        </div>
+      </section>
+
+      <section id="lockup">
+        <div class="section-head">
+          <p class="eyebrow">Foundations · Identity</p>
+          <h2 class="h2">Application lockup</h2>
+          <p class="body">One shared identity for every app: the official McDermott symbol + a thin vertical divider + the app name in Georgia. The symbol uses <code>fill="currentColor"</code>, so a single mark serves every surface and theme. Full spec in <code>application-lockup.md</code>.</p>
+        </div>
+        <div class="stack">
+          <div>
+            <p class="caption" style="margin-bottom: var(--space-2);">On the navy sidebar — white in both themes (primary placement)</p>
+            <div style="display: inline-flex; background: var(--color-navy); padding: var(--space-4) var(--space-5); border-radius: var(--radius);">
+              <span style="display: inline-flex; align-items: center; gap: var(--space-3); color: var(--color-white); min-width: 0;">
+                <span style="width: 32px; height: 32px; flex-shrink: 0;"><svg viewBox="0 0 171.84 171.84" xmlns="http://www.w3.org/2000/svg" fill="currentColor" role="img" aria-label="McDermott" style="width:100%;height:100%;display:block;"><path d="M43,85.12l22.6,36.87h-22.6v-36.87ZM113.34,121.9h16.81V47.95h-16.81v73.95ZM42.17,47.95l47.09,76.79,8.38-20.04-34.79-56.75h-20.67ZM171.84,85.92c0,47.37-38.55,85.92-85.92,85.92S0,133.29,0,85.92,38.55,0,85.92,0s85.92,38.55,85.92,85.92ZM162.77,85.92c0-42.37-34.47-76.85-76.85-76.85S9.07,43.55,9.07,85.92s34.47,76.85,76.85,76.85,76.85-34.47,76.85-76.85Z"/></svg></span>
+                <span aria-hidden="true" style="width: 1px; align-self: stretch; min-height: 24px; flex-shrink: 0; background: color-mix(in srgb, currentColor 22%, transparent);"></span>
+                <span style="font-family: var(--font-mix); font-size: 18px; line-height: 1.15;">Deposition Summarizer</span>
+              </span>
+            </div>
+          </div>
+          <div>
+            <p class="caption" style="margin-bottom: var(--space-2);">On a light surface — inherits <code>--text-primary</code> (top-bar / login fallback)</p>
+            <div style="display: inline-flex; background: var(--bg-surface); border: 1px solid var(--border-light); padding: var(--space-4) var(--space-5); border-radius: var(--radius);">
+              <span style="display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-primary); min-width: 0;">
+                <span style="width: 32px; height: 32px; flex-shrink: 0;"><svg viewBox="0 0 171.84 171.84" xmlns="http://www.w3.org/2000/svg" fill="currentColor" role="img" aria-label="McDermott" style="width:100%;height:100%;display:block;"><path d="M43,85.12l22.6,36.87h-22.6v-36.87ZM113.34,121.9h16.81V47.95h-16.81v73.95ZM42.17,47.95l47.09,76.79,8.38-20.04-34.79-56.75h-20.67ZM171.84,85.92c0,47.37-38.55,85.92-85.92,85.92S0,133.29,0,85.92,38.55,0,85.92,0s85.92,38.55,85.92,85.92ZM162.77,85.92c0-42.37-34.47-76.85-76.85-76.85S9.07,43.55,9.07,85.92s34.47,76.85,76.85,76.85,76.85-34.47,76.85-76.85Z"/></svg></span>
+                <span aria-hidden="true" style="width: 1px; align-self: stretch; min-height: 24px; flex-shrink: 0; background: color-mix(in srgb, currentColor 22%, transparent);"></span>
+                <span style="font-family: var(--font-mix); font-size: 18px; line-height: 1.15;">Privilege Log Analyzer</span>
+              </span>
+            </div>
+          </div>
+          <div>
+            <p class="caption" style="margin-bottom: var(--space-2);">Collapsed sidebar / ≤360px — symbol only, divider and name hidden</p>
+            <div style="display: inline-flex; background: var(--color-navy); padding: var(--space-3); border-radius: var(--radius);">
+              <span style="width: 32px; height: 32px; color: var(--color-white);"><svg viewBox="0 0 171.84 171.84" xmlns="http://www.w3.org/2000/svg" fill="currentColor" role="img" aria-label="McDermott" style="width:100%;height:100%;display:block;"><path d="M43,85.12l22.6,36.87h-22.6v-36.87ZM113.34,121.9h16.81V47.95h-16.81v73.95ZM42.17,47.95l47.09,76.79,8.38-20.04-34.79-56.75h-20.67ZM171.84,85.92c0,47.37-38.55,85.92-85.92,85.92S0,133.29,0,85.92,38.55,0,85.92,0s85.92,38.55,85.92,85.92ZM162.77,85.92c0-42.37-34.47-76.85-76.85-76.85S9.07,43.55,9.07,85.92s34.47,76.85,76.85,76.85,76.85-34.47,76.85-76.85Z"/></svg></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="spacing">
+        <div class="section-head">
+          <p class="eyebrow">Foundations · Spacing</p>
+          <h2 class="h2">Spacing scale</h2>
+          <p class="body">4px base unit. Every margin and padding references a token. No arbitrary values.</p>
+        </div>
+        <div class="stack" style="max-width: 600px;">
+          <div class="spacing-row"><span class="name">--space-1</span><span class="px">4px</span><div class="visual" style="width: 4px;"></div></div>
+          <div class="spacing-row"><span class="name">--space-2</span><span class="px">8px</span><div class="visual" style="width: 8px;"></div></div>
+          <div class="spacing-row"><span class="name">--space-3</span><span class="px">12px</span><div class="visual" style="width: 12px;"></div></div>
+          <div class="spacing-row"><span class="name">--space-4</span><span class="px">16px</span><div class="visual" style="width: 16px;"></div></div>
+          <div class="spacing-row"><span class="name">--space-5</span><span class="px">24px</span><div class="visual" style="width: 24px;"></div></div>
+          <div class="spacing-row"><span class="name">--space-6</span><span class="px">32px</span><div class="visual" style="width: 32px;"></div></div>
+          <div class="spacing-row"><span class="name">--space-7</span><span class="px">48px</span><div class="visual" style="width: 48px;"></div></div>
+          <div class="spacing-row"><span class="name">--space-8</span><span class="px">64px</span><div class="visual" style="width: 64px;"></div></div>
+          <div class="spacing-row"><span class="name">--space-9</span><span class="px">96px</span><div class="visual" style="width: 96px;"></div></div>
+        </div>
+      </section>
+
+      <section id="motion">
+        <div class="section-head">
+          <p class="eyebrow">Foundations · Motion</p>
+          <h2 class="h2">Motion tokens</h2>
+          <p class="body">All animations use these duration and easing tokens. Always wrapped to respect <code>prefers-reduced-motion</code>.</p>
+        </div>
+        <div class="spec">
+--duration-fast: 100ms<br>
+--duration-base: 200ms · default for state changes<br>
+--duration-slow: 300ms · surface transitions (modal, sheet)<br>
+--duration-deliberate: 500ms · choreographed reveals<br>
+<br>
+--ease-standard: cubic-bezier(0.4, 0, 0.2, 1)<br>
+--ease-emphasis: cubic-bezier(0.2, 0, 0, 1) · entering surfaces<br>
+--ease-exit: cubic-bezier(0.4, 0, 1, 1) · leaving surfaces
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Adding motion — decorative is opt-in</p>
+          <p class="body">Functional motion (drawers, steppers, sheets) is authored directly and degrades to near-instant under reduced-motion. Decorative motion is welcome too, but wrapped in <code>@media (prefers-reduced-motion: no-preference)</code> so it never runs for users who asked to reduce it. Example using <code>--duration-deliberate</code>:</p>
+          <p style="margin: var(--space-4) 0;"><span class="badge-new"><i class="ph ph-sparkle" aria-hidden="true"></i> New</span></p>
+          <div class="spec">@media (prefers-reduced-motion: no-preference) {<br>
+&nbsp;&nbsp;.badge-new { animation: pulse var(--duration-deliberate) var(--ease-emphasis) 2; }<br>
+}</div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Signature motion — loading &amp; reveal</p>
+          <p class="body">A calm "loading &rarr; content" sequence: the value counts up, a skeleton crossfades to real rows, and the rows rise in with a gentle ~60ms stagger. Purposeful, not playful &mdash; and it snaps to the final state under reduced-motion. Press Replay.</p>
+          <div class="seq-card" id="motion-seq">
+            <div>
+              <div class="seq-kpi-label">Active matters</div>
+              <div class="seq-kpi-num" id="seq-kpi">0</div>
+            </div>
+            <div class="seq-list">
+              <div class="seq-skeleton" id="seq-skel" aria-hidden="true"><span></span><span></span><span></span></div>
+              <div class="seq-item"></div>
+              <div class="seq-item"></div>
+              <div class="seq-item"></div>
+            </div>
+            <div><button class="btn btn-secondary" id="seq-replay">Replay</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="buttons">
+        <div class="section-head">
+          <p class="eyebrow">Components</p>
+          <h2 class="h2">Buttons</h2>
+          <p class="body">ALL CAPS, 14pt, 2px radius, min 140×36px, never wrap. Primary uses teal in both themes — hover flips to navy (light) or white (dark).</p>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Primary — default, hover, focus, disabled, loading</p>
+          <div class="row">
+            <button class="btn btn-primary">Save changes</button>
+            <button class="btn btn-primary" data-state="hover">Save changes</button>
+            <button class="btn btn-primary" data-state="focus">Save changes</button>
+            <button class="btn btn-primary" disabled>Save changes</button>
+            <button class="btn btn-primary" data-loading="true"><i class="ph ph-circle-notch"></i> Saving</button>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Secondary — default, hover, focus, disabled</p>
+          <div class="row">
+            <button class="btn btn-secondary">Cancel</button>
+            <button class="btn btn-secondary" data-state="hover">Cancel</button>
+            <button class="btn btn-secondary" data-state="focus">Cancel</button>
+            <button class="btn btn-secondary" disabled>Cancel</button>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Destructive — for permanent actions; navy text on error fill, no hover-flip</p>
+          <div class="row">
+            <button class="btn btn-destructive">Delete project</button>
+            <button class="btn btn-destructive" data-state="hover">Delete project</button>
+            <button class="btn btn-destructive" data-state="focus">Delete project</button>
+            <button class="btn btn-destructive" disabled>Delete project</button>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">With icons — locked to 16px</p>
+          <div class="row">
+            <button class="btn btn-primary"><i class="ph ph-paper-plane-tilt"></i> Send</button>
+            <button class="btn btn-secondary"><i class="ph ph-download"></i> Download</button>
+            <button class="btn btn-secondary btn-icon" aria-label="Settings"><i class="ph ph-gear"></i></button>
+          </div>
+        </div>
+      </section>
+
+      <section id="links">
+        <div class="section-head">
+          <p class="eyebrow">Components</p>
+          <h2 class="h2">Links</h2>
+          <p class="body">Four link styles, each with a specific use case.</p>
+        </div>
+        <div class="stack">
+          <div><p class="caption">CTA link · ALL CAPS · with arrow</p><a href="#" class="link-cta">Read the full story <i class="ph ph-arrow-right"></i></a></div>
+          <div><p class="caption">Hyperlink · underlined · 18pt Light</p><a href="#" class="link-hyper">View documentation</a></div>
+          <div><p class="caption">Content title · 18pt Light · -2% letter-spacing</p><a href="#" class="link-title">Q4 strategic planning overview</a></div>
+        </div>
+      </section>
+
+      <section id="forms">
+        <div class="section-head">
+          <p class="eyebrow">Components</p>
+          <h2 class="h2">Forms &amp; input</h2>
+          <p class="body">Validate on blur. Mark optional, not required. Error messages use navy text on pale-orange fill — never red text.</p>
+        </div>
+        <div style="max-width: 480px;">
+          <div class="field">
+            <label for="email-good">Work email</label>
+            <span class="helper">We'll send order updates here.</span>
+            <input class="input" type="email" id="email-good" value="alex@mws.com" autocomplete="email">
+          </div>
+          <div class="field">
+            <label for="email-bad">Work email</label>
+            <input class="input has-error" type="email" id="email-bad" value="alex.mws.com" aria-invalid="true" aria-describedby="email-err">
+            <div class="error-msg" id="email-err"><i class="ph ph-warning-circle"></i><span>This email is missing an @ sign. Try again.</span></div>
+          </div>
+          <div class="field">
+            <label for="name-opt">Display name <span style="color: var(--text-secondary); font-weight: 300;">(optional)</span></label>
+            <input class="input" type="text" id="name-opt" placeholder="Alex">
+          </div>
+          <div class="field">
+            <label for="search-input">Search</label>
+            <div class="input-group has-value" id="search-group">
+              <i class="ph ph-magnifying-glass"></i>
+              <input class="input" type="search" id="search-input" placeholder="Find anything…" value="sea">
+              <button type="button" class="input-clear" aria-label="Clear search" id="search-clear"><i class="ph ph-x"></i></button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="role-select">Role</label>
+            <select class="select" id="role-select"><option>Designer</option><option>Engineer</option><option>Product manager</option></select>
+          </div>
+          <div class="field"><label>Notification preferences</label>
+            <div class="check-row"><span class="check checked" role="checkbox" aria-checked="true" tabindex="0"></span><span>Email me about product updates</span></div>
+            <div class="check-row"><span class="check" role="checkbox" aria-checked="false" tabindex="0"></span><span>Email me about events</span></div>
+          </div>
+          <div class="field"><label>Visibility</label>
+            <div class="check-row"><span class="check radio checked" role="radio" aria-checked="true" tabindex="0"></span><span>Public</span></div>
+            <div class="check-row"><span class="check radio" role="radio" aria-checked="false" tabindex="0"></span><span>Private</span></div>
+          </div>
+          <div class="field"><label>Auto-save drafts</label>
+            <div class="check-row"><span class="toggle on" role="switch" aria-checked="true" tabindex="0" onclick="this.classList.toggle('on'); this.setAttribute('aria-checked', this.classList.contains('on'))"></span><span>On</span></div>
+          </div>
+          <div class="row" style="justify-content: flex-end; margin-top: var(--space-5);">
+            <button class="btn btn-secondary">Cancel</button>
+            <button class="btn btn-primary">Save changes</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="cards">
+        <div class="section-head">
+          <p class="eyebrow">Components</p>
+          <h2 class="h2">Cards</h2>
+          <p class="body">Optional top stroke (any secondary color, 30px). Eyebrow + title (Mix) + body (Sans Light). 2px radius.</p>
+        </div>
+        <div class="card-grid">
+          <article class="card"><div class="top-stroke" style="background: var(--color-teal);"></div><div class="text-area"><p class="eyebrow-text">Featured</p><h3 class="card-title">Designing for trust at scale</h3><p class="card-body">How small interaction details add up to a coherent enterprise experience.</p></div></article>
+          <article class="card"><div class="image-fill">M</div><div class="text-area"><p class="eyebrow-text">Case study</p><h3 class="card-title">Q4 product launch</h3><p class="card-body">From discovery to ship in eleven weeks, with the team distributed across four time zones.</p></div></article>
+          <article class="card"><div class="top-stroke" style="background: var(--color-magenta);"></div><div class="text-area"><p class="eyebrow-text">Guide</p><h3 class="card-title">Component composition</h3><p class="card-body">A practical pattern library for building consistent surfaces fast.</p></div></article>
+        </div>
+      </section>
+
+      <section id="icons">
+        <div class="section-head">
+          <p class="eyebrow">Components</p>
+          <h2 class="h2">Icons</h2>
+          <p class="body">Phosphor regular weight only. 24×24 grid, 2px stroke, monoline. Navy on light, teal on dark.</p>
+        </div>
+        <div class="icon-grid">
+          <div class="icon-cell"><i class="ph ph-house"></i><span class="name">house</span></div>
+          <div class="icon-cell"><i class="ph ph-magnifying-glass"></i><span class="name">search</span></div>
+          <div class="icon-cell"><i class="ph ph-bell"></i><span class="name">bell</span></div>
+          <div class="icon-cell"><i class="ph ph-user"></i><span class="name">user</span></div>
+          <div class="icon-cell"><i class="ph ph-gear"></i><span class="name">gear</span></div>
+          <div class="icon-cell"><i class="ph ph-paper-plane-tilt"></i><span class="name">send</span></div>
+          <div class="icon-cell"><i class="ph ph-check-circle"></i><span class="name">success</span></div>
+          <div class="icon-cell"><i class="ph ph-warning-circle"></i><span class="name">warning</span></div>
+          <div class="icon-cell"><i class="ph ph-x-circle"></i><span class="name">error</span></div>
+          <div class="icon-cell"><i class="ph ph-info"></i><span class="name">info</span></div>
+          <div class="icon-cell"><i class="ph ph-arrow-right"></i><span class="name">arrow-right</span></div>
+          <div class="icon-cell"><i class="ph ph-caret-down"></i><span class="name">caret-down</span></div>
+          <div class="icon-cell"><i class="ph ph-download"></i><span class="name">download</span></div>
+          <div class="icon-cell"><i class="ph ph-trash"></i><span class="name">trash</span></div>
+          <div class="icon-cell"><i class="ph ph-pencil"></i><span class="name">pencil</span></div>
+          <div class="icon-cell"><i class="ph ph-sparkle"></i><span class="name">sparkle</span></div>
+        </div>
+      </section>
+
+      <section id="badges">
+        <div class="section-head">
+          <p class="eyebrow">Components</p>
+          <h2 class="h2">Status badges</h2>
+          <p class="body">Always paired with a label — never colored dot alone. Pill radius (999px).</p>
+        </div>
+        <div class="row">
+          <span class="badge live"><span class="badge-dot"></span> Live</span>
+          <span class="badge draft">Draft</span>
+          <span class="badge archived">Archived</span>
+          <span class="badge warning">Pending</span>
+          <span class="badge error">Failed</span>
+        </div>
+      </section>
+
+      <section id="alerts">
+        <div class="section-head">
+          <p class="eyebrow">Patterns</p>
+          <h2 class="h2">Alerts &amp; banners</h2>
+          <p class="body">4px left border in severity color, fill in matching pale background. Text always navy.</p>
+        </div>
+        <div class="stack">
+          <div class="alert info"><i class="ph ph-info"></i><div class="alert-body"><div class="alert-title">Scheduled maintenance</div><div>The platform will be unavailable Sunday 2–4am ET for routine upgrades.</div></div></div>
+          <div class="alert success"><i class="ph ph-check-circle"></i><div class="alert-body"><div class="alert-title">Changes published</div><div>Your updates are live for all team members.</div></div></div>
+          <div class="alert warning"><i class="ph ph-warning-circle"></i><div class="alert-body"><div class="alert-title">Approaching plan limit</div><div>You've used 87% of your monthly quota. Upgrade to avoid interruption.</div></div></div>
+          <div class="alert error"><i class="ph ph-x-circle"></i><div class="alert-body"><div class="alert-title">Couldn't sync 2 items</div><div>Network timed out. <a href="#" class="link-hyper" style="font-size: 14px;">Try again</a></div></div></div>
+        </div>
+      </section>
+
+      <section id="tabs-section">
+        <div class="section-head">
+          <p class="eyebrow">Patterns</p>
+          <h2 class="h2">Tabs</h2>
+          <p class="body">For sibling content within a single section. Max 5. Keyboard navigable with arrow keys.</p>
+        </div>
+        <div role="tablist" class="tabs" id="tabs-demo" aria-label="Workspace sections">
+          <button class="tab" role="tab" aria-selected="true" id="tab-overview" aria-controls="panel-overview" data-panel="overview">Overview</button>
+          <button class="tab" role="tab" aria-selected="false" id="tab-activity" aria-controls="panel-activity" data-panel="activity" tabindex="-1">Activity</button>
+          <button class="tab" role="tab" aria-selected="false" id="tab-members" aria-controls="panel-members" data-panel="members" tabindex="-1">Members</button>
+          <button class="tab" role="tab" aria-selected="false" id="tab-settings" aria-controls="panel-settings" data-panel="settings" tabindex="-1">Settings</button>
+        </div>
+        <div class="tab-panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">A summary of the workspace, recent activity highlights, and quick actions.</div>
+        <div class="tab-panel" id="panel-activity" role="tabpanel" aria-labelledby="tab-activity" tabindex="0" hidden>A chronological feed of changes, comments, and updates.</div>
+        <div class="tab-panel" id="panel-members" role="tabpanel" aria-labelledby="tab-members" tabindex="0" hidden>The list of people who can access this workspace.</div>
+        <div class="tab-panel" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>Workspace preferences, integrations, and danger zone.</div>
+      </section>
+
+      <section id="stepper-section">
+        <div class="section-head">
+          <p class="eyebrow">Patterns</p>
+          <h2 class="h2">Stepper</h2>
+          <p class="body">Multi-step flows shown as a <em>continuous track</em>, not segmented boxes. Four states: not-started, current, completed, error. Resize the browser narrow to see the compact-horizontal mobile treatment.</p>
+        </div>
+
+        <div role="group" aria-label="Setup steps" class="stepper" id="stepper-demo">
+          <button type="button" class="stepper-item completed" data-step="1" aria-current="false">
+            <span class="stepper-circle"><i class="ph ph-check" aria-hidden="true"></i></span>
+            <span class="stepper-label">Setup</span>
+          </button>
+          <button type="button" class="stepper-item completed" data-step="2" aria-current="false">
+            <span class="stepper-circle"><i class="ph ph-check" aria-hidden="true"></i></span>
+            <span class="stepper-label">Processing</span>
+          </button>
+          <button type="button" class="stepper-item current" data-step="3" aria-current="step">
+            <span class="stepper-circle">3</span>
+            <span class="stepper-label">Review</span>
+          </button>
+          <button type="button" class="stepper-item" data-step="4" aria-current="false">
+            <span class="stepper-circle">4</span>
+            <span class="stepper-label">Summary</span>
+          </button>
+        </div>
+
+        <div class="stepper-panel" id="stepper-panel">
+          <h3 class="stepper-panel-title" id="stepper-panel-title">Review</h3>
+          <p class="stepper-panel-body" id="stepper-panel-body">Verify the calculated values across all tiers before continuing to the summary. Going back preserves all data you've already entered.</p>
+          <div class="stepper-actions">
+            <button class="btn btn-secondary" id="stepper-back"><i class="ph ph-arrow-left"></i> Back</button>
+            <div class="stepper-actions-right">
+              <button class="btn btn-secondary" id="stepper-mark-error">Show error state</button>
+              <button class="btn btn-primary" id="stepper-continue">Continue <i class="ph ph-arrow-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="modal-section">
+        <div class="section-head">
+          <p class="eyebrow">Disclosure surfaces</p>
+          <h2 class="h2">Modal</h2>
+          <p class="body">Use only when the user must respond before continuing. Focus-trapped, restores focus on close.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">Open modal</button>
+      </section>
+
+      <section id="sheet-section">
+        <div class="section-head">
+          <p class="eyebrow">Disclosure surfaces</p>
+          <h2 class="h2">Side sheet</h2>
+          <p class="body">Non-blocking secondary content. Slides in from the right; main view stays visible.</p>
+        </div>
+        <button class="btn btn-secondary" onclick="openSheet()">Open side sheet</button>
+      </section>
+
+      <section id="popover-section">
+        <div class="section-head">
+          <p class="eyebrow">Disclosure surfaces</p>
+          <h2 class="h2">Popover</h2>
+          <p class="body">Brief contextual choices anchored to a trigger. No scrim. Closes on outside click.</p>
+        </div>
+        <div class="popover-anchor">
+          <button class="btn btn-secondary" id="popover-trigger" aria-haspopup="menu" aria-expanded="false">Actions <i class="ph ph-caret-down"></i></button>
+          <div class="popover" id="popover-menu" role="menu">
+            <a class="menu-item" role="menuitem"><i class="ph ph-pencil"></i> Edit</a>
+            <a class="menu-item" role="menuitem"><i class="ph ph-copy"></i> Duplicate</a>
+            <a class="menu-item" role="menuitem"><i class="ph ph-share"></i> Share</a>
+            <a class="menu-item destructive" role="menuitem"><i class="ph ph-trash"></i> Delete</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="toasts">
+        <div class="section-head">
+          <p class="eyebrow">Notifications</p>
+          <h2 class="h2">Toasts</h2>
+          <p class="body">Bottom-right (desktop), max 3 stacked. Info/success auto-dismiss in 5s; errors persist until dismissed.</p>
+        </div>
+        <div class="row">
+          <button class="btn btn-secondary" onclick="showToast('info', 'Draft saved automatically.')">Info</button>
+          <button class="btn btn-secondary" onclick="showToast('success', 'Project published successfully.')">Success</button>
+          <button class="btn btn-secondary" onclick="showToast('warning', 'Approaching quota limit.')">Warning</button>
+          <button class="btn btn-secondary" onclick="showToast('error', 'Couldn\'t reach the server.')">Error</button>
+        </div>
+      </section>
+
+      <section id="empty">
+        <div class="section-head">
+          <p class="eyebrow">In-between states</p>
+          <h2 class="h2">Empty states</h2>
+          <p class="body">Three flavors: zero-data, filtered-to-zero, and no-access. Each has different copy and ceremony.</p>
+        </div>
+        <div class="stack">
+          <div>
+            <p class="subsection-title">Zero-data (first run)</p>
+            <div class="empty">
+              <i class="ph ph-folder-plus"></i>
+              <h3 class="empty-title">No projects yet</h3>
+              <p class="empty-body">Create your first project to start tracking work across your team.</p>
+              <button class="btn btn-primary"><i class="ph ph-plus"></i> Create project</button>
+            </div>
+          </div>
+          <div>
+            <p class="subsection-title">Filtered-to-zero — subtle, no illustration</p>
+            <div class="empty subtle">
+              <h3 class="empty-title">No matches for these filters</h3>
+              <p class="empty-body">Try broadening your search or clearing filters.</p>
+              <button class="btn btn-secondary">Clear filters</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="loading">
+        <div class="section-head">
+          <p class="eyebrow">In-between states</p>
+          <h2 class="h2">Loading skeletons</h2>
+          <p class="body">For loads over 100ms with a known result shape. Pulses between two theme-aware tones — light grays in light mode, deeper navy tints in dark mode.</p>
+        </div>
+        <div class="card" style="padding: var(--space-5);">
+          <div class="skeleton" style="height: 18px; width: 30%; margin-bottom: var(--space-3);"></div>
+          <div class="skeleton" style="height: 32px; width: 70%; margin-bottom: var(--space-4);"></div>
+          <div class="skeleton" style="height: 14px; width: 100%; margin-bottom: var(--space-2);"></div>
+          <div class="skeleton" style="height: 14px; width: 90%; margin-bottom: var(--space-2);"></div>
+          <div class="skeleton" style="height: 14px; width: 60%; margin-bottom: var(--space-5);"></div>
+          <div class="skeleton" style="height: 36px; width: 140px;"></div>
+        </div>
+      </section>
+
+      <section id="dataviz">
+        <div class="section-head">
+          <p class="eyebrow">Data &amp; AI</p>
+          <h2 class="h2">Data visualization</h2>
+          <p class="body">Charts and tables built from McDermott tokens. Numbers right-aligned, navy text on alert fills, color always paired with labels.</p>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">KPI cards with sparklines</p>
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="kpi-label">Active users</div>
+              <div class="kpi-value">12,847</div>
+              <div class="kpi-delta up"><i class="ph ph-arrow-up"></i> 8.2% vs last week</div>
+              <svg class="kpi-spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+                <polyline points="0,30 25,28 50,22 75,25 100,18 125,15 150,12 175,8 200,4" fill="none" stroke="var(--color-teal)" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Revenue</div>
+              <div class="kpi-value">$84.2K</div>
+              <div class="kpi-delta up"><i class="ph ph-arrow-up"></i> 12.5% vs last month</div>
+              <svg class="kpi-spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+                <polyline points="0,28 25,25 50,30 75,20 100,22 125,16 150,18 175,10 200,6" fill="none" stroke="var(--color-blue)" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Churn rate</div>
+              <div class="kpi-value">2.1%</div>
+              <div class="kpi-delta down"><i class="ph ph-arrow-down"></i> 0.4% vs last month</div>
+              <svg class="kpi-spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+                <polyline points="0,8 25,12 50,10 75,18 100,16 125,22 150,20 175,28 200,30" fill="none" stroke="var(--color-magenta)" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">NPS</div>
+              <div class="kpi-value">+62</div>
+              <div class="kpi-delta up"><i class="ph ph-arrow-up"></i> 4 vs last quarter</div>
+              <svg class="kpi-spark" viewBox="0 0 200 36" preserveAspectRatio="none">
+                <polyline points="0,18 25,16 50,20 75,15 100,12 125,14 150,10 175,8 200,6" fill="none" stroke="var(--color-orange)" stroke-width="2"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Bar chart — horizontal, ranked</p>
+          <div class="card" style="padding: var(--space-5);">
+            <div class="bar-chart">
+              <div class="bar-row"><span class="bar-label">Engineering</span><div class="bar-track"><div class="bar-fill" style="width: 92%;"></div></div><span class="bar-value">92%</span></div>
+              <div class="bar-row"><span class="bar-label">Design</span><div class="bar-track"><div class="bar-fill" style="width: 78%;"></div></div><span class="bar-value">78%</span></div>
+              <div class="bar-row"><span class="bar-label">Product</span><div class="bar-track"><div class="bar-fill" style="width: 71%;"></div></div><span class="bar-value">71%</span></div>
+              <div class="bar-row"><span class="bar-label">Marketing</span><div class="bar-track"><div class="bar-fill" style="width: 64%;"></div></div><span class="bar-value">64%</span></div>
+              <div class="bar-row"><span class="bar-label">Sales</span><div class="bar-track"><div class="bar-fill" style="width: 48%;"></div></div><span class="bar-value">48%</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Line chart — single series, monthly</p>
+          <div class="card" style="padding: var(--space-5);">
+            <svg viewBox="0 0 800 240" style="width: 100%; height: 240px;" aria-label="Monthly active users">
+              <defs>
+                <linearGradient id="lineGradient" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="var(--color-teal)" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="var(--color-teal)" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <line x1="0" y1="40" x2="800" y2="40" stroke="var(--border-light)" stroke-width="1"/>
+              <line x1="0" y1="100" x2="800" y2="100" stroke="var(--border-light)" stroke-width="1"/>
+              <line x1="0" y1="160" x2="800" y2="160" stroke="var(--border-light)" stroke-width="1"/>
+              <line x1="0" y1="220" x2="800" y2="220" stroke="var(--border-light)" stroke-width="1"/>
+              <path d="M 0,180 L 73,160 L 146,140 L 219,150 L 292,120 L 365,100 L 438,90 L 511,70 L 584,60 L 657,40 L 730,30 L 800,20 L 800,240 L 0,240 Z" fill="url(#lineGradient)"/>
+              <polyline points="0,180 73,160 146,140 219,150 292,120 365,100 438,90 511,70 584,60 657,40 730,30 800,20" fill="none" stroke="var(--color-teal)" stroke-width="2.5"/>
+              <g font-family="ui-monospace, monospace" font-size="10" fill="var(--text-secondary)">
+                <text x="0" y="236">Jan</text><text x="146" y="236">Mar</text><text x="292" y="236">May</text><text x="438" y="236">Jul</text><text x="584" y="236">Sep</text><text x="730" y="236">Nov</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Data table — search, sort, select, row actions, scroll fade</p>
+          <p class="caption" style="margin-bottom: var(--space-3);">Type in the search to filter. Click "Project", "Tasks", or "Updated" to sort. Check rows to surface the bulk action bar. Hover a row to reveal the kebab menu. Resize the browser narrow to see the horizontal scroll fade indicators. Click any row to open its full detail in a side sheet.</p>
+
+          <div class="table-system" id="tbl-system">
+            <!-- Toolbar (default state) -->
+            <div class="table-toolbar" id="tbl-toolbar">
+              <div class="input-group has-value" id="tbl-search-group">
+                <i class="ph ph-magnifying-glass"></i>
+                <input class="input" type="search" placeholder="Search projects…" id="tbl-search">
+                <button type="button" class="input-clear" aria-label="Clear search" id="tbl-search-clear"><i class="ph ph-x"></i></button>
+              </div>
+              <div class="table-toolbar-right">
+                <button class="btn btn-secondary btn-icon" aria-label="Toggle density" title="Toggle density"><i class="ph ph-rows"></i></button>
+                <button class="btn btn-secondary"><i class="ph ph-funnel"></i> Filters</button>
+              </div>
+            </div>
+
+            <!-- Bulk-actions bar (shown when items selected) -->
+            <div class="table-bulk-bar" id="tbl-bulk-bar" role="toolbar" aria-label="Bulk actions">
+              <div class="bulk-info">
+                <strong id="tbl-bulk-count">0 selected</strong>
+                <button type="button" id="tbl-bulk-clear">Clear selection</button>
+              </div>
+              <div class="bulk-actions">
+                <button class="btn btn-secondary">Archive</button>
+                <button class="btn btn-destructive">Delete</button>
+              </div>
+            </div>
+
+            <!-- Active filter chips (would populate dynamically in real product) -->
+            <div class="table-filters" id="tbl-filters" hidden>
+              <span class="filter-chip">Status: Live<button class="filter-chip-remove" aria-label="Remove filter"><i class="ph ph-x"></i></button></span>
+              <span class="filter-chip">Owner: Me<button class="filter-chip-remove" aria-label="Remove filter"><i class="ph ph-x"></i></button></span>
+              <button class="link-cta" style="font-size: 12px;">Clear all</button>
+            </div>
+
+            <!-- Table with scroll shell -->
+            <div class="table-shell">
+              <table class="data-table" id="tbl-data">
+                <thead>
+                  <tr>
+                    <th class="col-check">
+                      <input type="checkbox" class="row-check" id="tbl-select-all" aria-label="Select all rows">
+                    </th>
+                    <th aria-sort="ascending" data-sort="project">Project <i class="ph ph-caret-up sort-icon"></i></th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Tags</th>
+                    <th class="num" aria-sort="none" data-sort="tasks">Tasks <i class="ph ph-caret-up-down sort-icon"></i></th>
+                    <th class="num" aria-sort="none" data-sort="updated">Updated <i class="ph ph-caret-up-down sort-icon"></i></th>
+                    <th class="col-actions" scope="col" aria-label="Row actions"></th>
+                  </tr>
+                </thead>
+                <tbody id="tbl-body">
+                  <tr data-name="API v3" data-tasks="47" data-updated="3"><td class="col-check"><input type="checkbox" class="row-check" aria-label="Select API v3"></td><td>API v3</td><td>Sam Patel</td><td><span class="badge live"><span class="badge-dot"></span> Live</span></td><td>High</td><td>backend, infra</td><td class="num">47</td><td class="num" title="May 4, 2026 11:24am">3h ago</td><td class="col-actions"><button class="row-action-btn" aria-label="Actions for API v3" aria-haspopup="menu" aria-expanded="false"><i class="ph ph-dots-three-vertical"></i></button></td></tr>
+                  <tr data-name="Brand Refresh" data-tasks="12" data-updated="24"><td class="col-check"><input type="checkbox" class="row-check" aria-label="Select Brand Refresh"></td><td>Brand Refresh</td><td>Jordan Lee</td><td><span class="badge draft">Draft</span></td><td>Medium</td><td>design, marketing</td><td class="num">12</td><td class="num" title="May 4, 2026 09:00am">1d ago</td><td class="col-actions"><button class="row-action-btn" aria-label="Actions for Brand Refresh" aria-haspopup="menu" aria-expanded="false"><i class="ph ph-dots-three-vertical"></i></button></td></tr>
+                  <tr data-name="Mobile beta" data-tasks="8" data-updated="120"><td class="col-check"><input type="checkbox" class="row-check" aria-label="Select Mobile beta"></td><td>Mobile beta</td><td>Riley Chen</td><td><span class="badge warning">Pending</span></td><td>Medium</td><td>mobile, beta</td><td class="num">8</td><td class="num" title="Apr 30, 2026">5d ago</td><td class="col-actions"><button class="row-action-btn" aria-label="Actions for Mobile beta" aria-haspopup="menu" aria-expanded="false"><i class="ph ph-dots-three-vertical"></i></button></td></tr>
+                  <tr data-name="Q3 Retro" data-tasks="0" data-updated="336"><td class="col-check"><input type="checkbox" class="row-check" aria-label="Select Q3 Retro"></td><td>Q3 Retro</td><td>Morgan Diaz</td><td><span class="badge archived">Archived</span></td><td>Low</td><td>process</td><td class="num">—</td><td class="num" title="Apr 21, 2026">2w ago</td><td class="col-actions"><button class="row-action-btn" aria-label="Actions for Q3 Retro" aria-haspopup="menu" aria-expanded="false"><i class="ph ph-dots-three-vertical"></i></button></td></tr>
+                  <tr data-name="Q4 Planning" data-tasks="23" data-updated="2"><td class="col-check"><input type="checkbox" class="row-check" aria-label="Select Q4 Planning"></td><td>Q4 Planning</td><td>Alex Kim</td><td><span class="badge live"><span class="badge-dot"></span> Live</span></td><td>High</td><td>strategy, leadership</td><td class="num">23</td><td class="num" title="May 4, 2026 12:30pm">2h ago</td><td class="col-actions"><button class="row-action-btn" aria-label="Actions for Q4 Planning" aria-haspopup="menu" aria-expanded="false"><i class="ph ph-dots-three-vertical"></i></button></td></tr>
+                  <tr data-name="Security Audit" data-tasks="34" data-updated="8"><td class="col-check"><input type="checkbox" class="row-check" aria-label="Select Security Audit"></td><td>Security Audit</td><td>Pat Singh</td><td><span class="badge live"><span class="badge-dot"></span> Live</span></td><td>Critical</td><td>security, compliance</td><td class="num">34</td><td class="num" title="May 4, 2026 06:00am">8h ago</td><td class="col-actions"><button class="row-action-btn" aria-label="Actions for Security Audit" aria-haspopup="menu" aria-expanded="false"><i class="ph ph-dots-three-vertical"></i></button></td></tr>
+                  <tr data-name="Onboarding v2" data-tasks="19" data-updated="48"><td class="col-check"><input type="checkbox" class="row-check" aria-label="Select Onboarding v2"></td><td>Onboarding v2</td><td>Casey Wong</td><td><span class="badge draft">Draft</span></td><td>Medium</td><td>growth, onboarding</td><td class="num">19</td><td class="num" title="May 2, 2026">2d ago</td><td class="col-actions"><button class="row-action-btn" aria-label="Actions for Onboarding v2" aria-haspopup="menu" aria-expanded="false"><i class="ph ph-dots-three-vertical"></i></button></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination -->
+            <nav class="table-pagination" aria-label="Table pagination">
+              <span class="table-pagination-count">1–7 of 23 items</span>
+              <div class="table-pagination-nav">
+                <button class="pagination-btn" aria-label="Previous page" disabled><i class="ph ph-caret-left"></i></button>
+                <button class="pagination-btn" aria-current="page" aria-label="Page 1, current page">1</button>
+                <button class="pagination-btn" aria-label="Page 2">2</button>
+                <button class="pagination-btn" aria-label="Page 3">3</button>
+                <button class="pagination-btn" aria-label="Next page"><i class="ph ph-caret-right"></i></button>
+              </div>
+            </nav>
+          </div>
+        </div>
+      </section>
+
+      <section id="ai">
+        <div class="section-head">
+          <p class="eyebrow">Data &amp; AI</p>
+          <h2 class="h2">AI surfaces</h2>
+          <p class="body">Trust through visibility — citations, tool calls, streaming, feedback. Every surface here is interactive.</p>
+        </div>
+
+        <div class="subsection">
+          <p class="subsection-title">Empty state with suggested prompts</p>
+          <div class="ai-empty">
+            <h3 class="ai-empty-title">How can I help today?</h3>
+            <p class="ai-empty-body">Ask anything, or start with one of these:</p>
+            <div class="prompt-chips">
+              <button class="prompt-chip">Summarize my last meeting</button>
+              <button class="prompt-chip">Draft a client update</button>
+              <button class="prompt-chip">Find inconsistencies</button>
+              <button class="prompt-chip">Explain this term</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <p class="subsection-title">Conversation — citations, tool calls, feedback (click Send to stream a response)</p>
+          <div class="chat" id="chat">
+            <div class="msg-user"><div class="bubble">Audit my design system for inconsistencies and tell me what to fix first.</div></div>
+            <div class="msg-ai">
+              <span class="ai-tag"><i class="ph ph-sparkle"></i> Generated</span>
+              <button type="button" class="tool-call" aria-expanded="false" aria-controls="tool-detail-1" onclick="const d=this.nextElementSibling; d.classList.toggle('open'); this.setAttribute('aria-expanded', d.classList.contains('open'));">
+                <div class="tool-icon"><i class="ph ph-folder-open"></i></div>
+                <span class="tool-name">Read design system</span>
+                <span class="tool-summary">19 files in /Design-System</span>
+                <i class="ph ph-check-circle tool-status ok" aria-hidden="true"></i>
+              </button>
+              <div class="tool-detail" id="tool-detail-1">files: _core-requirements.md, navigation-and-ia.md, disclosure-surfaces.md, … (16 more)<br>duration: 1.2s</div>
+              <div class="ai-body">Found three issues worth addressing first<sup class="cite">¹</sup>:
+
+1. The button focus ring rule is well-defined but two component examples in the showcase override it inline.
+2. Empty states use pale-blue backgrounds correctly, but one filtered-to-zero example uses <code>--text-primary</code> instead of navy<sup class="cite">²</sup>, breaking the theme-stable foreground rule.
+3. The new responsive breakpoint tokens aren't yet referenced in the modal max-width rules.</div>
+              <details class="source-list">
+                <summary class="source-list-title">Sources <span class="source-count">(2)</span></summary>
+                <ol>
+                  <li><a href="#">_core-requirements.md</a> — Component states section</li>
+                  <li><a href="#">_core-requirements.md</a> — Theme-stable foreground rule</li>
+                </ol>
+              </details>
+              <div class="ai-actions">
+                <button class="ai-action" aria-label="Copy"><i class="ph ph-copy"></i></button>
+                <button class="ai-action" aria-label="Regenerate"><i class="ph ph-arrow-clockwise"></i></button>
+                <button class="ai-action" aria-label="Helpful" onclick="this.classList.toggle('active')"><i class="ph ph-thumbs-up"></i></button>
+                <button class="ai-action" aria-label="Not helpful" onclick="document.getElementById('feedback-followup').style.display='block'"><i class="ph ph-thumbs-down"></i></button>
+              </div>
+              <div class="feedback-followup" id="feedback-followup" style="display: none;">
+                <div class="label">What was wrong?</div>
+                <div class="feedback-chips">
+                  <button class="prompt-chip" style="background: var(--color-pale-blue);">Inaccurate</button>
+                  <button class="prompt-chip" style="background: var(--color-pale-blue);">Unhelpful</button>
+                  <button class="prompt-chip" style="background: var(--color-pale-blue);">Off-topic</button>
+                  <button class="prompt-chip" style="background: var(--color-pale-blue);">Other</button>
+                </div>
+              </div>
+              <div class="followups">
+                <button class="followup">Show the fixes</button>
+                <button class="followup">Prioritize by severity</button>
+                <button class="followup">Generate a PR</button>
+              </div>
+            </div>
+
+            <div class="msg-user"><div class="bubble">Show me the fixes.</div></div>
+            <div class="msg-ai">
+              <span class="ai-tag"><i class="ph ph-sparkle"></i> Generated</span>
+              <div class="ai-body" id="ai-body-stream" aria-live="polite" aria-atomic="false"><span class="ai-thinking" id="thinking-dots" aria-label="Thinking"><span></span><span></span><span></span></span></div>
+            </div>
+
+            <div class="chat-input">
+              <button class="chat-icon-btn" aria-label="Attach file"><i class="ph ph-paperclip"></i></button>
+              <input type="text" placeholder="Ask anything…" id="chat-input">
+              <button class="chat-icon-btn" id="send-btn" aria-label="Send" onclick="startStream()"><i class="ph ph-paper-plane-tilt"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <p class="subsection-title">Permission prompt — agentic action approval</p>
+          <div class="permission">
+            <h3 class="permission-title">About to send an email</h3>
+            <div class="permission-detail">
+              <span class="label">To</span><span>jordan@company.com</span>
+              <span class="label">Subject</span><span>Q4 review — design system updates</span>
+              <span class="label">Body</span><span>"Hi Jordan, I've reviewed the system file and identified three priorities…"</span>
+            </div>
+            <div class="permission-actions">
+              <button class="btn btn-secondary">Reject</button>
+              <button class="btn btn-primary">Send email</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <p class="subsection-title">"I don't know" — direct, with next-step</p>
+          <div class="msg-ai">
+            <span class="ai-tag"><i class="ph ph-info" style="color: var(--text-secondary);"></i> Generated</span>
+            <div class="ai-body">I don't have current data on this team's quarterly goals. Want me to check the shared OKR doc, or paste the relevant section here?</div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <p class="subsection-title">Refusal — name the category, offer adjacent path</p>
+          <div class="refusal">
+            <i class="ph ph-shield-warning"></i>
+            <div>I can't generate code that bypasses your auth system. I can help you build secure auth instead, or review your existing flow for vulnerabilities.</div>
+          </div>
+        </div>
+      </section>
+
+            <section id="sidebar-collapse">
+        <div class="section-head">
+          <p class="eyebrow">System</p>
+          <h2 class="h2">Collapsible sidebar</h2>
+          <p class="body">The left nav collapses to a 72px icon rail so content-heavy apps can reclaim width. Click <strong>Collapse</strong> at the bottom of the rail. Icons keep their labels as tooltips, and the active item keeps its 3px accent rail. State persists per user in the real product.</p>
+        </div>
+        <div class="sbdemo" id="sbdemo">
+          <nav class="sbdemo-nav" aria-label="Demo sidebar">
+            <div class="sbdemo-brand"><span class="sbdemo-mark"><svg viewBox="0 0 171.84 171.84" fill="currentColor" aria-hidden="true"><path d="M43,85.12l22.6,36.87h-22.6v-36.87ZM113.34,121.9h16.81V47.95h-16.81v73.95ZM42.17,47.95l47.09,76.79,8.38-20.04-34.79-56.75h-20.67ZM171.84,85.92c0,47.37-38.55,85.92-85.92,85.92S0,133.29,0,85.92,38.55,0,85.92,0s85.92,38.55,85.92,85.92ZM162.77,85.92c0-42.37-34.47-76.85-76.85-76.85S9.07,43.55,9.07,85.92s34.47,76.85,76.85,76.85,76.85-34.47,76.85-76.85Z"/></svg></span><span class="sbdemo-brand-name">Brief Builder</span></div>
+            <div class="sbdemo-section">Workspace</div>
+            <button class="sbdemo-item active" title="Dashboard" aria-label="Dashboard"><i class="ph ph-squares-four"></i><span class="sbdemo-label">Dashboard</span></button>
+            <button class="sbdemo-item" title="Briefs" aria-label="Briefs"><i class="ph ph-folders"></i><span class="sbdemo-label">Briefs</span></button>
+            <button class="sbdemo-item" title="Documents" aria-label="Documents"><i class="ph ph-file-text"></i><span class="sbdemo-label">Documents</span></button>
+            <div class="sbdemo-section">Account</div>
+            <button class="sbdemo-item" title="Settings" aria-label="Settings"><i class="ph ph-gear"></i><span class="sbdemo-label">Settings</span></button>
+            <button class="sbdemo-item sbdemo-toggle" id="sbdemo-toggle" title="Collapse sidebar" aria-label="Collapse sidebar" aria-expanded="true" onclick="(function(b){var d=document.getElementById('sbdemo');var c=d.classList.toggle('collapsed');b.setAttribute('aria-expanded',String(!c));b.setAttribute('aria-label',c?'Expand sidebar':'Collapse sidebar');b.title=c?'Expand sidebar':'Collapse sidebar';b.querySelector('i').className=c?'ph ph-sidebar-simple':'ph ph-sidebar';b.querySelector('.sbdemo-label').textContent=c?'Expand':'Collapse';})(this)"><i class="ph ph-sidebar"></i><span class="sbdemo-label">Collapse</span></button>
+          </nav>
+          <div class="sbdemo-main">
+            <p class="body" style="margin-top: 0;">Main content area. As the rail collapses to 72px, this region reflows to fill the reclaimed width &mdash; a push, not an overlay.</p>
+          </div>
+        </div>
+      </section>
+
+<section id="responsive">
+        <div class="section-head">
+          <p class="eyebrow">System</p>
+          <h2 class="h2">Responsive behavior</h2>
+          <p class="body">The current viewport breakpoint is shown in the top-right tag. Resize the browser to see how the system adapts.</p>
+        </div>
+        <div class="bp-grid">
+          <div class="bp-card"><div class="bp-name">--bp-sm</div><div class="bp-px">640px</div><div class="bp-use">Larger phones, small tablets in portrait</div></div>
+          <div class="bp-card"><div class="bp-name">--bp-md</div><div class="bp-px">768px</div><div class="bp-use">Tablets, multi-column splits start</div></div>
+          <div class="bp-card"><div class="bp-name">--bp-lg</div><div class="bp-px">1024px</div><div class="bp-use">Desktop, persistent sidebar appears</div></div>
+          <div class="bp-card"><div class="bp-name">--bp-xl</div><div class="bp-px">1280px</div><div class="bp-use">Wide desktop, dashboards spread</div></div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">What changes at each breakpoint</p>
+          <div class="card" style="padding: var(--space-5);">
+            <div class="stack">
+              <div><strong>Below 768px:</strong> Multi-column layouts collapse to single column. Display headlines drop one step in the type scale. Tables become stacked cards.</div>
+              <div><strong>Below 1024px:</strong> Persistent sidebar collapses to a drawer. Top bar becomes more compact. Bottom tab bar appears on mobile.</div>
+              <div><strong>1280px+:</strong> Dashboards can spread to multi-pane. Max-content-width caps at 1200px regardless of viewport.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="imagery">
+        <div class="section-head">
+          <p class="eyebrow">System</p>
+          <h2 class="h2">Imagery &amp; illustration</h2>
+          <p class="body">Pale-fill placeholders for image areas. Illustration uses McDermott palette only, navy text on pale fills per the theme-stable rule.</p>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Pale-fill placeholders (when no photo is available)</p>
+          <div class="img-grid">
+            <div class="img-tile pale-blue"><div class="img-area">M</div><div class="img-meta"><div class="name">Pale Blue</div><div class="desc">Primary placeholder for cards</div></div></div>
+            <div class="img-tile pale-magenta"><div class="img-area">W</div><div class="img-meta"><div class="name">Pale Magenta</div><div class="desc">Secondary, editorial</div></div></div>
+            <div class="img-tile pale-orange"><div class="img-area">S</div><div class="img-meta"><div class="name">Pale Orange</div><div class="desc">Warmer, energetic</div></div></div>
+            <div class="img-tile pale-gold"><div class="img-area">U</div><div class="img-meta"><div class="name">Pale Gold</div><div class="desc">Premium, established</div></div></div>
+            <div class="img-tile gradient"><div class="img-area">A</div><div class="img-meta"><div class="name">Blue → Magenta</div><div class="desc">Hero gradient, highlight</div></div></div>
+            <div class="img-tile gradient-2"><div class="img-area">B</div><div class="img-meta"><div class="name">Orange → Gold</div><div class="desc">Hero gradient, warm</div></div></div>
+          </div>
+        </div>
+        <div class="subsection">
+          <p class="subsection-title">Illustration on pale background</p>
+          <div class="illustration-card">
+            <svg class="illustration-svg" width="160" height="120" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="30" width="120" height="70" rx="2" stroke="#000042" stroke-width="2"/>
+              <line x1="20" y1="50" x2="140" y2="50" stroke="#000042" stroke-width="2"/>
+              <circle cx="32" cy="40" r="3" fill="#00E2C1"/>
+              <circle cx="42" cy="40" r="3" fill="#F48DFF"/>
+              <circle cx="52" cy="40" r="3" fill="#FC561D"/>
+              <line x1="32" y1="68" x2="100" y2="68" stroke="#000042" stroke-width="2"/>
+              <line x1="32" y1="78" x2="80" y2="78" stroke="#000042" stroke-width="2" opacity="0.6"/>
+              <rect x="32" y="86" width="40" height="10" rx="2" fill="#00E2C1"/>
+            </svg>
+            <h3 style="font-family: var(--font-mix); font-size: 22px; margin: 0 0 var(--space-2); color: var(--color-navy);">2px stroke, max 3 colors</h3>
+            <p style="font-size: 14px; color: var(--color-navy); opacity: 0.75; margin: 0; max-width: 40ch;">Geometric, monoline, confident. The same character as the icon system at illustration scale.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="skills-library">
+        <div class="section-head">
+          <p class="eyebrow">Reference</p>
+          <h2 class="h2">Skills library</h2>
+          <p class="body">Every MD file in /Design-System, what it covers, and what it enforces. Engineers and AI tools load these per task — small focused files trigger more reliably than one mega-doc.</p>
+        </div>
+
+        <div class="skills-stack">
+
+          <div>
+            <p class="skills-group-title">Brand &amp; visual system</p>
+            <div class="skills-grid">
+              <article class="skill-card">
+                <div class="skill-name">_core-requirements.md</div>
+                <p class="skill-desc">The canonical visual system. Color, typography, spacing, motion tokens plus button, link, card, and icon specs and the dark/light theme rules.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>All values are CSS custom properties — never hardcoded hex</li>
+                    <li>Border radius is 2px, or 999px for pills — never in between</li>
+                    <li>Theme-stable foreground rule: text on pale fills is always navy</li>
+                    <li><code>--color-teal</code> direct only for sidebar &amp; categorical chart series</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">iconography.md</div>
+                <p class="skill-desc">Phosphor icons only, regular weight, monoline. Sizing scale, accessibility distinctions, animation rules.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>5 valid sizes: 16, 20, 24, 32, 48px — never in between</li>
+                    <li><code>aria-hidden</code> on decorative icons; <code>aria-label</code> on icon-only buttons</li>
+                    <li>Filled or duotone Phosphor variants are forbidden everywhere</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">application-lockup.md</div>
+                <p class="skill-desc">The one shared app identity: McDermott symbol + divider + app name. Placement, color-by-surface, responsive behavior, and the naming convention.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Official McDermott symbol with <code>fill="currentColor"</code> — no bespoke per-app logos</li>
+                    <li>The divider is the master-brand cue — never omitted in UI</li>
+                    <li>Name in Georgia, Title Case, two lines max; symbol-only at ≤360px</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">imagery-and-illustration.md</div>
+                <p class="skill-desc">Photography direction (editorial, asymmetric), illustration style (2px stroke, max 3 colors), alt text rules.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>No generic stock photography that screams "business stock"</li>
+                    <li>Illustrations: 2px stroke, max 3 colors from McDermott palette</li>
+                    <li>Alt text describes the information value — never starts with "Image of"</li>
+                  </ul>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div>
+            <p class="skills-group-title">Components &amp; layout</p>
+            <div class="skills-grid">
+              <article class="skill-card">
+                <div class="skill-name">navigation-and-ia.md</div>
+                <p class="skill-desc">Global navigation decision matrix. When to use top bar vs side nav vs bottom tabs vs drawer vs command palette.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Top bar for shallow IA (≤7 sections); side nav for dashboards</li>
+                    <li>Bottom tabs for ≤5 mobile destinations; drawer for everything else</li>
+                    <li>Active state must be indicated in two ways (color + weight or rail)</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">disclosure-surfaces.md</div>
+                <p class="skill-desc">When to reveal content as a modal, side sheet, popover, accordion, or new full page.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Modal only when user must respond before continuing</li>
+                    <li>Side sheet for related content the user might reference alongside</li>
+                    <li>Never nest modals; never use a modal where a sheet would do</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">forms-and-input.md</div>
+                <p class="skill-desc">Field anatomy, validation timing, input types, error message formula.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Validate on blur (fields), on submit (forms) — never on keystroke</li>
+                    <li>Mark optional, not required — no asterisks for required</li>
+                    <li>Error format: what + why + how to fix</li>
+                    <li>Selected fills use <code>--accent-interactive</code> (blue/teal per theme)</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">responsive-and-mobile.md</div>
+                <p class="skill-desc">Breakpoints, touch targets, mobile-specific patterns, mobile keyboard handling.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Touch targets: 44×44 minimum with 8px spacing between</li>
+                    <li>Use <code>inputmode</code> and <code>autocomplete</code> attrs; never disable autofill</li>
+                    <li>Sidebar collapses to a drawer below 1024px</li>
+                  </ul>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div>
+            <p class="skills-group-title">States &amp; feedback</p>
+            <div class="skills-grid">
+              <article class="skill-card">
+                <div class="skill-name">loading-empty-and-error-states.md</div>
+                <p class="skill-desc">Skeleton timing, three empty-state flavors (zero-data, filtered-to-zero, no-access), error recovery.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>&lt; 100ms: show nothing. 100-500ms: skeleton. &gt; 3s: explain + cancel</li>
+                    <li>Filtered-to-zero uses <code>--bg-surface</code> + border, never a pale fill</li>
+                    <li>Every error needs at least one recovery action — never strand the user</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">notifications-and-feedback.md</div>
+                <p class="skill-desc">Toast vs banner vs alert decisions, severity treatments, status badge spec.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Default to subtle pale fills, not saturated alert colors</li>
+                    <li>Errors never auto-dismiss; info/success after 5s</li>
+                    <li>Status badges use pale fills; draft/archived = transparent + border</li>
+                  </ul>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div>
+            <p class="skills-group-title">Quality &amp; content</p>
+            <div class="skills-grid">
+              <article class="skill-card">
+                <div class="skill-name">accessibility.md</div>
+                <p class="skill-desc">WCAG 2.2 AA as the floor. Keyboard navigation, focus management, screen readers, ARIA usage.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>ARIA last resort — prefer semantic HTML</li>
+                    <li>Color contrast: 4.5:1 body, 3:1 large text and non-text UI</li>
+                    <li>Focus rings must be visible — <code>outline:none</code> without replacement is forbidden</li>
+                    <li>Color cannot be the sole indicator of state</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">ux-copy-and-microcopy.md</div>
+                <p class="skill-desc">Voice and tone, button verbs, error formula, capitalization rules, inclusive language.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Buttons use verb + noun ("Save changes" not "Submit")</li>
+                    <li>Headlines in sentence case, never title case</li>
+                    <li>Error formula: what happened + why + how to fix</li>
+                    <li>No "Oops!", no exclamation marks in errors, no "just"</li>
+                  </ul>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div>
+            <p class="skills-group-title">Data visualization</p>
+            <div class="skills-grid">
+              <article class="skill-card">
+                <div class="skill-name">data-visualization.md</div>
+                <p class="skill-desc">Chart-type selection, color usage, axis rules, table formatting, accessibility for charts.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>No pie charts with &gt; 5 slices; no 3D charts ever</li>
+                    <li>Y-axis starts at zero unless explicitly justified</li>
+                    <li>Right-align numbers in tables; left-align text</li>
+                    <li>Provide a screen-reader equivalent for every chart</li>
+                  </ul>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div>
+            <p class="skills-group-title">AI layer</p>
+            <div class="skills-grid">
+              <article class="skill-card">
+                <div class="skill-name">ai-trust-and-provenance.md</div>
+                <p class="skill-desc">Citations, source attribution, confidence indicators, distinguishing AI from human content.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Every factual claim must be linkable to its source</li>
+                    <li>Use linguistic hedges ("may", "likely") — not numeric confidence scores</li>
+                    <li>AI content visually marked, never blends silently with human content</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">ai-streaming-and-perceived-latency.md</div>
+                <p class="skill-desc">Token streaming visuals, thinking indicators, stop/cancel patterns, ARIA for async output.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Cursor blink: 1s on, 1s off — never frantic</li>
+                    <li>Stop button replaces Send during generation, in the same position</li>
+                    <li>ARIA live regions buffer at sentence boundaries (never per-token)</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">ai-uncertainty-and-errors.md</div>
+                <p class="skill-desc">"I don't know" patterns, refusals, hallucination guardrails, partial-failure recovery.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Direct uncertainty: "I don't have that" — no excessive apologies</li>
+                    <li>Refusals name the category and offer adjacent path; never moralize</li>
+                    <li>Always preserve the user's prompt on error</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">ai-tool-use-and-agency.md</div>
+                <p class="skill-desc">Tool call display, multi-step plans, permission prompts for destructive actions.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Every tool call appears as a row (collapsed by default)</li>
+                    <li>Destructive actions (email, delete, post) require explicit user approval</li>
+                    <li>Permission prompts name the specific consequence — never just "Confirm"</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">ai-feedback-and-correction.md</div>
+                <p class="skill-desc">Thumbs up/down placement, "why this rating" follow-up, regenerate, memory inspection.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Feedback is never modal — never blocks the next message</li>
+                    <li>Down-vote records first, asks for category second</li>
+                    <li>Memory must be inspectable, editable, and clearable</li>
+                  </ul>
+                </div>
+              </article>
+
+              <article class="skill-card">
+                <div class="skill-name">ai-prompting-affordances.md</div>
+                <p class="skill-desc">Suggested prompts, slash commands, file upload, command palette, multimodal input.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>Empty state shows 3-5 representative prompts (not full capability list)</li>
+                    <li>Slash commands open a filterable popover with keyboard navigation</li>
+                    <li>Surface what context the AI can see (avoids "what does it know" anxiety)</li>
+                  </ul>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div>
+            <p class="skills-group-title">Meta</p>
+            <div class="skills-grid">
+              <article class="skill-card meta">
+                <div class="skill-name">design-skills-blueprint.md</div>
+                <p class="skill-desc">The master blueprint — every skill file in the system, naming conventions, folder structure. Reference for adding new skills.</p>
+                <div>
+                  <p class="skill-section-label">Enforces</p>
+                  <ul class="skill-rules">
+                    <li>kebab-case filenames; noun phrases (not verbs)</li>
+                    <li>One topic per file — smaller files trigger more reliably</li>
+                    <li>Domain prefix for the AI layer (<code>ai-...</code>)</li>
+                  </ul>
+                </div>
+              </article>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="anti">
+        <div class="section-head">
+          <p class="eyebrow">Reference</p>
+          <h2 class="h2">Anti-patterns — never do this</h2>
+          <p class="body">The bug classes the system exists to prevent.</p>
+        </div>
+        <div class="anti-grid">
+          <div class="anti-card"><div class="anti-tag">Color</div><div class="anti-title">Red error text</div><p class="anti-body">Alert colors are background fills only. Text on alerts must be navy.</p></div>
+          <div class="anti-card"><div class="anti-tag">Theme</div><div class="anti-title">--text-primary on pale fill</div><p class="anti-body">Themed text tokens flip white in dark mode → unreadable on pale backgrounds.</p></div>
+          <div class="anti-card"><div class="anti-tag">Forms</div><div class="anti-title">Asterisk for required</div><p class="anti-body">Mark optional, not required. Most fields are required; marking the minority reduces noise.</p></div>
+          <div class="anti-card"><div class="anti-tag">Forms</div><div class="anti-title">Placeholder as label</div><p class="anti-body">Disappears on focus, fails for screen readers, breaks autofill.</p></div>
+          <div class="anti-card"><div class="anti-tag">Disclosure</div><div class="anti-title">Nested modals</div><p class="anti-body">If a flow needs more than one modal, redesign as multi-step or full page.</p></div>
+          <div class="anti-card"><div class="anti-tag">Loading</div><div class="anti-title">Spinner under 100ms</div><p class="anti-body">Causes a visible flash. Show nothing for sub-100ms operations.</p></div>
+          <div class="anti-card"><div class="anti-tag">Copy</div><div class="anti-title">"OK" / "Yes" / "Submit"</div><p class="anti-body">Use specific verbs. "Save changes", "Delete 3 files", "Send invitation."</p></div>
+          <div class="anti-card"><div class="anti-tag">A11y</div><div class="anti-title">outline: none with no replacement</div><p class="anti-body">The most common a11y bug. Keyboard users need a visible focus ring.</p></div>
+          <div class="anti-card"><div class="anti-tag">Radius</div><div class="anti-title">border-radius: 8px</div><p class="anti-body">McDermott uses 2px for everything except pills (999px). Anything in between is wrong.</p></div>
+          <div class="anti-card"><div class="anti-tag">Buttons</div><div class="anti-title">Wrapping button labels</div><p class="anti-body">Buttons never wrap. Keep labels short enough to fit on one line.</p></div>
+          <div class="anti-card"><div class="anti-tag">AI</div><div class="anti-title">Numeric confidence scores</div><p class="anti-body">"Confidence: 73%" creates false precision. Hedge linguistically instead.</p></div>
+          <div class="anti-card"><div class="anti-tag">AI</div><div class="anti-title">Auto-execute destructive actions</div><p class="anti-body">Email, delete, post. Always require explicit user approval per agentic flow.</p></div>
+        </div>
+      </section>
+
+      <footer style="margin-top: var(--space-9); padding-top: var(--space-5); border-top: 1px solid var(--border-light); color: var(--text-secondary); font-family: var(--font-sans); font-size: 13px;">
+        McDermott Design System v1.4 · Showcase built from the same skill files engineers will use.
+      </footer>
+    </main>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeAll()"></div>
+
+<div class="modal" id="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <h3 class="modal-title" id="modal-title">Delete this project?</h3>
+  <p class="modal-body">This will remove "Q4 Planning" and all 23 of its tasks. This can't be undone.</p>
+  <div class="modal-actions">
+    <button class="btn btn-secondary" onclick="closeAll()">Cancel</button>
+    <button class="btn btn-destructive" onclick="closeAll(); showToast('success', 'Project deleted.');">Delete project</button>
+  </div>
+</div>
+
+<aside class="sheet" id="sheet-panel" role="dialog" aria-labelledby="sheet-title">
+  <div class="sheet-head">
+    <h3 id="sheet-title">Filters</h3>
+    <button class="btn btn-secondary btn-icon" onclick="closeAll()" aria-label="Close"><i class="ph ph-x"></i></button>
+  </div>
+  <div class="sheet-body">
+    <div class="field"><label>Status</label>
+      <div class="check-row"><span class="check checked" role="checkbox" aria-checked="true"></span><span>Live</span></div>
+      <div class="check-row"><span class="check" role="checkbox" aria-checked="false"></span><span>Draft</span></div>
+      <div class="check-row"><span class="check" role="checkbox" aria-checked="false"></span><span>Archived</span></div>
+    </div>
+    <div class="field"><label>Owner</label><select class="select"><option>Anyone</option><option>Me</option><option>My team</option></select></div>
+    <div class="field"><label>Updated</label><select class="select"><option>Any time</option><option>Last 7 days</option><option>Last 30 days</option></select></div>
+    <div class="row" style="margin-top: var(--space-5); justify-content: flex-end;">
+      <button class="btn btn-secondary" onclick="closeAll()">Reset</button>
+      <button class="btn btn-primary" onclick="closeAll(); showToast('info', 'Filters applied.');">Apply</button>
+    </div>
+  </div>
+</aside>
+
+<aside class="sheet" id="row-sheet" role="dialog" aria-labelledby="row-sheet-title">
+  <div class="sheet-head">
+    <h3 id="row-sheet-title">Record detail</h3>
+    <button class="btn btn-secondary btn-icon" onclick="closeAll()" aria-label="Close"><i class="ph ph-x"></i></button>
+  </div>
+  <div class="sheet-body">
+    <dl class="detail-list" id="row-sheet-body"></dl>
+    <div class="row" style="margin-top: var(--space-5); justify-content: flex-end;">
+      <button class="btn btn-secondary" onclick="closeAll()">Edit</button>
+      <button class="btn btn-destructive" onclick="closeAll(); showToast('success', 'Record deleted.');">Delete</button>
+    </div>
+  </div>
+</aside>
+
+<div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="false"></div>
+
+<script>
+  // Theme toggle — icon shows what we'd switch TO
+  const root = document.documentElement;
+  const themeBtn = document.getElementById('theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+  function applyTheme(t) {
+    root.setAttribute('data-theme', t);
+    themeIcon.className = t === 'dark' ? 'ph ph-sun' : 'ph ph-moon';
+    try { localStorage.setItem('mws-theme', t); } catch (e) {}
+  }
+  try { const saved = localStorage.getItem('mws-theme'); applyTheme(saved || 'light'); } catch (e) { applyTheme('light'); }
+  themeBtn.addEventListener('click', () => {
+    applyTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+
+  // Anchor nav active state
+  // Threshold must cover html { scroll-padding-top: 80px } + section { scroll-margin-top: 48px } = 128px
+  // plus slack — otherwise fragment-jumps land just SHORT of the target's offsetTop and the previous
+  // section wins. Verified via headless test: with threshold=120 every click selects the link above.
+  const NAV_ACTIVE_OFFSET = 140;
+  const navLinks = document.querySelectorAll('#anchor-nav a');
+  const sections = Array.from(navLinks).map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  function setActiveNavById(id) {
+    navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  }
+  function setActiveNav() {
+    let active = sections[0];
+    const scrollY = window.scrollY + NAV_ACTIVE_OFFSET;
+    for (const s of sections) { if (s.offsetTop <= scrollY) active = s; }
+    setActiveNavById(active.id);
+  }
+  window.addEventListener('scroll', setActiveNav, { passive: true });
+  setActiveNav();
+  // Click → immediate active update so the user gets feedback before the spy re-runs after scroll
+  navLinks.forEach(a => {
+    a.addEventListener('click', () => setActiveNavById(a.getAttribute('href').slice(1)));
+  });
+
+
+  // Modal & sheet & scrim — using fixed IDs
+  const scrim = document.getElementById('scrim');
+  const modal = document.getElementById('modal-dialog');
+  const sheet = document.getElementById('sheet-panel');
+  let lastFocus = null;
+  function openModal() {
+    lastFocus = document.activeElement;
+    scrim.classList.add('open'); modal.classList.add('open');
+    setTimeout(() => modal.querySelector('button').focus(), 100);
+  }
+  function openSheet() {
+    lastFocus = document.activeElement;
+    scrim.classList.add('open'); sheet.classList.add('open');
+    setTimeout(() => sheet.querySelector('button').focus(), 100);
+  }
+  function closeAll() {
+    scrim.classList.remove('open'); modal.classList.remove('open'); sheet.classList.remove('open');
+    closeMobileNav();
+    if (lastFocus) lastFocus.focus();
+  }
+
+  // Mobile nav drawer
+  const sidebar = document.querySelector('.nav-sidebar');
+  const hamburger = document.getElementById('hamburger-btn');
+  function openMobileNav() {
+    if (!sidebar) return;
+    lastFocus = document.activeElement;
+    scrim.classList.add('open');
+    sidebar.classList.add('open');
+    if (hamburger) hamburger.setAttribute('aria-expanded', 'true');
+    setTimeout(() => { const firstLink = sidebar.querySelector('a'); if (firstLink) firstLink.focus(); }, 100);
+  }
+  function closeMobileNav() {
+    if (!sidebar) return;
+    sidebar.classList.remove('open');
+    if (hamburger) hamburger.setAttribute('aria-expanded', 'false');
+  }
+  if (hamburger) {
+    hamburger.addEventListener('click', () => {
+      if (sidebar.classList.contains('open')) { closeMobileNav(); scrim.classList.remove('open'); }
+      else openMobileNav();
+    });
+  }
+  // Close drawer when a nav link is clicked (so users can navigate)
+  if (sidebar) {
+    sidebar.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', () => {
+        if (window.innerWidth < 1024) { closeMobileNav(); scrim.classList.remove('open'); }
+      });
+    });
+  }
+  function trapFocus(container, e) {
+    const focusable = container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]');
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeAll();
+      const pop = document.getElementById('popover-menu');
+      const popBtn = document.getElementById('popover-trigger');
+      if (pop && pop.classList.contains('open')) {
+        pop.classList.remove('open');
+        if (popBtn) { popBtn.setAttribute('aria-expanded', 'false'); popBtn.focus(); }
+      }
+    }
+    if (e.key === 'Tab') {
+      if (modal.classList.contains('open')) trapFocus(modal, e);
+      else if (sheet.classList.contains('open')) trapFocus(sheet, e);
+    }
+  });
+
+  // Popover
+  const popover = document.getElementById('popover-menu');
+  const popoverTrigger = document.getElementById('popover-trigger');
+  if (popoverTrigger && popover) {
+    popoverTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = popover.classList.toggle('open');
+      popoverTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+    document.addEventListener('click', (e) => {
+      if (popover.classList.contains('open') &&
+          !popoverTrigger.contains(e.target) &&
+          !popover.contains(e.target)) {
+        popover.classList.remove('open');
+        popoverTrigger.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  // Search clear button
+  const searchInput = document.getElementById('search-input');
+  const searchClear = document.getElementById('search-clear');
+  const searchGroup = document.getElementById('search-group');
+  function syncSearchClear() {
+    if (searchInput.value.length > 0) searchGroup.classList.add('has-value');
+    else searchGroup.classList.remove('has-value');
+  }
+  if (searchInput && searchClear && searchGroup) {
+    searchInput.addEventListener('input', syncSearchClear);
+    searchClear.addEventListener('click', () => {
+      searchInput.value = '';
+      syncSearchClear();
+      searchInput.focus();
+    });
+    syncSearchClear();
+  }
+
+  // Toasts
+  const toastStack = document.getElementById('toast-stack');
+  const ICONS = { info: 'info', success: 'check-circle', warning: 'warning-circle', error: 'x-circle' };
+  function showToast(severity, message) {
+    if (toastStack.children.length >= 3) toastStack.removeChild(toastStack.firstChild);
+    const t = document.createElement('div');
+    t.className = 'toast ' + severity;
+    t.innerHTML = `<i class="ph ph-${ICONS[severity]}"></i><span class="toast-msg">${message}</span><button class="toast-close" aria-label="Dismiss"><i class="ph ph-x"></i></button>`;
+    t.querySelector('.toast-close').onclick = () => t.remove();
+    toastStack.appendChild(t);
+    if (severity !== 'error' && severity !== 'warning') setTimeout(() => t.remove(), 5000);
+  }
+
+  // Tabs
+  const tabs = document.querySelectorAll('#tabs-demo .tab');
+  tabs.forEach((tab, idx) => {
+    tab.addEventListener('click', () => activateTab(tab));
+    tab.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') { const n = tabs[(idx + 1) % tabs.length]; n.focus(); activateTab(n); }
+      else if (e.key === 'ArrowLeft') { const p = tabs[(idx - 1 + tabs.length) % tabs.length]; p.focus(); activateTab(p); }
+    });
+  });
+  function activateTab(tab) {
+    tabs.forEach(t => {
+      const isActive = t === tab;
+      t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      t.setAttribute('tabindex', isActive ? '0' : '-1');
+      const panel = document.getElementById('panel-' + t.dataset.panel);
+      if (panel) panel.hidden = !isActive;
+    });
+  }
+
+  // Checkbox / radio
+  document.querySelectorAll('.check').forEach(c => {
+    c.addEventListener('click', () => {
+      if (c.classList.contains('radio')) {
+        c.parentElement.parentElement.querySelectorAll('.radio').forEach(r => { r.classList.remove('checked'); r.setAttribute('aria-checked', 'false'); });
+        c.classList.add('checked'); c.setAttribute('aria-checked', 'true');
+      } else {
+        c.classList.toggle('checked'); c.setAttribute('aria-checked', c.classList.contains('checked'));
+      }
+    });
+    c.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); c.click(); } });
+  });
+
+  // ============ TABLE SYSTEM ============
+  const tblBody = document.getElementById('tbl-body');
+  const tblSearch = document.getElementById('tbl-search');
+  const tblSearchClear = document.getElementById('tbl-search-clear');
+  const tblSearchGroup = document.getElementById('tbl-search-group');
+  const tblBulkBar = document.getElementById('tbl-bulk-bar');
+  const tblBulkCount = document.getElementById('tbl-bulk-count');
+  const tblBulkClear = document.getElementById('tbl-bulk-clear');
+  const tblToolbar = document.getElementById('tbl-toolbar');
+  const tblSelectAll = document.getElementById('tbl-select-all');
+
+  if (tblBody) {
+    const allRows = Array.from(tblBody.querySelectorAll('tr'));
+
+    // ----- Search/filter -----
+    function syncTblSearchClear() {
+      if (!tblSearch) return;
+      if (tblSearch.value.length > 0) tblSearchGroup.classList.add('has-value');
+      else tblSearchGroup.classList.remove('has-value');
+    }
+    function applyFilter() {
+      const q = (tblSearch.value || '').toLowerCase().trim();
+      let visibleCount = 0;
+      allRows.forEach(row => {
+        if (row.classList.contains('table-empty-row')) return;
+        const text = row.textContent.toLowerCase();
+        const match = !q || text.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visibleCount++;
+      });
+      // Show/hide inline empty state
+      let emptyRow = tblBody.querySelector('.table-empty-row');
+      if (visibleCount === 0 && q) {
+        if (!emptyRow) {
+          emptyRow = document.createElement('tr');
+          emptyRow.className = 'table-empty-row';
+          emptyRow.innerHTML = `<td colspan="9"><div class="empty-text">No projects match "<strong></strong>"</div><button class="btn btn-secondary" id="tbl-clear-filter-btn">Clear search</button></td>`;
+          tblBody.appendChild(emptyRow);
+          emptyRow.querySelector('strong').textContent = q;
+          document.getElementById('tbl-clear-filter-btn').addEventListener('click', () => {
+            tblSearch.value = ''; syncTblSearchClear(); applyFilter();
+            tblSearch.focus();
+          });
+        } else {
+          emptyRow.style.display = '';
+          emptyRow.querySelector('strong').textContent = q;
+        }
+      } else if (emptyRow) {
+        emptyRow.style.display = 'none';
+      }
+    }
+    if (tblSearch) {
+      tblSearch.value = '';
+      syncTblSearchClear();
+      tblSearch.addEventListener('input', () => { syncTblSearchClear(); applyFilter(); });
+    }
+    if (tblSearchClear) {
+      tblSearchClear.addEventListener('click', () => {
+        tblSearch.value = ''; syncTblSearchClear(); applyFilter(); tblSearch.focus();
+      });
+    }
+
+    // ----- Sort -----
+    const sortable = document.querySelectorAll('#tbl-data th[data-sort]');
+    sortable.forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        const current = th.getAttribute('aria-sort');
+        const next = current === 'ascending' ? 'descending' : 'ascending';
+        // Reset others
+        sortable.forEach(o => {
+          if (o !== th) {
+            o.setAttribute('aria-sort', 'none');
+            const i = o.querySelector('.sort-icon');
+            if (i) i.className = 'ph ph-caret-up-down sort-icon';
+          }
+        });
+        th.setAttribute('aria-sort', next);
+        const icon = th.querySelector('.sort-icon');
+        if (icon) icon.className = next === 'ascending' ? 'ph ph-caret-up sort-icon' : 'ph ph-caret-down sort-icon';
+        // Reorder rows
+        const rows = Array.from(tblBody.querySelectorAll('tr:not(.table-empty-row)'));
+        rows.sort((a, b) => {
+          let av, bv;
+          if (key === 'project') { av = a.dataset.name.toLowerCase(); bv = b.dataset.name.toLowerCase(); return next === 'ascending' ? av.localeCompare(bv) : bv.localeCompare(av); }
+          else if (key === 'tasks') { av = parseInt(a.dataset.tasks) || 0; bv = parseInt(b.dataset.tasks) || 0; return next === 'ascending' ? av - bv : bv - av; }
+          else if (key === 'updated') { av = parseInt(a.dataset.updated); bv = parseInt(b.dataset.updated); return next === 'ascending' ? av - bv : bv - av; }
+          return 0;
+        });
+        rows.forEach(r => tblBody.appendChild(r));
+      });
+    });
+
+    // ----- Selection -----
+    const rowChecks = () => Array.from(document.querySelectorAll('#tbl-body .row-check'));
+    function syncSelection() {
+      const checks = rowChecks();
+      const selected = checks.filter(c => c.checked);
+      const count = selected.length;
+      checks.forEach(c => {
+        const row = c.closest('tr');
+        if (row) row.setAttribute('aria-selected', c.checked ? 'true' : 'false');
+      });
+      if (count > 0) {
+        tblToolbar.style.display = 'none';
+        tblBulkBar.classList.add('active');
+        tblBulkCount.textContent = `${count} selected`;
+      } else {
+        tblToolbar.style.display = '';
+        tblBulkBar.classList.remove('active');
+      }
+      // Sync select-all state
+      if (tblSelectAll) {
+        tblSelectAll.checked = count > 0 && count === checks.length;
+        tblSelectAll.indeterminate = count > 0 && count < checks.length;
+      }
+    }
+    tblBody.addEventListener('change', (e) => {
+      if (e.target.classList.contains('row-check')) syncSelection();
+    });
+    if (tblSelectAll) {
+      tblSelectAll.addEventListener('change', () => {
+        rowChecks().forEach(c => c.checked = tblSelectAll.checked);
+        syncSelection();
+      });
+    }
+    if (tblBulkClear) {
+      tblBulkClear.addEventListener('click', () => {
+        rowChecks().forEach(c => c.checked = false);
+        syncSelection();
+      });
+    }
+
+    // ----- Row action button (placeholder — opens a toast in the demo) -----
+    tblBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.row-action-btn');
+      if (!btn) return;
+      e.stopPropagation();
+      showToast('info', 'Row action menu would open here.');
+    });
+  }
+
+  // ============ STEPPER ============
+  const stepperItems = document.querySelectorAll('#stepper-demo .stepper-item');
+  const stepperPanelTitle = document.getElementById('stepper-panel-title');
+  const stepperPanelBody = document.getElementById('stepper-panel-body');
+  const stepperBack = document.getElementById('stepper-back');
+  const stepperContinue = document.getElementById('stepper-continue');
+  const stepperMarkError = document.getElementById('stepper-mark-error');
+  const STEPS = [
+    { title: 'Setup', body: 'Enter the source identifiers and parameters. These flow through to every downstream step, summary, and export.' },
+    { title: 'Processing', body: 'Configure processing options — data volume, formats, and per-item rates. Validation runs on Continue.' },
+    { title: 'Review', body: 'Verify the calculated values across all tiers before continuing to the summary. Going back preserves all data you have already entered.' },
+    { title: 'Summary', body: 'Final review and export. The primary action becomes "Create report" on the final step — verb + noun per UX copy spec.' }
+  ];
+  let currentStep = 3;
+  function renderStepper() {
+    stepperItems.forEach((item, idx) => {
+      const stepNum = idx + 1;
+      item.classList.remove('current', 'completed', 'error');
+      item.setAttribute('aria-current', 'false');
+      const circle = item.querySelector('.stepper-circle');
+      if (stepNum < currentStep) {
+        item.classList.add('completed');
+        circle.innerHTML = '<i class="ph ph-check" aria-hidden="true"></i>';
+      } else if (stepNum === currentStep) {
+        item.classList.add('current');
+        item.setAttribute('aria-current', 'step');
+        circle.textContent = stepNum;
+      } else {
+        circle.textContent = stepNum;
+      }
+    });
+    const step = STEPS[currentStep - 1];
+    stepperPanelTitle.textContent = step.title;
+    stepperPanelBody.textContent = step.body;
+    stepperBack.disabled = currentStep === 1;
+    stepperContinue.innerHTML = currentStep === STEPS.length
+      ? 'Create report'
+      : 'Continue <i class="ph ph-arrow-right"></i>';
+  }
+  stepperItems.forEach((item) => {
+    item.addEventListener('click', () => {
+      const target = parseInt(item.dataset.step, 10);
+      // Allow navigation to completed steps and current step only (linear flow)
+      if (target <= currentStep) { currentStep = target; renderStepper(); }
+    });
+  });
+  if (stepperBack) {
+    stepperBack.addEventListener('click', () => {
+      if (currentStep > 1) { currentStep--; renderStepper(); }
+    });
+  }
+  if (stepperContinue) {
+    stepperContinue.addEventListener('click', () => {
+      if (currentStep < STEPS.length) { currentStep++; renderStepper(); }
+      else { showToast('success', 'Report created.'); }
+    });
+  }
+  if (stepperMarkError) {
+    stepperMarkError.addEventListener('click', () => {
+      const item = stepperItems[currentStep - 1];
+      const circle = item.querySelector('.stepper-circle');
+      if (item.classList.contains('error')) {
+        item.classList.remove('error');
+        circle.textContent = currentStep;
+        stepperMarkError.textContent = 'Show error state';
+      } else {
+        item.classList.add('error');
+        item.classList.remove('current');
+        circle.innerHTML = '<i class="ph ph-warning" aria-hidden="true"></i>';
+        stepperMarkError.textContent = 'Clear error';
+      }
+    });
+  }
+  renderStepper();
+
+  // AI fake stream
+  let streaming = false;
+  function startStream() {
+    if (streaming) return;
+    streaming = true;
+    const target = document.getElementById('ai-body-stream');
+    const dots = document.getElementById('thinking-dots');
+    const text = "Here's the prioritized list:\n\n1. Move the inline focus-ring overrides into the button component so they apply consistently across themes.\n2. Replace --text-primary with var(--color-navy) on the filtered-to-zero empty state.\n3. Update modal max-width to reference --bp-md so it scales correctly on tablets.\n\nWant me to draft the diffs?";
+    setTimeout(() => {
+      if (dots) dots.remove();
+      target.innerHTML = '<span id="stream-text"></span><span class="stream-cursor"></span>';
+      const streamEl = document.getElementById('stream-text');
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i >= text.length) {
+          clearInterval(interval);
+          const cursor = target.querySelector('.stream-cursor');
+          if (cursor) cursor.remove();
+          streaming = false;
+          return;
+        }
+        const chunk = text.slice(i, i + 3);
+        streamEl.textContent += chunk;
+        i += 3;
+      }, 35);
+    }, 800);
+  }
+
+  // Row detail -> side sheet (click a table row to open the full record)
+  (function () {
+    var rowSheet = document.getElementById('row-sheet');
+    var rowBody = document.getElementById('row-sheet-body');
+    var rowTitle = document.getElementById('row-sheet-title');
+    var tblBody = document.getElementById('tbl-body');
+    if (!rowSheet || !tblBody) return;
+    var openRow = null, openTrigger = null;
+    function field(label, value) { return '<dt>' + label + '</dt><dd>' + value + '</dd>'; }
+    function openRowSheet(tr, trigger) {
+      var c = tr.children;
+      var txt = function (i) { return c[i] ? c[i].textContent.trim() : '\u2014'; };
+      rowTitle.textContent = tr.getAttribute('data-name') || txt(1);
+      rowBody.innerHTML =
+        field('Owner', txt(2)) + field('Status', txt(3)) + field('Priority', txt(4)) +
+        field('Tags', txt(5)) + field('Open tasks', tr.getAttribute('data-tasks') || txt(6)) +
+        field('Last updated', txt(7));
+      if (openRow) { openRow.classList.remove('row-open'); openRow.removeAttribute('aria-current'); }
+      if (openTrigger) openTrigger.setAttribute('aria-expanded', 'false');
+      openRow = tr;
+      openTrigger = trigger || tr.querySelector('.row-open-btn');
+      tr.classList.add('row-open');
+      tr.setAttribute('aria-current', 'true');
+      if (openTrigger) openTrigger.setAttribute('aria-expanded', 'true');
+      lastFocus = document.activeElement;
+      scrim.classList.add('open');
+      rowSheet.classList.add('open');
+      setTimeout(function () { var b = rowSheet.querySelector('button'); if (b) b.focus(); }, 100);
+    }
+    tblBody.addEventListener('click', function (e) {
+      if (e.target.closest('input, button, a, .col-check, .col-actions')) return;
+      var tr = e.target.closest('tr');
+      if (tr) openRowSheet(tr);
+    });
+    // Accessible trigger: a real per-row "View" button. A native <button> handles Enter, Space, and focus.
+    // The <tr> is NOT rolified — it contains a checkbox and the actions menu, so role="button" would be invalid ARIA.
+    Array.prototype.forEach.call(tblBody.querySelectorAll('tr'), function (tr) {
+      var actions = tr.querySelector('.col-actions');
+      if (!actions) return;
+      var name = tr.getAttribute('data-name') || (tr.children[1] ? tr.children[1].textContent.trim() : 'record');
+      var view = document.createElement('button');
+      view.type = 'button';
+      view.className = 'row-open-btn';
+      view.setAttribute('aria-haspopup', 'dialog');
+      view.setAttribute('aria-expanded', 'false');
+      view.setAttribute('aria-label', 'Open ' + name + ' detail');
+      view.innerHTML = '<i class="ph ph-arrow-line-up-right" aria-hidden="true"></i>';
+      view.addEventListener('click', function () { openRowSheet(tr, view); });
+      actions.insertBefore(view, actions.firstChild);
+    });
+    // Shared close path also clears the row sheet + open-row highlight
+    var _origCloseAll = closeAll;
+    closeAll = function () {
+      _origCloseAll();
+      rowSheet.classList.remove('open');
+      if (openRow) { openRow.classList.remove('row-open'); openRow.removeAttribute('aria-current'); openRow = null; }
+      if (openTrigger) { openTrigger.setAttribute('aria-expanded', 'false'); openTrigger = null; }
+    };
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab' && rowSheet.classList.contains('open') && typeof trapFocus === 'function') trapFocus(rowSheet, e);
+    });
+  })();
+
+  // Signature motion demo — count-up + skeleton crossfade + staggered reveal (snaps under reduced-motion)
+  (function () {
+    var wrap = document.getElementById('motion-seq');
+    if (!wrap) return;
+    var numEl = document.getElementById('seq-kpi');
+    var skel = document.getElementById('seq-skel');
+    var replay = document.getElementById('seq-replay');
+    var items = wrap.querySelectorAll('.seq-item');
+    var mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+    function countUp(target, dur) {
+      if (mq.matches) { numEl.textContent = target.toLocaleString(); return; }
+      var start = null;
+      function tick(now) {
+        if (start === null) start = now;
+        var p = Math.min(1, (now - start) / dur);
+        numEl.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))).toLocaleString();
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+    function play() {
+      Array.prototype.forEach.call(items, function (it) { it.classList.remove('in'); });
+      countUp(1284, 500);
+      if (mq.matches) {
+        skel.style.display = 'none';
+        Array.prototype.forEach.call(items, function (it) { it.classList.add('in'); });
+        return;
+      }
+      skel.style.display = '';
+      skel.style.opacity = '1';
+      setTimeout(function () {
+        skel.style.opacity = '0';
+        Array.prototype.forEach.call(items, function (it, i) {
+          setTimeout(function () { it.classList.add('in'); }, i * 60);
+        });
+      }, 650);
+    }
+    if (replay) replay.addEventListener('click', play);
+    play();
+  })();
+</script>
+</body>
+</html>
