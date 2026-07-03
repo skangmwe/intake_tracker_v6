@@ -1,0 +1,59 @@
+# Frontend / Node
+node_modules/
+dist/
+build/
+.next/
+.cache/
+.parcel-cache/
+.vite/
+
+# The 'build/' pattern above is unanchored — without this negation it
+# would also match the .claude/skills/build/ skill folder. Keep the
+# build skill tracked.
+!.claude/skills/build/
+
+# .NET / API
+bin/
+obj/
+*.user
+*.suo
+*.publishsettings
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Test / coverage outputs
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Claude Code workflow state — per-machine, never tracked
+.claude/worktrees/
+.claude/.commit-allowed
+.claude/.undo-keepalive
+
+# Local dev settings — may carry connection strings / secrets; never commit
+**/appsettings.Development.json
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Design export archives — the extracted project/ folder is the handoff; the .zip is redundant
+artifacts/docs/design/*.zip

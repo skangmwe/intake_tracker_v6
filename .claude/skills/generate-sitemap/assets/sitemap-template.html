@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Product Sitemap — [PRODUCT_NAME]</title>
+<style>
+  :root {
+    /* McDermott Design System — see .claude/rules/design/_core-requirements.md for the full system.
+       Sitemap-specific signatures (don't fork these): rx="2" corners on rects + rx="5" on ID-badge pills
+       (sharp corners = McDermott signature); Georgia on .screen-name, sans everywhere else (most
+       visible McDermott tell); navy text (#000042); navy-tinted arrows (not black); three card
+       variants — pale-blue/blue (prototype), white/grey (save for /build), pale-gold/gold (suggested),
+       all with navy text per the theme-stable foreground rule. */
+    --color-navy: #000042;
+    --color-blue: #0018F2;
+    --color-white: #FFFFFF;
+    --color-pale-blue: #E2E8FF;
+    --color-pale-gold: #F9E9D2;
+    --color-gold: #E5AC2E;
+    --color-navy-gray-1: #EBEBF2;
+    --color-navy-gray-2: #DEDEE5;
+
+    --bg-page: #F7F7FC;
+    --bg-surface: #FFFFFF;
+    --border-light: #E5E5EE;
+    --text-primary: var(--color-navy);
+    --text-secondary: rgba(0, 0, 66, 0.65);
+
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-mix: Georgia, 'Times New Roman', serif;
+
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 24px; --space-6: 32px; --space-7: 48px;
+
+    --radius: 2px;
+    --radius-pill: 999px;
+
+    --proto-fill: var(--color-pale-blue);
+    --proto-stroke: var(--color-blue);
+    --save-for-build-fill: var(--bg-surface);
+    --save-for-build-stroke: var(--color-navy-gray-2);
+    --suggested-fill: var(--color-pale-gold);
+    --suggested-stroke: var(--color-gold);
+    --arrow: rgba(0, 0, 66, 0.28);
+  }
+  * { box-sizing: border-box; }
+  body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; color: var(--text-primary); background: var(--bg-page); max-width: 1500px; margin: var(--space-7) auto; padding: var(--space-5); -webkit-font-smoothing: antialiased; }
+  .eyebrow { font-family: var(--font-sans); font-size: 13px; font-weight: 300; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin: 0 0 var(--space-3); }
+  h1 { font-family: var(--font-mix); font-size: 44px; line-height: 1.05; letter-spacing: -0.03em; color: var(--text-primary); margin: 0 0 var(--space-2); }
+  .subtitle { font-family: var(--font-sans); font-size: 18px; font-weight: 300; color: var(--text-secondary); margin: 0 0 var(--space-7); max-width: 64ch; }
+  .legend { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-4) var(--space-5); margin-bottom: var(--space-5); }
+  .legend-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: var(--space-3); }
+  .legend-row { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: var(--space-2); }
+  .legend-chip { display: inline-flex; align-items: center; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+  .chip-prototype { background: var(--proto-fill); color: var(--color-navy); }
+  .chip-save-for-build { background: transparent; border: 1px solid var(--border-light); color: var(--text-primary); padding: 3px var(--space-3); }
+  .chip-suggested { background: var(--suggested-fill); color: var(--color-navy); }
+  .legend-desc { color: var(--text-secondary); font-size: 13px; }
+
+  .sitemap-controls { display: flex; justify-content: flex-end; align-items: center; margin-bottom: var(--space-4); }
+  .arrows-toggle { display: inline-flex; align-items: center; gap: var(--space-3); cursor: pointer; user-select: none; padding: var(--space-2) var(--space-4); border-radius: 999px; background: var(--bg-surface); border: 1px solid var(--border-light); transition: border-color 150ms ease; }
+  .arrows-toggle:hover { border-color: var(--color-blue); }
+  .arrows-toggle input { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
+  .arrows-toggle-text { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.1em; }
+  .arrows-toggle-track { position: relative; display: inline-block; width: 40px; height: 22px; border-radius: 999px; background: var(--color-navy-gray-2); transition: background 200ms ease; flex-shrink: 0; }
+  .arrows-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 999px; background: var(--color-white); box-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: transform 200ms ease; }
+  .arrows-toggle input:checked + .arrows-toggle-track { background: var(--color-navy); }
+  .arrows-toggle input:checked + .arrows-toggle-track .arrows-toggle-thumb { transform: translateX(18px); }
+
+  .sitemap-container { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-2) var(--space-4) var(--space-3); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  svg.sitemap { width: 100%; height: auto; display: block; }
+  .row-label { font-family: var(--font-sans); font-size: 11px; font-weight: 600; fill: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em; }
+  rect.box-shadow { fill: rgba(0, 0, 66, 0.05); }
+  rect.prototype { fill: var(--proto-fill); stroke: var(--proto-stroke); stroke-width: 1.5; }
+  rect.save-for-build { fill: var(--save-for-build-fill); stroke: var(--save-for-build-stroke); stroke-width: 1; }
+  rect.suggested { fill: var(--suggested-fill); stroke: var(--suggested-stroke); stroke-width: 1.5; }
+  rect.id-badge-prototype { fill: var(--color-blue); }
+  rect.id-badge-save-for-build { fill: var(--color-navy-gray-1); }
+  rect.id-badge-suggested { fill: var(--color-gold); }
+  text.screen-id { font-family: var(--font-sans); font-size: 7px; font-weight: 600; letter-spacing: 0.06em; }
+  text.id-proto { fill: var(--color-white); }
+  text.id-save-for-build { fill: var(--color-navy); }
+  text.id-suggested { fill: var(--color-white); }
+  text.screen-name { font-family: var(--font-mix); font-size: 11px; font-weight: normal; letter-spacing: -0.015em; fill: var(--text-primary); }
+  /* Screen name rendered via <foreignObject> so it wraps inside the box instead of overflowing.
+     Flex centers 1- or 2-line names vertically; line-clamp + break-word guarantee no overflow. */
+  .screen-name-fo { display: flex; align-items: center; height: 100%; pointer-events: none; }
+  .screen-name-text { font-family: var(--font-mix); font-size: 11px; font-weight: normal; line-height: 1.15; letter-spacing: -0.015em; color: var(--text-primary); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; word-break: break-word; }
+  text.screen-role { font-family: var(--font-sans); font-size: 7px; font-weight: 400; fill: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em; }
+  text.screen-connection { font-family: var(--font-sans); font-size: 7px; font-weight: 400; fill: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+  line.arrow, path.arrow { stroke: var(--arrow); stroke-width: 1.5; fill: none; stroke-linecap: round; }
+  rect.label-bg { fill: var(--bg-surface); stroke: var(--border-light); stroke-width: 1; }
+  text.arrow-label { font-family: var(--font-sans); font-size: 7px; font-weight: 500; fill: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* Arrow lines — render below labels; darken AND thicken on hover or when highlighted */
+  g.arrow-group path.arrow,
+  g.arrow-group line.arrow { transition: stroke 150ms ease, stroke-width 150ms ease; }
+  g.arrow-group:hover path.arrow,
+  g.arrow-group:hover line.arrow,
+  g.arrow-group.highlighted path.arrow,
+  g.arrow-group.highlighted line.arrow { stroke: var(--color-navy); stroke-width: 2.5; marker-end: url(#arrowhead-hover); }
+  g.arrow-group.arc:hover path.arrow,
+  g.arrow-group.arc.highlighted path.arrow { marker-end: url(#arrowhead-arc-hover); }
+  g.arrow-group .arrow-hit { stroke: transparent; stroke-width: 14; fill: none; pointer-events: stroke; cursor: pointer; }
+
+  /* Labels — rendered in a separate group on top of all arrow lines; hidden by default */
+  g.arrow-label-group .label-bg,
+  g.arrow-label-group .arrow-label { opacity: 0; transition: opacity 150ms ease; }
+  g.arrow-label-group .arrow-label { pointer-events: none; }
+  g.arrow-label-group .label-bg { pointer-events: all; cursor: pointer; }
+  g.arrow-label-group:hover .label-bg,
+  g.arrow-label-group:hover .arrow-label,
+  g.arrow-label-group.highlighted .label-bg,
+  g.arrow-label-group.highlighted .arrow-label { opacity: 1; }
+
+  g.card-group { cursor: pointer; }
+</style>
+</head>
+<body>
+
+<p class="eyebrow">Proposed sitemap · v1</p>
+<h1>[PRODUCT_NAME]</h1>
+<p class="subtitle">Review the proposed selection before signing off. Anything you'd add, drop, or move?</p>
+
+<div class="legend">
+  <div class="legend-title">Legend</div>
+  <div class="legend-row">
+    <div class="legend-item"><span class="legend-chip chip-prototype">In prototype</span><span class="legend-desc">Built first in Claude Design</span></div>
+    <div class="legend-item"><span class="legend-chip chip-save-for-build">Save for /build</span><span class="legend-desc">Built next by Claude Code</span></div>
+    <div class="legend-item"><span class="legend-chip chip-suggested">Suggested</span><span class="legend-desc">I added this — confirm or remove</span></div>
+  </div>
+</div>
+
+<div class="sitemap-controls">
+  <label class="arrows-toggle">
+    <span class="arrows-toggle-text">Show flow arrows</span>
+    <input type="checkbox" id="arrows-toggle" checked>
+    <span class="arrows-toggle-track">
+      <span class="arrows-toggle-thumb"></span>
+    </span>
+  </label>
+</div>
+
+<div class="sitemap-container">
+  <svg class="sitemap" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // === Screen and arrow data — substituted by the skill ===
+  // SCREENS: array of { id, name, role, tier, orange } where
+  //   tier   ∈ { 'prototype', 'save-for-build' }
+  //   orange ∈ { true, false }  (orange marks suggested/inferred-feature; ignored for prototype)
+  // ARROWS: array of { from, to, label } pulled out of each screen's connects-to.
+  // See SKILL.md "Input → template data mapping" for the transformation rules.
+
+  const SCREENS = [SCREENS_JSON];
+
+  const ARROWS = [ARROWS_JSON];
+
+  // === Layout constants ===
+
+  const BOX_W = 140, GAP = 32;
+  const BOX_BASE_H = 56;
+  const CONN_LINE_HEIGHT = 8;
+  const PAD_LR = 30, PAD_TOP = 75, TIER_GAP = 72, PAD_BOTTOM = 32;
+  const COL_STEP = BOX_W + GAP;
+
+  // === State ===
+
+  let arrowsOn = true;
+  let BOX_H = BOX_BASE_H;
+  let SUB_ROW_STEP = BOX_H + GAP;
+
+  // === Helpers ===
+
+  function escapeXml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // Screen names render in sentence case. ALL-CAPS tokens (API, SKU, PDF) are preserved;
+  // everything else is lowercased, then the first letter is capitalized.
+  function toSentenceCase(s) {
+    s = String(s).trim();
+    if (!s) return s;
+    var out = s.split(/(\s+)/).map(function (w) {
+      if (/^\s+$/.test(w)) return w;
+      if (w.length > 1 && w === w.toUpperCase() && /[A-Z]/.test(w)) return w;
+      return w.toLowerCase();
+    }).join('');
+    return out.replace(/[A-Za-z]/, function (c) { return c.toUpperCase(); });
+  }
+
+  function cardClasses(screen) {
+    if (screen.tier === 'prototype') {
+      return { box: 'prototype', badge: 'id-badge-prototype', text: 'id-proto' };
+    }
+    if (screen.orange) {
+      return { box: 'suggested', badge: 'id-badge-suggested', text: 'id-suggested' };
+    }
+    return { box: 'save-for-build', badge: 'id-badge-save-for-build', text: 'id-save-for-build' };
+  }
+
+  function getConnections(screenId) {
+    return ARROWS.filter(function (a) { return a.from === screenId; });
+  }
+
+  function getMaxConnections() {
+    let max = 0;
+    for (let i = 0; i < SCREENS.length; i++) {
+      const n = getConnections(SCREENS[i].id).length;
+      if (n > max) max = n;
+    }
+    return max;
+  }
+
+  function getCols(containerWidth) {
+    const fits = Math.floor((containerWidth - (2 * PAD_LR - GAP)) / COL_STEP);
+    return Math.max(3, Math.min(7, fits));
+  }
+
+  function layoutBoxes(cols) {
+    const protos = SCREENS.filter(function (s) { return s.tier === 'prototype'; });
+    const sfb = SCREENS.filter(function (s) { return s.tier === 'save-for-build'; });
+    sfb.sort(function (a, b) {
+      if (a.orange !== b.orange) return a.orange - b.orange;
+      return parseInt(a.id.slice(1), 10) - parseInt(b.id.slice(1), 10);
+    });
+
+    const tier1_rows = Math.ceil(protos.length / cols);
+    const tier2_rows = Math.ceil(sfb.length / cols);
+    const tier1_h = tier1_rows * SUB_ROW_STEP - GAP;
+    const tier2_h = tier2_rows * SUB_ROW_STEP - GAP;
+    const tier2_y_start = PAD_TOP + tier1_h + TIER_GAP;
+
+    const positions = {};
+
+    protos.forEach(function (s, i) {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      positions[s.id] = { x: PAD_LR + c * COL_STEP, y: PAD_TOP + r * SUB_ROW_STEP, col: c, row: r, tier: 1 };
+    });
+    sfb.forEach(function (s, i) {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      positions[s.id] = { x: PAD_LR + c * COL_STEP, y: tier2_y_start + r * SUB_ROW_STEP, col: c, row: r, tier: 2 };
+    });
+
+    const totalW = 2 * PAD_LR + cols * BOX_W + (cols - 1) * GAP;
+    const totalH = PAD_TOP + tier1_h + TIER_GAP + tier2_h + PAD_BOTTOM;
+
+    return { positions: positions, totalW: totalW, totalH: totalH, tier2_y_start: tier2_y_start };
+  }
+
+  // === Renderers ===
+
+  function renderBoxes(positions) {
+    let svg = '';
+    for (let i = 0; i < SCREENS.length; i++) {
+      const screen = SCREENS[i];
+      const pos = positions[screen.id];
+      if (!pos) continue;
+      const cls = cardClasses(screen);
+      const isDouble = screen.id.length > 2;
+      const badge_w = isDouble ? 24 : 20;
+      const id_x = isDouble ? 17 : 15;
+
+      // When arrows are off, render the screen's outgoing connections inside the box.
+      let connsHTML = '';
+      if (!arrowsOn) {
+        const conns = getConnections(screen.id);
+        for (let j = 0; j < conns.length; j++) {
+          const c = conns[j];
+          const cy = BOX_BASE_H + 6 + j * CONN_LINE_HEIGHT;
+          connsHTML += '<text class="screen-connection" x="5" y="' + cy + '">&rarr; ' + escapeXml(c.to) + ' &middot; ' + escapeXml(c.label) + '</text>';
+        }
+      }
+
+      svg +=
+        '<g class="card-group" data-screen-id="' + escapeXml(screen.id) + '">' +
+          '<rect class="box-shadow" x="' + (pos.x + 2) + '" y="' + (pos.y + 3) + '" width="' + BOX_W + '" height="' + BOX_H + '" rx="2"/>' +
+          '<g transform="translate(' + pos.x + ',' + pos.y + ')">' +
+            '<rect class="' + cls.box + '" width="' + BOX_W + '" height="' + BOX_H + '" rx="2"/>' +
+            '<rect class="' + cls.badge + '" x="5" y="5" width="' + badge_w + '" height="10" rx="5"/>' +
+            '<text class="screen-id ' + cls.text + '" x="' + id_x + '" y="12" text-anchor="middle">' + escapeXml(screen.id) + '</text>' +
+            '<foreignObject x="5" y="18" width="130" height="26">' +
+              '<div xmlns="http://www.w3.org/1999/xhtml" class="screen-name-fo">' +
+                '<span class="screen-name-text">' + escapeXml(toSentenceCase(screen.name)) + '</span>' +
+              '</div>' +
+            '</foreignObject>' +
+            '<text class="screen-role" x="5" y="52">' + escapeXml(screen.role) + '</text>' +
+            connsHTML +
+          '</g>' +
+        '</g>';
+    }
+    return svg;
+  }
+
+  function rectsOverlap(a, b) {
+    const aLeft = a.labelX - a.labelW / 2;
+    const aRight = a.labelX + a.labelW / 2;
+    const aTop = a.labelY;
+    const aBottom = a.labelY + 16;
+    const bLeft = b.labelX - b.labelW / 2;
+    const bRight = b.labelX + b.labelW / 2;
+    const bTop = b.labelY;
+    const bBottom = b.labelY + 16;
+    return aLeft < bRight && bLeft < aRight && aTop < bBottom && bTop < aBottom;
+  }
+
+  function resolveLabelCollisions(arrowData) {
+    // Greedy: for each arrow, try shifting labelX along its actual horizontal segment.
+    // Only shifts that keep the label on the arrow's segment (segMinX..segMaxX) are allowed.
+    // If no shift resolves the collision, the label reverts to its original midpoint position
+    // (which may still overlap, but at least stays anchored to the arrow).
+    const shifts = [0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150];
+    for (let i = 0; i < arrowData.length; i++) {
+      const d = arrowData[i];
+      const originalX = d.labelX;
+      let resolved = false;
+      for (let k = 0; k < shifts.length; k++) {
+        const newX = originalX + shifts[k];
+        if (newX < d.segMinX || newX > d.segMaxX) continue;
+        d.labelX = newX;
+        let collided = false;
+        for (let j = 0; j < i; j++) {
+          if (rectsOverlap(d, arrowData[j])) {
+            collided = true;
+            break;
+          }
+        }
+        if (!collided) {
+          resolved = true;
+          break;
+        }
+      }
+      if (!resolved) d.labelX = originalX;
+    }
+  }
+
+  function renderArrows(positions) {
+    // Pass 1: compute path data and initial label position for every arrow
+    const arrowData = [];
+    for (let i = 0; i < ARROWS.length; i++) {
+      const a = ARROWS[i];
+      const src = positions[a.from];
+      const tgt = positions[a.to];
+      if (!src || !tgt) continue;
+
+      const sameSub = src.tier === tgt.tier && src.y === tgt.y;
+      const colDiff = tgt.col - src.col;
+      const labelW = a.label.length * 5 + 14;
+
+      let pathD, labelX, labelY, segMinX, segMaxX;
+      let isArc = false;
+
+      if (sameSub && Math.abs(colDiff) === 1) {
+        // Case 1: adjacent same sub-row — horizontal line at midY
+        const midY = src.y + BOX_H / 2;
+        if (colDiff > 0) {
+          pathD = 'M ' + (src.x + BOX_W) + ',' + midY + ' L ' + (tgt.x - 3) + ',' + midY;
+          segMinX = src.x + BOX_W;
+          segMaxX = tgt.x;
+        } else {
+          pathD = 'M ' + src.x + ',' + midY + ' L ' + (tgt.x + BOX_W + 3) + ',' + midY;
+          segMinX = tgt.x + BOX_W;
+          segMaxX = src.x;
+        }
+        labelX = (segMinX + segMaxX) / 2;
+        labelY = midY - 18;
+      } else if (sameSub && src.row === 0) {
+        // Case 2: non-adjacent same sub-row in sub-row 0 of either tier — symmetric arch above.
+        // The cubic arch runs end-to-end at the SAME height (arcEnd) so its apex stays centered.
+        // arcEnd is the TOP of the arrowhead, not its tip: the arc uses the #arrowhead-arc marker,
+        // which extends DOWNWARD from the curve end so the triangle's point reaches the TARGET card.
+        // On the SOURCE side there's no arrowhead, so a short vertical stem drops from the arch foot
+        // down to the source card — connecting the arch to its starting card without a triangle.
+        isArc = true;
+        const sTopX = src.x + BOX_W / 2;
+        const tTopX = tgt.x + BOX_W / 2;
+        const arcEnd = src.y - 11;   // top of the arrowhead; tip extends ~9px down to ~src.y-2
+        const ctrlY = src.y - 75;
+        pathD = 'M ' + sTopX + ',' + src.y + ' L ' + sTopX + ',' + arcEnd +
+                ' C ' + sTopX + ',' + ctrlY + ' ' + tTopX + ',' + ctrlY + ' ' + tTopX + ',' + arcEnd;
+        labelX = (sTopX + tTopX) / 2;
+        labelY = src.y - 70;
+        // Arc apex is a point; allow small shift around it (label rides the curve loosely)
+        segMinX = labelX - 40;
+        segMaxX = labelX + 40;
+      } else if (sameSub) {
+        // Case 3: non-adjacent same sub-row in sub-rows 1+ — U-over via inter-row gap above
+        const sTopX = src.x + BOX_W / 2;
+        const tTopX = tgt.x + BOX_W / 2;
+        const channelY = src.y - GAP / 2;
+        pathD = 'M ' + sTopX + ',' + src.y + ' L ' + sTopX + ',' + channelY +
+                ' L ' + tTopX + ',' + channelY + ' L ' + tTopX + ',' + (src.y - 3);
+        labelX = (sTopX + tTopX) / 2;
+        labelY = channelY - 8;
+        segMinX = Math.min(sTopX, tTopX);
+        segMaxX = Math.max(sTopX, tTopX);
+      } else {
+        // Case 4: cross sub-row / cross-tier — orthogonal Z with side entry
+        const sMidX = src.x + BOX_W / 2;
+        const sBottom = src.y + BOX_H;
+        const sTop = src.y;
+        const tMidY = tgt.y + BOX_H / 2;
+        const tLeft = tgt.x;
+        const tRight = tgt.x + BOX_W;
+        const tTop = tgt.y;
+        const tBottom = tgt.y + BOX_H;
+        const goingDown = (src.tier < tgt.tier) || (src.tier === tgt.tier && src.row < tgt.row);
+
+        if (src.col === tgt.col) {
+          // Same column — straight vertical line
+          if (goingDown) {
+            pathD = 'M ' + sMidX + ',' + sBottom + ' L ' + sMidX + ',' + (tTop - 3);
+            labelX = sMidX;
+            labelY = sBottom + GAP / 2 - 8;
+          } else {
+            pathD = 'M ' + sMidX + ',' + sTop + ' L ' + sMidX + ',' + (tBottom + 3);
+            labelX = sMidX;
+            labelY = sTop - GAP / 2 - 8;
+          }
+          // Vertical line — tight horizontal range, label stays close to line
+          segMinX = labelX - 30;
+          segMaxX = labelX + 30;
+        } else {
+          // Z-shape with side entry through inter-column gap
+          const entryFromLeft = colDiff > 0;
+          const verticalX = entryFromLeft ? (tLeft - GAP / 2) : (tRight + GAP / 2);
+          const entryEdge = entryFromLeft ? (tLeft - 3) : (tRight + 3);
+          const channelY = goingDown ? (sBottom + GAP / 2) : (sTop - GAP / 2);
+          const exitY = goingDown ? sBottom : sTop;
+          pathD = 'M ' + sMidX + ',' + exitY + ' L ' + sMidX + ',' + channelY +
+                  ' L ' + verticalX + ',' + channelY + ' L ' + verticalX + ',' + tMidY +
+                  ' L ' + entryEdge + ',' + tMidY;
+          labelX = (sMidX + verticalX) / 2;
+          labelY = channelY - 8;
+          segMinX = Math.min(sMidX, verticalX);
+          segMaxX = Math.max(sMidX, verticalX);
+        }
+      }
+
+      arrowData.push({
+        from: a.from,
+        to: a.to,
+        label: a.label,
+        pathD: pathD,
+        labelX: labelX,
+        labelY: labelY,
+        labelW: labelW,
+        segMinX: segMinX,
+        segMaxX: segMaxX,
+        isArc: isArc
+      });
+    }
+
+    // Pass 2: resolve label collisions by shifting labelX
+    resolveLabelCollisions(arrowData);
+
+    // Pass 3: build HTML using resolved label positions
+    let linesHTML = '';
+    let labelsHTML = '';
+    for (let k = 0; k < arrowData.length; k++) {
+      const d = arrowData[k];
+      const markerId = d.isArc ? 'arrowhead-arc' : 'arrowhead';
+      const groupClass = d.isArc ? 'arrow-group arc' : 'arrow-group';
+      linesHTML += '<g class="' + groupClass + '" data-from="' + escapeXml(d.from) + '" data-to="' + escapeXml(d.to) + '">' +
+        '<path class="arrow-hit" d="' + d.pathD + '"/>' +
+        '<path class="arrow" d="' + d.pathD + '" marker-end="url(#' + markerId + ')"/>' +
+        '</g>';
+
+      labelsHTML += '<g class="arrow-label-group" data-from="' + escapeXml(d.from) + '" data-to="' + escapeXml(d.to) + '">' +
+        '<rect class="label-bg" x="' + (d.labelX - d.labelW / 2) + '" y="' + d.labelY + '" width="' + d.labelW + '" height="16" rx="2"/>' +
+        '<text class="arrow-label" x="' + d.labelX + '" y="' + (d.labelY + 11) + '" text-anchor="middle">' + escapeXml(d.label) + '</text>' +
+        '</g>';
+    }
+    return { lines: linesHTML, labels: labelsHTML };
+  }
+
+  function render() {
+    const container = document.querySelector('.sitemap-container');
+    const svg = document.querySelector('svg.sitemap');
+    if (!container || !svg) return;
+
+    // Compute box height based on current mode
+    if (arrowsOn) {
+      BOX_H = BOX_BASE_H;
+    } else {
+      BOX_H = BOX_BASE_H + getMaxConnections() * CONN_LINE_HEIGHT + 6;
+    }
+    SUB_ROW_STEP = BOX_H + GAP;
+
+    const containerWidth = container.clientWidth - 64;
+    const cols = getCols(containerWidth);
+
+    const layout = layoutBoxes(cols);
+    svg.setAttribute('viewBox', '0 0 ' + layout.totalW + ' ' + layout.totalH);
+
+    const protoCount = SCREENS.filter(function (s) { return s.tier === 'prototype'; }).length;
+    const sfbCount = SCREENS.filter(function (s) { return s.tier === 'save-for-build'; }).length;
+
+    let arrowLinesHTML = '';
+    let arrowLabelsHTML = '';
+    if (arrowsOn) {
+      const arrowsData = renderArrows(layout.positions);
+      arrowLinesHTML = arrowsData.lines;
+      arrowLabelsHTML = arrowsData.labels;
+    }
+
+    svg.innerHTML =
+      '<defs>' +
+        '<marker id="arrowhead" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">' +
+          '<path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/>' +
+        '</marker>' +
+        '<marker id="arrowhead-hover" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">' +
+          '<path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/>' +
+        '</marker>' +
+        '<marker id="arrowhead-arc" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="9" markerHeight="9" orient="auto">' +
+          '<path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/>' +
+        '</marker>' +
+        '<marker id="arrowhead-arc-hover" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="7" markerHeight="7" orient="auto">' +
+          '<path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/>' +
+        '</marker>' +
+      '</defs>' +
+      '<text class="row-label" x="' + PAD_LR + '" y="60">Prototype screens &middot; ' + protoCount + '</text>' +
+      '<text class="row-label" x="' + PAD_LR + '" y="' + (layout.tier2_y_start - 20) + '">Save for /build screens &middot; ' + sfbCount + '</text>' +
+      arrowLinesHTML +
+      renderBoxes(layout.positions) +
+      arrowLabelsHTML;
+
+    attachCardHoverListeners(svg);
+    attachArrowHoverListeners(svg);
+  }
+
+  function attachCardHoverListeners(svg) {
+    const cards = svg.querySelectorAll('g.card-group');
+    cards.forEach(function (card) {
+      const screenId = card.getAttribute('data-screen-id');
+      card.addEventListener('mouseenter', function () {
+        const els = svg.querySelectorAll('g.arrow-group, g.arrow-label-group');
+        els.forEach(function (el) {
+          const from = el.getAttribute('data-from');
+          const to = el.getAttribute('data-to');
+          if (from === screenId || to === screenId) {
+            el.classList.add('highlighted');
+          }
+        });
+      });
+      card.addEventListener('mouseleave', function () {
+        svg.querySelectorAll('g.arrow-group.highlighted, g.arrow-label-group.highlighted').forEach(function (el) {
+          el.classList.remove('highlighted');
+        });
+      });
+    });
+  }
+
+  function attachArrowHoverListeners(svg) {
+    function findPair(from, to, selector) {
+      return svg.querySelector(selector + '[data-from="' + from + '"][data-to="' + to + '"]');
+    }
+
+    svg.querySelectorAll('g.arrow-group').forEach(function (ag) {
+      const from = ag.getAttribute('data-from');
+      const to = ag.getAttribute('data-to');
+      ag.addEventListener('mouseenter', function () {
+        const lg = findPair(from, to, 'g.arrow-label-group');
+        if (lg) lg.classList.add('highlighted');
+      });
+      ag.addEventListener('mouseleave', function () {
+        const lg = findPair(from, to, 'g.arrow-label-group');
+        if (lg) lg.classList.remove('highlighted');
+      });
+    });
+
+    svg.querySelectorAll('g.arrow-label-group').forEach(function (lg) {
+      const from = lg.getAttribute('data-from');
+      const to = lg.getAttribute('data-to');
+      lg.addEventListener('mouseenter', function () {
+        const ag = findPair(from, to, 'g.arrow-group');
+        if (ag) ag.classList.add('highlighted');
+      });
+      lg.addEventListener('mouseleave', function () {
+        const ag = findPair(from, to, 'g.arrow-group');
+        if (ag) ag.classList.remove('highlighted');
+      });
+    });
+  }
+
+  // === Initial render + listeners ===
+
+  render();
+
+  let resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 100);
+  });
+
+  document.getElementById('arrows-toggle').addEventListener('change', function (e) {
+    arrowsOn = e.target.checked;
+    render();
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - '**'
+  push:
+    branches:
+      - dev
+      - main
+
+jobs:
+  # Variant detection: tier 1 supports two build variants (see the project
+  # root CLAUDE.md). The server-backed variant populates web/ with a
+  # React + Vite app (package.json present). The self-contained variant
+  # populates web/ with a single hand-written index.html (no package.json,
+  # no toolchain). CI branches on the presence of web/package.json — one
+  # of the two jobs below runs, the other skips silently.
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      variant: ${{ steps.detect.outputs.variant }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: detect
+        run: |
+          if [ -f web/package.json ]; then
+            echo "variant=server-backed" >> "$GITHUB_OUTPUT"
+          elif [ -f web/index.html ]; then
+            echo "variant=self-contained" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Neither web/package.json nor web/index.html found — cannot determine variant."
+            exit 1
+          fi
+
+  # Reference job: shows how to pin Node for any Node-based gate
+  # (prettier, eslint, npm audit, jest, playwright). Add the rest of
+  # your web gates here per rules/dev/ci-pipeline.md; the npm audit
+  # split below is the security baseline per web-dependency-security.md.
+  #
+  # ACTION VERSIONS: always pin the latest major of each GitHub Action
+  # (checkout@v5, setup-node@v5, setup-dotnet@v5, ...). Do NOT use v4 or
+  # older — those run on Node.js 20, which GitHub has deprecated and will
+  # warn about on every run. See rules/dev/ci-pipeline.md.
+  web:
+    needs: detect
+    if: needs.detect.outputs.variant == 'server-backed'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: npm ci
+
+      # Blocking: shipped dependencies only. A High or Critical finding
+      # here reaches end users and must fail the build.
+      - name: npm audit (shipped deps) — blocking
+        run: npm audit --omit=dev --audit-level=high
+
+      # Non-blocking: full audit (including dev tooling) for visibility.
+      # High/Critical findings in dev-only deps (test runners, build tools,
+      # dev servers) do not fail the build but MUST be documented as an ADR
+      # entry in decisions.md per rules/dev/web-dependency-security.md.
+      - name: npm audit (all deps) — visibility only
+        run: npm audit --audit-level=high || true
+
+  # Self-contained variant: mirrors the static-analysis gates the /review
+  # skill runs against web/index.html. No toolchain to install — every
+  # check is a grep or a token scan against the single file. Every gate
+  # here is blocking; a failure here matches a "blocking High finding" in
+  # /review.
+  self-contained-web:
+    needs: detect
+    if: needs.detect.outputs.variant == 'self-contained'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: File present
+        run: |
+          test -f web/index.html || { echo "::error::web/index.html missing"; exit 1; }
+
+      # Forbidden patterns (universal guardrails + variant gate). Keep this
+      # list in sync with rules/dev/_core-requirements.md "Self-contained
+      # file" tier and the /review test gate.
+      - name: Forbidden pattern grep
+        run: |
+          set -e
+          found=0
+          for pat in 'eval(' 'new Function(' 'document\.write' '\.innerHTML *=' '\.outerHTML *=' '\.insertAdjacentHTML(' '\.html('; do
+            if grep -nE "$pat" web/index.html; then
+              echo "::error::forbidden pattern found: $pat"
+              found=1
+            fi
+          done
+          # External script/style sources: only inline + data: allowed.
+          if grep -nE '<script[^>]+src=("|'\'')(?!data:)' web/index.html; then
+            echo "::error::external <script src> found (only inline or data: allowed)"; found=1
+          fi
+          if grep -nE '<link[^>]+rel=("|'\'')stylesheet("|'\'')[^>]+href=("|'\'')(?!data:)' web/index.html; then
+            echo "::error::external <link rel=stylesheet> found"; found=1
+          fi
+          if grep -nE '@import[^;]*url\(' web/index.html; then
+            echo "::error::@import url(...) found"; found=1
+          fi
+          if grep -nE '<img[^>]+src=("|'\'')https?://' web/index.html; then
+            echo "::error::external <img src> found"; found=1
+          fi
+          exit $found
+
+      - name: CSP meta tag present
+        run: |
+          grep -q 'http-equiv="Content-Security-Policy"' web/index.html || {
+            echo "::error::missing <meta http-equiv=\"Content-Security-Policy\"> in web/index.html";
+            exit 1;
+          }
+
+      # Every colour and radius in the <style> block must read from a token
+      # (var(--...)). Literal hex / rgb / hsl / off-spec radius is a
+      # blocking finding.
+      - name: Token-derived styling
+        run: |
+          set -e
+          # Extract the first <style>...</style> block for scanning.
+          awk '/<style/,/<\/style>/' web/index.html > /tmp/style.css
+          bad=0
+          if grep -nE '#[0-9a-fA-F]{3,8}\b' /tmp/style.css; then
+            echo "::error::literal hex colour(s) in <style> — use var(--...)"; bad=1
+          fi
+          if grep -nE '\b(rgb|rgba|hsl|hsla)\(' /tmp/style.css; then
+            echo "::error::literal rgb/hsl colour(s) in <style> — use var(--...)"; bad=1
+          fi
+          # Radius must be var(--...), 2px, or 999px per the design rules.
+          if grep -nE 'border[-a-z]*radius:[^;]*' /tmp/style.css \
+               | grep -vE 'var\(--|:\s*(2px|999px)\s*[;\}]'; then
+            echo "::error::off-spec border-radius — must be var(--...), 2px, or 999px"; bad=1
+          fi
+          exit $bad
