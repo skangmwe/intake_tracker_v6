@@ -443,11 +443,25 @@ Export a saved view as CSV. Access-respecting: columns follow the view, rows fol
 ## 18 · Admin surfaces (workspace)
 
 - `GET /api/v1/workspaces/{id}/fields` / `POST` / `PATCH` — Fields & objects (S30).
-- `GET /api/v1/workspaces/{id}/lifecycle` / `PATCH` — Lifecycle & gates (S31). Team-only approver slots.
+- `GET /api/v1/workspaces/{id}/lifecycle` / `PATCH` — Lifecycle & gates (S31).
 - `GET /api/v1/workspaces/{id}/approver-teams` / `POST` / `DELETE` — Approver Teams membership.
 - `GET /api/v1/workspaces/{id}/audit/query` — Workspace audit log.
 
 Fields & objects retire actions guarded (BS §6.2, §7.1).
+
+### `GET /api/v1/workspaces/{id}/lifecycle`
+The full S31 config. Any workspace member (Viewer+) may read — records and forms render from it.
+
+- **Response:** `LifecycleConfigDto` — `{ workspaceId, lifecycles: LifecycleDto[], roleLabels: string[], approverTeams: ApproverTeamDto[] }`. Each `LifecycleDto` carries its ordered `stages` (with `statusCategory`) and its `gates` (each with `fromStageId`/`toStageId`, `joinKind: 'and'`, and `slots` of `{ roleLabel, eligibleCount }` where `eligibleCount` is computed live from `ApproverTeamMembership`). `roleLabels` folds in the `RoleLabelCatalog` read (full catalog CRUD stays S37/slice 19).
+
+### `PATCH /api/v1/workspaces/{id}/lifecycle`
+WorkspaceAdmin only. Reconciles the whole lifecycle/stage/gate structure in one transaction (`usp_SaveLifecycleConfig`, `OPENJSON`): lifecycles/stages/gates absent from the body are retired, present ones upserted. Exactly one lifecycle must be `isDefault`. Gate `from`/`to` must reference stages in the same lifecycle. Emits `lifecycle.updated` on the event spine.
+
+- **Body:** `LifecycleConfigUpdateRequest` — `{ lifecycles: LifecycleUpsertDto[] }`.
+- **Response:** `200` with the refreshed `LifecycleConfigDto`. `400 validation` when no/multiple defaults or a gate references a foreign stage.
+
+### `GET/POST/DELETE /api/v1/workspaces/{id}/approver-teams`
+Approver-team roster. GET returns `ApproverTeamDto[]` (one per role label with its members). `POST { roleLabel, person }` resolves `person` (display name or email) against active workspace members and adds the membership — `400` when unresolved/ambiguous, `201` with the added `ApproverTeamMemberDto`. `DELETE { roleLabel, userId }` soft-clears the membership. POST/DELETE are WorkspaceAdmin only. Emits `approver-team.updated`.
 
 ## 19 · Admin surfaces (platform)
 

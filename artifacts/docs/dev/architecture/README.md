@@ -28,3 +28,4 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 1 | Foundation | completed | [slice-plan.md §Slice 1](slice-plan.md) | [01-slice-foundation.md](01-slice-foundation.md) |
 | 2 | Auth & app shell | completed | [slice-plan.md §Slice 2](slice-plan.md) | [02-slice-auth-app-shell.md](02-slice-auth-app-shell.md) |
 | 3 | Fields & objects — schema engine | completed | [slice-plan.md §Slice 3](slice-plan.md) | [03-slice-fields-schema-engine.md](03-slice-fields-schema-engine.md) |
+| 4 | Lifecycle & gates admin (S31) | completed | [slice-plan.md §Slice 4](slice-plan.md) | [04-slice-lifecycle-gates-admin.md](04-slice-lifecycle-gates-admin.md) |

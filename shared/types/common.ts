@@ -23,6 +23,9 @@ export type UserId = string & { readonly __brand: 'UserId' };
 /** Field-definition GUID. */
 export type FieldDefinitionId = string & { readonly __brand: 'FieldDefinitionId' };
 
+/** Lifecycle GUID — a workspace's per-request-type process (S31). */
+export type LifecycleId = string & { readonly __brand: 'LifecycleId' };
+
 /** Stage-definition GUID. */
 export type StageDefinitionId = string & { readonly __brand: 'StageDefinitionId' };
 

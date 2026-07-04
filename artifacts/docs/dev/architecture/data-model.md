@@ -29,8 +29,10 @@ Workspace 1─┬─* Request (PK = PREFIX-NNNNNNNN, per §17 field schema)
             ├─* SavedView
             ├─* SavedDashboard
             ├─* FieldDefinition (workspace-local; platform-defined subset referenced)
-            ├─* StageDefinition (workspace-local; six-stage seed in AI Solutions)
-            ├─* GateDefinition (workspace-local; approver slots point at teams)
+            ├─* Lifecycle (workspace-local; one per request type; exactly one default — S31)
+            │      ├─* StageDefinition (lifecycle-scoped; ordered; a status category each)
+            │      └─* GateDefinition (lifecycle-scoped; from→to StageDefinition)
+            │             └─* GateApproverSlot (role-label; AND-join across slots)
             ├─* ApproverTeamMembership (role-label → users, per workspace)
             ├─* UserGroup (e.g. AI Intake seed group)
             ├─* WorkspaceMembership (user × workspace × access level)
@@ -254,9 +256,78 @@ Append-only, immutable (BS §12). Captured off the event spine.
 
 **Never updated, never deleted.** Enforced by an INSTEAD OF trigger that rejects `UPDATE`/`DELETE` at every access level. Audit column `IsDeleted` remains for consistency but a soft-delete would be rejected too.
 
-### FieldDefinition / StageDefinition / GateDefinition
+### FieldDefinition
 
-Configuration entities per workspace. Definitions are `versioned in place` — edits capture a new version row, previous versions retained for audit-trail resolution. Retirement is guarded (BS §6.2 retirement guard for crossing-map sources/targets, §7.1 stage retirement guard).
+Configuration entity per workspace. Definitions are `versioned in place` — edits capture a new version row, previous versions retained for audit-trail resolution. Retirement is guarded (BS §6.2 retirement guard for crossing-map sources/targets).
+
+### Lifecycle / StageDefinition / GateDefinition / GateApproverSlot (S31)
+
+The prototype's **Lifecycle & gates** surface (S31) is authoritative: a workspace owns **many lifecycles**, one per **request type** chosen at intake (BS §7.1 — "lifecycle as data"). Each lifecycle carries its own ordered stages and its own approval gates. Exactly one lifecycle per workspace is the **default** (picked when a request does not name a type). This supersedes the earlier flat single-stage-set model; **Slice 5's Stage field options are sourced from the record's lifecycle's `StageDefinition` rows**, not a workspace-wide set.
+
+#### Lifecycle
+
+| Column | Type | Notes |
+|---|---|---|
+| `LifecycleId` | `UNIQUEIDENTIFIER` PK | |
+| `WorkspaceId` | FK → Workspace | |
+| `Name` | `NVARCHAR(200)` NOT NULL | e.g. "Standard AI build". |
+| `RequestType` | `NVARCHAR(120)` NOT NULL | The type a request picks at intake to select this lifecycle. |
+| `IsDefault` | `BIT` NOT NULL DEFAULT 0 | Exactly one per workspace — filtered unique index `WHERE IsDefault = 1 AND IsDeleted = 0`. |
+| `SortOrder` | `INT` NOT NULL DEFAULT 0 | |
+| audit cols | | |
+
+#### StageDefinition (lifecycle-scoped)
+
+| Column | Type | Notes |
+|---|---|---|
+| `StageDefinitionId` | `UNIQUEIDENTIFIER` PK | |
+| `LifecycleId` | FK → Lifecycle | |
+| `WorkspaceId` | FK → Workspace | Denormalized for the workspace-scoped read/index. |
+| `StageKey` | `NVARCHAR(64)` NOT NULL | Stable machine key (`intake`, `discovery`, `build`, `qa`, `deploy`, `post-launch` on the seed). Unique per lifecycle. |
+| `Label` | `NVARCHAR(120)` NOT NULL | Display name. |
+| `StatusCategory` | `NVARCHAR(16)` NOT NULL | `'Intake'` \| `'Build'` \| `'Review'` \| `'Deploy'` — maps stages to dashboard/rollup buckets (§10.6). CHECK-constrained. |
+| `SortOrder` | `INT` NOT NULL | Position on the track. |
+| audit cols | | |
+
+#### GateDefinition (lifecycle-scoped)
+
+| Column | Type | Notes |
+|---|---|---|
+| `GateDefinitionId` | `UNIQUEIDENTIFIER` PK | |
+| `LifecycleId` | FK → Lifecycle | |
+| `WorkspaceId` | FK → Workspace | Denormalized for the workspace-scoped read/index. |
+| `Name` | `NVARCHAR(200)` NOT NULL | e.g. "QA readiness gate". |
+| `FromStageId` | FK → StageDefinition | Transition source. |
+| `ToStageId` | FK → StageDefinition | Transition target — the gate fires on entry to this stage. |
+| `JoinKind` | `NVARCHAR(8)` NOT NULL DEFAULT `'and'` | AND-join is the only kind (every slot must approve). |
+| `SortOrder` | `INT` NOT NULL DEFAULT 0 | |
+| audit cols | | |
+
+#### GateApproverSlot
+
+Team-only approver slot (per prototype changelog — "gate approver slots now identify only the team/role label"). The eligible members are resolved live from `ApproverTeamMembership`; the frozen set is snapshotted onto `ApprovalRequest` at gate-open (slice 8).
+
+| Column | Type | Notes |
+|---|---|---|
+| `GateApproverSlotId` | `UNIQUEIDENTIFIER` PK | |
+| `GateDefinitionId` | FK → GateDefinition | |
+| `RoleLabel` | `NVARCHAR(120)` NOT NULL | A label from `RoleLabelCatalog`. |
+| `SlotIndex` | `INT` NOT NULL | Position within the gate. |
+| audit cols | | |
+
+#### ApproverTeamMembership (per workspace)
+
+Role-label → **real workspace users** (not free text). Powers the S31 Approver-teams roster and the live "N eligible" count; slice 8 freezes eligible `UserId`s at gate-open.
+
+| Column | Type | Notes |
+|---|---|---|
+| `ApproverTeamMembershipId` | `UNIQUEIDENTIFIER` PK | |
+| `WorkspaceId` | FK → Workspace | |
+| `RoleLabel` | `NVARCHAR(120)` NOT NULL | |
+| `UserId` | FK → User | The member. Resolved from a typed name/email against active workspace members at add time. |
+| audit cols | | UNIQUE `(WorkspaceId, RoleLabel, UserId)` filtered `WHERE IsDeleted = 0`. |
+
+**Seed** (AI Solutions workspace): one default lifecycle "Standard AI build" (type "Full build") with the six canonical stages, plus the QA-readiness (Build→QA) and Post-launch-readiness (Deploy→Post-launch) gates and their team-only slots. The `RoleLabelCatalog` is seeded (AI Solutions Manager · GCO · InfoSec · PG/Dept Lead · Data Privacy). **`ApproverTeamMembership` seeds empty** — the prototype's named people are mock fixtures; real members are added by admins (or accrue as users sign in). "N eligible" reads live from an empty roster until then.
 
 ### PlatformField, CrossingMap, RoleLabelCatalog, PrefixRegistry
 

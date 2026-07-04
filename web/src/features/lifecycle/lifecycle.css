@@ -1,0 +1,371 @@
+/* Layout for the Lifecycle & gates admin surface (S31). Tokens only — colours, spacing, and radii
+   come from the McDermott design system (never raw values). Ports the prototype's form: a
+   Lifecycles bar, then the selected lifecycle's numbered Stages / Gates / Approver-teams sections.
+   Responsive: rows wrap and collapse to a single column on narrow viewports. */
+
+.lifecycle-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: min(100%, 1200px);
+  margin-inline: auto;
+}
+
+.lifecycle-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.lifecycle-header__title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Autosave indicator (design-system .mws-status register). */
+.lifecycle-autosave {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.lifecycle-autosave[data-state='error'] {
+  color: var(--color-navy);
+}
+
+.lifecycle-spin {
+  animation: lifecycle-spin 800ms linear infinite;
+}
+
+@keyframes lifecycle-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lifecycle-spin {
+    animation: none;
+  }
+}
+
+/* ── Lifecycles bar ─────────────────────────────────────────────── */
+.lifecycle-card {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lifecycle-card--split {
+  padding: 0;
+}
+
+.lifecycle-card__section {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.lifecycle-card__section:last-child {
+  border-bottom: none;
+}
+
+.lifecycle-bar__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.lifecycle-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lifecycle-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-2) var(--space-4);
+  min-width: 150px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  text-align: left;
+}
+
+.lifecycle-chip:hover,
+.lifecycle-chip:focus-visible {
+  border-color: var(--accent-interactive);
+}
+
+.lifecycle-chip[aria-pressed='true'] {
+  border-color: var(--accent-interactive);
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+}
+
+.lifecycle-chip__name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lifecycle-chip__meta {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.lifecycle-editrow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border-light);
+  padding-top: var(--space-4);
+}
+
+.lifecycle-editrow .mws-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+.lifecycle-default-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-bottom: var(--space-2);
+}
+
+/* ── Numbered section header ────────────────────────────────────── */
+.lifecycle-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.lifecycle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-navy);
+  color: var(--color-white);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lifecycle-badge__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-white) 20%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Stages track ───────────────────────────────────────────────── */
+.lifecycle-stages {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.lifecycle-stage-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.lifecycle-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 120px;
+}
+
+.lifecycle-stage__top {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.lifecycle-stage__circle {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-light);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.lifecycle-stage__gate {
+  color: var(--accent-interactive);
+  margin: 0 calc(-1 * var(--space-2)) 28px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Gate cards ─────────────────────────────────────────────────── */
+.lifecycle-gate {
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lifecycle-gate__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.lifecycle-gate__name {
+  flex: 1;
+  min-width: 220px;
+}
+
+.lifecycle-gate__icon {
+  color: var(--accent-interactive);
+  flex-shrink: 0;
+  margin-top: var(--space-1);
+}
+
+.lifecycle-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-top: 1px solid var(--border-light);
+  padding-top: var(--space-3);
+}
+
+.lifecycle-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.lifecycle-slot__count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lifecycle-slot__spacer {
+  flex: 1;
+}
+
+/* ── Approver teams ─────────────────────────────────────────────── */
+.lifecycle-team {
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.lifecycle-team__members {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* The chips form a semantic list; display:contents lets them flow inline with the add input. */
+.lifecycle-team__chips {
+  display: contents;
+}
+
+.lifecycle-member {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  border-radius: var(--radius-pill);
+  padding: 3px 6px 3px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.lifecycle-member__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-navy);
+  cursor: pointer;
+}
+
+.lifecycle-member__remove:hover,
+.lifecycle-member__remove:focus-visible {
+  background: color-mix(in srgb, var(--color-navy) 12%, transparent);
+}
+
+.lifecycle-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.lifecycle-inline-input {
+  min-width: 160px;
+}
+
+@media (max-width: 640px) {
+  .lifecycle-stage {
+    min-width: 100px;
+  }
+
+  .lifecycle-gate__head .mws-field,
+  .lifecycle-editrow .mws-field {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+}

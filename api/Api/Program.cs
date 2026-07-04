@@ -80,6 +80,10 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Fields.IFieldSchemaSe
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.PlatformAdmin.IPlatformFieldService,
     McDermott.AiTracker.Api.Modules.PlatformAdmin.PlatformFieldService>();
 
+// ─── Lifecycle & gates (slice 4) ────────────────────────────────────────────
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Lifecycle.ILifecycleService,
+    McDermott.AiTracker.Api.Modules.Lifecycle.LifecycleService>();
+
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
 // intended contract (api-coding-standards.md — Swagger is gated by config, not

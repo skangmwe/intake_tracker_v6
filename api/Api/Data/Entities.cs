@@ -217,3 +217,76 @@ public sealed class PlatformFieldRow
     public bool HasManualWritePath { get; set; }
     public string? SelectOptionsJson { get; set; }
 }
+
+// ─── Slice 4 (Lifecycle & gates) — keyless read projections ────────────────────────────
+// The lifecycle config tables (Lifecycle / StageDefinition / GateDefinition / GateApproverSlot /
+// ApproverTeamMembership / RoleLabelCatalog) are read via stored procedures (joins / live counts →
+// api-data-access.md) and written via usp_SaveLifecycleConfig / usp_*ApproverTeamMember. The API
+// tracks none of them as EF entities — only these keyless projections bound through FromSqlRaw.
+
+/// <summary>One lifecycle row from usp_GetWorkspaceLifecycles.</summary>
+public sealed class LifecycleRow
+{
+    public Guid LifecycleId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string RequestType { get; set; } = string.Empty;
+    public bool IsDefault { get; set; }
+    public int SortOrder { get; set; }
+}
+
+/// <summary>One stage row from usp_GetWorkspaceStages, keyed by its lifecycle.</summary>
+public sealed class StageDefinitionRow
+{
+    public Guid StageDefinitionId { get; set; }
+    public Guid LifecycleId { get; set; }
+    public string StageKey { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public string StatusCategory { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+}
+
+/// <summary>One gate row from usp_GetWorkspaceGates, keyed by its lifecycle.</summary>
+public sealed class GateDefinitionRow
+{
+    public Guid GateDefinitionId { get; set; }
+    public Guid LifecycleId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public Guid FromStageId { get; set; }
+    public Guid ToStageId { get; set; }
+    public string JoinKind { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+}
+
+/// <summary>One gate-slot row from usp_GetWorkspaceGateSlots, with the live eligible count.</summary>
+public sealed class GateSlotRow
+{
+    public Guid GateDefinitionId { get; set; }
+    public string RoleLabel { get; set; } = string.Empty;
+    public int SlotIndex { get; set; }
+    public int EligibleCount { get; set; }
+}
+
+/// <summary>One role-label row from usp_GetRoleLabelCatalog (platform-scope).</summary>
+public sealed class RoleLabelRow
+{
+    public Guid RoleLabelId { get; set; }
+    public string Label { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+}
+
+/// <summary>One approver-team member row from usp_GetWorkspaceApproverTeams.</summary>
+public sealed class ApproverTeamMemberRow
+{
+    public string RoleLabel { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
+    /// <summary>PII (display name). Presentation only — never logged.</summary>
+    public string DisplayName { get; set; } = string.Empty;
+}
+
+/// <summary>The resolved member returned by usp_AddApproverTeamMember.</summary>
+public sealed class ApproverMemberResultRow
+{
+    public Guid UserId { get; set; }
+    /// <summary>PII (display name). Presentation only — never logged.</summary>
+    public string DisplayName { get; set; } = string.Empty;
+}
