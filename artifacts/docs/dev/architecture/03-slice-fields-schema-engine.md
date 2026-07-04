@@ -44,9 +44,13 @@ styled to match the slice-2 shell. `npx tsc --noEmit` clean; API 35 xUnit + web 
 ## Cross-slice contracts (read before slice 4 / 5)
 
 - **Stage keys.** Per-stage visibility (§17.10) and the derived rules use the six canonical stage
-  keys: `intake`, `discovery`, `build`, `qa`, `deploy`, `post-launch`. **Slice 4 must seed
-  `StageDefinition` with these exact keys.** The Stage field's *options* are sourced from
-  `StageDefinition` (slice 4), not `SelectOption` — the Stage field ships option-less here.
+  keys: `intake`, `discovery`, `build`, `qa`, `deploy`, `post-launch`. **Slice 4 seeds
+  `StageDefinition` with these exact keys** on the default lifecycle. The Stage field's *options* are
+  sourced from `StageDefinition`, not `SelectOption` — the Stage field ships option-less here.
+  **Superseded detail (slice 4):** the prototype's S31 makes stages **lifecycle-scoped** — a workspace
+  owns many lifecycles (one per request type). Slice 5's Stage options therefore come from the
+  *record's* lifecycle's stages; the six canonical keys live on the seeded default lifecycle
+  ("Standard AI build"). See `data-model.md` → *Lifecycle / StageDefinition*.
 - **Task field library** = Task-object `FieldDefinition`s. The dedicated `/task-fields` endpoint
   returns them with the narrowed library type names (Url/Text/Number/Date/Select/Checkbox) for the
   slice-7 Tasks composer; S30 manages them via the general `/fields?objectType=Task` path.

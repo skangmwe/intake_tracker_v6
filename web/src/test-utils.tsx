@@ -8,8 +8,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { render } from '@testing-library/react';
 import type {
   FieldDefinitionDto,
+  GateDefinitionId,
+  LifecycleConfigDto,
+  LifecycleId,
   MeDto,
   PlatformFieldDto,
+  StageDefinitionId,
   UserId,
   WorkspaceId,
   WorkspaceMembershipDto,
@@ -99,6 +103,45 @@ export function buildPlatformField(overrides: Partial<PlatformFieldDto> = {}): P
     isSystemImmutable: false,
     hasManualWritePath: true,
     selectOptions: null,
+    ...overrides,
+  };
+}
+
+/** A seeded S31 config: one default "Standard" lifecycle (build → qa) with a QA gate + roster. */
+export function buildLifecycleConfig(overrides: Partial<LifecycleConfigDto> = {}): LifecycleConfigDto {
+  const buildStage = '00000000-0000-0000-0000-0000000000b1' as StageDefinitionId;
+  const qaStage = '00000000-0000-0000-0000-0000000000b2' as StageDefinitionId;
+  return {
+    workspaceId: 'ws-1' as WorkspaceId,
+    lifecycles: [
+      {
+        id: '00000000-0000-0000-0000-00000000010c' as LifecycleId,
+        name: 'Standard',
+        requestType: 'Full build',
+        isDefault: true,
+        sortOrder: 0,
+        stages: [
+          { id: buildStage, key: 'build', label: 'Build', statusCategory: 'Build', sortOrder: 0 },
+          { id: qaStage, key: 'qa', label: 'QA', statusCategory: 'Review', sortOrder: 1 },
+        ],
+        gates: [
+          {
+            id: '00000000-0000-0000-0000-0000000001a1' as GateDefinitionId,
+            lifecycleId: '00000000-0000-0000-0000-00000000010c' as LifecycleId,
+            name: 'QA readiness gate',
+            fromStageId: buildStage,
+            toStageId: qaStage,
+            joinKind: 'and',
+            slots: [{ roleLabel: 'InfoSec', eligibleCount: 2 }],
+          },
+        ],
+      },
+    ],
+    roleLabels: ['InfoSec', 'AI Solutions Manager'],
+    approverTeams: [
+      { roleLabel: 'InfoSec', members: [{ userId: '00000000-0000-0000-0000-0000000000a1' as UserId, displayName: 'N. Varga' }] },
+      { roleLabel: 'AI Solutions Manager', members: [] },
+    ],
     ...overrides,
   };
 }

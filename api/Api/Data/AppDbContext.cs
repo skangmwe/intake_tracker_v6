@@ -54,6 +54,15 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<FieldDependencyRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<PlatformFieldRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 4 (Lifecycle & gates) — keyless projections read via stored procedures.
+        modelBuilder.Entity<LifecycleRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<StageDefinitionRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<GateDefinitionRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<GateSlotRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<RoleLabelRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<ApproverTeamMemberRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<ApproverMemberResultRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

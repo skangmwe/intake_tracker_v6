@@ -62,10 +62,15 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 ### Slice 4: Lifecycle & gates admin (S31 — prototyped)
 - **Spec section:** BS §7 (Workflow, lifecycle, and gates), §7.1 (lifecycle as data), §7.2 (approval gates — **team-only slot model per the prototype**), §7.4 (other lifecycle mechanics). Requirements Use Case 2.
 - **User capability:** "a workspace admin defines lifecycle stages, gate configuration with team-only approver slots, and Approver Team memberships."
-- **Scope:** DB tables `StageDefinition`, `GateDefinition`, `GateApproverSlot`, `ApproverTeamMembership`. `RoleLabelCatalog` reads (S37 is a downstream slice; the catalog table itself is seeded here). Seed the six-stage AI Solutions lifecycle + QA-readiness (Build→QA) and Post-launch-readiness (Deploy→Post-launch) gates, per prototype changelog. API: `/workspaces/{id}/lifecycle` PATCH, `/workspaces/{id}/approver-teams` CRUD. Web: **S31 Lifecycle & gates** `[prototyped]` — the stages section with numbered circles + gate icon; live editor for gates (name, from→to selects, slot list identifying role labels + eligible count + remove); Approver Teams section with editable chip membership per role label.
+- **Scope:** DB tables `Lifecycle`, `StageDefinition`, `GateDefinition`, `GateApproverSlot`, `ApproverTeamMembership`, `RoleLabelCatalog`. Seed the default "Standard AI build" lifecycle (six stages, each with a status category) + QA-readiness (Build→QA) and Post-launch-readiness (Deploy→Post-launch) gates + role-label catalog, per prototype changelog. API: `/workspaces/{id}/lifecycle` GET/PATCH (full-config reconcile), `/workspaces/{id}/approver-teams` GET/POST/DELETE. Web: **S31 Lifecycle & gates** `[prototyped]` — the Lifecycles bar (add/remove/default) + stages editor (numbered track, status-category, gate icon) + gates editor (name, from→to selects, team-only slot list + live eligible count) + Approver Teams roster (editable member chips per role label).
 - **Screens covered:** **S31 Lifecycle & gates** `[prototyped]`.
 - **Depends on:** 1, 2, 3.
 - **Estimated LoC:** 6,000.
+- **Divergence resolved (Step 3):** the prototype renders **multiple per-request-type Lifecycles**, not the flat single stage-set the earlier data-model assumed. Prototype wins (design handoff) — a first-class `Lifecycle` entity was introduced and the data-model / api-contracts / shared types / Slice 3 cross-slice note were updated before build. Approver-team members are **real workspace users** (resolved from a typed name/email); the roster seeds **empty** (prototype's named people are mock fixtures).
+- **Status: completed**
+- **Started:** 2026-07-03T22:16:02-04:00
+- **Ended:** 2026-07-03T23:09:47-04:00
+- **Duration:** 00:53:45
 
 ### Slice 5: Requests — create, list, detail, edit
 - **Spec section:** BS §9 (Records surfaces), §17 (Seed field schema), §22 (List views), §23 (Record detail). Requirements Section 5 (user stories 1–4).
