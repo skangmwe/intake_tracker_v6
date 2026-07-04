@@ -64,6 +64,9 @@ public sealed partial class RequestsService
             var dueIndex = reader.GetOrdinal("DueDate");
             var priorityIndex = reader.GetOrdinal("PriorityScore");
             var rowVerIndex = reader.GetOrdinal("RowVer");
+            // Field-as-column rollup (slice 7): the first task-level URL field value, surfaced as the
+            // Repo URL list column. NULL when the record has no URL-type task field yet.
+            var repoIndex = reader.GetOrdinal("RepoUrl");
 
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -80,6 +83,7 @@ public sealed partial class RequestsService
                     ["origin"] = reader.IsDBNull(deptIndex) ? null : reader.GetString(deptIndex),
                     ["analyst"] = reader.IsDBNull(analystIndex) ? null : reader.GetString(analystIndex),
                     ["priority"] = reader.IsDBNull(priorityIndex) ? null : Convert.ToInt32(reader.GetValue(priorityIndex)),
+                    ["repo"] = reader.IsDBNull(repoIndex) ? null : reader.GetString(repoIndex),
                     ["due"] = due?.ToString("yyyy-MM-dd"),
                 };
 

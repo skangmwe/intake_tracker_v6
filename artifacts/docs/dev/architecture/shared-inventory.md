@@ -353,6 +353,35 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 - Requests feature gained `findSimilarRequests` (`api.ts`) + `useSimilarRequests` (`useRequests.ts`)
   and a live `SimilarRequestsPanel` (feature-local inside `IntakeFormPage`).
 
+## Slice 7 additions (Tasks)
+
+### API — new Tasks module (`api/Api/Modules/Tasks/`)
+- `ITasksService` / `TasksService` (`Scoped`) — list / create-single / apply-bundle / patch, all
+  access-gated through the parent Request on the caller's side (`usp_GetRequestByIdForUser`, reused
+  from slice 5) → 403 never 404. Emits one `task.created` / `task.bundle-applied` / `task.updated`
+  event per state change (ids only, no PII). `NormalisePhase`, `MapDefinitionTypeToKind`, and
+  `ParseBundleTasks` are pure, unit-tested public helpers. `TasksController` — `GET/POST
+  /requests/{id}/tasks`, `PATCH /tasks/{id}`, `GET /workspaces/{id}/task-bundles` (Viewer+ via
+  `IAccessGuard`). `TaskDtos.cs` mirrors `/shared/types/tasks.ts`.
+- Keyless proc projections added to `Data/Entities.cs` + registered in `AppDbContext`: `TaskRow`,
+  `TaskBundleTemplateRow`, `TaskFieldRow`.
+- Requests list read (`RequestsService.Reads.cs`) projects a `repo` column — the field-as-column
+  rollup (`usp_QueryRequests` correlated subquery over the record's first URL-type task field).
+
+### Database (`database/procedures/tasks/`)
+- `usp_GetTasksForRequest` (access-gated, open-first/done-sinks ordering), `usp_CreateTask`,
+  `usp_ApplyTaskBundle` (OPENJSON expansion, order-preserving), `usp_PatchTask` (sparse `@Set*`
+  flags; Done stamps `CompletedAt`), `usp_GetTaskBundleTemplates`, `usp_GetTaskField` (validate a
+  captured field belongs to the workspace task library + resolve its label). Migrations
+  `20260704_033_CreateTasks`, `_034_CreateTaskBundleTemplate`, `_035_SeedTaskBundleTemplates`.
+  `usp_QueryRequests` extended with the `RepoUrl` rollup projection.
+
+### Web feature — `web/src/features/tasks/`
+- `api.ts`, `useTasks.ts` (`useTasks` / `useTaskBundles` / `useTaskLibrary` / `useCreateTasks` /
+  `usePatchTask`), `TasksTab` (public export — the S4/S5 tasks section), `TaskRow`, `TaskComposer`,
+  the pure `taskView.ts` helpers, `tasks.css`. `useTaskLibrary` reuses `fetchTaskLibrary`
+  (`@/features/fields/api`). Requests list (`RequestsListPage`) renders the Repo URL rollup cell.
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.

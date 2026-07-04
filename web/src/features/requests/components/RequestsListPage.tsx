@@ -5,7 +5,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CaretLeft, CaretRight, DownloadSimple, FilePlus } from '@phosphor-icons/react';
+import { CaretLeft, CaretRight, DownloadSimple, FilePlus, LinkSimple } from '@phosphor-icons/react';
 
 import type { FilterClause, PaginatedQuery, RequestListRow, SlaStatus } from '@shared/types';
 
@@ -195,20 +195,46 @@ function toTableRow(row: RequestListRow, onOpen: () => void): TableRow {
     tint: agingTintClass(row.slaStatus),
     onOpen,
     cells: [
-      <span className="rl-mono">{cellText(columns.id)}</span>,
-      <span className="rl-name line-clamp-3">{cellText(columns.name)}</span>,
-      <span className="rl-desc line-clamp-3" title={cellText(columns.desc)}>
+      <span key="id" className="rl-mono">
+        {cellText(columns.id)}
+      </span>,
+      <span key="name" className="rl-name line-clamp-3">
+        {cellText(columns.name)}
+      </span>,
+      <span key="desc" className="rl-desc line-clamp-3" title={cellText(columns.desc)}>
         {cellText(columns.desc)}
       </span>,
       cellText(columns.stage),
       cellText(columns.origin),
       cellText(columns.analyst),
       EM_DASH,
-      <span className="rl-mono">{cellText(columns.priority)}</span>,
-      EM_DASH,
+      <span key="priority" className="rl-mono">
+        {cellText(columns.priority)}
+      </span>,
+      <RepoCell key="repo" value={columns.repo} />,
       formatDue(columns.due, row.slaStatus),
     ],
   };
+}
+
+/** Repo URL rollup cell (slice 7) — the first task-level URL field, rendered as a monospace link. */
+function RepoCell({ value }: { value: unknown }) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return <span className="rl-muted">{EM_DASH}</span>;
+  }
+  const href = /^https?:\/\//.test(value) ? value : `https://${value}`;
+  return (
+    <a
+      className="rl-repo"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <LinkSimple size={13} weight="regular" aria-hidden />
+      <span className="rl-repo__text">{value}</span>
+    </a>
+  );
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────

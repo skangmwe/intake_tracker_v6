@@ -365,3 +365,55 @@ public sealed class SimilarRequestRow
     public string? Stage { get; set; }
     public string? Origin { get; set; }
 }
+
+// ─── Slice 7 (Tasks) — keyless read projections ───────────────────────────────────────
+// Tasks are read/written through stored procedures (access-gated joins, per-record ordering,
+// bundle expansion → api-data-access.md). The API never tracks the Tasks / TaskBundleTemplate
+// tables as EF entities — only these keyless projections bound through FromSqlRaw. Titles / notes
+// / field values are Confidential — never logged (api-pii-handling.md).
+
+/// <summary>
+/// One task row from usp_GetTasksForRequest / usp_CreateTask / usp_PatchTask / usp_ApplyTaskBundle.
+/// The typed field is stored inline: FieldType names which single FieldValue* column holds the value.
+/// </summary>
+public sealed class TaskRow
+{
+    public Guid TaskId { get; set; }
+    public string RecordId { get; set; } = string.Empty;
+    public Guid WorkspaceId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Phase { get; set; } = string.Empty;
+    public Guid? AssigneeUserId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? Notes { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public int SortOrder { get; set; }
+    public Guid? FieldDefinitionId { get; set; }
+    public string? FieldLabel { get; set; }
+    public string? FieldType { get; set; }
+    public string? FieldValueUrl { get; set; }
+    public string? FieldValueText { get; set; }
+    public decimal? FieldValueNumber { get; set; }
+    public DateTime? FieldValueDate { get; set; }
+    public string? FieldValueSelect { get; set; }
+    public bool? FieldValueBool { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>One bundle-template row from usp_GetTaskBundleTemplates (TasksJson projected API-side).</summary>
+public sealed class TaskBundleTemplateRow
+{
+    public Guid TaskBundleTemplateId { get; set; }
+    public string TemplateKey { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string TasksJson { get; set; } = "[]";
+    public int SortOrder { get; set; }
+}
+
+/// <summary>One task-library field from usp_GetTaskField (validate + resolve label at capture time).</summary>
+public sealed class TaskFieldRow
+{
+    public Guid FieldDefinitionId { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public string FieldType { get; set; } = string.Empty;
+}

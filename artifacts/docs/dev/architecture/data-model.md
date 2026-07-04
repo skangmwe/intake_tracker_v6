@@ -127,16 +127,20 @@ Lightweight child of a Request (BS §2.4). Runs on the same engine, carries none
 | `Assignee` | FK → User NULL | Drives "assigned to you" notification. |
 | `Status` | `NVARCHAR(16)` NOT NULL | `'Locked'` \| `'Open'` \| `'Done'` \| `'Cancelled'` |
 | `Phase` | `NVARCHAR(32)` NULL | Build phase — for the collapsible phase-grouped task list (Intake / Discovery / Build / QA / Deploy / Post-launch / Unphased). |
-| `PreconditionRuleId` | FK → FieldRule NULL | Single condition-engine rule (BS §3.1) that gates the Task; not an inter-task dependency (BS §2.4). |
 | `Notes` | `NVARCHAR(MAX)` NULL | Per-task Notes & decisions expandable field (per blueprint). |
 | `CompletedAt` | `DATETIME2` NULL | Stamped on check-off, cleared on reopen. |
+| `SortOrder` | `INT` NOT NULL | **Slice 7.** Per-record creation sequence — the stable ordering key (open first, completed/cancelled sink to the bottom, then SortOrder). |
 | audit cols | | |
+
+> **Slice 7 build notes.** `RequestId` is the composite FK `(WorkspaceId, RecordId) → Requests` (the Requests PK is composite; a `WorkspaceId` column is stored per-side like Comments/Watcher so tasks stay on the correct copy of an escalated record). **`PreconditionRuleId` is deferred** — no R1 slice sets a task precondition (there is no such UI in the prototype), so the column is omitted until the slice that adds precondition authoring; `Status='Locked'` is supported in the schema + UI render regardless. Two columns were added to the typed field below (`FieldLabel`, `FieldType`) so the read renders without a second lookup.
 
 **Structured typed field per Task** — a Task carries at most one structured typed field:
 
 | Column | Type | Notes |
 |---|---|---|
 | `FieldDefinitionId` | FK → FieldDefinition NULL | Points at the workspace's field library (managed in S30 Fields & objects). |
+| `FieldLabel` | `NVARCHAR(200)` NULL | **Slice 7.** Display name copied from the field definition at capture time (so the read renders without a lookup). |
+| `FieldType` | `NVARCHAR(16)` NULL | **Slice 7.** The value kind (`url`/`text`/`number`/`date`/`select`/`checkbox`) — names which single `FieldValue*` column holds the value. |
 | `FieldValueUrl` | `NVARCHAR(2048)` NULL | Set when the field's type is URL. |
 | `FieldValueText` | `NVARCHAR(MAX)` NULL | Set when Text. |
 | `FieldValueNumber` | `DECIMAL(18,4)` NULL | Set when Number. |
@@ -144,7 +148,9 @@ Lightweight child of a Request (BS §2.4). Runs on the same engine, carries none
 | `FieldValueSelect` | `NVARCHAR(200)` NULL | Set when Select. |
 | `FieldValueBool` | `BIT` NULL | Set when Checkbox. |
 
-Only one `FieldValue*` column is set based on the field's type. Enforced by a CHECK constraint. (Alternative: EAV table. Kept inline for the seed since Tasks carry at most one typed field and read is hot.)
+Only one `FieldValue*` column is set based on the field's type. Enforced by a CHECK constraint (`CK_Tasks_OneFieldValue` — at most one value column non-null). (Alternative: EAV table. Kept inline for the seed since Tasks carry at most one typed field and read is hot.)
+
+**TaskBundleTemplate (slice 7)** — a named, workspace-scoped set of tasks applied together on the composer (blueprint "Task bundle templates"). `TaskBundleTemplateId` PK, `WorkspaceId` FK, `TemplateKey` (unique per workspace), `Name`, `TasksJson` (a `{ title, phase }` array applied set-based via `OPENJSON`), `SortOrder` + audit cols. Seeded on the AI Solutions workspace with the three blueprint templates. Applying a template appends plain Open tasks (the real gate model is slice 8, not task-level signoff).
 
 ### Attachment
 

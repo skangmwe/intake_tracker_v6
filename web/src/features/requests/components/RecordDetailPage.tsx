@@ -17,6 +17,7 @@ import { Stepper, StatusPill, Tabs } from '@/shared/components/Feedback';
 import { ApiError } from '@/shared/http/apiClient';
 import { fetchWorkspaceFields } from '@/features/fields/api';
 import { ActivityTab } from '@/features/comments';
+import { TasksTab } from '@/features/tasks';
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { useRequest, usePatchRequest, useSetHold, useSetStage } from '../useRequests';
@@ -389,7 +390,13 @@ export function RecordDetailPage() {
         )}
         {activeTab === 'status' && <StatusTab request={request} setHold={setHold} setStage={setStage} />}
         {activeTab === 'attachments' && <StubCard label="Attachments" message="No attachments yet." />}
-        {activeTab === 'tasks' && <StubCard label="Tasks & gates" message="Tasks and gates arrive with the build slices." />}
+        {activeTab === 'tasks' && (
+          <TasksTab
+            recordId={request.id as RecordId}
+            workspaceId={request.workspaceId as WorkspaceId}
+            paused={request.hold?.held ?? false}
+          />
+        )}
         {activeTab === 'activity' && <ActivityTab recordId={request.id as RecordId} />}
         {activeTab === 'watchers' && (
           <StubCard label="Watchers & alerts" message="Notifications arrive in a later slice.">
