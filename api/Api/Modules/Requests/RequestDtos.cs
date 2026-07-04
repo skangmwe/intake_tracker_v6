@@ -1,0 +1,194 @@
+// Wire contracts for the Requests & Drafts module (Slice 5 — api-contracts.md §3). Property names
+// serialize to camelCase (ASP.NET Core web defaults) so they mirror /shared/types/requests.ts and
+// /shared/types/drafts.ts exactly; enums travel as strings via JsonStringEnumConverter. Content
+// field values ride an open JsonElement map (fields are workspace-configurable via S30). Field
+// values and free-text (name/description) are Confidential — never logged (api-pii-handling.md).
+
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+
+namespace McDermott.AiTracker.Api.Modules.Requests;
+
+// ─── Responses ────────────────────────────────────────────────────────────────
+
+/// <summary>One stage on a record's lifecycle — the ordered set drives the record-detail stepper (S4).</summary>
+public sealed record RequestStageRef(string Key, string Label);
+
+/// <summary>Hold sub-block on a request.</summary>
+public sealed record HoldState(bool Held, string? Reason);
+
+/// <summary>Combined Outcome (delivery | local). Populated by close (later slice); null in slice 5.</summary>
+public sealed record OutcomeDto(string Kind, string Value, string Notes, string? DuplicateOfRecordId = null);
+
+/// <summary>Escalation summary — present only on escalated records (later slice); null in slice 5.</summary>
+public sealed record BridgeBlockDto(
+    bool IsEscalated,
+    Guid OriginWorkspaceId,
+    string OriginWorkspaceName,
+    Guid AiWorkspaceId,
+    DateTime EscalatedAt,
+    string AiSolutionsStatus,
+    IReadOnlyList<string> LockedFields);
+
+/// <summary>GET /requests/{id} — the full record (api-contracts.md §3).</summary>
+public sealed record RequestDto(
+    string Id,
+    Guid WorkspaceId,
+    string Origin,
+    DateTime CreatedAt,
+    DateTime UpdatedAt,
+    string CreatedBy,
+    string UpdatedBy,
+    string? LegacyId,
+    Guid LifecycleId,
+    IReadOnlyList<RequestStageRef> Stages,
+    string? Stage,
+    HoldState? Hold,
+    OutcomeDto? Outcome,
+    string DisplayStatus,
+    string? SlaStatus,
+    string Name,
+    string Description,
+    IReadOnlyDictionary<string, JsonElement> Fields,
+    BridgeBlockDto? Bridge,
+    string ETag);
+
+/// <summary>A single row on the Requests list — only the view's columns are projected (BS §22.4).</summary>
+public sealed record RequestListRow(
+    string Id,
+    string ETag,
+    IReadOnlyDictionary<string, object?> Columns,
+    string? SlaStatus);
+
+/// <summary>Paginated envelope — mirrors PaginatedResponse&lt;T&gt; in /shared/types/common.ts.</summary>
+public sealed record PaginatedResponse<T>(
+    IReadOnlyList<T> Items,
+    int TotalCount,
+    int Page,
+    int PageSize);
+
+/// <summary>POST /requests/{id}/stage result. Slice 5 has no gate integration — always advanced.</summary>
+public sealed record StageTransitionResultDto(bool Advanced, string NewStage);
+
+// ─── Request bodies ─────────────────────────────────────────────────────────────
+
+/// <summary>POST /workspaces/{id}/requests.</summary>
+public sealed class RequestCreateRequest
+{
+    [Required]
+    [MaxLength(400)]
+    public string? Name { get; set; }
+
+    public string? Description { get; set; }
+
+    /// <summary>Content-field values (open map — keys are field keys). Cross-field rules validated server-side.</summary>
+    public Dictionary<string, JsonElement>? Fields { get; set; }
+
+    /// <summary>Typed links queued during the intake similar-requests nudge — ignored until slice 10.</summary>
+    public IReadOnlyList<string>? QueuedRelatedRecordIds { get; set; }
+}
+
+/// <summary>PATCH /requests/{id}. Sparse — only changed fields are sent.</summary>
+public sealed class RequestPatchRequest
+{
+    [MaxLength(400)]
+    public string? Name { get; set; }
+
+    public string? Description { get; set; }
+
+    public Dictionary<string, JsonElement>? Fields { get; set; }
+
+    /// <summary>Hold has its own endpoint; carried for contract parity, not applied here.</summary>
+    public HoldInput? Hold { get; set; }
+
+    /// <summary>ETag from the last-loaded record (base64 RowVer). The If-Match header takes precedence.</summary>
+    public string? IfMatch { get; set; }
+}
+
+/// <summary>POST /requests/{id}/stage.</summary>
+public sealed class StageTransitionRequest
+{
+    [Required]
+    [MaxLength(64)]
+    public string? ToStage { get; set; }
+}
+
+/// <summary>POST /requests/{id}/hold.</summary>
+public sealed class HoldInput
+{
+    public bool Held { get; set; }
+
+    [MaxLength(400)]
+    public string? Reason { get; set; }
+}
+
+/// <summary>POST /workspaces/{id}/requests/query — filter/sort/page payload (mirrors PaginatedQuery).</summary>
+public sealed class PaginatedQuery
+{
+    public int Page { get; set; } = 1;
+
+    public int PageSize { get; set; } = 20;
+
+    /// <summary>Column key → filter clause (the clause's own shape is parsed per its `kind`).</summary>
+    public Dictionary<string, JsonElement>? Filters { get; set; }
+
+    public IReadOnlyList<SortSpec>? Sort { get; set; }
+
+    public Guid? SavedViewId { get; set; }
+}
+
+/// <summary>One sort directive — column key + direction.</summary>
+public sealed class SortSpec
+{
+    public string? Column { get; set; }
+
+    public string? Direction { get; set; }
+}
+
+// ─── Drafts (owner-scoped pre-record state — /shared/types/drafts.ts) ─────────────
+
+/// <summary>The prefilled body of a draft.</summary>
+public sealed record DraftBodyDto(
+    IReadOnlyDictionary<string, JsonElement> Fields,
+    IReadOnlyList<string>? Related);
+
+/// <summary>A saved draft.</summary>
+public sealed record DraftDto(
+    Guid Id,
+    Guid WorkspaceId,
+    string ObjectType,
+    string? Title,
+    DraftBodyDto Body,
+    DateTime LastEditedAt);
+
+/// <summary>A row on the drafts list (S26).</summary>
+public sealed record DraftListRow(
+    Guid Id,
+    string? Title,
+    string ObjectType,
+    DateTime LastEditedAt);
+
+/// <summary>POST /workspaces/{id}/drafts — create (omit id) or update (include id) a personal draft.</summary>
+public sealed class DraftSaveRequest
+{
+    /// <summary>Omit to mint a new draft; include to update the caller's own draft.</summary>
+    public Guid? Id { get; set; }
+
+    [Required]
+    [RegularExpression("^(Request|Task|Feature|Toolkit|Announcement)$")]
+    public string? ObjectType { get; set; }
+
+    [MaxLength(400)]
+    public string? Title { get; set; }
+
+    [Required]
+    public DraftBodyInput? Body { get; set; }
+}
+
+/// <summary>Inbound draft body.</summary>
+public sealed class DraftBodyInput
+{
+    public Dictionary<string, JsonElement>? Fields { get; set; }
+
+    public IReadOnlyList<string>? Related { get; set; }
+}

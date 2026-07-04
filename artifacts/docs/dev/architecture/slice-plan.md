@@ -79,6 +79,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S3** `[prototyped]`, **S2** `[prototyped]`, **S4** `[prototyped]`, **S26 Drafts** `[deferred]`.
 - **Depends on:** 1, 2, 3, 4.
 - **Estimated LoC:** 6,000 (approaches the ceiling — largest slice; the split-point candidate is Drafts → its own slice if the ceiling is breached).
+- **Status: completed** — Drafts kept in-slice (real Draft table + minimal S26 surface, per the "Save Draft persists + resume" decision). Two prototype divergences resolved (data-driven intake form; 6-tab record detail with no right rail) — see [05-slice-requests-core.md](05-slice-requests-core.md).
+- **Started:** 2026-07-04T09:02:21-04:00
+- **Ended:** 2026-07-04T10:11:30-04:00
+- **Duration:** 01:09:09
 
 ### Slice 6: Similar-requests nudge + Comments & activity thread
 - **Spec section:** BS §9.3 (activity thread), §9.5 (search — access-respecting), §9.8 (similar-requests nudge), §11.2 (mentioned event). Requirements Use Case 3 alt flow (similar-requests match).

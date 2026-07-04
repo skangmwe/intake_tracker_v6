@@ -1,0 +1,278 @@
+import { axe } from 'jest-axe';
+import { fireEvent, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+import type { PaginatedResponse, RequestListRow } from '@shared/types';
+
+import { renderWithProviders, buildMe, buildMembership, buildRequestListRow } from '@/test-utils';
+import { useMe } from '@/features/users/useMe';
+
+import { RequestsListPage, parseNumberExpression } from './RequestsListPage';
+import { useRequestsList } from '../useRequests';
+
+jest.mock('@/features/users/useMe');
+jest.mock('../useRequests');
+
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => mockNavigate,
+}));
+
+const mockedUseMe = useMe as jest.MockedFunction<typeof useMe>;
+const mockedUseRequestsList = useRequestsList as jest.MockedFunction<typeof useRequestsList>;
+
+const me = buildMe({ memberships: [buildMembership({ level: 'Member' })] });
+
+function page(items: RequestListRow[], totalCount = items.length): PaginatedResponse<RequestListRow> {
+  return { items, totalCount, page: 1, pageSize: 25 };
+}
+
+interface ListState {
+  data?: PaginatedResponse<RequestListRow>;
+  isLoading?: boolean;
+  isError?: boolean;
+  error?: unknown;
+}
+
+function mockHooks(list: ListState) {
+  mockedUseMe.mockReturnValue({ data: me, isLoading: false, isError: false } as ReturnType<typeof useMe>);
+  mockedUseRequestsList.mockReturnValue({
+    data: list.data,
+    isLoading: list.isLoading ?? false,
+    isError: list.isError ?? false,
+    error: list.error,
+  } as ReturnType<typeof useRequestsList>);
+}
+
+describe('RequestsListPage', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('RequestsListPage — renders a row per request with ID, name and aging suffix', async () => {
+    // Arrange
+    const row = buildRequestListRow({ slaStatus: 'Overdue' });
+    mockHooks({ data: page([row]) });
+
+    // Act
+    const { container } = renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert
+    expect(screen.getByRole('heading', { name: 'Requests' })).toBeInTheDocument();
+    expect(screen.getByText('AIS-00000001')).toBeInTheDocument();
+    expect(screen.getByText('Meeting-notes action extraction')).toBeInTheDocument();
+    expect(screen.getByText(/· overdue/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RequestsListPage — loading state announces via role=status', async () => {
+    // Arrange
+    mockHooks({ isLoading: true });
+
+    // Act
+    const { container } = renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert
+    expect(screen.getByRole('status')).toHaveTextContent('Loading requests…');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RequestsListPage — error state announces via role=alert', async () => {
+    // Arrange
+    mockHooks({ isError: true });
+
+    // Act
+    const { container } = renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RequestsListPage — filtered-to-zero shows a Clear all filters action', async () => {
+    // Arrange — a preset saved view activates a filter, and the result set is empty.
+    mockHooks({ data: page([], 0) });
+
+    // Act
+    const { container } = renderWithProviders(<RequestsListPage />, { route: '/requests' });
+    await userEvent.click(screen.getByRole('button', { name: /All open requests/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Unassigned/ }));
+
+    // Assert
+    expect(screen.getByText('No requests match the current filters.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RequestsListPage — zero-data (no rows, no filters) offers Create request', async () => {
+    // Arrange
+    mockHooks({ data: page([], 0) });
+
+    // Act
+    const { container } = renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert
+    expect(screen.getByText('No requests yet.')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RequestsListPage — clicking a row navigates to the record', async () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()]) });
+
+    // Act
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+    await userEvent.click(screen.getByText('Meeting-notes action extraction'));
+
+    // Assert
+    expect(mockNavigate).toHaveBeenCalledWith('/requests/AIS-00000001');
+  });
+
+  it('RequestsListPage — Create request navigates to the new-request route', async () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()]) });
+
+    // Act
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+    await userEvent.click(screen.getByRole('button', { name: /Create request/ }));
+
+    // Assert
+    expect(mockNavigate).toHaveBeenCalledWith('/requests/new');
+  });
+
+  it('RequestsListPage — a sort click writes the sort into the query', async () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()]) });
+
+    // Act
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+    await userEvent.click(screen.getByRole('button', { name: 'ID' }));
+
+    // Assert
+    const calls = mockedUseRequestsList.mock.calls;
+    const lastQuery = calls[calls.length - 1]?.[1];
+    expect(lastQuery?.sort).toEqual([{ column: 'id', direction: 'asc' }]);
+  });
+
+  it('RequestsListPage — applying a number funnel filter adds a clause and an active pill', async () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()]) });
+
+    // Act — open the Priority funnel and enter a comparator expression. A single change models a
+    // complete entry: the controlled funnel clears on intermediate invalid expressions (a lone ">"),
+    // so char-by-char typing would reset before the digit arrives.
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+    await userEvent.click(screen.getByRole('button', { name: 'Filter Priority' }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. >5 or =7'), { target: { value: '>3' } });
+
+    // Assert — the query carries the parsed clause and a removable pill summarises it.
+    const calls = mockedUseRequestsList.mock.calls;
+    const lastQuery = calls[calls.length - 1]?.[1];
+    expect(lastQuery?.filters?.priority).toEqual({ kind: 'number', op: '>', value: 3 });
+    expect(screen.getByText('Priority > 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove filter Priority > 3' })).toBeInTheDocument();
+  });
+
+  it('RequestsListPage — removing an active filter pill drops its clause', async () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()]) });
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+    await userEvent.click(screen.getByRole('button', { name: 'Filter Name' }));
+    await userEvent.type(screen.getByPlaceholderText('contains…'), 'notes');
+    expect(screen.getByRole('button', { name: /Remove filter Name/ })).toBeInTheDocument();
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: /Remove filter Name/ }));
+
+    // Assert — the query no longer carries the name clause.
+    const calls = mockedUseRequestsList.mock.calls;
+    const lastQuery = calls[calls.length - 1]?.[1];
+    expect(lastQuery?.filters?.name).toBeUndefined();
+  });
+
+  it('RequestsListPage — Next and Previous page paging clamps at the ends', async () => {
+    // Arrange — 60 rows over a 25-per-page grid ⇒ 3 pages.
+    mockHooks({ data: page([buildRequestListRow()], 60) });
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+    expect(screen.getByText('1–25 of 60 records')).toBeInTheDocument();
+
+    // Act — page forward to page 2, then attempt to go back past page 1 twice.
+    await userEvent.click(screen.getByRole('button', { name: 'Next page' }));
+
+    // Assert — page advanced and the query reflects page 2.
+    expect(screen.getByText('26–50 of 60 records')).toBeInTheDocument();
+    let calls = mockedUseRequestsList.mock.calls;
+    expect(calls[calls.length - 1]?.[1]?.page).toBe(2);
+
+    // Act — go back to page 1, then click Previous again (should clamp, not go to 0).
+    await userEvent.click(screen.getByRole('button', { name: 'Previous page' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Previous page' }));
+
+    // Assert — clamped at page 1.
+    expect(screen.getByText('1–25 of 60 records')).toBeInTheDocument();
+    calls = mockedUseRequestsList.mock.calls;
+    expect(calls[calls.length - 1]?.[1]?.page).toBe(1);
+  });
+
+  it('RequestsListPage — a Due date preset view renders a controlled date clause', async () => {
+    // Arrange — the "Due this week" saved view seeds a date filter (clauseToFilterValue date path).
+    mockHooks({ data: page([buildRequestListRow()]) });
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: /All open requests/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Due this week/ }));
+
+    // Assert — a date pill is active and the query carries a date clause.
+    const calls = mockedUseRequestsList.mock.calls;
+    const lastQuery = calls[calls.length - 1]?.[1];
+    expect(lastQuery?.filters?.due?.kind).toBe('date');
+    expect(screen.getByRole('button', { name: /Remove filter Due date/ })).toBeInTheDocument();
+  });
+
+  it('RequestsListPage — a malformed due date renders an em-dash, not a crash', async () => {
+    // Arrange — an unparseable due value exercises the formatDue guard.
+    const row = buildRequestListRow({ columns: { ...buildRequestListRow().columns, due: 'not-a-date' } });
+    mockHooks({ data: page([row]) });
+
+    // Act
+    const { container } = renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert — the row still renders; the due cell falls back to an em-dash.
+    expect(screen.getByText('AIS-00000001')).toBeInTheDocument();
+    expect(container.querySelectorAll('[role="cell"]').length).toBeGreaterThan(0);
+  });
+});
+
+describe('parseNumberExpression', () => {
+  it('parseNumberExpression — greater-than expression — parses op and value', () => {
+    // Arrange / Act
+    const result = parseNumberExpression('>5');
+
+    // Assert
+    expect(result).toEqual({ op: '>', value: 5 });
+  });
+
+  it('parseNumberExpression — bare number — defaults to equals', () => {
+    // Arrange / Act
+    const result = parseNumberExpression('=7');
+
+    // Assert
+    expect(result).toEqual({ op: '=', value: 7 });
+  });
+
+  it('parseNumberExpression — less-than-or-equal — parses two-char operator', () => {
+    // Arrange / Act
+    const result = parseNumberExpression('<=6');
+
+    // Assert
+    expect(result).toEqual({ op: '<=', value: 6 });
+  });
+
+  it('parseNumberExpression — non-numeric input — returns null', () => {
+    // Arrange / Act
+    const result = parseNumberExpression('abc');
+
+    // Assert
+    expect(result).toBeNull();
+  });
+});

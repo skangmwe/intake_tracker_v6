@@ -1,0 +1,353 @@
+// S3 Intake — create a Request. The form is data-driven from the workspace field schema, grouped
+// into the four numbered create sections (Intake · Value mapping · Solution details · Triage) with
+// the condition engine evaluated client-side so the Client-number reveal happens live. Special
+// controls override the generic field renderer: a Request-type select (picks the lifecycle), a
+// Priority-score widget (three sliders + live score), and the Client/Matter reveal. Renders explicit
+// loading / error states; the similar-requests aside is a slice-6 stub. (web-component-architecture.md)
+
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+
+import type { DraftId, FieldDefinitionDto, RequestCreateRequest, WorkspaceId } from '@shared/types';
+
+import { Button } from '@/shared/components/Button';
+import { RangeSlider, Select } from '@/shared/components/Form';
+import { useMe } from '@/features/users/useMe';
+import { fetchWorkspaceFields } from '@/features/fields/api';
+import { useLifecycleConfig } from '@/features/lifecycle/useLifecycle';
+
+import { RequestFieldControl } from './RequestFieldControl';
+import { fetchDraft } from '../api';
+import {
+  INTAKE_CREATE_SECTIONS,
+  computePriorityScore,
+  evaluateFieldConditions,
+  filterSections,
+  groupFieldsBySection,
+  validateRequestForm,
+  type FieldValueMap,
+} from '../requestForm';
+import { problemMessage } from '../problemMessage';
+import { resolveActiveWorkspaceId } from '../workspace';
+import { useCreateRequest } from '../useRequests';
+import { useSaveDraft } from '../useDrafts';
+import '../intakeForm.css';
+
+const SLIDER_MIN = 1;
+const SLIDER_MAX = 5;
+const SLIDER_STEP = 1;
+const SLIDER_DEFAULT = 3;
+/** Value-mapping fields the Priority-score widget renders in place of the generic controls. */
+const VALUE_MAPPING_WIDGET_KEYS = new Set(['businessValue', 'efficiencyGain', 'levelOfEffort', 'priorityScore']);
+/** Intake keys the special Request-type select owns. */
+const REQUEST_TYPE_KEYS = new Set(['requestType']);
+/** Revealed only when the request is a client engagement. */
+const CLIENT_ONLY_KEYS = new Set(['clientNumber', 'matterNumber']);
+/** Field types that span the full width of the two-up grid. */
+const FULL_WIDTH_TYPES = new Set(['LongText', 'RichText']);
+
+export function IntakeFormPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const draftId = searchParams.get('draftId');
+
+  const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
+  const workspaceId = resolveActiveWorkspaceId(me?.memberships);
+  const wsId = (workspaceId ?? '') as WorkspaceId;
+
+  const schemaQuery = useQuery({
+    queryKey: ['request-field-schema', workspaceId],
+    queryFn: ({ signal }) => fetchWorkspaceFields(workspaceId as WorkspaceId, 'Request', signal),
+    enabled: Boolean(workspaceId),
+  });
+  const lifecycleQuery = useLifecycleConfig(workspaceId ?? undefined);
+  const draftQuery = useQuery({
+    queryKey: ['draft', draftId],
+    queryFn: ({ signal }) => fetchDraft(draftId as DraftId, signal),
+    enabled: Boolean(draftId),
+  });
+
+  const createRequest = useCreateRequest(wsId);
+  const saveDraft = useSaveDraft(wsId);
+
+  const [values, setValues] = useState<FieldValueMap>({
+    businessValue: SLIDER_DEFAULT,
+    efficiencyGain: SLIDER_DEFAULT,
+    levelOfEffort: SLIDER_DEFAULT,
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [triedSubmit, setTriedSubmit] = useState(false);
+
+  // Seed values from a resumed draft once its body loads (defaults stay for anything it omits).
+  const seededDraftRef = useRef(false);
+  useEffect(() => {
+    const resumed = draftQuery.data;
+    if (seededDraftRef.current || !draftId || !resumed) return;
+    setValues((prev) => ({ ...prev, ...resumed.body.fields }));
+    seededDraftRef.current = true;
+  }, [draftId, draftQuery.data]);
+
+  const setField = (fieldKey: string, value: unknown) =>
+    setValues((prev) => ({ ...prev, [fieldKey]: value }));
+
+  if (isMeLoading && !me) {
+    return (
+      <main className="requests-page">
+        <h1 className="h1">New request</h1>
+        <p className="caption" role="status">Loading the intake form…</p>
+      </main>
+    );
+  }
+
+  if (isMeError || !workspaceId) {
+    return (
+      <main className="requests-page">
+        <h1 className="h1">New request</h1>
+        <p className="mws-alert mws-alert--error" role="alert">
+          We couldn’t open the intake form. You need a workspace to create a request — ask an admin for access, then try again.
+        </p>
+      </main>
+    );
+  }
+
+  if (schemaQuery.isLoading || lifecycleQuery.isLoading || (Boolean(draftId) && draftQuery.isLoading)) {
+    return (
+      <main className="requests-page">
+        <h1 className="h1">New request</h1>
+        <p className="caption" role="status">Loading the intake form…</p>
+      </main>
+    );
+  }
+
+  if (schemaQuery.isError || lifecycleQuery.isError || !schemaQuery.data || !lifecycleQuery.data) {
+    return (
+      <main className="requests-page">
+        <h1 className="h1">New request</h1>
+        <p className="mws-alert mws-alert--error" role="alert">
+          {problemMessage(
+            schemaQuery.error ?? lifecycleQuery.error,
+            'We couldn’t load the intake form. Try again in a moment.',
+          )}
+        </p>
+      </main>
+    );
+  }
+
+  const schema = schemaQuery.data;
+  const sections = filterSections(groupFieldsBySection(schema.fields), INTAKE_CREATE_SECTIONS);
+  const conditions = evaluateFieldConditions(schema.fields, values);
+
+  const isHidden = (field: FieldDefinitionDto): boolean =>
+    conditions.hidden.has(field.fieldKey) ||
+    (CLIENT_ONLY_KEYS.has(field.fieldKey) && values.deptPgClient !== 'Client');
+
+  const lifecycles = lifecycleQuery.data.lifecycles;
+  const defaultLifecycle = lifecycles.find((lifecycle) => lifecycle.isDefault);
+  const requestTypeOptions = [
+    { value: '', label: defaultLifecycle ? `Default — ${defaultLifecycle.requestType}` : 'Default' },
+    ...lifecycles.map((lifecycle) => ({
+      value: lifecycle.requestType,
+      label: lifecycle.isDefault ? `${lifecycle.requestType} (default)` : lifecycle.requestType,
+    })),
+  ];
+  const requestTypeSelect = (
+    <Select
+      label="Request type"
+      value={String(values.requestType ?? '')}
+      onChange={(value) => setField('requestType', value)}
+      options={requestTypeOptions}
+      hint="Sets the lifecycle — the stages and approval gates this request will follow."
+    />
+  );
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setTriedSubmit(true);
+    const validation = validateRequestForm(schema.fields, values);
+    setErrors(validation);
+    if (Object.keys(validation).length > 0) return;
+
+    const payload: RequestCreateRequest = {
+      name: String(values.name ?? ''),
+      description: String(values.description ?? ''),
+      fields: values,
+    };
+    try {
+      const created = await createRequest.mutateAsync(payload);
+      navigate(`/requests/${created.id}`);
+    } catch {
+      // Surfaced to the user via the inline alert (createRequest.isError). No rethrow.
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    const title = typeof values.name === 'string' && values.name.trim() ? values.name : null;
+    try {
+      await saveDraft.mutateAsync({ objectType: 'Request', title, body: { fields: values } });
+      navigate('/requests');
+    } catch {
+      // Surfaced to the user via the inline alert (saveDraft.isError). No rethrow.
+    }
+  };
+
+  const mutationError = createRequest.isError
+    ? problemMessage(createRequest.error)
+    : saveDraft.isError
+      ? problemMessage(saveDraft.error)
+      : null;
+
+  return (
+    <main className="requests-page">
+      <h1 className="h1">New request</h1>
+
+      <div className="ast-intake">
+        <form className="ast-intake__form" onSubmit={handleSubmit} noValidate aria-label="New request">
+          {sections.map((group) => {
+            const number = INTAKE_CREATE_SECTIONS.indexOf(group.section as (typeof INTAKE_CREATE_SECTIONS)[number]) + 1;
+            const isValueMapping = group.section === 'Value mapping';
+            const isIntake = group.section === 'Intake';
+            const skipKeys = isValueMapping
+              ? VALUE_MAPPING_WIDGET_KEYS
+              : isIntake
+                ? REQUEST_TYPE_KEYS
+                : new Set<string>();
+
+            return (
+              <IntakeSection
+                key={group.section}
+                number={number}
+                section={group.section}
+                fields={group.fields}
+                values={values}
+                errors={triedSubmit ? errors : {}}
+                requiredKeys={conditions.required}
+                skipKeys={skipKeys}
+                isHidden={isHidden}
+                onFieldChange={setField}
+                lead={isIntake ? requestTypeSelect : undefined}
+                widget={isValueMapping ? <PriorityScoreWidget values={values} onChange={setField} /> : undefined}
+              />
+            );
+          })}
+
+          {mutationError && (
+            <p className="mws-alert mws-alert--error" role="alert">{mutationError}</p>
+          )}
+
+          <div className="ast-actions">
+            <Button variant="secondary" onClick={handleSaveDraft} disabled={saveDraft.isPending}>
+              Save draft
+            </Button>
+            <Button variant="primary" type="submit" disabled={createRequest.isPending}>
+              Submit request
+            </Button>
+          </div>
+        </form>
+
+        <aside className="ast-intake__aside">
+          <SimilarRequestsPanel />
+        </aside>
+      </div>
+    </main>
+  );
+}
+
+interface IntakeSectionProps {
+  number: number;
+  section: string;
+  fields: FieldDefinitionDto[];
+  values: FieldValueMap;
+  errors: Record<string, string>;
+  requiredKeys: Set<string>;
+  skipKeys: Set<string>;
+  isHidden: (field: FieldDefinitionDto) => boolean;
+  onFieldChange: (fieldKey: string, value: unknown) => void;
+  lead?: ReactNode | undefined;
+  widget?: ReactNode | undefined;
+}
+
+function IntakeSection({
+  number,
+  section,
+  fields,
+  values,
+  errors,
+  requiredKeys,
+  skipKeys,
+  isHidden,
+  onFieldChange,
+  lead,
+  widget,
+}: IntakeSectionProps) {
+  const headingId = `section-${number}-heading`;
+  const visible = fields.filter((field) => !skipKeys.has(field.fieldKey) && !isHidden(field));
+
+  return (
+    <section className="mws-card ast-section" aria-labelledby={headingId}>
+      <header className="ast-section__head">
+        <span className="ast-section__num" aria-hidden="true">{number}</span>
+        <h2 id={headingId} className="ast-section__title">{section}</h2>
+      </header>
+
+      {lead}
+      {widget}
+
+      {visible.length > 0 && (
+        <div className="ast-two-col">
+          {visible.map((field) => (
+            <div
+              key={field.fieldKey}
+              className={FULL_WIDTH_TYPES.has(field.fieldType) ? 'ast-field ast-field--full' : 'ast-field'}
+            >
+              <RequestFieldControl
+                field={field}
+                value={values[field.fieldKey]}
+                onChange={(value) => onFieldChange(field.fieldKey, value)}
+                required={requiredKeys.has(field.fieldKey)}
+                error={errors[field.fieldKey]}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface PriorityScoreWidgetProps {
+  values: FieldValueMap;
+  onChange: (fieldKey: string, value: unknown) => void;
+}
+
+function PriorityScoreWidget({ values, onChange }: PriorityScoreWidgetProps) {
+  const score = computePriorityScore(values);
+  const sliderValue = (fieldKey: string): number => {
+    const numeric = Number(values[fieldKey]);
+    return Number.isFinite(numeric) ? numeric : SLIDER_DEFAULT;
+  };
+
+  return (
+    <div className="ast-priority">
+      <div className="ast-priority__sliders">
+        <RangeSlider label="Business value" value={sliderValue('businessValue')} min={SLIDER_MIN} max={SLIDER_MAX} step={SLIDER_STEP} onChange={(next) => onChange('businessValue', next)} />
+        <RangeSlider label="Efficiency gain" value={sliderValue('efficiencyGain')} min={SLIDER_MIN} max={SLIDER_MAX} step={SLIDER_STEP} onChange={(next) => onChange('efficiencyGain', next)} />
+        <RangeSlider label="Level of effort" value={sliderValue('levelOfEffort')} min={SLIDER_MIN} max={SLIDER_MAX} step={SLIDER_STEP} onChange={(next) => onChange('levelOfEffort', next)} />
+      </div>
+      <div className="ast-priority__score">
+        <span className="eyebrow ast-priority__eyebrow">Priority score</span>
+        <output className="ast-priority__value" aria-label="Priority score">{score}</output>
+        <span className="ast-priority__formula">Business Value + Efficiency Gain − Level of Effort</span>
+      </div>
+    </div>
+  );
+}
+
+function SimilarRequestsPanel() {
+  return (
+    <section className="mws-card" aria-labelledby="similar-heading">
+      <h2 id="similar-heading" className="mws-card__eyebrow">Similar requests</h2>
+      <p className="body">Matches appear here as you type the name and description.</p>
+    </section>
+  );
+}

@@ -1,0 +1,169 @@
+/* S3 Intake form styles. Tokens only for colour/radius — no raw hex, radius is --radius/pill
+   (web-styling.md, extrapolating-the-system.md). Two-column layout with a sticky similar-requests
+   aside; collapses to a single column on narrow viewports. */
+
+.ast-intake {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-6);
+  align-items: start;
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .ast-intake {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ast-intake__form {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.ast-intake__aside {
+  min-width: 0;
+}
+
+/* Sticky only when the aside sits beside the form (desktop). Offset clears the sticky top bar. */
+@media (min-width: 1101px) {
+  .ast-intake__aside {
+    position: sticky;
+    top: calc(var(--space-8) + var(--space-2));
+  }
+}
+
+/* ─── Numbered section card ─── */
+
+.ast-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ast-section__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ast-section__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border-button);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ast-section__title {
+  font-family: var(--font-mix);
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin: 0;
+  min-width: 0;
+}
+
+/* ─── Two-up field grid (collapses to one column on phones) ─── */
+
+.ast-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 700px) {
+  .ast-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ast-field {
+  min-width: 0;
+}
+
+.ast-field--full {
+  grid-column: 1 / -1;
+}
+
+/* ─── Priority-score widget ─── */
+
+.ast-priority {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-page);
+  padding: var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: center;
+}
+
+@media (max-width: 700px) {
+  .ast-priority {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ast-priority__sliders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ast-priority__score {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-align: right;
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  .ast-priority__score {
+    text-align: left;
+  }
+}
+
+.ast-priority__eyebrow {
+  color: var(--text-secondary);
+}
+
+.ast-priority__value {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ast-priority__formula {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ─── Footer actions ─── */
+
+.ast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+@media (max-width: 480px) {
+  .ast-actions .mws-btn {
+    min-width: 0;
+  }
+}

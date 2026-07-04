@@ -1,0 +1,135 @@
+/* Items-grid (S2). CSS-grid rows sharing one column template; sticky header inside the scroll
+   container. Tokens only. The shell is flex:1/min-height:0 so it fills its page region; the
+   inner scroll owns overflow. A min-width guard on the table keeps columns from collapsing. */
+
+.ast-grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+/* The list owns its own scroll (both axes). */
+.ast-grid__scroll {
+  overflow: auto;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ast-grid__table {
+  /* min-width is set inline from the summed column widths (collapse guard). */
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+.ast-grid__rowgroup {
+  display: block;
+}
+
+/* Header row — grid template comes inline (shared with body rows). */
+.ast-grid__head {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--color-navy) 8%, var(--bg-surface));
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ast-grid__th {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.ast-grid__th--right { justify-content: flex-end; text-align: right; }
+.ast-grid__th--center { justify-content: center; text-align: center; }
+
+.ast-grid__th-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ast-grid__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  min-width: 0;
+}
+.ast-grid__sort > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ast-grid__sort:hover { color: var(--accent-interactive); }
+.ast-grid__sort:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ast-grid__sort-idle { opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard); }
+.ast-grid__th:hover .ast-grid__sort-idle { opacity: 0.5; }
+
+.ast-grid__filter { display: inline-flex; align-items: center; flex-shrink: 0; }
+
+/* Drag handle — sits on the column's right edge. stopPropagation in JS keeps it off sort. */
+.ast-grid__resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--space-2);
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+.ast-grid__resize::after {
+  content: '';
+  position: absolute;
+  top: 25%;
+  right: 0;
+  width: 1px;
+  height: 50%;
+  background: var(--border-light);
+}
+.ast-grid__resize:hover::after,
+.ast-grid__resize:focus-visible::after { background: var(--accent-interactive); width: 2px; }
+.ast-grid__resize:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+
+/* Body rows — same grid template; 1px horizontal rule only (no vertical dividers). */
+.ast-grid__row {
+  display: grid;
+  border-bottom: 1px solid var(--border-light);
+}
+.ast-grid__row--clickable { cursor: pointer; }
+.ast-grid__row--clickable:hover {
+  background: color-mix(in srgb, var(--color-pale-blue) 20%, transparent);
+}
+
+.ast-grid__cell {
+  padding: var(--space-3);
+  min-width: 0;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ast-grid__cell--right { justify-content: flex-end; text-align: right; font-variant-numeric: tabular-nums; }
+.ast-grid__cell--center { justify-content: center; text-align: center; }

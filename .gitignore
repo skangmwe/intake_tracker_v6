@@ -57,3 +57,6 @@ yarn-error.log*
 
 # Design export archives — the extracted project/ folder is the handoff; the .zip is redundant
 artifacts/docs/design/*.zip
+
+# Local slice-completion gate cache (per-machine, 60-min TTL) — never committed.
+reviews/.last-clean-run.json

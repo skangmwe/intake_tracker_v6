@@ -1,0 +1,216 @@
+-- =============================================
+-- tSQLt tests for the Requests core write/read procs (Slice 5).
+-- Covers: create (mint + row + mirrored fields), access-baked read, ETag concurrency,
+--         stage validation, and hold. database-testing.md (AAA, FakeTable).
+-- =============================================
+
+EXEC tSQLt.NewTestClass 'RequestsCoreTests';
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_CreateRequestMintsAndMirrorsFields]
+AS
+BEGIN
+    -- Arrange
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Workspaces';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.PrefixRegistry';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    INSERT INTO dbo.Workspaces (WorkspaceId, Prefix, NextSequence, IsDeleted)
+    VALUES ('1A150000-0000-4000-8000-000000000001', N'AIS', 0, 0);
+    INSERT INTO dbo.PrefixRegistry (Prefix, WorkspaceId, WorkspaceNameAtMint, IsDeleted)
+    VALUES (N'AIS', '1A150000-0000-4000-8000-000000000001', N'AI Solutions', 0);
+
+    DECLARE @RecordId NVARCHAR(20);
+
+    -- Act
+    EXEC dbo.usp_CreateRequest
+        @WorkspaceId     = '1A150000-0000-4000-8000-000000000001',
+        @LifecycleId     = '22222222-2222-4222-8222-222222222222',
+        @Stage           = N'intake',
+        @Name            = N'Meeting-notes action extraction',
+        @Description     = N'Pull action items out of matter-team meetings.',
+        @FieldValuesJson = N'{"businessValue":4,"efficiencyGain":3,"levelOfEffort":2}',
+        @ActorUserId     = N'00000000-0000-4000-8000-0000000000aa',
+        @RecordId        = @RecordId OUTPUT;
+
+    -- Assert
+    EXEC tSQLt.AssertEquals @Expected = N'AIS-00000001', @Actual = @RecordId;
+
+    DECLARE @Stage NVARCHAR(64) = (SELECT Stage FROM dbo.Requests WHERE RecordId = @RecordId);
+    DECLARE @Origin NVARCHAR(200) = (SELECT Origin FROM dbo.Requests WHERE RecordId = @RecordId);
+    DECLARE @MirroredStage NVARCHAR(64) =
+        (SELECT JSON_VALUE(FieldValues, N'$.stage') FROM dbo.Requests WHERE RecordId = @RecordId);
+    DECLARE @MirroredName NVARCHAR(400) =
+        (SELECT JSON_VALUE(FieldValues, N'$.name') FROM dbo.Requests WHERE RecordId = @RecordId);
+
+    EXEC tSQLt.AssertEquals @Expected = N'intake', @Actual = @Stage;
+    EXEC tSQLt.AssertEquals @Expected = N'AI Solutions', @Actual = @Origin;
+    EXEC tSQLt.AssertEquals @Expected = N'intake', @Actual = @MirroredStage;
+    EXEC tSQLt.AssertEquals @Expected = N'Meeting-notes action extraction', @Actual = @MirroredName;
+END;
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_GetByIdReturnsRowForMember]
+AS
+BEGIN
+    -- Arrange
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+            N'Test', N'intake', N'{}', 0, N'seed', N'seed');
+    INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
+    VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
+
+    -- Act
+    CREATE TABLE #Actual (RecordId NVARCHAR(20));
+    INSERT INTO #Actual (RecordId)
+    EXEC dbo.usp_GetRequestByIdForUser @RecordId = N'AIS-00000001', @UserId = '00000000-0000-4000-8000-0000000000aa';
+
+    -- Assert
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #Actual);
+END;
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_GetByIdReturnsNothingForNonMember]
+AS
+BEGIN
+    -- Arrange — the record exists but the caller has no membership.
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+            N'Test', N'intake', N'{}', 0, N'seed', N'seed');
+
+    -- Act
+    CREATE TABLE #Actual (RecordId NVARCHAR(20));
+    INSERT INTO #Actual (RecordId)
+    EXEC dbo.usp_GetRequestByIdForUser @RecordId = N'AIS-00000001', @UserId = '00000000-0000-4000-8000-0000000000bb';
+
+    -- Assert — zero rows: the API turns this into a 403, never disclosing existence.
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #Actual);
+END;
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_PatchStaleETagThrows]
+AS
+BEGIN
+    -- Arrange
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Description, Stage, FieldValues, RowVer, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+            N'Test', N'd', N'intake', N'{}', 0x0000000000000064, 0, N'seed', N'seed');
+
+    -- Assert
+    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%stale ETag%';
+
+    -- Act — pass a non-matching RowVer.
+    EXEC dbo.usp_PatchRequest
+        @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @Name = N'Renamed', @Description = N'd2', @FieldValuesJson = N'{}',
+        @IfMatchRowVer = 0x0000000000000001, @ActorUserId = N'actor';
+END;
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_PatchMatchingETagUpdates]
+AS
+BEGIN
+    -- Arrange
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Description, Stage, FieldValues, RowVer, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+            N'Test', N'd', N'intake', N'{}', 0x0000000000000064, 0, N'seed', N'seed');
+
+    -- Act
+    EXEC dbo.usp_PatchRequest
+        @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @Name = N'Renamed', @Description = N'd2', @FieldValuesJson = N'{"deptPgClient":"Litigation"}',
+        @IfMatchRowVer = 0x0000000000000064, @ActorUserId = N'actor';
+
+    -- Assert
+    DECLARE @Name NVARCHAR(400) = (SELECT Name FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    DECLARE @MirroredName NVARCHAR(400) =
+        (SELECT JSON_VALUE(FieldValues, N'$.name') FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Renamed', @Actual = @Name;
+    EXEC tSQLt.AssertEquals @Expected = N'Renamed', @Actual = @MirroredName;
+END;
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_SetStageInvalidThrows]
+AS
+BEGIN
+    -- Arrange
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.StageDefinition';
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+            N'Test', N'intake', N'{}', 0, N'seed', N'seed');
+    INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'intake', N'Intake', N'Intake', 0, 0, N'seed', N'seed');
+
+    -- Assert
+    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%not part of the record%';
+
+    -- Act — 'nonsense' is not a stage on the lifecycle.
+    EXEC dbo.usp_SetRequestStage
+        @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @ToStage = N'nonsense', @ActorUserId = N'actor';
+END;
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_SetStageValidUpdates]
+AS
+BEGIN
+    -- Arrange
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.StageDefinition';
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+            N'Test', N'intake', N'{"stage":"intake"}', 0, N'seed', N'seed');
+    INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'build', N'Build', N'Build', 2, 0, N'seed', N'seed');
+
+    -- Act
+    EXEC dbo.usp_SetRequestStage
+        @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @ToStage = N'build', @ActorUserId = N'actor';
+
+    -- Assert
+    DECLARE @Stage NVARCHAR(64) = (SELECT Stage FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    DECLARE @Mirror NVARCHAR(64) = (SELECT JSON_VALUE(FieldValues, N'$.stage') FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    EXEC tSQLt.AssertEquals @Expected = N'build', @Actual = @Stage;
+    EXEC tSQLt.AssertEquals @Expected = N'build', @Actual = @Mirror;
+END;
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_SetHoldSetsAndClears]
+AS
+BEGIN
+    -- Arrange
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+            N'Test', N'intake', N'{}', 0, N'seed', N'seed');
+
+    -- Act 1 — set hold with a reason.
+    EXEC dbo.usp_SetRequestHold
+        @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @Held = 1, @Reason = N'Waiting on client', @ActorUserId = N'actor';
+
+    -- Assert 1
+    DECLARE @Held NVARCHAR(5) = (SELECT JSON_VALUE(FieldValues, N'$.holdBlocked') FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    DECLARE @Reason NVARCHAR(400) = (SELECT JSON_VALUE(FieldValues, N'$.holdReason') FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    EXEC tSQLt.AssertEquals @Expected = N'true', @Actual = @Held;
+    EXEC tSQLt.AssertEquals @Expected = N'Waiting on client', @Actual = @Reason;
+
+    -- Act 2 — clear hold; the reason must null out.
+    EXEC dbo.usp_SetRequestHold
+        @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @Held = 0, @Reason = NULL, @ActorUserId = N'actor';
+
+    -- Assert 2
+    SET @Held = (SELECT JSON_VALUE(FieldValues, N'$.holdBlocked') FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    SET @Reason = (SELECT JSON_VALUE(FieldValues, N'$.holdReason') FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    EXEC tSQLt.AssertEquals @Expected = N'false', @Actual = @Held;
+    EXEC tSQLt.AssertEquals @Expected = NULL, @Actual = @Reason;
+END;
+GO

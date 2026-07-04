@@ -13,6 +13,9 @@ import type {
   LifecycleId,
   MeDto,
   PlatformFieldDto,
+  RecordId,
+  RequestDto,
+  RequestListRow,
   StageDefinitionId,
   UserId,
   WorkspaceId,
@@ -142,6 +145,56 @@ export function buildLifecycleConfig(overrides: Partial<LifecycleConfigDto> = {}
       { roleLabel: 'InfoSec', members: [{ userId: '00000000-0000-0000-0000-0000000000a1' as UserId, displayName: 'N. Varga' }] },
       { roleLabel: 'AI Solutions Manager', members: [] },
     ],
+    ...overrides,
+  };
+}
+
+/** A full Request record (S4). Defaults to a non-escalated AI-workspace record at the Intake stage. */
+export function buildRequestDto(overrides: Partial<RequestDto> = {}): RequestDto {
+  return {
+    id: 'AIS-00000001' as RecordId,
+    workspaceId: 'ws-1' as WorkspaceId,
+    origin: 'AI Solutions',
+    createdAt: '2026-07-03T13:00:00Z',
+    updatedAt: '2026-07-03T13:00:00Z',
+    createdBy: '00000000-0000-0000-0000-000000000001' as UserId,
+    updatedBy: '00000000-0000-0000-0000-000000000001' as UserId,
+    lifecycleId: '00000000-0000-0000-0000-00000000010c' as LifecycleId,
+    stages: [
+      { key: 'intake', label: 'Intake' },
+      { key: 'discovery', label: 'Discovery' },
+      { key: 'build', label: 'Build' },
+      { key: 'qa', label: 'QA' },
+      { key: 'deploy', label: 'Deploy' },
+      { key: 'post-launch', label: 'Post-launch' },
+    ],
+    stage: 'intake',
+    hold: { held: false },
+    displayStatus: 'Intake',
+    name: 'Meeting-notes action extraction',
+    description: 'Pull action items and owners out of recorded matter-team meetings.',
+    fields: { deptPgClient: 'AI Solutions', businessValue: 4, efficiencyGain: 3, levelOfEffort: 2 },
+    eTag: 'AAAAAAAAAGQ=',
+    ...overrides,
+  };
+}
+
+/** A row on the Requests list (S2). Columns mirror the projected grid values. */
+export function buildRequestListRow(overrides: Partial<RequestListRow> = {}): RequestListRow {
+  return {
+    id: 'AIS-00000001' as RecordId,
+    eTag: 'AAAAAAAAAGQ=',
+    columns: {
+      id: 'AIS-00000001',
+      name: 'Meeting-notes action extraction',
+      desc: 'Pull action items out of matter-team meetings.',
+      stage: 'intake',
+      origin: 'AI Solutions',
+      analyst: 'Priya Raman',
+      priority: 5,
+      due: '2026-07-16',
+    },
+    slaStatus: 'OnTrack',
     ...overrides,
   };
 }

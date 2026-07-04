@@ -1,0 +1,122 @@
+/* S2 Requests list page styles. Tokens only — no raw hex, radius via --radius (web-styling.md).
+   Full-height flex column; only the grid body scrolls (TableShell owns its own scroll). */
+
+.requests-list-page {
+  /* Named local var for the top-bar offset (no shared token for it). */
+  --rl-header-h: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  height: calc(100dvh - var(--rl-header-h));
+  min-width: 0;
+  min-height: 0;
+}
+
+.requests-list-page__title {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* The grid region: fills the remaining height; TableShell (flex:1) + pagination (flex-shrink:0). */
+.requests-list-page__grid {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Cell typography ─────────────────────────────────────────────────────── */
+
+.rl-mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.rl-name {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.rl-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* 3-line clamp then ellipsis (used by Name + Description). */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Pagination footer (inside the shell region) ─────────────────────────── */
+
+.rl-pagination {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-light);
+  border-top: none;
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  background: var(--bg-surface);
+}
+
+.rl-pagination__summary {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.rl-pagination__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.rl-pagination__page {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* Monospace saved-view count. */
+.rl-count {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* ── Empty states (bordered card — never pale-fill, per the design rules) ── */
+
+.rl-empty {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.rl-empty__title {
+  font-size: 16px;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.rl-empty__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}

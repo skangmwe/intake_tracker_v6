@@ -53,6 +53,27 @@ isolation below still applies, but the reference itself is external.)
 
 ## What the audit checks
 
+### Scope — audit only the prototyped screens the current build serves
+
+A per-slice build serves a **growing subset** of the prototyped screens; the rest are
+future-slice work that legitimately does not exist yet. The audit compares **what the
+current build actually renders**, not what a later slice will add. Determine scope from
+the blueprint master table's **`App route / component`** column — the build pipeline fills
+it in when a screen ships:
+
+- Prototype-tagged screen **with a populated App-route** → **in scope**: render & compare
+  as below. A missing or placeholder build for an in-scope screen is a real, blocking
+  `not-implemented`.
+- Prototype-tagged screen **with a blank App-route** → **out of scope** (not built yet):
+  still record it in the manifest with verdict `not-implemented` and a `discrepancies`-free
+  note (`future-slice — built in slice N`), but this is **NOT a finding and NOT blocking**.
+  A not-yet-built future-slice screen is never a fidelity failure.
+
+This makes the whole-app gate **per-slice-aware**: it reaches CLEAN mid-build by auditing
+the screens that exist, instead of blocking every slice until the final prototyped screen
+lands. (The manifest validator already accepts a `not-implemented` entry as valid coverage
+for a Prototype-tagged key, so this scoping is a policy rule here — no validator change.)
+
 ### Prototyped screens — render & compare
 
 For every Prototype-tagged screen, pair it to its prototype file (the blueprint's
@@ -218,7 +239,8 @@ auth/data must be reachable in the running build (mock auth/seed as needed).
 | `visual-drift` | Prototyped screen — an element is present in both but differs (layout/spacing/type/color/variant/radius/state). Named with prototype value vs build value. | **High blocking** |
 | `missing-element` | Prototyped screen — the prototype renders an element the build doesn't. | **High blocking** |
 | `added-element` | Prototyped screen — the build renders an element/affordance the prototype doesn't show. | **High blocking** |
-| `not-implemented` | A Prototype-tagged screen has no built route, or a Save-for-/build screen wasn't built and isn't declared out-of-scope. | **High blocking** |
+| `not-implemented` | **In-scope** screen missing its build: a Prototype-tagged screen **with a populated App-route** that renders no/placeholder build, or a Save-for-/build screen that wasn't built and isn't declared out-of-scope. | **High blocking** |
+| `not-implemented` (out-of-scope) | A Prototype-tagged screen with a **blank App-route** — future-slice work not built yet (see Scope). Recorded for coverage completeness. | **Non-blocking** |
 | `raw-literal` | A value is inlined as a raw literal instead of a `var(--…)` token (cross-checked with `check-design-conformance.sh`). | **High blocking** |
 | `style-inconsistent` | Save-for-/build screen — drifts from the prototype's established visual patterns. | **High blocking** |
 | `content-drift` | Save-for-/build screen — content diverges from the blueprint's spec. | **High blocking** |

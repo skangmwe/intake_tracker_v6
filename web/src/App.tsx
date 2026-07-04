@@ -11,6 +11,7 @@ import { NAV_SECTIONS } from '@/shared/components/Layout/navItems';
 import { queryClient } from '@/shared/queryClient';
 import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
 import { LifecyclePage } from '@/features/lifecycle';
+import { DraftsPage, IntakeFormPage, RecordDetailPage, RequestsListPage } from '@/features/requests';
 import { HomePage } from '@/pages/HomePage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 
@@ -19,9 +20,10 @@ import '@/mws/tokens.css';
 import '@/mws/app-shell.css';
 import '@/features/fields/fields.css';
 import '@/features/lifecycle/lifecycle.css';
+import '@/features/requests/requests.css';
 
 // Routes implemented by real feature surfaces; excluded from the placeholder fallback.
-const IMPLEMENTED_ROUTES = new Set(['/admin/fields', '/admin/lifecycle']);
+const IMPLEMENTED_ROUTES = new Set(['/admin/fields', '/admin/lifecycle', '/requests']);
 
 const PLACEHOLDER_ROUTES = NAV_SECTIONS.flatMap((section) => section.items).filter(
   (item) => item.to !== '/' && !IMPLEMENTED_ROUTES.has(item.to),
@@ -38,6 +40,10 @@ export function App() {
               <Route path="/admin/fields" element={<FieldsAdminPage />} />
               <Route path="/admin/lifecycle" element={<LifecyclePage />} />
               <Route path="/platform/fields" element={<PlatformFieldsPage />} />
+              <Route path="/requests" element={<RequestsListPage />} />
+              <Route path="/requests/new" element={<IntakeFormPage />} />
+              <Route path="/requests/:recordId" element={<RecordDetailPage />} />
+              <Route path="/drafts" element={<DraftsPage />} />
               {PLACEHOLDER_ROUTES.map((item) => (
                 <Route key={item.to} path={item.to} element={<PlaceholderPage title={item.label} />} />
               ))}

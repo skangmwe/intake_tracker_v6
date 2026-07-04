@@ -113,6 +113,8 @@ The primary object. Field set = BS §17 (already the source of truth). Highlight
 - **Platform-defined ([P]):** Record ID, Workspace, timestamps, Legacy ID, and — critically — **AI Solutions Status**. AI Solutions Status has **no manual write path anywhere** (BS §6.4); it is written by the bridge off the event spine.
 - **Derived (● workspace-local baseline):** Display Status (Derived-category), Mirror Status (AI-side only), Priority Score (Calculation = `BusinessValue + EfficiencyGain − LevelOfEffort`), SLA Status (Derived-category — Phase 2).
 
+> **Slice 5 physical storage.** Content-field values live in a single `FieldValues` **JSON** column (the field schema is workspace-configurable, so per-field columns would fight the data-driven design). `Name`, `Description`, `Stage` are also authoritative real columns (hot on lists + covering index) and are mirrored into the JSON so the condition engine derives Display/Mirror Status. List-critical values are **persisted computed columns** projected from the JSON — `DeptPgClient`, `AssignedAnalyst`, `DueDate`, `PriorityScore`. Hold lives in the JSON (`holdBlocked`/`holdReason`). Optimistic concurrency via a `ROWVERSION` (`RowVer`) surfaced as a base64 ETag. **PK is composite `(WorkspaceId, RecordId)`** so escalation's two-row shared-ID model holds.
+
 ### Task
 
 Lightweight child of a Request (BS §2.4). Runs on the same engine, carries none of the Request's lifecycle.

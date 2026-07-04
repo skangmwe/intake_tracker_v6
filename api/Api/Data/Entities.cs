@@ -290,3 +290,51 @@ public sealed class ApproverMemberResultRow
     /// <summary>PII (display name). Presentation only — never logged.</summary>
     public string DisplayName { get; set; } = string.Empty;
 }
+
+// ─── Slice 5 (Requests core) — keyless read projections ────────────────────────────────
+// Requests and Drafts are read/written through stored procedures (mint + origin resolution,
+// optimistic-concurrency PATCH, multi-filter list → api-data-access.md). The API never tracks the
+// Requests / Drafts tables as EF entities — only these keyless projections bound through FromSqlRaw
+// (plus raw ADO.NET for the two-result-set list read in usp_QueryRequests).
+
+/// <summary>One full Request row from usp_GetRequestByIdForUser (access baked into the proc join).</summary>
+public sealed class RequestRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public Guid WorkspaceId { get; set; }
+    public Guid LifecycleId { get; set; }
+    public string Origin { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Stage { get; set; } = string.Empty;
+    public DateTime Submitted { get; set; }
+    /// <summary>Content-field map (JSON). Confidential — never logged.</summary>
+    public string FieldValues { get; set; } = "{}";
+    public int? PriorityScore { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+    public string UpdatedBy { get; set; } = string.Empty;
+    /// <summary>SQL rowversion — surfaced as the base64 ETag for optimistic concurrency.</summary>
+    public byte[] RowVer { get; set; } = Array.Empty<byte>();
+}
+
+/// <summary>One draft row from usp_GetDraftById / usp_GetDraftsForUser (owner-scoped).</summary>
+public sealed class DraftRow
+{
+    public Guid DraftId { get; set; }
+    public Guid OwnerUserId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string ObjectType { get; set; } = string.Empty;
+    public string? Title { get; set; }
+    /// <summary>Prefilled body (JSON). Confidential — never logged.</summary>
+    public string Body { get; set; } = "{}";
+    public DateTime LastEditedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>The affected-row count returned by usp_DeleteDraft.</summary>
+public sealed class DraftDeleteRow
+{
+    public int Deleted { get; set; }
+}
