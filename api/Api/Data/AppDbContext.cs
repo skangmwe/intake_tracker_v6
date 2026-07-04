@@ -68,6 +68,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<DraftRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<DraftDeleteRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 6 (Comments & activity thread, similar-requests nudge) — keyless proc projections.
+        modelBuilder.Entity<ActivityThreadRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<SimilarRequestRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

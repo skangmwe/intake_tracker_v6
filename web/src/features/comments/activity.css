@@ -1,0 +1,108 @@
+/* S4/S5 Activity tab (slice 6). The prototype's vertical timeline (icon rail + connector) plus a
+   comment composer. Tokens only — no raw colours / off-spec radii (extrapolating-the-system.md). */
+
+.activity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+/* ── Composer ── */
+.activity-composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.activity-mentions-preview {
+  margin: 0;
+}
+
+.activity-composer__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* ── Thread ── */
+.activity-thread {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-item {
+  display: flex;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.activity-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.activity-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-default);
+}
+
+/* Comments read as user-authored — the interactive accent distinguishes them from system events. */
+.activity-icon--comment {
+  color: var(--accent-interactive);
+}
+
+.activity-connector {
+  flex: 1;
+  width: 1px;
+  min-height: var(--space-4);
+  margin-top: var(--space-1);
+  background: var(--border-light);
+}
+
+.activity-item:last-child .activity-connector {
+  display: none;
+}
+
+.activity-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-bottom: var(--space-4);
+}
+
+.activity-title {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.activity-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.activity-comment {
+  margin: var(--space-1) 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+}
+
+.activity-mention {
+  color: var(--accent-interactive);
+  font-weight: 500;
+}
+
+.activity-empty {
+  margin: 0;
+}

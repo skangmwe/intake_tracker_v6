@@ -152,6 +152,20 @@ export interface RequestCloseRequest {
   outcome: Outcome;
 }
 
+/**
+ * A single similar-requests match surfaced by the intake nudge (BS §9.8) —
+ * GET /workspaces/{id}/requests/similar. Access-respecting and workspace-scoped;
+ * a match never crosses a workspace boundary (BS §9.5).
+ */
+export interface SimilarRequestDto {
+  id: RecordId;
+  name: string;
+  /** Current stage label (or key when no label resolves) — shown next to the id. */
+  stage: string;
+  /** The originating workspace name, resolved via the prefix registry. */
+  origin: string;
+}
+
 /** A single row on the Requests list. Columns are the caller's saved view (S24). */
 export interface RequestListRow {
   id: RecordId;

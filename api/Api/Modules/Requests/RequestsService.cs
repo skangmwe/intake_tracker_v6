@@ -51,6 +51,10 @@ public interface IRequestsService
     Task<PaginatedResponse<RequestListRow>> QueryAsync(
         Guid workspaceId, PaginatedQuery query, CancellationToken cancellationToken);
 
+    /// <summary>Intake similar-requests nudge — up to `top` access-respecting matches (BS §9.8).</summary>
+    Task<IReadOnlyList<SimilarRequestDto>> FindSimilarAsync(
+        Guid workspaceId, Guid userId, string? query, int top, CancellationToken cancellationToken);
+
     Task<RequestDto?> GetByIdAsync(string recordId, Guid userId, CancellationToken cancellationToken);
 
     Task<RequestPatchResult> PatchAsync(

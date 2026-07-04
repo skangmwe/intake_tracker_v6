@@ -99,6 +99,13 @@ Actually — **use `POST /api/v1/workspaces/{id}/requests/query`** to allow arbi
 - **Errors:**
   - `403` — caller not a member of the workspace.
 
+### `GET /api/v1/workspaces/{id}/requests/similar?query={q}` — intake nudge (Slice 6)
+Up to 3 access-respecting matches for the similar-requests panel (BS §9.8). Viewer+.
+
+- **Response:** `SimilarRequestDto[]` — `{ id, name, stage, origin }`, ordered by match relevance then recency.
+- **Matching:** LIKE-based token-overlap on Name + Description, workspace-scoped (a match never crosses a workspace — BS §9.5). Not full-text — the dev/test stack (LocalDB) has no Full-Text component; the real full-text Search surface is slice 15.
+- **Errors:** `403` — caller not a member of the workspace.
+
 ### `GET /api/v1/requests/{recordId}`
 Return the full record from **the workspace the caller has access to** (PG side if they're on the PG workspace; AI side if on the AI Solutions workspace). Escalated records have two rows; this returns the caller-side one.
 

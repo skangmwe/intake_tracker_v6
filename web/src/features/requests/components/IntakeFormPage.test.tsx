@@ -2,7 +2,7 @@ import { axe } from 'jest-axe';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import type { FieldDefinitionDto, FieldRuleDto, WorkspaceFieldSchemaDto } from '@shared/types';
+import type { FieldDefinitionDto, FieldRuleDto, SimilarRequestDto, WorkspaceFieldSchemaDto } from '@shared/types';
 
 import {
   renderWithProviders,
@@ -21,7 +21,7 @@ import { ApiError } from '@/shared/http/apiClient';
 
 import { IntakeFormPage } from './IntakeFormPage';
 import * as requestsApi from '../api';
-import { useCreateRequest } from '../useRequests';
+import { useCreateRequest, useSimilarRequests } from '../useRequests';
 import { useSaveDraft } from '../useDrafts';
 
 const mockNavigate = jest.fn();
@@ -41,6 +41,7 @@ const mockedFetchFields = fetchWorkspaceFields as jest.MockedFunction<typeof fet
 const mockedUseLifecycle = useLifecycleConfig as jest.MockedFunction<typeof useLifecycleConfig>;
 const mockedUseCreate = useCreateRequest as jest.MockedFunction<typeof useCreateRequest>;
 const mockedUseSaveDraft = useSaveDraft as jest.MockedFunction<typeof useSaveDraft>;
+const mockedUseSimilar = useSimilarRequests as jest.MockedFunction<typeof useSimilarRequests>;
 
 const me = buildMe({ memberships: [buildMembership({ level: 'Member' })] });
 
@@ -86,7 +87,9 @@ const schema: WorkspaceFieldSchemaDto = {
   ],
 };
 
-function mockHooks(overrides: { create?: jest.Mock; save?: jest.Mock } = {}) {
+function mockHooks(
+  overrides: { create?: jest.Mock; save?: jest.Mock; similar?: SimilarRequestDto[] } = {},
+) {
   const createMutate = overrides.create ?? jest.fn().mockResolvedValue(buildRequestDto());
   const saveMutate = overrides.save ?? jest.fn().mockResolvedValue(undefined);
 
@@ -99,6 +102,7 @@ function mockHooks(overrides: { create?: jest.Mock; save?: jest.Mock } = {}) {
   } as ReturnType<typeof useLifecycleConfig>);
   mockedUseCreate.mockReturnValue({ mutateAsync: createMutate, isPending: false, isError: false } as unknown as ReturnType<typeof useCreateRequest>);
   mockedUseSaveDraft.mockReturnValue({ mutateAsync: saveMutate, isPending: false, isError: false } as unknown as ReturnType<typeof useSaveDraft>);
+  mockedUseSimilar.mockReturnValue({ data: overrides.similar ?? [] } as unknown as ReturnType<typeof useSimilarRequests>);
 
   return { createMutate, saveMutate };
 }
@@ -197,6 +201,43 @@ describe('IntakeFormPage', () => {
     expect(score).toHaveTextContent('3');
     fireEvent.change(screen.getByRole('slider', { name: 'Business value' }), { target: { value: '5' } });
     await waitFor(() => expect(score).toHaveTextContent('5'));
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('IntakeFormPage — the similar-requests panel shows the hint when there are no matches', async () => {
+    // Arrange
+    mockHooks();
+
+    // Act
+    renderWithProviders(<IntakeFormPage />, { route: '/requests/new' });
+
+    // Assert
+    expect(
+      await screen.findByText('Matches appear here as you type the name and description.'),
+    ).toBeInTheDocument();
+  });
+
+  it('IntakeFormPage — a similar match can be linked as related and dismissed', async () => {
+    // Arrange
+    const match: SimilarRequestDto = {
+      id: 'AIS-00000009' as SimilarRequestDto['id'],
+      name: 'Contract clause finder',
+      stage: 'build',
+      origin: 'AI Solutions',
+    };
+    mockHooks({ similar: [match] });
+
+    // Act
+    const { container } = renderWithProviders(<IntakeFormPage />, { route: '/requests/new' });
+    expect(await screen.findByText('Contract clause finder')).toBeInTheDocument();
+
+    // Assert — linking flips the affordance to the "Linked as related" pill.
+    await userEvent.click(screen.getByRole('button', { name: 'Link as related' }));
+    expect(await screen.findByText('Linked as related')).toBeInTheDocument();
+
+    // Dismissing removes the match from the panel.
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss AIS-00000009' }));
+    await waitFor(() => expect(screen.queryByText('Contract clause finder')).not.toBeInTheDocument());
     expect(await axe(container)).toHaveNoViolations();
   });
 });

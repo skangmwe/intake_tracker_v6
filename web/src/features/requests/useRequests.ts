@@ -11,12 +11,16 @@ import type {
   RequestDto,
   RequestListRow,
   RequestPatchRequest,
+  SimilarRequestDto,
   WorkspaceId,
 } from '@shared/types';
+
+import { SIMILAR_MIN_QUERY_LENGTH } from '@/shared/constants';
 
 import {
   createRequest,
   fetchRequest,
+  findSimilarRequests,
   patchRequest,
   queryRequests,
   setRequestHold,
@@ -34,6 +38,25 @@ export function useRequestsList(workspaceId: WorkspaceId | undefined, query: Pag
     queryKey: workspaceId ? requestsListKey(workspaceId, query) : ['requests', 'disabled'],
     queryFn: ({ signal }) => queryRequests(workspaceId as WorkspaceId, query, signal),
     enabled: Boolean(workspaceId),
+  });
+}
+
+export const similarRequestsKey = (workspaceId: WorkspaceId, query: string) =>
+  ['requests', workspaceId, 'similar', query] as const;
+
+/**
+ * Intake similar-requests nudge (S3). The caller passes an already-debounced query; the hook only
+ * fires once it clears the minimum length. `keepPreviousData` avoids a flash to empty between
+ * keystrokes. Access-respecting + workspace-scoped server-side.
+ */
+export function useSimilarRequests(workspaceId: WorkspaceId | undefined, query: string) {
+  const trimmed = query.trim();
+  const enabled = Boolean(workspaceId) && trimmed.length >= SIMILAR_MIN_QUERY_LENGTH;
+  return useQuery<SimilarRequestDto[]>({
+    queryKey: workspaceId ? similarRequestsKey(workspaceId, trimmed) : ['requests', 'similar', 'disabled'],
+    queryFn: ({ signal }) => findSimilarRequests(workspaceId as WorkspaceId, trimmed, signal),
+    enabled,
+    placeholderData: (previous) => previous,
   });
 }
 

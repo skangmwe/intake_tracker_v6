@@ -103,6 +103,31 @@ public sealed partial class RequestsService
         return new PaginatedResponse<RequestListRow>(rows, totalCount, page, pageSize);
     }
 
+    // ─── Similar-requests nudge (FromSqlRaw; access baked into the proc join) ───
+
+    public async Task<IReadOnlyList<SimilarRequestDto>> FindSimilarAsync(
+        Guid workspaceId, Guid userId, string? query, int top, CancellationToken cancellationToken)
+    {
+        var trimmed = query?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return Array.Empty<SimilarRequestDto>();
+        }
+
+        var rows = await _db.Set<SimilarRequestRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_FindSimilarRequests @WorkspaceId, @UserId, @Query, @Top",
+                new SqlParameter("@WorkspaceId", workspaceId),
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@Query", trimmed),
+                new SqlParameter("@Top", top))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        return rows
+            .Select(row => new SimilarRequestDto(row.RecordId, row.Name, row.Stage ?? string.Empty, row.Origin ?? string.Empty))
+            .ToList();
+    }
+
     // ─── Single-row + lifecycle reads (FromSqlRaw) ─────────────────────────────
 
     private async Task<RequestRow?> ReadRowAsync(string recordId, Guid userId, CancellationToken cancellationToken)

@@ -90,6 +90,10 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Requests.IRequestsSer
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Requests.IDraftsService,
     McDermott.AiTracker.Api.Modules.Requests.DraftsService>();
 
+// ─── Comments & activity thread ───────────────────────────────────────────────
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Comments.ICommentsService,
+    McDermott.AiTracker.Api.Modules.Comments.CommentsService>();
+
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
 // intended contract (api-coding-standards.md — Swagger is gated by config, not

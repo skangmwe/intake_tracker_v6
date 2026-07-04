@@ -338,3 +338,30 @@ public sealed class DraftDeleteRow
 {
     public int Deleted { get; set; }
 }
+
+/// <summary>
+/// One interleaved item from usp_GetActivityThread (comments UNION audit events, access baked into
+/// the proc). Kind discriminates: comment columns are set for 'comment', event columns for 'event'.
+/// Body / EventPayload are Confidential — never logged (api-pii-handling.md).
+/// </summary>
+public sealed class ActivityThreadRow
+{
+    public string Kind { get; set; } = string.Empty;
+    public DateTime ItemAt { get; set; }
+    public Guid? CommentId { get; set; }
+    public Guid? AuthorUserId { get; set; }
+    public string? Body { get; set; }
+    public string? MentionedUserIds { get; set; }
+    public string? EventType { get; set; }
+    public Guid? ActorUserId { get; set; }
+    public string? EventPayload { get; set; }
+}
+
+/// <summary>One similar-requests match from usp_FindSimilarRequests (access baked into the proc join).</summary>
+public sealed class SimilarRequestRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Stage { get; set; }
+    public string? Origin { get; set; }
+}

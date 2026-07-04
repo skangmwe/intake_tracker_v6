@@ -91,6 +91,11 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** in-record activity thread (part of S4/S5); the intake nudge as part of S3.
 - **Depends on:** 5.
 - **Estimated LoC:** 4,000.
+- **Divergence resolved (Step 3):** the plan named a **SQL Server full-text catalog** for the similar-requests match, but the dev/test stack is **LocalDB, which has no Full-Text component** — a `CREATE FULLTEXT CATALOG` would fail the real-stack validation gate. Resolved (approved at plan-confirmation): `usp_FindSimilarRequests` does a **LIKE-based token-overlap** match on Name + Description (workspace-scoped, access-respecting) — adequate for a top-3 typeahead and portable to every SQL Server. True access-respecting full-text stays with **slice 15 (Search)**, whose own plan already defers the mechanism. Two smaller decisions: `Comments` carries a per-side `WorkspaceId` (like Watcher/AuditEntry) so the thread access-gates and the escalation two-row model holds; the @mention **parser** (web) and the **event-emission** path (API) both ship, but resolving `@handle → userId` needs a user directory (slice 12/17), so the composer sends an empty `mentionedUserIds` until then. See [06-slice-similar-comments.md](06-slice-similar-comments.md).
+- **Status: completed**
+- **Started:** 2026-07-04T13:38:14-04:00
+- **Ended:** 2026-07-04T15:14:57-04:00
+- **Duration:** 01:36:43
 
 ### Slice 7: Tasks
 - **Spec section:** BS §2.4 (Task object), §7.4 (task lock via precondition). Blueprint's Tasks & gates behaviors (typed fields, bundles, phase grouping, Notes & decisions).

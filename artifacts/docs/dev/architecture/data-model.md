@@ -173,12 +173,13 @@ Immutable (BS §9.3). Corrections are new comments.
 | Column | Type | Notes |
 |---|---|---|
 | `CommentId` | `UNIQUEIDENTIFIER` PK | |
-| `RecordId` | `NVARCHAR(20)` NOT NULL | |
-| `ObjectType` | `NVARCHAR(16)` NOT NULL | |
+| `RecordId` | `NVARCHAR(20)` NOT NULL | No hard FK — the object type is inferred (like `AuditEntry`). |
+| `WorkspaceId` | FK → Workspace | **Slice 6.** Per-side (like `Watcher` / `AuditEntry`): a comment lives on one workspace's copy of the record, so the thread read access-gates by a membership join and an escalated record's two same-`RecordId` rows (slice 9) keep comments on the correct side. |
+| `ObjectType` | `NVARCHAR(16)` NOT NULL | `'Request'` in slice 6. |
 | `AuthorUserId` | FK → User NOT NULL | |
 | `Body` | `NVARCHAR(MAX)` NOT NULL | |
-| `MentionedUserIds` | JSON (`NVARCHAR(MAX)`) NULL | Parsed at post time for @mention fan-out. |
-| audit cols (CreatedAt only meaningfully; edits forbidden) | | `UpdatedAt` = `CreatedAt`. Deleting a comment is disallowed at every access level. |
+| `MentionedUserIds` | JSON (`NVARCHAR(MAX)`) NULL | Parsed at post time for @mention fan-out. `CHECK (ISJSON)` when not null. |
+| audit cols (CreatedAt only meaningfully; edits forbidden) | | `UpdatedAt` = `CreatedAt`. `trg_Comments_PreventMutation` (INSTEAD OF UPDATE, DELETE) rejects every edit/delete — incl. soft-delete — at every access level. |
 
 ### TypedLink
 

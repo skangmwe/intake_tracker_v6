@@ -60,6 +60,13 @@ public sealed record RequestListRow(
     IReadOnlyDictionary<string, object?> Columns,
     string? SlaStatus);
 
+/// <summary>An intake similar-requests match (BS §9.8). Mirrors SimilarRequestDto in requests.ts.</summary>
+public sealed record SimilarRequestDto(
+    string Id,
+    string Name,
+    string Stage,
+    string Origin);
+
 /// <summary>Paginated envelope — mirrors PaginatedResponse&lt;T&gt; in /shared/types/common.ts.</summary>
 public sealed record PaginatedResponse<T>(
     IReadOnlyList<T> Items,
