@@ -8,6 +8,7 @@
 |---|---|
 | [`common.ts`](../../../../shared/types/common.ts) | Branded identifiers (`RecordId`, `WorkspaceId`, `UserId`, …). Pagination envelope. ProblemDetails. Filter clauses. `AccessLevel`, `WorkspaceKind`, `ObjectType`. Firm error codes. |
 | [`identity.ts`](../../../../shared/types/identity.ts) | `UserDto`, `MeDto`, `WorkspaceMembershipDto`, `WorkspaceDto`, `WorkspaceProvisionRequest`. |
+| [`fields.ts`](../../../../shared/types/fields.ts) | Field-schema vocabulary (S30/S34): `FieldType`/`FieldCategory`/`FieldObjectType`, `FieldDefinitionDto`, `SelectOptionDto`, `FieldRuleDto`, `DerivedFieldDto`, `WorkspaceFieldSchemaDto`, `PlatformFieldDto`, `TaskLibraryFieldDto`, upsert/patch requests, `FieldRuleGraphValidationResult`. |
 | [`requests.ts`](../../../../shared/types/requests.ts) | `RequestDto`, `RequestListRow`, `RequestCreateRequest`, `RequestPatchRequest`, `StageTransitionRequest`, `EscalateRequest`, `EscalateResult`, `RequestCloseRequest`, `Outcome` (`DeliveryOutcome` \| `LocalOutcome`), `SlaStatus`, `BridgeBlock`. |
 | [`tasks.ts`](../../../../shared/types/tasks.ts) | `TaskDto`, `TaskStatus`, `TaskPhase`, `TaskTypedField(Value)`, `TaskCreateRequest` (single \| bundle), `TaskPatchRequest`, `TaskBundleTemplate`. |
 | [`gates.ts`](../../../../shared/types/gates.ts) | `ApprovalRequestDto`, `FrozenApproverSlot`, `ApprovalDecisionDto`, `ApprovalDecisionRequest`, `ReRequestApprovalRequest`, `ProxyApprovalDecisionRequest`, `GateDefinitionDto`, `SlotDecision`. |

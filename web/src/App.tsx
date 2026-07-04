@@ -9,15 +9,20 @@ import { AuthProvider } from '@/shared/auth/AuthProvider';
 import { AppShell } from '@/shared/components/Layout/AppShell';
 import { NAV_SECTIONS } from '@/shared/components/Layout/navItems';
 import { queryClient } from '@/shared/queryClient';
+import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
 import { HomePage } from '@/pages/HomePage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 
 import '@/mws/styles.css';
 import '@/mws/tokens.css';
 import '@/mws/app-shell.css';
+import '@/features/fields/fields.css';
+
+// Routes implemented by real feature surfaces; excluded from the placeholder fallback.
+const IMPLEMENTED_ROUTES = new Set(['/admin/fields']);
 
 const PLACEHOLDER_ROUTES = NAV_SECTIONS.flatMap((section) => section.items).filter(
-  (item) => item.to !== '/',
+  (item) => item.to !== '/' && !IMPLEMENTED_ROUTES.has(item.to),
 );
 
 export function App() {
@@ -28,6 +33,8 @@ export function App() {
           <Routes>
             <Route element={<AppShell />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/admin/fields" element={<FieldsAdminPage />} />
+              <Route path="/platform/fields" element={<PlatformFieldsPage />} />
               {PLACEHOLDER_ROUTES.map((item) => (
                 <Route key={item.to} path={item.to} element={<PlaceholderPage title={item.label} />} />
               ))}

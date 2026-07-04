@@ -54,6 +54,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S30 Fields & objects** `[deferred]`, **S34 Platform field schema** `[deferred]`.
 - **Depends on:** 1, 2.
 - **Estimated LoC:** 5,900.
+- **Status: completed**
+- **Started:** 2026-07-03T20:31:22-04:00
+- **Ended:** 2026-07-03T21:33:51-04:00
+- **Duration:** 01:02:29
 
 ### Slice 4: Lifecycle & gates admin (S31 — prototyped)
 - **Spec section:** BS §7 (Workflow, lifecycle, and gates), §7.1 (lifecycle as data), §7.2 (approval gates — **team-only slot model per the prototype**), §7.4 (other lifecycle mechanics). Requirements Use Case 2.

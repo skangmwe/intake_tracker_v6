@@ -3,6 +3,7 @@
 
 export * from './common';
 export * from './identity';
+export * from './fields';
 export * from './requests';
 export * from './tasks';
 export * from './gates';
