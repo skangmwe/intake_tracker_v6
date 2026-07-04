@@ -6,7 +6,14 @@ import type { ReactElement, ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { render } from '@testing-library/react';
-import type { MeDto, UserId, WorkspaceId, WorkspaceMembershipDto } from '@shared/types';
+import type {
+  FieldDefinitionDto,
+  MeDto,
+  PlatformFieldDto,
+  UserId,
+  WorkspaceId,
+  WorkspaceMembershipDto,
+} from '@shared/types';
 
 import { AuthContext, type AuthContextValue } from '@/shared/auth/authContext';
 import { ME_QUERY_KEY } from '@/features/users/useMe';
@@ -47,6 +54,51 @@ export function buildMembership(
     workspacePrefix: 'AIS',
     level: 'Member',
     isDashboardViewer: false,
+    ...overrides,
+  };
+}
+
+export function buildFieldDefinition(overrides: Partial<FieldDefinitionDto> = {}): FieldDefinitionDto {
+  return {
+    id: '00000000-0000-0000-0000-0000000000f1' as FieldDefinitionDto['id'],
+    workspaceId: 'ws-1' as WorkspaceId,
+    objectType: 'Request',
+    fieldKey: 'name',
+    displayName: 'Name',
+    fieldType: 'ShortText',
+    category: 'Crossing',
+    section: 'Intake',
+    helpText: null,
+    isRequired: true,
+    isReadOnly: false,
+    isPlatformDefined: false,
+    platformFieldKey: null,
+    visibleStages: null,
+    crossingToFieldKey: null,
+    minValue: null,
+    maxValue: null,
+    allowNewValues: false,
+    sortOrder: 1,
+    isRetired: false,
+    options: [],
+    rules: [],
+    derived: null,
+    createdAt: '2026-07-03T13:00:00Z',
+    updatedAt: '2026-07-03T13:00:00Z',
+    ...overrides,
+  };
+}
+
+export function buildPlatformField(overrides: Partial<PlatformFieldDto> = {}): PlatformFieldDto {
+  return {
+    id: '00000000-0000-0000-0000-0000000000p1' as PlatformFieldDto['id'],
+    fieldKey: 'legacy-id',
+    displayName: 'Legacy ID',
+    fieldType: 'Text',
+    category: 'Platform',
+    isSystemImmutable: false,
+    hasManualWritePath: true,
+    selectOptions: null,
     ...overrides,
   };
 }

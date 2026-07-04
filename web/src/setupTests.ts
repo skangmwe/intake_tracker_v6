@@ -64,3 +64,16 @@ if (typeof globalThis.fetch === 'undefined') {
   globalThis.fetch = (() =>
     Promise.reject(new Error('fetch not mocked in this test'))) as unknown as typeof fetch;
 }
+
+// jsdom's crypto lacks randomUUID; client-side id generation (web-component-architecture.md) uses it.
+if (typeof globalThis.crypto === 'undefined') {
+  globalThis.crypto = {} as Crypto;
+}
+if (typeof globalThis.crypto.randomUUID !== 'function') {
+  let counter = 0;
+  (globalThis.crypto as { randomUUID: () => `${string}-${string}-${string}-${string}-${string}` }).randomUUID = () => {
+    counter += 1;
+    const suffix = counter.toString(16).padStart(12, '0');
+    return `00000000-0000-4000-8000-${suffix}` as `${string}-${string}-${string}-${string}-${string}`;
+  };
+}

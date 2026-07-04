@@ -53,6 +53,20 @@ New web shared items added in slice 2:
 - **Design-system CSS** — the McDermott `_ds` token + component CSS ported to `web/src/mws/` (`styles.css` aggregator, `tokens/`, `components/`, `tokens.css` override seam, `app-shell.css`). Imported once from `App.tsx`. `/mws/` is exempt from the design-conformance token scan.
 - **Test helper** — `web/src/test-utils.tsx` (`renderWithProviders`, `buildMe`, `buildMembership`, `buildAuth`).
 
+## Slice 3 (Fields & objects) — implemented
+
+Cross-cutting items that moved from *placeholder* → **implemented** in slice 3:
+
+- **`condition-engine-eval`** — real `ConditionEngine` (`api/Api/Shared/Rules/ConditionEngine.cs`). `Evaluate(rule, fieldValues)` for show/hide/require/produce-value conditions, and `ValidateGraph(edges)` for the acyclic + depth ≤ 3 check (§3.1). Registered `Singleton` (stateless).
+- **`access-guard`** — real `IAccessGuard` / `AccessGuard` (`api/Api/Shared/Auth/AccessGuard.cs`). `HasWorkspaceLevelAsync(userId, workspaceId, minLevel)` + `IsPlatformAdminAsync(userId)`, reading `WorkspaceMembership` / `PlatformAdminGrant` via single-table EF. Returns booleans (403 is expected control flow, not an exception); controllers map false → 403 (never 404). Registered `Scoped`.
+
+New shared items added in slice 3:
+
+- **`Button`** — `web/src/shared/components/Button/Button.tsx` (`data-ds="btn"`, primary/secondary/destructive variants, `mws-btn--sm` compact). Joins the existing `IconButton`.
+- **`withQuery`** — `web/src/shared/http/url.ts`. The single query-string builder (web-coding-standards.md — never assemble query strings in feature files). Consumed by the fields feature; available to every feature.
+- **`buildFieldDefinition` / `buildPlatformField`** — fixtures added to `web/src/test-utils.tsx`.
+- **`crypto.randomUUID`** + a stub added to `web/src/setupTests.ts` (jsdom lacks it).
+
 ## Cross-cutting utilities
 
 ### `error-mapper`

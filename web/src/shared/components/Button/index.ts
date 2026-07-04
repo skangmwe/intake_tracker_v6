@@ -1,2 +1,3 @@
-// Barrel export for Button. Individual components land in slices that need them.
-export {};
+// Barrel export for Button.
+export { Button } from './Button';
+export { IconButton } from './IconButton';

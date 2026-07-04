@@ -1,0 +1,153 @@
+/* Layout for the Fields & objects (S30) and Platform field schema (S34) surfaces. Tokens only —
+   colours and radii come from the McDermott design system (never raw values). Responsive: pairs
+   collapse to a single column below the md breakpoint; the editor sheet becomes a bottom sheet. */
+
+.fields-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.fields-inline-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.fields-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: var(--space-2);
+}
+
+.fields-row-actions,
+.fields-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fields-confirm-actions {
+  margin-top: var(--space-3);
+}
+
+/* Editor side sheet (desktop) → bottom sheet (mobile). */
+.fields-sheet {
+  position: fixed;
+  top: 56px;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 100vw);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-light);
+  box-shadow: var(--shadow-lg);
+  z-index: 60;
+}
+
+.fields-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.fields-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.fields-sheet__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.fields-option-list,
+.fields-rule-list,
+.fields-platform-list {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fields-option-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.fields-rule-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fields-platform-band {
+  margin-top: var(--space-6);
+}
+
+.fields-platform-band__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.fields-platform-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.fields-platform-edit {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.fields-platform-edit__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+@media (max-width: 767px) {
+  .fields-inline-pair {
+    grid-template-columns: 1fr;
+  }
+
+  .fields-sheet {
+    top: auto;
+    left: 0;
+    width: 100vw;
+    height: min(90dvh, 100%);
+  }
+
+  .fields-option-row {
+    grid-template-columns: 1fr;
+  }
+}

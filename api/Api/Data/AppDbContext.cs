@@ -45,6 +45,15 @@ public sealed class AppDbContext : DbContext
         // never mapped to a table of its own.
         modelBuilder.Entity<UserWorkspaceRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 3 (Fields & objects) — keyless projections read via stored procedures.
+        // The field-schema tables are never tracked as EF entities (reads go through procs,
+        // writes through usp_UpsertFieldDefinition / usp_RetireFieldDefinition).
+        modelBuilder.Entity<FieldDefinitionRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<FieldOptionRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<FieldRuleRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<FieldDependencyRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<PlatformFieldRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

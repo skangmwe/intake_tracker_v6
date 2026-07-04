@@ -138,3 +138,82 @@ public sealed class AuditEntry : AuditableEntity
     public DateTime EventAt { get; set; }
     public string EventPayload { get; set; } = string.Empty;
 }
+
+// ─── Slice 3 (Fields & objects) — keyless read projections ─────────────────────────────
+// The five field-schema tables (FieldDefinition / SelectOption / FieldRule / DerivedField /
+// FieldRuleDependency) are read via stored procedures (joins → api-data-access.md) and written via
+// usp_UpsertFieldDefinition / usp_RetireFieldDefinition. The API therefore never tracks them as EF
+// entities — only these keyless projections bound through FromSqlRaw.
+
+/// <summary>One field row from usp_GetWorkspaceFields (DerivedField header folded in).</summary>
+public sealed class FieldDefinitionRow
+{
+    public Guid FieldDefinitionId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string ObjectType { get; set; } = string.Empty;
+    public string FieldKey { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string FieldType { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string? Section { get; set; }
+    public string? HelpText { get; set; }
+    public bool IsRequired { get; set; }
+    public bool IsReadOnly { get; set; }
+    public bool IsPlatformDefined { get; set; }
+    public string? PlatformFieldKey { get; set; }
+    public string? VisibleStagesJson { get; set; }
+    public string? CrossingToFieldKey { get; set; }
+    public decimal? MinValue { get; set; }
+    public decimal? MaxValue { get; set; }
+    public bool AllowNewValues { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsRetired { get; set; }
+    public string? DerivedKind { get; set; }
+    public string? DerivedExpression { get; set; }
+    public string? DerivedDefaultValue { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>One option row from usp_GetWorkspaceFieldOptions, keyed by its field.</summary>
+public sealed class FieldOptionRow
+{
+    public string FieldKey { get; set; } = string.Empty;
+    public Guid SelectOptionId { get; set; }
+    public string OptionValue { get; set; } = string.Empty;
+    public string OptionLabel { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+}
+
+/// <summary>One rule row from usp_GetWorkspaceFieldRules, keyed by its target field.</summary>
+public sealed class FieldRuleRow
+{
+    public string FieldKey { get; set; } = string.Empty;
+    public Guid FieldRuleId { get; set; }
+    public string Action { get; set; } = string.Empty;
+    public string WhenFieldKey { get; set; } = string.Empty;
+    public string Comparator { get; set; } = string.Empty;
+    public string? CompareValue { get; set; }
+    public string? ProduceValue { get; set; }
+    public int SortOrder { get; set; }
+}
+
+/// <summary>One dependency edge from usp_GetWorkspaceFieldDependencies.</summary>
+public sealed class FieldDependencyRow
+{
+    public string FromFieldKey { get; set; } = string.Empty;
+    public string ToFieldKey { get; set; } = string.Empty;
+}
+
+/// <summary>One platform-field row from usp_GetPlatformFields (S34 read-only band).</summary>
+public sealed class PlatformFieldRow
+{
+    public Guid PlatformFieldId { get; set; }
+    public string FieldKey { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string FieldType { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public bool IsSystemImmutable { get; set; }
+    public bool HasManualWritePath { get; set; }
+    public string? SelectOptionsJson { get; set; }
+}
