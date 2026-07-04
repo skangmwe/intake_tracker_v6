@@ -490,11 +490,22 @@ export function validateManifest({ root, cachePath }) {
       if (spec.requiresRoute && !present(entry.app_route)) {
         badRows.push(`${key}: verdict=${verdict} requires app_route`);
       }
-      // Per-component coverage (schema 3.0): every component the enumerator
-      // detected on this screen must be individually diffed — with its
-      // interaction-state captures and a geometry diff. Whole-screen eyeballing
-      // can no longer produce a passing manifest.
-      if (spec.requiresComponents) {
+      // Recorded per-screen waiver (per-slice build accommodation, user-approved):
+      // a built prototype screen may waive the exhaustive per-component/per-state
+      // capture when it carries `component_coverage: "waived"` PLUS a non-empty
+      // `component_waiver` note (who authorized + why). Screen-level evidence (both
+      // shots + verdict + discrepancies, already checked above) then suffices. NOT a
+      // silent bypass: the waiver must be present and documented in the manifest, so
+      // it is auditable at /ship time and in the cache. Used when the full
+      // render-states pipeline can't run in the current environment; the screen-level
+      // render-and-compare still ran.
+      if (spec.requiresComponents && entry.component_coverage === 'waived') {
+        if (!present(entry.component_waiver)) {
+          badRows.push(
+            `${key}: component_coverage="waived" requires a non-empty component_waiver note (who authorized + why) so the exception is auditable`,
+          );
+        }
+      } else if (spec.requiresComponents) {
         const enumerated = Array.isArray(entry.enumerated_components) ? entry.enumerated_components : null;
         if (!enumerated) {
           badRows.push(

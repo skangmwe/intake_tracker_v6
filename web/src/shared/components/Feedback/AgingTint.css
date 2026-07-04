@@ -1,0 +1,10 @@
+/* Aging-tint row backgrounds (theme-stable pale fills, softened). Applied by the requests list
+   to a row via agingTintClass(). Colour is never the only signal — the list adds a text suffix. */
+
+.mws-aging-tint--due-soon {
+  background: color-mix(in srgb, var(--color-pale-gold) 40%, transparent);
+}
+
+.mws-aging-tint--overdue {
+  background: color-mix(in srgb, var(--color-pale-orange) 45%, transparent);
+}

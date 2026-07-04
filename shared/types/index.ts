@@ -5,6 +5,7 @@ export * from './common';
 export * from './identity';
 export * from './fields';
 export * from './requests';
+export * from './drafts';
 export * from './tasks';
 export * from './gates';
 export * from './features';

@@ -1,0 +1,64 @@
+/* Items-grid view bar. Wraps on narrow viewports; the spacer pushes the primary action right. */
+
+.ast-viewbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.ast-viewbar__slot { display: inline-flex; align-items: center; min-width: 0; }
+
+.ast-viewbar__spacer { flex: 1 1 var(--space-5); min-width: 0; }
+
+.ast-viewbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ast-viewbar__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 2px 2px var(--space-3);
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+}
+.ast-viewbar__pill-label { white-space: nowrap; }
+.ast-viewbar__pill-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  color: var(--color-navy);
+  cursor: pointer;
+}
+.ast-viewbar__pill-remove:hover { background: color-mix(in srgb, var(--color-navy) 12%, transparent); }
+.ast-viewbar__pill-remove:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+.ast-viewbar__clear {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--accent-interactive);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+}
+.ast-viewbar__clear:hover { text-decoration: underline; }
+.ast-viewbar__clear:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

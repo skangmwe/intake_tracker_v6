@@ -63,6 +63,11 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<ApproverTeamMemberRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<ApproverMemberResultRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 5 (Requests core) — keyless projections read via stored procedures.
+        modelBuilder.Entity<RequestRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DraftRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DraftDeleteRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

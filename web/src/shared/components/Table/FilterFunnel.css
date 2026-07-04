@@ -1,0 +1,78 @@
+/* Per-column filter funnel. Button + anchored popover (surface from .mws-popover). Tokens only. */
+
+.ast-funnel { position: relative; display: inline-flex; }
+
+.ast-funnel__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--icon-default);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+.ast-funnel__btn:hover { color: var(--accent-interactive); }
+.ast-funnel__btn--active { color: var(--accent-interactive); }
+.ast-funnel__btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.ast-funnel__pop {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 40;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.ast-funnel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ast-funnel__opt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.ast-funnel__opt-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ast-funnel__count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ast-funnel__field { display: flex; flex-direction: column; gap: var(--space-1); }
+.ast-funnel__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.ast-funnel__dates { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.ast-funnel__footer { display: flex; justify-content: flex-end; }
+.ast-funnel__clear {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ast-funnel__clear:disabled { opacity: 0.4; cursor: not-allowed; }

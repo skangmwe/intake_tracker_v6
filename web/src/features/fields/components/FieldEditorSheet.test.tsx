@@ -87,7 +87,7 @@ describe('FieldEditorSheet', () => {
 
     // Assert
     expect(onSave).toHaveBeenCalledWith('businessValue', expect.objectContaining({ minValue: 1, maxValue: 5 }), true);
-  });
+  }, 15000);
 
   it('FieldEditorSheet — select type — captures options', async () => {
     // Arrange

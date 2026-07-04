@@ -1,7 +1,21 @@
 // Request — the primary record. Full field schema in BS §17; the shape below carries
 // the fields the API surfaces, not the DB columns.
 
-import type { FieldDefinitionId, IsoDate, IsoDateTime, RecordId, UserId, WorkspaceId } from './common';
+import type {
+  FieldDefinitionId,
+  IsoDate,
+  IsoDateTime,
+  LifecycleId,
+  RecordId,
+  UserId,
+  WorkspaceId,
+} from './common';
+
+/** One stage on a record's lifecycle — the ordered set drives the record-detail stepper (S4). */
+export interface RequestStageRef {
+  key: string;
+  label: string;
+}
 
 /** AI Solutions delivery Outcome (BS §8) — the AI-side terminal states. */
 export type DeliveryOutcome = 'Live' | 'Declined' | 'Withdrawn' | 'Duplicate';
@@ -47,6 +61,11 @@ export interface RequestDto {
   legacyId?: string;
 
   // Lifecycle
+  /** The lifecycle this record runs on (chosen at intake by request type, else the default). */
+  lifecycleId: LifecycleId;
+  /** The record's lifecycle's ordered stages — drives the S4 stepper without a second fetch. */
+  stages: RequestStageRef[];
+  /** Current stage key (matches one of `stages[].key`). */
   stage?: string;
   hold?: { held: boolean; reason?: string };
   outcome?: Outcome;
@@ -56,7 +75,7 @@ export interface RequestDto {
   // Values
   name: string;
   description: string;
-  /** Every content field flows through this map — keys are FieldDefinitionId strings. */
+  /** Every content field flows through this map — keys are the field's stable `fieldKey` (BS §17). */
   fields: Record<string, unknown>;
 
   // Bridge — present only on escalated records.

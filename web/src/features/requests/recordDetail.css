@@ -1,0 +1,265 @@
+/* S4 Record detail page styles. Tokens only — no raw hex/px (web-styling.md).
+   Single centered reading column; the lifecycle stepper sticks below the 56px top bar. */
+
+.record-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: min(100%, 1200px);
+  min-width: 0;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ─── Breadcrumb ─── */
+
+.record-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.record-breadcrumb__link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: var(--text-secondary);
+}
+
+.record-breadcrumb__link:hover {
+  color: var(--accent-interactive);
+}
+
+.record-breadcrumb__link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.record-breadcrumb__current {
+  font-family: var(--font-mono);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* ─── Header ─── */
+
+.record-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.record-header__id {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.record-header__name {
+  font-family: var(--font-mix);
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+/* ─── Meta strip ─── */
+
+.record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin: 0;
+}
+
+.record-meta__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.record-meta__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.record-meta__value {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.record-meta__value--mono {
+  font-family: var(--font-mono);
+}
+
+/* ─── Sticky lifecycle stepper bar ─── */
+
+.ast-stepper-bar {
+  position: sticky;
+  top: 56px;
+  z-index: 40;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  padding: var(--space-3) 0;
+  margin: 0 calc(-1 * var(--space-4));
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  overflow-x: auto;
+  min-width: 0;
+}
+
+/* ─── Tab row + save indicator ─── */
+
+.record-tabrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.record-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--color-success);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.record-tabpanel {
+  min-width: 0;
+}
+
+/* ─── Intake tab ─── */
+
+.record-intake {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.record-intake__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.record-intake__heading {
+  font-family: var(--font-mix);
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.record-intake__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.record-intake__readonly {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  border-top: 1px solid var(--border-light);
+  padding-top: var(--space-4);
+}
+
+.record-intake__ro-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.record-intake__ro-value {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+@media (max-width: 480px) {
+  .record-intake__readonly {
+    grid-template-columns: 1fr;
+    gap: var(--space-1) 0;
+  }
+}
+
+/* ─── Status tab + generic stub cards ─── */
+
+.record-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.record-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.record-card .mws-field {
+  width: 100%;
+}
+
+.record-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── No-access surface ─── */
+
+.record-noaccess {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  padding: var(--space-6);
+}
+
+.record-noaccess h1 {
+  margin: 0;
+}

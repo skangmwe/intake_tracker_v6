@@ -292,6 +292,34 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 ### `usp_MintRecordId`, `usp_EmitAuditEntry`, `usp_ResolveOrigin`
 - Listed above in Cross-cutting.
 
+## Slice 5 additions (Requests core)
+
+### Web shared components — design-system primitives (`web/src/shared/components/`)
+- **Feedback/**: `Stepper` (`data-ds="stepper"`, circles on a continuous track, compact mode),
+  `Tabs` (`data-ds="tab"`, roving tabindex, scroll-not-wrap), `StatusPill` (`data-ds="status-pill"`,
+  pale fills + navy text), `agingTintClass(slaStatus)` helper.
+- **Table/**: `TableShell` (`data-ds="table"`, CSS-grid items-grid — sticky header, in-list scroll,
+  drag/keyboard-resizable columns, sort cycle), `ViewBar`, `SavedViewPicker`, `FilterFunnel`
+  (type-aware popover). The canonical items-grid used by every future list surface.
+- **Form/**: `TextField`, `TextArea`, `NumberField`, `DateField`, `Select`, `RangeSlider` + the
+  internal `FieldShell` frame. Field anatomy per `forms-and-input.md`.
+- **Consumers:** Requests (S2/S3/S4) now; every later list/form/detail surface.
+
+### Web shared types (`/shared/types/`)
+- **`drafts.ts`** — `DraftDto` / `DraftListRow` / `DraftSaveRequest` / `DraftBody` (S26).
+- **`requests.ts`** — `RequestDto` extended with `lifecycleId` + `stages: RequestStageRef[]`.
+
+### Database procedures (`database/procedures/requests/`)
+- `usp_CreateRequest`, `usp_GetRequestByIdForUser`, `usp_QueryRequests`, `usp_PatchRequest`
+  (ETag/RowVer concurrency), `usp_SetRequestStage`, `usp_SetRequestHold`, and the draft procs
+  `usp_SaveDraft` / `usp_GetDraftsForUser` / `usp_GetDraftById` / `usp_DeleteDraft`. Reuse
+  `usp_MintRecordId` + `usp_ResolveOrigin` (slice 1) and `usp_GetWorkspaceLifecycles` +
+  `usp_GetWorkspaceStages` (slice 4) — no duplication.
+
+### Web feature-local (not shared) — `web/src/features/requests/`
+- `requestForm.ts`, `RequestFieldControl`, `workspace.ts`, `problemMessage.ts`, `api.ts`,
+  `useRequests.ts`, `useDrafts.ts` — feature-local until a second consumer appears.
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.
