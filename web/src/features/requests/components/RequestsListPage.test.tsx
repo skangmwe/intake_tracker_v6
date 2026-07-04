@@ -64,6 +64,36 @@ describe('RequestsListPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('RequestsListPage — renders the Repo URL rollup as a link (slice 7)', () => {
+    // Arrange — a row whose first task-level URL field rolled up to the repo column.
+    const base = buildRequestListRow();
+    const row = { ...base, columns: { ...base.columns, repo: 'github.com/mws/x' } };
+    mockHooks({ data: page([row]) });
+
+    // Act
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert
+    const link = screen.getByRole('link', { name: /github\.com\/mws\/x/ });
+    expect(link).toHaveAttribute('href', 'https://github.com/mws/x');
+  });
+
+  it('RequestsListPage — Repo URL keeps an http(s) URL as-is and shows em-dash when absent', () => {
+    // Arrange — one row with an absolute URL, one with no repo value.
+    const base = buildRequestListRow();
+    const withHttp = { ...base, id: 'AIS-00000001', columns: { ...base.columns, id: 'AIS-00000001', repo: 'http://repo/y' } };
+    const noRepo = { ...base, id: 'AIS-00000002', columns: { ...base.columns, id: 'AIS-00000002', repo: null } };
+    mockHooks({ data: page([withHttp, noRepo] as never) });
+
+    // Act
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert — the absolute URL is not re-prefixed; the missing repo renders no link.
+    expect(screen.getByRole('link', { name: /repo\/y/ })).toHaveAttribute('href', 'http://repo/y');
+    expect(screen.getByText('AIS-00000002')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /repo/ })).toHaveLength(1);
+  });
+
   it('RequestsListPage — loading state announces via role=status', async () => {
     // Arrange
     mockHooks({ isLoading: true });

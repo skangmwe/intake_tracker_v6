@@ -22,6 +22,9 @@ export function parseMentions(text: string): string[] {
   const handles: string[] = [];
   for (const match of text.matchAll(MENTION_PATTERN)) {
     const handle = match[1];
+    if (!handle) {
+      continue;
+    }
     const key = handle.toLowerCase();
     if (!seen.has(key)) {
       seen.add(key);

@@ -1,0 +1,437 @@
+/* Tasks & gates tab — tasks section (slice 7). Tokens only (design-conformance gate). */
+
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* On-hold banner — pale-gold fill, navy text (theme-stable foreground rule). */
+.tasks-paused {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-pale-gold);
+  color: var(--color-navy);
+  border-radius: var(--radius);
+}
+
+.tasks-paused > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tasks-paused__title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.tasks-paused__note {
+  font-size: 13px;
+}
+
+.tasks-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.tasks-header__label {
+  font-size: 13px;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.tasks-header__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--accent-interactive);
+}
+
+.tasks-header__add:hover {
+  text-decoration: underline;
+}
+
+.tasks-header__count {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.tasks-empty {
+  padding: var(--space-3) 0;
+}
+
+/* Phase group — navy header bar with white text, collapsible. */
+.task-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.task-group__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-1);
+  background: var(--color-navy);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--color-white);
+  text-align: left;
+}
+
+.task-group__header:hover {
+  opacity: 0.92;
+}
+
+.task-group__phase {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.task-group__count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-white) 60%, transparent);
+}
+
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Task row. */
+.task-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.task-row__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.task-row__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--icon-default);
+  flex-shrink: 0;
+}
+
+.task-row__check:hover:not(:disabled) {
+  color: var(--accent-interactive);
+}
+
+.task-row__check:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.task-row__title {
+  font-size: 14px;
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.task-row__title--done {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.task-row__assignee {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.task-row__completed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.task-row__notes-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  background: none;
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.task-row__notes-toggle:hover,
+.task-row__notes-toggle--has {
+  border-color: var(--accent-interactive);
+  color: var(--accent-interactive);
+}
+
+.task-row__precondition {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding-left: 40px;
+}
+
+/* Inline typed field on a task row. */
+.task-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: 40px;
+  flex-wrap: wrap;
+}
+
+.task-field--notes {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.task-field__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+.task-field__input {
+  flex: 1;
+  min-width: 180px;
+  height: 30px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.task-field__input--mono {
+  font-family: var(--font-mono);
+}
+
+.task-field__textarea {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.task-field__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-primary);
+  padding: 0;
+}
+
+.task-field__checkbox[aria-checked='true'] {
+  color: var(--accent-interactive);
+}
+
+.task-field__open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  color: var(--accent-interactive);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.task-field__open:hover {
+  border-color: var(--accent-interactive);
+}
+
+/* Composer — gray box with segmented Add task / Add bundle tabs. */
+.task-composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.task-composer__tabs {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.task-composer__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.task-composer__tab + .task-composer__tab {
+  border-left: 1px solid var(--border-light);
+}
+
+.task-composer__tab--active {
+  background: var(--bg-surface);
+  color: var(--accent-interactive);
+}
+
+.task-composer__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.task-composer__panel--bundle {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.task-composer__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.task-composer__row--field {
+  padding-left: var(--space-1);
+}
+
+.task-composer__title {
+  flex: 1;
+  min-width: 200px;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.task-composer__select {
+  height: 36px;
+  min-width: 150px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.task-composer__select--wide {
+  min-width: 220px;
+}
+
+.task-composer__field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.task-composer__hint {
+  font-size: 12px;
+}
+
+.task-composer__actions {
+  display: flex;
+}
+
+@media (max-width: 640px) {
+  .task-composer__title,
+  .task-composer__select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .task-field__label {
+    min-width: 0;
+  }
+}

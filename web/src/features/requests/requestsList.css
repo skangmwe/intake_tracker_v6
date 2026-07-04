@@ -44,6 +44,32 @@
   color: var(--text-secondary);
 }
 
+.rl-muted {
+  color: var(--text-secondary);
+}
+
+/* Repo URL rollup cell (slice 7) — monospace link with a leading icon, ellipsised. */
+.rl-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--accent-interactive);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.rl-repo:hover {
+  text-decoration: underline;
+}
+
+.rl-repo__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 3-line clamp then ellipsis (used by Name + Description). */
 .line-clamp-3 {
   display: -webkit-box;

@@ -183,22 +183,37 @@ bridge: {
 
 ## 5 · Tasks
 
+All task paths gate access through the parent Request on the caller's side (the same
+`usp_GetRequestByIdForUser` membership join every record read uses): a forbidden **or**
+non-existent parent both resolve to null → **403, never 404** (BS §22.6).
+
+### `GET /api/v1/requests/{recordId}/tasks`
+List the tasks on a record, in display order (open first, completed/cancelled sink to the
+bottom; created-order within each). Viewer+ on the record's workspace.
+
+- **Response:** `TaskDto[]` (access-gated; `403` when the caller can't see the record).
+
 ### `POST /api/v1/requests/{recordId}/tasks`
 Create a Task under a Request. Supports single tasks and bundle templates.
 
-- **Body:** `TaskCreateRequest` — `{ title, phase, assigneeUserId?, precondition?, typedField?: { definitionId, value } }` OR `{ bundleTemplateId }` to apply a template.
-- **Response:** `201 → TaskDto[]` (bundle) or `TaskDto` (single).
+- **Body:** `TaskCreateRequest` — `{ kind: 'single', title, phase, assignee?, typedField?: { definitionId, value } }` OR `{ kind: 'bundle', bundleTemplateId }` to apply a template.
+- **Response:** `201 → TaskDto[]` (bundle) or `TaskDto` (single). `403` when the caller can't see the parent.
+
+### `GET /api/v1/workspaces/{id}/task-bundles`
+List the workspace's seeded bundle templates for the composer's "Add bundle" picker. Viewer+.
+
+- **Response:** `TaskBundleTemplate[]` — `{ id, name, tasks[] }`.
 
 ### `PATCH /api/v1/tasks/{id}`
-Update task status, title, assignee, precondition, typed-field value, or Notes & decisions.
+Update task status, title, assignee, typed-field value, or Notes & decisions. Checking a task
+off (`status: 'Done'`) stamps `completedAt`; reopening clears it.
 
 - **Body:** `TaskPatchRequest` — sparse fields.
-- **Response:** `200 → TaskDto`.
+- **Response:** `200 → TaskDto`. `403` when the caller can't see the parent.
 
-### `POST /api/v1/tasks/{id}/promote-to-request`
-Promote a Task to its own Request (BS §5). Runs Copy against the parent Request, opens a draft, on submit stamps a `related` link back to the parent and typically Cancels the original Task with a reason.
-
-- **Response:** `201 → { draftId }`.
+> **`POST /api/v1/tasks/{id}/promote-to-request` moved to slice 10.** Promote runs Copy
+> (`POST /records/{id}/copy`) and stamps a typed `related` link back — both land in slice 10.
+> It is documented in §9 (Copy) rather than here.
 
 ---
 

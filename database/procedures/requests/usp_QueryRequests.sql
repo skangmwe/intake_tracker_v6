@@ -60,7 +60,15 @@ BEGIN
     -- Matched set (reused by page + count) — a CTE-backed filter expression.
     ;WITH Matched AS (
         SELECT r.RecordId, r.Name, r.Description, r.Stage, r.Origin, r.DeptPgClient,
-               r.AssignedAnalyst, r.DueDate, r.PriorityScore, r.Submitted, r.UpdatedAt, r.RowVer
+               r.AssignedAnalyst, r.DueDate, r.PriorityScore, r.Submitted, r.UpdatedAt, r.RowVer,
+               -- Field-as-column rollup (slice 7): the first task-level URL field captured on this
+               -- record surfaces as the Repo URL list column (blueprint). NULL when the record has
+               -- no URL-type task field yet.
+               (SELECT TOP 1 tk.FieldValueUrl
+                FROM dbo.Tasks AS tk
+                WHERE tk.RecordId = r.RecordId AND tk.WorkspaceId = r.WorkspaceId
+                  AND tk.IsDeleted = 0 AND tk.FieldType = N'url' AND tk.FieldValueUrl IS NOT NULL
+                ORDER BY tk.SortOrder ASC, tk.TaskId ASC) AS RepoUrl
         FROM dbo.Requests AS r
         WHERE r.WorkspaceId = @Ws
           AND r.IsDeleted = 0
@@ -81,7 +89,7 @@ BEGIN
     )
     SELECT
         m.RecordId, m.Name, m.Description, m.Stage, m.Origin, m.DeptPgClient,
-        m.AssignedAnalyst, m.DueDate, m.PriorityScore, m.Submitted, m.UpdatedAt, m.RowVer
+        m.AssignedAnalyst, m.DueDate, m.PriorityScore, m.Submitted, m.UpdatedAt, m.RowVer, m.RepoUrl
     FROM Matched AS m
     ORDER BY
         CASE WHEN @Dir = N'asc'  AND @Sort = N'id'       THEN m.RecordId END ASC,

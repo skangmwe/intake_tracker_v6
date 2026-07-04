@@ -72,6 +72,11 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<ActivityThreadRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<SimilarRequestRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 7 (Tasks) — keyless projections read via stored procedures.
+        modelBuilder.Entity<TaskRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<TaskBundleTemplateRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<TaskFieldRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

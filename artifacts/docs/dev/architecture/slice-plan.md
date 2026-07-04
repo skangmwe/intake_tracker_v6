@@ -100,10 +100,15 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 ### Slice 7: Tasks
 - **Spec section:** BS §2.4 (Task object), §7.4 (task lock via precondition). Blueprint's Tasks & gates behaviors (typed fields, bundles, phase grouping, Notes & decisions).
 - **User capability:** "on a record's Tasks & gates tab I can add single tasks or apply bundle templates, capture a typed field per task, expand Notes & decisions, and mark tasks Done — tasks group by build phase with collapsible headers."
-- **Scope:** DB tables `Tasks`, `TaskBundleTemplate` (seed 3 templates per blueprint: Extraction / review build, Drafting assistant, Meeting-driven engagement). API: `POST /requests/{id}/tasks`, `PATCH /tasks/{id}`, `POST /tasks/{id}/promote-to-request` (uses Copy from slice 10 — carrying a `related` link back). Web: tasks section of S4/S5 Tasks & gates tab — phase grouping with collapsible navy-background headers, tabbed composer (Add task / Add bundle) in gray-boxed panel, "+ Add task" link at top of task list, per-task Notes & decisions expandable, typed-field capture (URL/Text/Number/Date/Select/Checkbox), field-as-column rollup demonstration on S2 (Repo URL column). **S25 Task detail** `[deferred]` (for tasks with substantive content).
+- **Scope:** DB tables `Tasks`, `TaskBundleTemplate` (seed 3 templates per blueprint: Extraction / review build, Drafting assistant, Meeting-driven engagement). API: `POST /requests/{id}/tasks`, `PATCH /tasks/{id}`, `GET /requests/{id}/tasks`, `GET /workspaces/{id}/task-bundles`. Web: tasks section of S4/S5 Tasks & gates tab — phase grouping with collapsible navy-background headers, tabbed composer (Add task / Add bundle) in gray-boxed panel, "+ Add task" link at top of task list, per-task Notes & decisions expandable, typed-field capture (URL/Text/Number/Date/Select/Checkbox), field-as-column rollup demonstration on S2 (Repo URL column). **S25 Task detail** `[deferred]` (for tasks with substantive content).
 - **Screens covered:** tasks section of S4/S5 `[prototyped]`; **S25 Task detail** `[deferred]`.
 - **Depends on:** 3, 5.
 - **Estimated LoC:** 5,500.
+- **Scope adjustment (Step 3, approved):** `POST /tasks/{id}/promote-to-request` was listed here but **moved to slice 10**. Promote runs Copy (`POST /records/{id}/copy`) + stamps a typed `related` link back — both land in slice 10, and slice 7 depends only on 3 and 5. Building it here would duplicate slice-10 machinery or ship a half-working endpoint; it lands cleanly in slice 10 where Copy + typed links exist. See [07-slice-tasks.md](07-slice-tasks.md).
+- **Status: completed** — plus `GET /workspaces/{id}/task-bundles` (composer bundle picker) and `usp_GetTaskField` (validate + label a captured field). Three decisions recorded in [07-slice-tasks.md](07-slice-tasks.md): promote-to-request → slice 10; task-level signoff buttons superseded by the slice-8 gate model; typed field captured empty on create, value filled inline. Web branch coverage note carried in the slice doc.
+- **Started:** 2026-07-04T16:28:54-04:00
+- **Ended:** 2026-07-04T17:28:19-04:00
+- **Duration:** 00:59:25
 
 ### Slice 8: Gates on records + Approvals
 - **Spec section:** BS §7.2 (Approval gates), §7.3 (sign-off channel). Requirements Use Case 2 (team-only slots, rejection-requires-comment, re-review row).
@@ -124,7 +129,7 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 ### Slice 10: Closure, Copy, Re-pursuit + Typed links
 - **Spec section:** BS §2.2 (typed links), §5 (Copy action), §6.7 (re-pursuit), §8 (outcomes and closure).
 - **User capability:** "I can close a record with an Outcome + reason; I can Copy any record to a fresh unlinked draft in the same or a different workspace with an optional `related` or `re-pursuit-of` link back; I can add typed links (`related` / `duplicate-of` / `re-pursuit-of` / `sourced-from`) manually via the side panel."
-- **Scope:** DB table `TypedLinks`. API: `POST /requests/{id}/close`, `POST /records/{id}/copy` (returns a Draft ID with prefilled values, respecting the crossing map or same-field-identity per BS §5), `POST /records/{id}/links`, `DELETE /links/{id}`. Web: close-with-Outcome modal on S4/S5; **S19 Copy modal** `[deferred]`; Relationships side-panel card on S4/S5 with "Link a record" action.
+- **Scope:** DB table `TypedLinks`. API: `POST /requests/{id}/close`, `POST /records/{id}/copy` (returns a Draft ID with prefilled values, respecting the crossing map or same-field-identity per BS §5), `POST /records/{id}/links`, `DELETE /links/{id}`, **`POST /tasks/{id}/promote-to-request`** (moved here from slice 7 — runs Copy against the parent Request, opens a Draft, stamps a `related` link back, cancels the source Task). Web: close-with-Outcome modal on S4/S5; **S19 Copy modal** `[deferred]`; Relationships side-panel card on S4/S5 with "Link a record" action; the Tasks & gates tab's "Promote to request" task action (its API lands here).
 - **Screens covered:** closure UI + Relationships side-panel card on S4/S5 `[prototyped]`; **S19 Copy modal** `[deferred]`.
 - **Depends on:** 5, 9.
 - **Estimated LoC:** 4,200.
