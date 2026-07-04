@@ -13,11 +13,13 @@ import type {
   RequestDto,
   RequestListRow,
   RequestPatchRequest,
+  SimilarRequestDto,
   StageTransitionResult,
   WorkspaceId,
 } from '@shared/types';
 
 import { apiFetch } from '@/shared/http/apiClient';
+import { withQuery } from '@/shared/http/url';
 
 // ─── Requests ───
 
@@ -42,6 +44,16 @@ export function queryRequests(
 
 export function fetchRequest(recordId: RecordId, signal?: AbortSignal): Promise<RequestDto> {
   return apiFetch<RequestDto>(`/v1/requests/${recordId}`, signal ? { signal } : {});
+}
+
+/** Intake similar-requests nudge (S3, BS §9.8) — up to 3 access-respecting matches. */
+export function findSimilarRequests(
+  workspaceId: WorkspaceId,
+  query: string,
+  signal?: AbortSignal,
+): Promise<SimilarRequestDto[]> {
+  const path = withQuery(`/v1/workspaces/${workspaceId}/requests/similar`, { query });
+  return apiFetch<SimilarRequestDto[]>(path, signal ? { signal } : {});
 }
 
 export function patchRequest(recordId: RecordId, request: RequestPatchRequest): Promise<RequestDto> {

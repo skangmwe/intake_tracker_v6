@@ -317,8 +317,41 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
   `usp_GetWorkspaceStages` (slice 4) — no duplication.
 
 ### Web feature-local (not shared) — `web/src/features/requests/`
-- `requestForm.ts`, `RequestFieldControl`, `workspace.ts`, `problemMessage.ts`, `api.ts`,
+- `requestForm.ts`, `RequestFieldControl`, `workspace.ts`, `api.ts`,
   `useRequests.ts`, `useDrafts.ts` — feature-local until a second consumer appears.
+- `problemMessage.ts` — **moved to `/shared` in slice 6** (see below); this file now re-exports it.
+
+## Slice 6 additions (Similar-requests nudge + Comments & activity thread)
+
+### API — new Collaboration module (`api/Api/Modules/Comments/`)
+- `ICommentsService` / `CommentsService` (`Scoped`) — posts immutable comments and composes the
+  interleaved activity thread; resolves the caller's side + gates access via `usp_GetRequestByIdForUser`
+  (reused from slice 5), emits one `comment.posted` event carrying the mention ids. `SummariseEvent`
+  is a pure, unit-tested helper. `CommentsController` — `POST /records/{id}/comments`, `GET
+  /records/{id}/thread`. The similar-requests read is on the **Requests** module (`FindSimilarAsync`)
+  since it finds Requests: `GET /workspaces/{id}/requests/similar`.
+- Keyless proc projections added to `Data/Entities.cs` + registered in `AppDbContext`:
+  `ActivityThreadRow`, `SimilarRequestRow`.
+
+### Database (`database/procedures/comments/`, `database/procedures/requests/`)
+- `usp_CreateComment`, `usp_GetActivityThread` (interleave + access gate + twin exclusion),
+  `usp_FindSimilarRequests` (LIKE token-overlap; not full-text — LocalDB constraint, slice 15 owns
+  full-text). Migration `20260704_032_CreateComments` + `trg_Comments_PreventMutation`.
+
+### Web shared
+- **`web/src/shared/text/mentions.ts`** — `parseMentions(text)`, the single @mention tokenizer.
+  Consumed by the comment composer now; the slice-12 fan-out later.
+- **`web/src/shared/constants.ts`** — `SIMILAR_DEBOUNCE_MS`, `SIMILAR_MIN_QUERY_LENGTH` (the shared
+  home for debounce/interval/timeout constants per web-coding-standards.md).
+- **`web/src/shared/http/problemMessage.ts`** — extracted here once the comments feature became a
+  second consumer; the requests feature's `problemMessage.ts` re-exports it.
+
+### Web feature — `web/src/features/comments/`
+- `api.ts` (thread + comment calls, narrows the wire shape to the `ActivityThreadItem` union),
+  `useComments.ts` (`useThread` / `usePostComment`), `ActivityTab` (public export — the S4/S5 Activity
+  tab: timeline renderer + composer), `activity.css`.
+- Requests feature gained `findSimilarRequests` (`api.ts`) + `useSimilarRequests` (`useRequests.ts`)
+  and a live `SimilarRequestsPanel` (feature-local inside `IntakeFormPage`).
 
 ## What we're deliberately NOT sharing yet
 

@@ -16,6 +16,7 @@ import { Select, TextArea } from '@/shared/components/Form';
 import { Stepper, StatusPill, Tabs } from '@/shared/components/Feedback';
 import { ApiError } from '@/shared/http/apiClient';
 import { fetchWorkspaceFields } from '@/features/fields/api';
+import { ActivityTab } from '@/features/comments';
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { useRequest, usePatchRequest, useSetHold, useSetStage } from '../useRequests';
@@ -389,7 +390,7 @@ export function RecordDetailPage() {
         {activeTab === 'status' && <StatusTab request={request} setHold={setHold} setStage={setStage} />}
         {activeTab === 'attachments' && <StubCard label="Attachments" message="No attachments yet." />}
         {activeTab === 'tasks' && <StubCard label="Tasks & gates" message="Tasks and gates arrive with the build slices." />}
-        {activeTab === 'activity' && <StubCard label="Activity" message="No activity yet." />}
+        {activeTab === 'activity' && <ActivityTab recordId={request.id as RecordId} />}
         {activeTab === 'watchers' && (
           <StubCard label="Watchers & alerts" message="Notifications arrive in a later slice.">
             <Button variant="secondary">Watch this record</Button>

@@ -8,11 +8,19 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { ArrowSquareOut, Link as LinkIcon, X } from '@phosphor-icons/react';
 
-import type { DraftId, FieldDefinitionDto, RequestCreateRequest, WorkspaceId } from '@shared/types';
+import type {
+  DraftId,
+  FieldDefinitionDto,
+  RecordId,
+  RequestCreateRequest,
+  WorkspaceId,
+} from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { RangeSlider, Select } from '@/shared/components/Form';
+import { SIMILAR_DEBOUNCE_MS } from '@/shared/constants';
 import { useMe } from '@/features/users/useMe';
 import { fetchWorkspaceFields } from '@/features/fields/api';
 import { useLifecycleConfig } from '@/features/lifecycle/useLifecycle';
@@ -30,7 +38,7 @@ import {
 } from '../requestForm';
 import { problemMessage } from '../problemMessage';
 import { resolveActiveWorkspaceId } from '../workspace';
-import { useCreateRequest } from '../useRequests';
+import { useCreateRequest, useSimilarRequests } from '../useRequests';
 import { useSaveDraft } from '../useDrafts';
 import '../intakeForm.css';
 
@@ -78,6 +86,12 @@ export function IntakeFormPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [triedSubmit, setTriedSubmit] = useState(false);
+  // Similar-requests the user chose to link as `related` — stamped on the record at submit (slice 10
+  // owns the typed-link write; the API accepts the queued ids on create).
+  const [queuedRelated, setQueuedRelated] = useState<RecordId[]>([]);
+
+  const toggleRelated = (id: RecordId) =>
+    setQueuedRelated((prev) => (prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id]));
 
   // Seed values from a resumed draft once its body loads (defaults stay for anything it omits).
   const seededDraftRef = useRef(false);
@@ -172,6 +186,7 @@ export function IntakeFormPage() {
       name: String(values.name ?? ''),
       description: String(values.description ?? ''),
       fields: values,
+      ...(queuedRelated.length > 0 ? { queuedRelatedRecordIds: queuedRelated } : {}),
     };
     try {
       const created = await createRequest.mutateAsync(payload);
@@ -246,7 +261,13 @@ export function IntakeFormPage() {
         </form>
 
         <aside className="ast-intake__aside">
-          <SimilarRequestsPanel />
+          <SimilarRequestsPanel
+            workspaceId={wsId}
+            nameValue={typeof values.name === 'string' ? values.name : ''}
+            descriptionValue={typeof values.description === 'string' ? values.description : ''}
+            queuedRelated={queuedRelated}
+            onToggleLink={toggleRelated}
+          />
         </aside>
       </div>
     </main>
@@ -343,11 +364,84 @@ function PriorityScoreWidget({ values, onChange }: PriorityScoreWidgetProps) {
   );
 }
 
-function SimilarRequestsPanel() {
+interface SimilarRequestsPanelProps {
+  workspaceId: WorkspaceId;
+  nameValue: string;
+  descriptionValue: string;
+  queuedRelated: RecordId[];
+  onToggleLink: (id: RecordId) => void;
+}
+
+function SimilarRequestsPanel({
+  workspaceId,
+  nameValue,
+  descriptionValue,
+  queuedRelated,
+  onToggleLink,
+}: SimilarRequestsPanelProps) {
+  const navigate = useNavigate();
+  const rawQuery = `${nameValue} ${descriptionValue}`.trim();
+
+  // Debounce the typed name+description before querying so every keystroke doesn't hit the API.
+  const [debounced, setDebounced] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(rawQuery), SIMILAR_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [rawQuery]);
+
+  const [dismissed, setDismissed] = useState<Set<RecordId>>(() => new Set());
+  const { data: matches } = useSimilarRequests(workspaceId, debounced);
+
+  const visible = (matches ?? []).filter((match) => !dismissed.has(match.id));
+
   return (
-    <section className="mws-card" aria-labelledby="similar-heading">
+    <section className="mws-card ast-similar" aria-labelledby="similar-heading">
       <h2 id="similar-heading" className="mws-card__eyebrow">Similar requests</h2>
-      <p className="body">Matches appear here as you type the name and description.</p>
+      {visible.length === 0 ? (
+        <p className="body ast-similar__hint">Matches appear here as you type the name and description.</p>
+      ) : (
+        <ul className="ast-similar__list">
+          {visible.map((match) => {
+            const linked = queuedRelated.includes(match.id);
+            return (
+              <li key={match.id} className="ast-similar__item">
+                <div className="ast-similar__row">
+                  <span className="ast-similar__id">{match.id}</span>
+                  {match.stage && <span className="ast-similar__stage">· {match.stage}</span>}
+                  <span className="ast-similar__spacer" />
+                  <button
+                    type="button"
+                    className="ast-similar__dismiss"
+                    aria-label={`Dismiss ${match.id}`}
+                    onClick={() => setDismissed((prev) => new Set(prev).add(match.id))}
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
+                </div>
+                <span className="ast-similar__name">{match.name}</span>
+                <div className="ast-similar__actions">
+                  {linked ? (
+                    <span className="ast-similar__linked">Linked as related</span>
+                  ) : (
+                    <button type="button" className="ast-similar__action" onClick={() => onToggleLink(match.id)}>
+                      <LinkIcon size={14} aria-hidden />
+                      Link as related
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="ast-similar__action"
+                    onClick={() => navigate(`/requests/${match.id}`)}
+                  >
+                    <ArrowSquareOut size={14} aria-hidden />
+                    Open
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

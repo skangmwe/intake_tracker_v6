@@ -16,6 +16,9 @@ namespace McDermott.AiTracker.Api.Modules.Requests;
 [Route("api/v1")]
 public sealed class RequestsController : ControllerBase
 {
+    /// <summary>The intake nudge surfaces at most three matches (prototype S3 similar-requests panel).</summary>
+    private const int SimilarTopDefault = 3;
+
     private readonly IRequestsService _requests;
     private readonly IAccessGuard _accessGuard;
     private readonly ICurrentUser _currentUser;
@@ -67,6 +70,25 @@ public sealed class RequestsController : ControllerBase
 
         var page = await _requests.QueryAsync(workspaceId, query, cancellationToken);
         return Ok(page);
+    }
+
+    /// <summary>Intake similar-requests nudge — up to 3 access-respecting matches (Viewer+, BS §9.8).</summary>
+    [HttpGet("workspaces/{workspaceId:guid}/requests/similar")]
+    [ProducesResponseType(typeof(IReadOnlyList<SimilarRequestDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> FindSimilar(
+        [FromRoute] Guid workspaceId,
+        [FromQuery(Name = "query")] string? query,
+        CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.Viewer, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var matches = await _requests.FindSimilarAsync(
+            workspaceId, _currentUser.UserId, query, SimilarTopDefault, cancellationToken);
+        return Ok(matches);
     }
 
     /// <summary>The full record. Access is baked into the read — no row means 403 (never 404).</summary>
