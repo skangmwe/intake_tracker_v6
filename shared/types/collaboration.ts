@@ -101,6 +101,23 @@ export interface WatcherDto {
   subscribedAt: IsoDateTime;
 }
 
+/**
+ * One watcher resolved for the record-detail Watchers card (slice 12). `displayName` is carried so
+ * the avatar/initials render without a second directory fetch (mirrors slice 8's FrozenApproverSlot).
+ */
+export interface WatcherListItemDto {
+  userId: UserId;
+  displayName: string;
+  subscribedAt: IsoDateTime;
+}
+
+/** GET /records/{id}/watchers — the roster plus the caller's own subscription state (drives the toggle). */
+export interface WatcherListDto {
+  watchers: WatcherListItemDto[];
+  /** Whether the caller is currently watching — sets the Watch / Watching toggle without a client scan. */
+  isWatching: boolean;
+}
+
 // ── Activity thread ─────────────────────────────────────────────────────
 // The immutable interleaved view — comments + audit events (BS §9.3, §12).
 

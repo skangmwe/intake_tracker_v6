@@ -176,8 +176,9 @@ Owns: the bell centre, notification fan-out from the event spine, per-user unrea
 - **Web exposes:** the top-bar bell, its popover with Notifications + Announcement-history entries.
 - **API exposes:** `/notifications/*`, mark-read endpoints.
 - **Database owns:** `Notifications` table (per-user delivery log).
-- **Depends on:** Events (spine). Reads Watchers, ApproverTeamMembership, WorkspaceMembership to determine fan-out targets.
+- **Depends on:** Events (spine). Reads Watchers, ApproverTeamMembership, UserGroupMembership to determine fan-out targets.
 - **R1 channel:** in-app only. Email + digests are Release 2 (`api/CLAUDE.md`).
+- **Slice 12 fan-out mechanism.** The consumer runs **in-process** on the event spine (`NotificationFanoutConsumer` → `usp_FanOutNotification`), registered alongside `AuditWriter` — so the full cycle works on the LocalDB/no-Azure dev stack. The Worker/Service-Bus path stays the documented production mechanism but is a **no-op when the namespace is unset** (same pattern as slice 9's derived mirror, slice 11's config-selected blob). Targets are the reliably user-resolvable ones only: **Watchers**, **mentioned users** (`comment.posted` payload), **approver-team eligible members** (`gate.opened`), and the **AI Intake group** (`escalation.opened`). Requestor / Business Owner are text field values in Phase 1 (not user references) so they are **not** targeted — this matches the "Reads Watchers / teams / group membership" line above and is not a divergence. The AI Intake group is seeded empty (slice 1), so `escalation-received` fans to zero until members are added (slice 17) — event handled, roster empty, exactly like slice 8's approver roster.
 
 ### 17. Search
 
@@ -217,6 +218,7 @@ Owns: the single emission layer. Every meaningful state change emits exactly one
 - **Worker owns:** the consumers that need out-of-process handling (mirror updates on the PG-side row, notification fan-out that requires enumerating watchers/teams).
 - **Database owns:** no dedicated table — events flow to AuditEntry (as a durable record), Notifications (as delivery log), and mirror updates (as writes to the platform-defined `AI Solutions Status` column).
 - **Rule:** every source module calls `IEventSpine.Emit` once per state change. **Never emits twice.** Consumers are pluggable; adding a consumer never requires touching a source module.
+- **Slice 12 realisation.** `EventSpine.EmitAsync` now runs its in-process consumers in order — `IAuditWriter` (durable row first) then `INotificationFanout` (`usp_FanOutNotification`) — before the Service-Bus publish (a no-op in dev). Both run on the caller's `DbContext`/transaction, so the audit row, the notification rows, and the state change commit atomically. Adding the notifications consumer touched only the spine's own composition (one shared file + DI), never a source module — honouring the pluggable-consumer rule.
 
 ### 21. Platform Admin
 

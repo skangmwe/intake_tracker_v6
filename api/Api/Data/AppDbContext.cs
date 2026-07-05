@@ -93,6 +93,11 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<AttachmentListRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<AttachmentDownloadRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 12 (Watchers + Notifications) — keyless projections read via stored procedures.
+        modelBuilder.Entity<WatcherListRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<NotificationRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<UnreadCountRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

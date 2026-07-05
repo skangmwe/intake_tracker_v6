@@ -550,3 +550,35 @@ public sealed class AttachmentDownloadRow
     public bool IsLink { get; set; }
     public string? ExternalUrl { get; set; }
 }
+
+// Slice 12 (Watchers + Notifications) — keyless proc projections.
+
+/// <summary>One live watcher from usp_GetWatchers — carries DisplayName so the card renders the
+/// avatar/initials without a directory fetch (slice 12).</summary>
+public sealed class WatcherListRow
+{
+    public Guid UserId { get; set; }
+    /// <summary>Display name — shown in the roster; never logged (api-logging.md).</summary>
+    public string DisplayName { get; set; } = string.Empty;
+    public DateTime SubscribedAt { get; set; }
+}
+
+/// <summary>One bell notification from usp_QueryNotifications. TotalCount is the windowed
+/// COUNT(*) OVER() so the read is one result set (slice 12).</summary>
+public sealed class NotificationRow
+{
+    public Guid NotificationId { get; set; }
+    public string Category { get; set; } = string.Empty;
+    public string? RecordId { get; set; }
+    public string Summary { get; set; } = string.Empty;
+    public Guid SourceEventId { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ReadAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+/// <summary>Single-row unread count from usp_GetUnreadCount — drives the bell badge (slice 12).</summary>
+public sealed class UnreadCountRow
+{
+    public int UnreadCount { get; set; }
+}

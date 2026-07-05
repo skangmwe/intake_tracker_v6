@@ -165,6 +165,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S20 Bell centre** `[deferred → real]`; Watchers card `[prototyped]`.
 - **Depends on:** 1, 5, 8, 9.
 - **Estimated LoC:** 4,800.
+- **Status: completed** — `Watchers` + `Notifications` tables + access-gated procs; **`usp_FanOutNotification`** run **in-process** on the event spine via `NotificationFanoutConsumer` (registered next to `AuditWriter`; the Worker/Service-Bus path stays documented but is a no-op in dev — slice 9/11 precedent). Fan-out targets are the user-resolvable ones only (Watchers, mentioned users, frozen gate approvers, AI-Intake group) — Requestor/Business Owner are Phase-1 text field values, not user refs, so are not targeted (matches module-boundaries §16). Web: real bell popover + unread badge; Watchers card on the record-detail Watchers & alerts tab. Decisions in [12-slice-watchers-notifications.md](12-slice-watchers-notifications.md): in-process fan-out; `POST /notifications/query` (not GET) + `GET /notifications/unread-count`; added `GET /records/{id}/watchers` + `WatcherListItemDto`/`WatcherListDto`; empty AI-Intake roster fans to zero (slice 8 precedent).
+- **Started:** 2026-07-05T10:49:33-04:00
+- **Ended:** 2026-07-05T12:07:54-04:00
+- **Duration:** 01:18:21
 
 ### Slice 13: Announcements
 - **Spec section:** BS §2.7 (Announcement object), §20 (schema).

@@ -217,6 +217,24 @@ Per-record subscription (BS §17.3, §11.2). Never a crossing field — kept liv
 
 UNIQUE `(RecordId, WorkspaceId, UserId)` filtered where `UnsubscribedAt IS NULL`.
 
+### Notification (slice 12)
+
+Per-user delivery log for the bell centre (BS §11.3, module-boundaries §16). One row per (target user, event) — materialised in-process by `usp_FanOutNotification` when the event spine emits (the Service-Bus/Worker path is a no-op in dev, same as slice 9's mirror). Not a crossing field; read-state is per user.
+
+| Column | Type | Notes |
+|---|---|---|
+| `NotificationId` | `UNIQUEIDENTIFIER` PK | |
+| `UserId` | FK → User | The recipient. The bell reads `WHERE UserId = @caller`. |
+| `WorkspaceId` | FK → Workspace | The side the notifying event fired on. |
+| `RecordId` | `NVARCHAR(20)` NULL | The record the notification points at (NULL for non-record events). |
+| `Category` | `NVARCHAR(32)` NOT NULL | `NotificationCategory` — `sign-off-requested` \| `gate-decided` \| `hold-changed` \| `closed` \| `mentioned` \| `escalation-received` \| `announcement-posted` \| `assigned-to-you`. CHECK-constrained. |
+| `Summary` | `NVARCHAR(400)` NOT NULL | Human-readable line the bell renders. Ids/enums-derived — never raw PII (`api-pii-handling.md`); the fan-out proc builds it from the record id + category, not from field values. |
+| `SourceEventId` | `UNIQUEIDENTIFIER` NOT NULL | The spine `EventId` that produced this — the dedup + trace key. |
+| `ReadAt` | `DATETIME2` NULL | Set on mark-read; NULL = unread (drives the badge). |
+| audit cols | | |
+
+Dedup UNIQUE `(UserId, RecordId, Category, SourceEventId)` filtered where `IsDeleted = 0` — a user watching **both** sides of an escalated record (same `SourceEventId`) receives exactly one row. Index `(UserId, IsDeleted, CreatedAt DESC)` for the newest-first feed and the unread-count.
+
 ### ApprovalRequest
 
 Per-gate-firing entity. Approver set is **frozen at gate-open** (BS §7.2).

@@ -92,6 +92,19 @@ export interface NotificationDto {
   sourceEventId: string;
 }
 
+/** POST /notifications/query body — paginated bell feed for the caller. */
+export interface NotificationQuery {
+  page: number;
+  pageSize: number;
+  /** When true, only unread notifications are returned. */
+  unreadOnly: boolean;
+}
+
+/** GET /notifications/unread-count — the bell badge count (caller-scoped, all workspaces). */
+export interface UnreadCountDto {
+  count: number;
+}
+
 // ── Home surface (BS §10.7) ─────────────────────────────────────────────
 
 /**

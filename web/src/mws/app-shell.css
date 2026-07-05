@@ -167,6 +167,46 @@ button.mws-drawer-scrim { border: none; padding: 0; margin: 0; cursor: pointer; 
 .ast-menu__item:hover,
 .ast-menu__item:focus-visible { color: var(--accent-interactive); }
 
+/* Bell centre (slice 12). Badge is navy + white — theme-stable in both themes. */
+.ast-bell__badge {
+  position: absolute; top: 2px; right: 2px; z-index: 1; pointer-events: none;
+  min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  background: var(--color-navy); color: var(--color-white);
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600; line-height: 16px;
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+.ast-menu--bell { min-width: min(360px, calc(100vw - var(--space-5) * 2)); max-width: calc(100vw - var(--space-5) * 2); }
+.ast-menu__header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+}
+.ast-menu__title { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.ast-menu__link {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-family: var(--font-sans); font-size: 12px; color: var(--accent-interactive);
+}
+.ast-menu__link:hover, .ast-menu__link:focus-visible { text-decoration: underline; }
+.ast-menu__note { padding: var(--space-3) var(--space-4); font-size: 13px; color: var(--text-secondary); }
+.ast-notif-list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
+.ast-notif {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  width: 100%; padding: var(--space-2) var(--space-4);
+  background: none; border: none; border-left: 2px solid transparent;
+  font-family: var(--font-sans); font-size: 14px; color: var(--text-primary);
+  cursor: pointer; text-align: left;
+}
+.ast-notif:hover, .ast-notif:focus-visible { color: var(--accent-interactive); }
+.ast-notif--unread { border-left-color: var(--accent-interactive); }
+.ast-notif__dot {
+  flex-shrink: 0; width: 6px; height: 6px; margin-top: 6px; border-radius: var(--radius-pill);
+  background: var(--accent-interactive);
+}
+.ast-notif__body { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.ast-notif__summary { overflow-wrap: break-word; }
+.ast-notif__time { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
 .ast-account-btn {
   width: 32px; height: 32px; border-radius: var(--radius-pill);
   border: 1px solid var(--border-light);
