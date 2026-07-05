@@ -1,0 +1,143 @@
+/* Announcements feature styles (S21/S22/S23). Tokens only — no raw colours or off-spec radii
+   (design conformance gate). Composes the shared .mws-* system for cards, alerts, and empty states. */
+
+.ann-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: min(100%, 1200px);
+  min-width: 0;
+}
+
+.ann-page__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ann-page__header > div {
+  min-width: 0;
+}
+
+.ann-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ann-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.ann-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.ann-row__title-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.ann-row__title {
+  font-family: var(--font-mix);
+  font-size: 18px;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+.ann-row__pin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.ann-row__snippet {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: break-word;
+}
+
+.ann-row__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.ann-row__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Editor modal body */
+.ann-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ann-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.ann-check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--accent-interactive);
+  flex-shrink: 0;
+}
+
+/* Detail (S21) */
+.ann-detail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.ann-detail__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.ann-detail__meta {
+  margin: 0;
+}
+
+.ann-detail__body {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  max-width: min(100%, 720px);
+}

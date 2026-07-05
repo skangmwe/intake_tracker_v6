@@ -14,6 +14,7 @@ public sealed record NotificationDto(
     Guid Id,
     string Category,
     string? RecordId,
+    Guid? AnnouncementId,
     string Summary,
     DateTime CreatedAt,
     DateTime? ReadAt,

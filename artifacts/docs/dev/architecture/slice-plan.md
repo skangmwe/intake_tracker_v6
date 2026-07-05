@@ -177,6 +177,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S21**, **S22**, **S23** all `[deferred]`.
 - **Depends on:** 12.
 - **Estimated LoC:** 4,500.
+- **Status: completed** — admin authoring is workspace-scoped (`/workspaces/{id}/announcements[/query]`, matching Lifecycle §18); consumer reads flat/cross-workspace (`POST /announcements/query`, `GET /announcements/{id}`); item mutations author-or-admin. Bell deep-link via a new nullable `Notifications.AnnouncementId`; fan-out reuses slice-12's in-process `usp_FanOutNotification` (new `announcement.published` branch). Audience picker is comma-separated text (people/role picker → slice 17); body renders as plain text (no sanitizer yet); pinned-Home strip deferred to slice 22. See [13-slice-announcements.md](13-slice-announcements.md).
+- **Started:** 2026-07-05T12:57:18-04:00
+- **Ended:** 2026-07-05T14:22:37-04:00
+- **Duration:** 01:25:19
 
 ### Slice 14: Feature Catalog (S9, S10, S13) + Saved-view editor (S24)
 - **Spec section:** BS §2.5 (Feature Catalog), §18 (schema), §22.3-22.4 (saved-view picker and editor).

@@ -31,7 +31,7 @@ public sealed class NotificationsControllerTests
     {
         // Arrange
         var page = new PaginatedResponse<NotificationDto>(
-            new[] { new NotificationDto(Guid.NewGuid(), "gate-decided", "AIS-1", "A gate decision was recorded on AIS-1", DateTime.UtcNow, null, Guid.NewGuid()) },
+            new[] { new NotificationDto(Guid.NewGuid(), "gate-decided", "AIS-1", null, "A gate decision was recorded on AIS-1", DateTime.UtcNow, null, Guid.NewGuid()) },
             TotalCount: 1, Page: 1, PageSize: 20);
         var notifications = new Mock<INotificationsService>();
         notifications.Setup(service => service.QueryAsync(UserId, It.IsAny<NotificationQuery>(), It.IsAny<CancellationToken>())).ReturnsAsync(page);

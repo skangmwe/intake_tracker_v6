@@ -570,6 +570,8 @@ public sealed class NotificationRow
     public Guid NotificationId { get; set; }
     public string Category { get; set; } = string.Empty;
     public string? RecordId { get; set; }
+    /// <summary>Set for an 'announcement-posted' row — the bell deep-link target (slice 13).</summary>
+    public Guid? AnnouncementId { get; set; }
     public string Summary { get; set; } = string.Empty;
     public Guid SourceEventId { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -581,4 +583,36 @@ public sealed class NotificationRow
 public sealed class UnreadCountRow
 {
     public int UnreadCount { get; set; }
+}
+
+/// <summary>Full announcement detail from usp_GetAnnouncementById (slice 13). Audience is the raw JSON
+/// document ({ kind, roleLabels?, userIds? }); the service parses it into AnnouncementAudience.</summary>
+public sealed class AnnouncementRow
+{
+    public Guid AnnouncementId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public Guid AuthorUserId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string Audience { get; set; } = string.Empty;
+    public bool Pinned { get; set; }
+    public DateTime? ExpiresOn { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime? PublishedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>A browse/manage row from usp_QueryAnnouncements(ForManage) (slice 13). TotalCount is the
+/// windowed COUNT(*) OVER() so the read is one result set.</summary>
+public sealed class AnnouncementListRowEntity
+{
+    public Guid AnnouncementId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string BodySnippet { get; set; } = string.Empty;
+    public bool Pinned { get; set; }
+    public DateTime? PublishedAt { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public Guid AuthorUserId { get; set; }
+    public int TotalCount { get; set; }
 }

@@ -227,13 +227,34 @@ Per-user delivery log for the bell centre (BS §11.3, module-boundaries §16). O
 | `UserId` | FK → User | The recipient. The bell reads `WHERE UserId = @caller`. |
 | `WorkspaceId` | FK → Workspace | The side the notifying event fired on. |
 | `RecordId` | `NVARCHAR(20)` NULL | The record the notification points at (NULL for non-record events). |
+| `AnnouncementId` | `UNIQUEIDENTIFIER` NULL | *(slice 13)* Set for an `announcement-posted` row — the bell deep-link target (S21). FK → Announcement. NULL for record events. |
 | `Category` | `NVARCHAR(32)` NOT NULL | `NotificationCategory` — `sign-off-requested` \| `gate-decided` \| `hold-changed` \| `closed` \| `mentioned` \| `escalation-received` \| `announcement-posted` \| `assigned-to-you`. CHECK-constrained. |
 | `Summary` | `NVARCHAR(400)` NOT NULL | Human-readable line the bell renders. Ids/enums-derived — never raw PII (`api-pii-handling.md`); the fan-out proc builds it from the record id + category, not from field values. |
 | `SourceEventId` | `UNIQUEIDENTIFIER` NOT NULL | The spine `EventId` that produced this — the dedup + trace key. |
 | `ReadAt` | `DATETIME2` NULL | Set on mark-read; NULL = unread (drives the badge). |
 | audit cols | | |
 
-Dedup UNIQUE `(UserId, RecordId, Category, SourceEventId)` filtered where `IsDeleted = 0` — a user watching **both** sides of an escalated record (same `SourceEventId`) receives exactly one row. Index `(UserId, IsDeleted, CreatedAt DESC)` for the newest-first feed and the unread-count.
+Dedup UNIQUE `(UserId, RecordId, Category, SourceEventId)` filtered where `IsDeleted = 0` — a user watching **both** sides of an escalated record (same `SourceEventId`) receives exactly one row. Index `(UserId, IsDeleted, CreatedAt DESC)` for the newest-first feed and the unread-count. The dedup key is unaffected by `AnnouncementId` — `SourceEventId` already differentiates each `announcement.published` event.
+
+### Announcement (slice 13)
+
+Team notices delivered through the bell (BS §2.7 / §20, module-boundaries §9). A light record with a publish/retire lifecycle (no stage machinery). Portable object, seeded in the AI Solutions workspace first. No field crosses the bridge.
+
+| Column | Type | Notes |
+|---|---|---|
+| `AnnouncementId` | `UNIQUEIDENTIFIER` PK | |
+| `WorkspaceId` | FK → Workspace | |
+| `AuthorUserId` | FK → User | The author (Created by, §20); the DTO's `author`. |
+| `Title` | `NVARCHAR(200)` NOT NULL | The notice headline. |
+| `Body` | `NVARCHAR(MAX)` NOT NULL | Rich text (rendered as plain text until a sanitizer is wired). |
+| `Audience` | JSON (`NVARCHAR(MAX)`) NOT NULL | `{ kind: 'everyone'\|'role-scoped'\|'named-users', roleLabels?, userIds? }` — the two-layer model (§10.2); never widens access. `CHECK ISJSON = 1`. |
+| `Pinned` | `BIT` NOT NULL | A pinned announcement shows in the Home slim strip (built with Home, slice 22). |
+| `ExpiresOn` | `DATE` NULL | Optional auto-retire date; a Published announcement past this reads as Retired. |
+| `Status` | `NVARCHAR(16)` NOT NULL | `'Draft'` → `'Published'` → `'Retired'`. CHECK-constrained. |
+| `PublishedAt` | `DATETIME2` NULL | Stamped on the first Draft→Published transition. |
+| audit cols | | Soft-delete; never hard-deleted (§4.3). |
+
+Audience resolution (fan-out + read gates): `everyone` = active workspace members; `named-users` = listed ids ∩ members; `role-scoped` = `ApproverTeamMembership` for the listed role labels. Index `(WorkspaceId, Pinned DESC, PublishedAt DESC)` for the pinned-first list.
 
 ### ApprovalRequest
 

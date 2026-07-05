@@ -379,28 +379,33 @@ Set Maturity = Deprecated. Never hard-deleted.
 
 ---
 
-## 12 · Announcements
+## 12 · Announcements  *(slice 13 — consumer reads are flat/cross-workspace; admin authoring is workspace-scoped, matching Lifecycle §18)*
 
-### `GET /api/v1/announcements/query`
-List announcements audience-scoped to the caller.
+### `POST /api/v1/announcements/query`  *(slice 13 — `POST` not `GET`: `POST …/query` body convention + "no complex params in query strings")*
+The caller's Published, un-expired, in-audience announcement history (S22), across every workspace they belong to. Any member.
 
-- **Body:** `{ page, pageSize, filters }`.
+- **Body:** `AnnouncementQuery` — `{ page, pageSize }`.
 - **Response:** `PaginatedResponse<AnnouncementListRow>`.
 
 ### `GET /api/v1/announcements/{id}`
-Detail.
+Detail (S21). Audience-gated — a caller who cannot see it gets `403`, never disclosing existence (§22.6). Author + workspace admins may read any status.
 
-### `POST /api/v1/announcements` — Workspace admin
-Create a Draft announcement.
+### `POST /api/v1/workspaces/{workspaceId}/announcements` — Workspace admin  *(slice 13 — workspace-scoped path; §12 originally listed a flat `POST /announcements`. Create needs a target workspace, so it is scoped like Lifecycle/Fields.)*
+Create a Draft announcement. **Body:** `AnnouncementCreateRequest`.
 
-### `PATCH /api/v1/announcements/{id}` — Workspace admin (author or admin)
-Edit until Retired.
+### `POST /api/v1/workspaces/{workspaceId}/announcements/query` — Workspace admin  *(slice 13 — the S23 manage list: every status in the workspace)*
+The workspace's full announcement list across all statuses (Draft / Published / Retired). Effective status collapses an expired-Published row to Retired. **Body:** `AnnouncementQuery`.
 
-### `POST /api/v1/announcements/{id}/publish` — Workspace admin
-Fan the "Announcement posted" event to bells in the audience.
+### `PATCH /api/v1/announcements/{id}` — author or Workspace admin
+Full replace of the editable fields (`AnnouncementPatchRequest`). A Retired announcement is immutable → `409`.
 
-### `POST /api/v1/announcements/{id}/retire` — Workspace admin
-Retire (never hard-delete).
+### `POST /api/v1/announcements/{id}/publish` — author or Workspace admin
+Draft → Published; emits `announcement.published` on the spine exactly once (idempotent re-publish does not re-fan), whose in-process fan-out delivers "Announcement posted" to the audience's bells. Publishing a Retired announcement → `409`.
+
+### `POST /api/v1/announcements/{id}/retire` — author or Workspace admin
+Retire (never hard-delete). Idempotent.
+
+*The bell deep-links an `announcement-posted` notification to S21 via the new nullable `Notifications.AnnouncementId` (see §13 / data-model).*
 
 ---
 
