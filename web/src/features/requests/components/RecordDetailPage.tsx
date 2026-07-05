@@ -22,6 +22,7 @@ import { useMe } from '@/features/users/useMe';
 import { EscalateModal, EscalatedIntakeNote } from '@/features/escalation';
 import { CloseRecordModal } from '@/features/closure';
 import { RelationshipsCard } from '@/features/typed-links';
+import { AttachmentsCard } from '@/features/attachments';
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { useRequest, usePatchRequest, useSetHold, useSetStage } from '../useRequests';
@@ -474,7 +475,7 @@ export function RecordDetailPage() {
             onEscalate={() => setEscalateOpen(true)}
           />
         )}
-        {activeTab === 'attachments' && <StubCard label="Attachments" message="No attachments yet." />}
+        {activeTab === 'attachments' && <AttachmentsCard recordId={request.id as RecordId} />}
         {activeTab === 'tasks' && (
           <TasksTab
             recordId={request.id as RecordId}

@@ -153,6 +153,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** Attachments card on S4/S5 side panel `[prototyped]`.
 - **Depends on:** 5.
 - **Estimated LoC:** 3,500.
+- **Status: completed** — `Attachments` table + four access-gated procs (create/list/get-by-id/delete), attachment carry-across folded into `usp_EscalateRequest`, `IBlobStreamer` (Azure + Local) storage abstraction, the Attachments module (streaming upload / link / download / delete), and the S4/S5 Attachments-tab card. Decisions recorded in [11-slice-attachments.md](11-slice-attachments.md): (1) **blob storage is config-selected** — `AzureBlobStreamer` via Managed Identity when `Storage:BlobAccountUri` is set, `LocalBlobStreamer` (filesystem) otherwise, so the LocalDB / no-Azure dev stack runs the full cycle (mirrors the Service-Bus no-op + slice-9 derived-mirror precedent); adds `Azure.Storage.Blobs`. (2) **Carry-across = duplicated pointer rows** — escalation copies each live PG attachment as an AI-side row sharing the original `BlobPath` (no blob copy; SQL is the pointer authority). (3) **"Side panel" → the existing Attachments tab** — the as-built 6-tab record detail has no right rail (slice-5 reconciliation), so the card wires into its Attachments tab like Relationships/Tasks/Activity. (4) **413 for oversize, 400 for disallowed type** — following api-contracts §8 (which specifies 413) over the api-blob-attachments generic "400 for both". (5) `apiClient` extended with FormData upload + `apiFetchBlob` (bearer-authenticated download).
+- **Started:** 2026-07-05T08:38:16-04:00
+- **Ended:** 2026-07-05T09:14:48-04:00
+- **Duration:** 00:36:32
 
 ### Slice 12: Watchers + Notifications (bell centre)
 - **Spec section:** BS §11.1 (event spine), §11.2 (firm-default notification rules), §11.3 (channels and groups), §17.3 (Watchers).

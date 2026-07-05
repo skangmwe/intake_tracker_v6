@@ -258,15 +258,15 @@ describe('RecordDetailPage', () => {
   });
 
   it('RecordDetailPage — switching to a stub tab renders its placeholder', async () => {
-    // Arrange
+    // Arrange — Attachments is now a live feature (slice 11); Watchers & alerts is still a stub.
     const user = userEvent.setup();
     const { container } = renderPage();
 
     // Act
-    await user.click(await screen.findByRole('tab', { name: 'Attachments' }));
+    await user.click(await screen.findByRole('tab', { name: 'Watchers & alerts' }));
 
     // Assert
-    expect(screen.getByText('No attachments yet.')).toBeInTheDocument();
+    expect(screen.getByText('Notifications arrive in a later slice.')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

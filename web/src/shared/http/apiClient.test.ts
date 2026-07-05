@@ -1,4 +1,4 @@
-import { ApiError, apiFetch, setAuthTokenProvider } from './apiClient';
+import { ApiError, apiFetch, apiFetchBlob, setAuthTokenProvider } from './apiClient';
 
 describe('apiFetch', () => {
   const fetchMock = jest.fn();
@@ -96,5 +96,60 @@ describe('apiFetch', () => {
     const error = await apiFetch('/v1/thing').catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).status).toBe(500);
+  });
+
+  it('apiFetch — FormData body — omits Content-Type and does not JSON-stringify', async () => {
+    // Arrange — a multipart upload; the browser must set the boundary itself.
+    fetchMock.mockResolvedValue(jsonResponse(201, { id: 'a1' }));
+    const form = new FormData();
+    form.append('file', new Blob(['x']), 'brief.pdf');
+
+    // Act
+    await apiFetch('/v1/records/AIS-1/attachments', { method: 'POST', body: form });
+
+    // Assert
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.body).toBe(form);
+    expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined();
+  });
+});
+
+describe('apiFetchBlob', () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    setAuthTokenProvider(async () => 'token-abc');
+  });
+
+  it('apiFetchBlob — returns the Blob with the bearer header attached', async () => {
+    // Arrange
+    const blob = new Blob(['bytes']);
+    fetchMock.mockResolvedValue({ ok: true, status: 200, blob: async () => blob } as unknown as Response);
+
+    // Act
+    const result = await apiFetchBlob('/v1/attachments/a1/content');
+
+    // Assert
+    expect(result).toBe(blob);
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer token-abc');
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/attachments/a1/content', expect.any(Object));
+  });
+
+  it('apiFetchBlob — error response throws ApiError', async () => {
+    // Arrange
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 403,
+      statusText: 'Forbidden',
+      json: async () => ({ type: 't', title: 'No', status: 403, detail: 'Access denied.' }),
+    } as unknown as Response);
+
+    // Act + Assert
+    const error = await apiFetchBlob('/v1/attachments/a1/content').catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(403);
   });
 });

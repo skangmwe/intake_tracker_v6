@@ -86,6 +86,12 @@ export interface AttachmentDto {
   contentUrl: string;
 }
 
+/** Attach an external URL to a record (no upload) — POST /records/{id}/attachments/link. */
+export interface AttachmentLinkRequest {
+  url: string;
+  title: string;
+}
+
 // ── Watchers ─────────────────────────────────────────────────────────────
 // Per-record subscription — never a crossing field (BS §17.3, §11.2).
 

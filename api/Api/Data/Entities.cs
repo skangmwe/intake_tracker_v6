@@ -517,3 +517,36 @@ public sealed class ApprovalRequestRow
     /// <summary>Slot decisions rolled up (JSON). Parsed into ApprovalDecisionDto[].</summary>
     public string DecisionsJson { get; set; } = "[]";
 }
+
+/// <summary>One attachment row from usp_GetAttachmentsForRecord (the Attachments card). BlobPath is
+/// deliberately NOT selected — the pointer never leaves the server (slice 11).</summary>
+public sealed class AttachmentListRow
+{
+    public Guid AttachmentId { get; set; }
+    public string RecordId { get; set; } = string.Empty;
+    public string ObjectType { get; set; } = string.Empty;
+    public Guid WorkspaceId { get; set; }
+    /// <summary>Can name a client artifact — Confidential-adjacent; never logged.</summary>
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public bool IsLink { get; set; }
+    public string? ExternalUrl { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+}
+
+/// <summary>One attachment resolved for download / delete from usp_GetAttachmentById (access-gated).
+/// Carries the BlobPath so the API can stream the bytes; the client never sees it.</summary>
+public sealed class AttachmentDownloadRow
+{
+    public Guid AttachmentId { get; set; }
+    public string RecordId { get; set; } = string.Empty;
+    public Guid WorkspaceId { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public string BlobPath { get; set; } = string.Empty;
+    public bool IsLink { get; set; }
+    public string? ExternalUrl { get; set; }
+}

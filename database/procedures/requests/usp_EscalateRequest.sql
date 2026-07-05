@@ -123,6 +123,22 @@ BEGIN
         FROM OPENJSON(@Snapshots)
              WITH (FieldKey NVARCHAR(64) N'$.fieldKey', SnapshotValue NVARCHAR(MAX) N'$.value') AS snap;
 
+        -- Attachments follow the record across the bridge (BS §6.3) — they are NOT governed by the
+        -- crossing map. Duplicate each live PG-side attachment as a new AI-side row that shares the
+        -- original BlobPath, so both sides point at the same stored bytes (SQL is the source of truth
+        -- for the pointer; no blob copy). Native uploads and external links both carry across. The
+        -- Attachments table (slice 11) always exists before this proc runs — migrations precede
+        -- procedures, and deferred name resolution keeps this safe even if an environment lags.
+        INSERT INTO dbo.Attachments
+            (AttachmentId, RecordId, ObjectType, WorkspaceId, FileName, ContentType, SizeBytes,
+             BlobPath, IsLink, ExternalUrl, CreatedBy, UpdatedBy)
+        SELECT NEWID(), a.RecordId, a.ObjectType, @AiWs, a.FileName, a.ContentType, a.SizeBytes,
+               a.BlobPath, a.IsLink, a.ExternalUrl, @Actor, @Actor
+        FROM dbo.Attachments AS a
+        WHERE a.RecordId = @Rec
+          AND a.WorkspaceId = @PgWs
+          AND a.IsDeleted = 0;
+
         SET @AiWorkspaceId = @AiWs;
 
         COMMIT TRANSACTION;

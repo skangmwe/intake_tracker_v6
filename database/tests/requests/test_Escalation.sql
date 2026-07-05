@@ -215,3 +215,46 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #Bridge);
 END;
 GO
+
+CREATE PROCEDURE EscalationTests.[test_EscalateCarriesAttachmentsToAiSide]
+AS
+BEGIN
+    -- Arrange — two live PG-side attachments (one native upload, one external link) and one that
+    -- was soft-deleted. Attachments follow the record across the bridge (BS §6.3, slice 11).
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Attachments';
+    INSERT INTO dbo.Attachments
+        (AttachmentId, RecordId, ObjectType, WorkspaceId, FileName, ContentType, SizeBytes, BlobPath, IsLink, ExternalUrl, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES
+        (NEWID(), N'LIT-00000001', N'Request', 'B0000000-0000-4000-8000-000000000002', N'brief.pdf', N'application/pdf', 2048,
+         N'b0000000-0000-4000-8000-000000000002/LIT-00000001/aaaa/brief.pdf', 0, NULL, 0, N'seed', N'seed'),
+        (NEWID(), N'LIT-00000001', N'Request', 'B0000000-0000-4000-8000-000000000002', N'Spec', N'text/uri-list', 0,
+         N'external', 1, N'https://example.com/spec', 0, N'seed', N'seed'),
+        (NEWID(), N'LIT-00000001', N'Request', 'B0000000-0000-4000-8000-000000000002', N'gone.pdf', N'application/pdf', 10,
+         N'b0000000-0000-4000-8000-000000000002/LIT-00000001/bbbb/gone.pdf', 0, NULL, 1, N'seed', N'seed');
+
+    -- Act
+    DECLARE @AiWs UNIQUEIDENTIFIER;
+    EXEC dbo.usp_EscalateRequest
+        @RecordId = N'LIT-00000001', @PgWorkspaceId = 'B0000000-0000-4000-8000-000000000002',
+        @Name = N'Contract clause finder', @Description = N'Find clauses fast.',
+        @AiFieldValuesJson = N'{}', @SnapshotJson = N'[]',
+        @ActorUserId = N'00000000-0000-4000-8000-0000000000aa', @AiWorkspaceId = @AiWs OUTPUT;
+
+    -- Assert — the two live PG attachments are duplicated onto the AI side; the soft-deleted one is
+    -- not; the AI-side native row shares the original BlobPath (same bytes, no blob copy).
+    DECLARE @AiCount INT =
+        (SELECT COUNT(*) FROM dbo.Attachments WHERE RecordId = N'LIT-00000001' AND WorkspaceId = @AiWs);
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = @AiCount;
+
+    DECLARE @SharedPath INT =
+        (SELECT COUNT(*) FROM dbo.Attachments
+         WHERE RecordId = N'LIT-00000001' AND WorkspaceId = @AiWs
+           AND BlobPath = N'b0000000-0000-4000-8000-000000000002/LIT-00000001/aaaa/brief.pdf');
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @SharedPath;
+
+    DECLARE @LinkCarried INT =
+        (SELECT COUNT(*) FROM dbo.Attachments
+         WHERE RecordId = N'LIT-00000001' AND WorkspaceId = @AiWs AND IsLink = 1 AND ExternalUrl = N'https://example.com/spec');
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @LinkCarried;
+END;
+GO

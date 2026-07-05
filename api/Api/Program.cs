@@ -58,12 +58,35 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // ─── Options (non-secret config — api-secrets.md) ──────────────────────────
 builder.Services.Configure<ServiceBusOptions>(
     builder.Configuration.GetSection(ServiceBusOptions.SectionName));
+builder.Services.Configure<McDermott.AiTracker.Api.Shared.Storage.StorageOptions>(
+    builder.Configuration.GetSection(McDermott.AiTracker.Api.Shared.Storage.StorageOptions.SectionName));
+builder.Services.Configure<McDermott.AiTracker.Api.Modules.Attachments.AttachmentsOptions>(
+    builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.Attachments.AttachmentsOptions.SectionName));
 
 // ─── Shared services (shared-inventory.md) ─────────────────────────────────
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddSingleton<IServiceBusPublisher, ServiceBusPublisher>();
 builder.Services.AddScoped<IAuditWriter, AuditWriter>();
 builder.Services.AddScoped<IEventSpine, EventSpine>();
+
+// Blob storage (slice 11) — Azure via Managed Identity when Storage:BlobAccountUri is set;
+// filesystem fallback otherwise so the LocalDB / no-Azure dev stack runs the full attachment cycle
+// (mirrors the Service-Bus no-op-when-namespace-empty pattern). Both impls are stateless + thread-safe.
+var storageOptions = builder.Configuration
+    .GetSection(McDermott.AiTracker.Api.Shared.Storage.StorageOptions.SectionName)
+    .Get<McDermott.AiTracker.Api.Shared.Storage.StorageOptions>()
+    ?? new McDermott.AiTracker.Api.Shared.Storage.StorageOptions();
+if (string.IsNullOrWhiteSpace(storageOptions.BlobAccountUri))
+{
+    builder.Services.AddSingleton<McDermott.AiTracker.Api.Shared.Storage.IBlobStreamer>(
+        _ => new McDermott.AiTracker.Api.Shared.Storage.LocalBlobStreamer(storageOptions.LocalRootPath));
+}
+else
+{
+    builder.Services.AddSingleton<McDermott.AiTracker.Api.Shared.Storage.IBlobStreamer>(
+        _ => McDermott.AiTracker.Api.Shared.Storage.AzureBlobStreamer.Create(
+            storageOptions.BlobAccountUri, storageOptions.ContainerName));
+}
 
 // ─── Module services (Users — slice 2) ─────────────────────────────────────
 builder.Services.AddScoped<McDermott.AiTracker.Api.Shared.Auth.IUserProvisioner,
@@ -122,6 +145,10 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Closure.IClosureServi
 // ─── Tasks (slice 7; slice 10 adds promote-to-request via ICopyService) ─────────
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Tasks.ITasksService,
     McDermott.AiTracker.Api.Modules.Tasks.TasksService>();
+
+// ─── Attachments (slice 11) — depends on Requests (record access) + IBlobStreamer ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Attachments.IAttachmentsService,
+    McDermott.AiTracker.Api.Modules.Attachments.AttachmentsService>();
 
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
