@@ -92,7 +92,11 @@ export function usePatchRequest(recordId: RecordId) {
   });
 }
 
-/** Move a Request to a new stage (S4 stepper). No gate integration this slice. */
+/**
+ * Move a Request to a new stage (S4 stepper). A gated transition opens an approval gate instead of
+ * advancing (the result's `advanced` is false with the opened gate) — invalidate the gates query so
+ * it surfaces on the Tasks & gates tab (slice 8).
+ */
 export function useSetStage(recordId: RecordId) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -100,6 +104,7 @@ export function useSetStage(recordId: RecordId) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: requestKey(recordId) });
       void queryClient.invalidateQueries({ queryKey: ['requests'] });
+      void queryClient.invalidateQueries({ queryKey: ['approval-requests', recordId] });
     },
   });
 }

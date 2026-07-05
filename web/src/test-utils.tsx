@@ -7,6 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { render } from '@testing-library/react';
 import type {
+  ApprovalRequestDto,
+  ApprovalRequestId,
   FieldDefinitionDto,
   GateDefinitionId,
   LifecycleConfigDto,
@@ -195,6 +197,34 @@ export function buildRequestListRow(overrides: Partial<RequestListRow> = {}): Re
       due: '2026-07-16',
     },
     slaStatus: 'OnTrack',
+    ...overrides,
+  };
+}
+
+/**
+ * An open, single-slot gate (GCO) with one eligible member — the default the gate tests start from.
+ * Override `state` / `decisions` / `slots` to reach the approved / rejected / resolved / empty-roster
+ * variants.
+ */
+export function buildApprovalRequest(overrides: Partial<ApprovalRequestDto> = {}): ApprovalRequestDto {
+  return {
+    id: 'gate-1' as ApprovalRequestId,
+    requestRecordId: 'AIS-00000001' as RecordId,
+    gateDefinitionId: '6A7E0000-0000-4000-8000-000000000001' as GateDefinitionId,
+    gateName: 'QA readiness gate',
+    fromStage: 'Build',
+    toStage: 'QA',
+    state: 'Pending',
+    openedAt: '2026-07-04T18:00:00Z',
+    slots: [
+      {
+        slotIndex: 0,
+        roleLabel: 'GCO',
+        displayLabel: 'GCO',
+        eligibleMembers: [{ userId: 'user-casey' as UserId, displayName: 'Casey Okafor' }],
+      },
+    ],
+    decisions: [],
     ...overrides,
   };
 }

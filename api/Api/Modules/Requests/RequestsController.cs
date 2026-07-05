@@ -130,11 +130,15 @@ public sealed class RequestsController : ControllerBase
         };
     }
 
-    /// <summary>Advance/move to a target stage (Member+). No gate integration in slice 5.</summary>
+    /// <summary>
+    /// Advance/move to a target stage (Member+). A gated transition opens an ApprovalRequest instead of
+    /// advancing (200 with <c>advanced:false, gateOpened</c>); the record advances once the gate resolves.
+    /// </summary>
     [HttpPost("requests/{recordId}/stage")]
     [ProducesResponseType(typeof(StageTransitionResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> MoveStage(
         [FromRoute] string recordId,
         [FromBody] StageTransitionRequest request,
@@ -144,7 +148,9 @@ public sealed class RequestsController : ControllerBase
         return result.Outcome switch
         {
             StageMoveOutcome.Success => Ok(result.Result),
+            StageMoveOutcome.GateOpened => Ok(result.Result),
             StageMoveOutcome.InvalidStage => BadRequestProblem("That stage is not part of this record's lifecycle."),
+            StageMoveOutcome.GateAlreadyOpen => GateAlreadyOpenConflict(),
             _ => AccessDenied(),
         };
     }
@@ -212,6 +218,19 @@ public sealed class RequestsController : ControllerBase
             Title = "The record changed.",
             Status = StatusCodes.Status409Conflict,
             Detail = "This request was changed by someone else since you loaded it. Refresh and reapply your edits.",
+        })
+        {
+            StatusCode = StatusCodes.Status409Conflict,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    private ObjectResult GateAlreadyOpenConflict() =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/gate-already-open",
+            Title = "A gate is already open.",
+            Status = StatusCodes.Status409Conflict,
+            Detail = "An approval gate is already open on this record. Resolve it before moving the stage again.",
         })
         {
             StatusCode = StatusCodes.Status409Conflict,

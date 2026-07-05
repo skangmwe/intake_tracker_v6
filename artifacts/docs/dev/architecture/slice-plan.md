@@ -117,6 +117,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** gate section of S4/S5 `[prototyped]`.
 - **Depends on:** 4, 5.
 - **Estimated LoC:** 5,800.
+- **Status: completed** — plus `GET /requests/{id}/approval-requests` (the tab reads gates from it) and gate opening folded into `POST /requests/{id}/stage` (a gated transition returns `{advanced:false, gateOpened}`; `409 gate-already-open` on a second attempt). Three decisions recorded in [08-slice-gates-approvals.md](08-slice-gates-approvals.md): re-request is an explicit endpoint (reconciled durable model, not the prototype's session-only inline re-review); `FrozenApproverSlot`/`ApprovalDecisionDto` extended so the name-picker + rejection lines render without a user-directory fetch; the empty approver roster (seeded empty per slice 4) freezes an empty eligible set — the gate opens but is un-signable until an admin adds members. Home "Needs your decision" surfacing is slice 22 (no Home yet); the gate's `Pending`/`ChangesRequested` state is the data it will read.
+- **Started:** 2026-07-04T18:48:41-04:00
+- **Ended:** 2026-07-04T19:54:38-04:00
+- **Duration:** 01:05:57
 
 ### Slice 9: Escalation bridge (S5 — prototyped)
 - **Spec section:** BS §6 (The escalation bridge) — the most load-bearing mechanism.

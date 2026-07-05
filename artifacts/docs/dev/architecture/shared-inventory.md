@@ -382,6 +382,39 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
   the pure `taskView.ts` helpers, `tasks.css`. `useTaskLibrary` reuses `fetchTaskLibrary`
   (`@/features/fields/api`). Requests list (`RequestsListPage`) renders the Repo URL rollup cell.
 
+## Slice 8 additions (Gates & approvals)
+
+### API — new Gates module (`api/Api/Modules/Gates/`)
+- `IApprovalsService` / `ApprovalsService` (`Scoped`) — `FindGateForTransitionAsync` (is this from→to
+  gated?), `OpenGateAsync` (freeze slots + emit `gate.opened`; `AlreadyOpen` → 409), `GetForRecordAsync`
+  (record-gated read), `SubmitDecisionAsync` (approve/reject + `isProxy`; emits `gate.decided`, plus
+  `request.stage-changed` when a gate resolves + advances), `ReRequestAsync`. `ParseJson<T>` is a pure,
+  unit-tested public helper. `ApprovalsController` — `GET /requests/{id}/approval-requests`,
+  `POST /approval-requests/{id}/decisions` / `/re-request` / `/proxy-decision`. `ApprovalDtos.cs`
+  mirrors `/shared/types/gates.ts`.
+- **Registered before Requests** in `Program.cs` — `RequestsService.SetStageAsync` now depends on
+  `IApprovalsService` (one-directional): a gated transition opens a gate (`GateOpened` / `GateAlreadyOpen`
+  outcomes) instead of advancing. `StageTransitionResultDto` extended to `{ advanced, newStage?, gateOpened? }`
+  (null members omitted via `JsonIgnore`).
+- Keyless proc projections added to `Data/Entities.cs` + registered in `AppDbContext`:
+  `GateForTransitionRow`, `ApprovalRequestRow`.
+
+### Database (`database/procedures/gates/`)
+- `vw_ApprovalRequestDetail` (AR + decisions-as-JSON projection — DRY across every gate read/write),
+  `usp_GetGateForTransition`, `usp_OpenGate` (freeze eligible members, gate-already-open THROW 50051),
+  `usp_GetApprovalRequestsForRecord` (access-gated list), `usp_SubmitDecision` (eligibility +
+  reject-needs-comment + supersede + resolve-and-advance; Member+ / WorkspaceAdmin-for-proxy access
+  gate), `usp_ReRequestApproval` (supersede a rejection → pending). Migrations
+  `20260704_036_CreateApprovalRequests`, `_037_CreateApprovalDecisions`.
+
+### Web feature — `web/src/features/gates/`
+- `api.ts`, `useGates.ts` (`useApprovalRequests` / `useSubmitDecision` / `useReRequest`), `GateBlock`
+  (public export — the inline gate block), `GateSlot`, the pure `gateView.ts` helpers, `gates.css`.
+  `web/src/features/tasks/TaskGroup.tsx` (extracted from `TasksTab`) renders each phase's tasks + gates;
+  `TasksTab` merges task phases with gate target phases so a gate renders even in a phase with no tasks.
+  `useSetStage` (requests) invalidates the gates query; the Status tab surfaces a gate-opened note.
+- Shared test builder added to `web/src/test-utils.tsx`: `buildApprovalRequest`.
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.

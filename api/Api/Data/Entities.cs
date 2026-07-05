@@ -417,3 +417,38 @@ public sealed class TaskFieldRow
     public string DisplayName { get; set; } = string.Empty;
     public string FieldType { get; set; } = string.Empty;
 }
+
+/// <summary>The gate a transition is guarded by (usp_GetGateForTransition) — or no row when ungated.</summary>
+public sealed class GateForTransitionRow
+{
+    public Guid GateDefinitionId { get; set; }
+    public string GateName { get; set; } = string.Empty;
+    public string FromStageKey { get; set; } = string.Empty;
+    public string ToStageKey { get; set; } = string.Empty;
+    public string FromStageLabel { get; set; } = string.Empty;
+    public string ToStageLabel { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// One ApprovalRequest (gate) with its decisions rolled up as JSON, from vw_ApprovalRequestDetail
+/// via the gate procs. FrozenApproverSet and DecisionsJson are parsed into the wire DTO shapes.
+/// </summary>
+public sealed class ApprovalRequestRow
+{
+    public Guid ApprovalRequestId { get; set; }
+    public string RequestRecordId { get; set; } = string.Empty;
+    public Guid WorkspaceId { get; set; }
+    public Guid GateDefinitionId { get; set; }
+    public string GateName { get; set; } = string.Empty;
+    public string FromStageKey { get; set; } = string.Empty;
+    public string ToStageKey { get; set; } = string.Empty;
+    public string FromStageLabel { get; set; } = string.Empty;
+    public string ToStageLabel { get; set; } = string.Empty;
+    public string State { get; set; } = string.Empty;
+    public DateTime OpenedAt { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+    /// <summary>Snapshot of slots + eligible members at open (JSON). Parsed into FrozenApproverSlotDto[].</summary>
+    public string FrozenApproverSet { get; set; } = "[]";
+    /// <summary>Slot decisions rolled up (JSON). Parsed into ApprovalDecisionDto[].</summary>
+    public string DecisionsJson { get; set; } = "[]";
+}

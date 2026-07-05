@@ -17,14 +17,26 @@ import type {
   WorkspaceId,
 } from '@shared/types';
 
-import { renderWithProviders, buildMe } from '@/test-utils';
+import { renderWithProviders, buildApprovalRequest, buildMe } from '@/test-utils';
 import { useMe } from '@/features/users/useMe';
+import { useApprovalRequests, useReRequest, useSubmitDecision } from '@/features/gates';
 
 import { TasksTab } from './TasksTab';
 import { useCreateTasks, usePatchTask, useTaskBundles, useTaskLibrary, useTasks } from './useTasks';
 
 jest.mock('@/features/users/useMe');
 jest.mock('./useTasks');
+// Keep the real GateBlock (so the gate renders through TasksTab) but stub the data/mutation hooks.
+jest.mock('@/features/gates', () => ({
+  ...jest.requireActual('@/features/gates'),
+  useApprovalRequests: jest.fn(),
+  useSubmitDecision: jest.fn(),
+  useReRequest: jest.fn(),
+}));
+
+const mockedUseGates = useApprovalRequests as jest.MockedFunction<typeof useApprovalRequests>;
+const mockedUseSubmit = useSubmitDecision as jest.MockedFunction<typeof useSubmitDecision>;
+const mockedUseReRequest = useReRequest as jest.MockedFunction<typeof useReRequest>;
 
 const mockedUseMe = useMe as jest.MockedFunction<typeof useMe>;
 const mockedUseTasks = useTasks as jest.MockedFunction<typeof useTasks>;
@@ -85,12 +97,21 @@ function mockPatch(mutate = jest.fn(), extra: Record<string, unknown> = {}) {
   return mutate;
 }
 
+function mockGates(gates: ReturnType<typeof buildApprovalRequest>[] = []) {
+  mockedUseGates.mockReturnValue({ data: gates } as unknown as ReturnType<typeof useApprovalRequests>);
+  const mutation = { mutate: jest.fn(), isPending: false, isError: false, error: null };
+  mockedUseSubmit.mockReturnValue(mutation as unknown as ReturnType<typeof useSubmitDecision>);
+  mockedUseReRequest.mockReturnValue(mutation as unknown as ReturnType<typeof useReRequest>);
+  return mutation;
+}
+
 beforeEach(() => {
   mockedUseMe.mockReturnValue({ data: me } as ReturnType<typeof useMe>);
   mockedUseBundles.mockReturnValue({ data: [{ id: 'b1', name: 'Drafting assistant', tasks: [] }] } as unknown as ReturnType<typeof useTaskBundles>);
   mockedUseLibrary.mockReturnValue({ data: LIBRARY } as unknown as ReturnType<typeof useTaskLibrary>);
   mockCreate();
   mockPatch();
+  mockGates();
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -297,6 +318,21 @@ describe('TasksTab', () => {
     // Assert
     expect(screen.getByText('This solution is on hold')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mark Scope done' })).toBeDisabled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('TasksTab — an open gate renders inline under its target phase, even with no tasks there', async () => {
+    // Arrange — no tasks, one open QA-readiness gate targeting the QA phase.
+    mockTasks({ data: [] });
+    mockGates([buildApprovalRequest()]);
+
+    // Act
+    const { container } = render();
+
+    // Assert — the QA phase group + gate appear; the "no tasks yet" empty state is suppressed.
+    expect(screen.getByLabelText('Gate: QA readiness gate')).toBeInTheDocument();
+    expect(screen.getByText('Gate · fires on Build → QA')).toBeInTheDocument();
+    expect(screen.queryByText(/No tasks yet/i)).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 });

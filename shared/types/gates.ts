@@ -19,27 +19,37 @@ export type SlotDecision = 'Pending' | 'Approved' | 'Rejected';
 
 /**
  * Frozen approver-slot snapshot — the team the slot targets (identified by role label)
- * plus the eligible member list at gate-open. Per prototype changelog:
+ * plus the eligible members at gate-open. Per prototype changelog:
  *   "gate approver slots now identify only the team/role label"
- * The actual signer is captured on decision.
+ * The eligible members (userId + displayName) are frozen so the "Select your name" dropdown
+ * renders names without a live user-directory lookup (the directory lands in slice 12). The
+ * actual signer is captured on decision.
  */
 export interface FrozenApproverSlot {
   slotIndex: number;
   roleLabel: string;
-  /** The team / role label — the actual users eligible are looked up from the frozen list below. */
-  eligibleUserIds: UserId[];
+  /** The members eligible to sign this slot at freeze time (snapshot — BS §7.2). */
+  eligibleMembers: ApproverTeamMemberDto[];
   /** Human-readable label — copied at freeze. */
   displayLabel: string;
 }
 
-/** Represents one signer's decision on a slot. */
+/**
+ * One decision on a slot. Slots keep an append-only history: a superseded rejection stays
+ * visible as "Rejected · signer · time" while the live decision (superseded = false) drives
+ * the slot's current state.
+ */
 export interface ApprovalDecisionDto {
   slotIndex: number;
-  decision: SlotDecision;
+  decision: 'Approved' | 'Rejected';
   decidedByUserId?: UserId;
+  /** The signer's display name — carried on the decision for the rejection/approval line. */
+  decidedByName?: string;
   decidedAt?: IsoDateTime;
   comment?: string;
   isProxy: boolean;
+  /** True once a later decision (or a re-request) replaced this one; retained as history. */
+  superseded: boolean;
 }
 
 /** A gate in flight — one ApprovalRequest per gate firing. */
