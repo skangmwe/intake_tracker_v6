@@ -1,6 +1,7 @@
 // Notifications bell (top bar — S20). The popover surfaces the caller's real notification feed with a
 // badge for the unread count, a "Mark all read" action, and per-item mark-read + navigate-to-record.
-// Announcement history stays a stub until slice 13. The feed only loads while the popover is open (the
+// "Announcement history" opens the announcements list (S22); an announcement-posted row deep-links to
+// the announcement (S21). The feed only loads while the popover is open (the
 // query's `enabled` flag). Live regions announce loading + empty; the unread count is folded into the
 // bell's accessible name so screen-reader users hear it.
 
@@ -50,7 +51,11 @@ export function BellMenu() {
   const openNotification = (notification: NotificationDto) => {
     markOne.mutate(notification.id);
     setOpen(false);
-    if (notification.recordId) navigate(`/requests/${notification.recordId}`);
+    if (notification.announcementId) {
+      navigate(`/announcements/${notification.announcementId}`);
+    } else if (notification.recordId) {
+      navigate(`/requests/${notification.recordId}`);
+    }
   };
 
   return (
@@ -117,7 +122,14 @@ export function BellMenu() {
             </ul>
           )}
 
-          <button type="button" className="ast-menu__item" onClick={() => setOpen(false)}>
+          <button
+            type="button"
+            className="ast-menu__item"
+            onClick={() => {
+              setOpen(false);
+              navigate('/announcements');
+            }}
+          >
             <Megaphone size={18} weight="regular" aria-hidden />
             Announcement history
           </button>

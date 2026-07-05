@@ -98,6 +98,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<NotificationRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<UnreadCountRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 13 (Announcements) — keyless projections read via stored procedures.
+        modelBuilder.Entity<AnnouncementRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<AnnouncementListRowEntity>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

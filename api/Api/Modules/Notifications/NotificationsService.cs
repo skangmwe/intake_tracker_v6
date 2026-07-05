@@ -100,6 +100,7 @@ public sealed class NotificationsService : INotificationsService
             row.NotificationId,
             row.Category,
             row.RecordId,
+            row.AnnouncementId,
             row.Summary,
             DateTime.SpecifyKind(row.CreatedAt, DateTimeKind.Utc),
             row.ReadAt is null ? null : DateTime.SpecifyKind(row.ReadAt.Value, DateTimeKind.Utc),

@@ -1,6 +1,7 @@
 // Notifications, event spine, home surface, search, saved views, dashboards.
 
 import type {
+  AnnouncementId,
   ApprovalRequestId,
   IsoDateTime,
   RecordId,
@@ -84,6 +85,8 @@ export interface NotificationDto {
   category: NotificationCategory;
   /** For per-record notifications, the record targeted. */
   recordId?: RecordId;
+  /** For an 'announcement-posted' notification, the announcement the bell deep-links to (S21). */
+  announcementId?: AnnouncementId;
   /** Human-readable message the UI renders. */
   summary: string;
   createdAt: IsoDateTime;

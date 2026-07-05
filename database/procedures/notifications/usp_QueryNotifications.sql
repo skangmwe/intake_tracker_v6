@@ -27,6 +27,7 @@ BEGIN
         n.NotificationId,
         n.Category,
         n.RecordId,
+        n.AnnouncementId,
         n.Summary,
         n.SourceEventId,
         n.CreatedAt,

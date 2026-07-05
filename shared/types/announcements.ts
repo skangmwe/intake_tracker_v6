@@ -37,6 +37,18 @@ export interface AnnouncementCreateRequest {
   expiresOn?: IsoDate;
 }
 
+/**
+ * PATCH body — a full replace of the editable field set (title / body / audience / pinned / expiry).
+ * Not sparse: an admin edits the whole notice in a form and saves it. Allowed until Retired (§20).
+ */
+export interface AnnouncementPatchRequest {
+  title: string;
+  body: string;
+  audience: AnnouncementAudience;
+  pinned: boolean;
+  expiresOn?: IsoDate;
+}
+
 export interface AnnouncementListRow {
   id: AnnouncementId;
   title: string;

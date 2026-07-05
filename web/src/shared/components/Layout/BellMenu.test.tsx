@@ -6,13 +6,20 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
+import { useLocation } from 'react-router-dom';
 
-import type { NotificationDto, PaginatedResponse, RecordId } from '@shared/types';
+import type { AnnouncementId, NotificationDto, PaginatedResponse, RecordId } from '@shared/types';
 
 import { renderWithProviders } from '@/test-utils';
 
 import * as api from '@/features/notifications/api';
 import { BellMenu, relativeTime } from './BellMenu';
+
+/** Renders the current pathname so navigation targets can be asserted. */
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}</div>;
+}
 
 expect.extend(toHaveNoViolations);
 jest.mock('@/features/notifications/api');
@@ -152,6 +159,56 @@ describe('BellMenu', () => {
     // Assert
     expect(mockedApi.markNotificationRead).toHaveBeenCalledWith('n1');
     await waitFor(() => expect(bell()).toHaveAttribute('aria-expanded', 'false'));
+  });
+
+  it('BellMenu — Announcement history navigates to the announcements list', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <BellMenu />
+        <LocationProbe />
+      </>,
+    );
+    await user.click(bell());
+
+    // Act
+    await user.click(await screen.findByRole('button', { name: 'Announcement history' }));
+
+    // Assert
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/announcements'));
+  });
+
+  it('BellMenu — an announcement notification deep-links to the announcement', async () => {
+    // Arrange — an announcement-posted row carries an announcementId (no recordId).
+    mockedApi.fetchUnreadCount.mockResolvedValue({ count: 1 });
+    const annNote: NotificationDto = {
+      id: 'n4',
+      category: 'announcement-posted',
+      announcementId: '0a000000-0000-4000-8000-0000000000f1' as AnnouncementId,
+      summary: 'New announcement: Coverage news',
+      createdAt: '2026-07-05T10:00:00Z',
+      sourceEventId: '99999999-9999-4999-8999-999999999999',
+    };
+    mockedApi.queryNotifications.mockResolvedValue(feed([annNote]));
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <BellMenu />
+        <LocationProbe />
+      </>,
+    );
+    await user.click(bell());
+    const item = await screen.findByRole('button', { name: /New announcement: Coverage news/ });
+
+    // Act
+    await user.click(item);
+
+    // Assert — marked read and navigated to the announcement's detail (S21).
+    expect(mockedApi.markNotificationRead).toHaveBeenCalledWith('n4');
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/announcements/0a000000-0000-4000-8000-0000000000f1'),
+    );
   });
 
   it('BellMenu — no axe violations (closed and open)', async () => {

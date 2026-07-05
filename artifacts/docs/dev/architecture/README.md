@@ -37,3 +37,4 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 10 | Closure, Copy, Re-pursuit + Typed links (S4/S5 + S19) | completed | [slice-plan.md §Slice 10](slice-plan.md) | [10-slice-closure-copy-links.md](10-slice-closure-copy-links.md) |
 | 11 | Attachments (S4/S5 Attachments tab) | completed | [slice-plan.md §Slice 11](slice-plan.md) | [11-slice-attachments.md](11-slice-attachments.md) |
 | 12 | Watchers + Notifications (S20 bell + Watchers & alerts tab) | completed | [slice-plan.md §Slice 12](slice-plan.md) | [12-slice-watchers-notifications.md](12-slice-watchers-notifications.md) |
+| 13 | Announcements (S21 detail + S22 list + S23 manage + bell deep-link) | completed | [slice-plan.md §Slice 13](slice-plan.md) | [13-slice-announcements.md](13-slice-announcements.md) |

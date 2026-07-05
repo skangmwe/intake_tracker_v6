@@ -159,6 +159,10 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Watchers.IWatchersSer
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Notifications.INotificationsService,
     McDermott.AiTracker.Api.Modules.Notifications.NotificationsService>();
 
+// ─── Announcements (slice 13) — team notices delivered through the bell ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Announcements.IAnnouncementsService,
+    McDermott.AiTracker.Api.Modules.Announcements.AnnouncementsService>();
+
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
 // intended contract (api-coding-standards.md — Swagger is gated by config, not
