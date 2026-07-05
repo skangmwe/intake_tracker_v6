@@ -1,0 +1,76 @@
+/* Shared modal primitive — disclosure-surfaces.md. Tokens only (design-conformance). */
+
+.mws-modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
+}
+
+.mws-modal {
+  width: min(90vw, 480px);
+  max-height: calc(100dvh - var(--space-7));
+  overflow-y: auto;
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  animation: mws-modal-in var(--duration-slow) var(--ease-emphasis);
+}
+
+@keyframes mws-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.mws-modal__title {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-mix);
+  font-size: 24px;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.mws-modal__body {
+  margin: 0 0 var(--space-4);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mws-modal__body > * + * {
+  margin-top: var(--space-3);
+}
+
+/* Action row flex-wraps so two 140px-min buttons never clip at narrow widths (disclosure-surfaces.md). */
+.mws-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+@media (max-width: 480px) {
+  .mws-modal__actions .mws-btn {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mws-modal {
+    animation-duration: 1ms;
+  }
+}

@@ -141,6 +141,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** closure UI + Relationships side-panel card on S4/S5 `[prototyped]`; **S19 Copy modal** `[deferred]`.
 - **Depends on:** 5, 9.
 - **Estimated LoC:** 4,200.
+- **Status: completed** — close → own `Closure` module + `usp_CloseRequest` (Outcome stored in `FieldValues`, no new columns); Copy + links → `TypedLinks` module; promote-to-request → `usp_GetTaskById` + `CopyService` (Tasks→TypedLinks dep). Decisions in [10-slice-closure-copy-links.md](10-slice-closure-copy-links.md): types reconciled to `collaboration.ts` (no new `typed-links.ts`); `includeAttachments` accepted but no-op until slice 11; copy/promote link-back queued on the draft and stamped as a typed link at submission (`usp_CreateRequest @QueuedLinksJson`, best-effort); `duplicate-of` same-family = id-prefix check; shared `Modal` primitive extracted to Disclosure.
+- **Started:** 2026-07-04T22:31:34-04:00
+- **Ended:** 2026-07-04T23:19:24-04:00
+- **Duration:** 00:47:50
 
 ### Slice 11: Attachments
 - **Spec section:** `api-blob-attachments.md` + BS §2.3 (files are the Attachments object).

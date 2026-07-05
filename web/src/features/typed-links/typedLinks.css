@@ -1,0 +1,116 @@
+/* Relationships card + Link / Copy modals (S4/S5, S19). Tokens only (design-conformance). */
+
+.typed-links__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.typed-links__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.typed-links__kind {
+  flex-shrink: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+/* Quiet text-bearing control — hover flips border AND text to the interactive accent. */
+.typed-links__target {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.typed-links__target:hover,
+.typed-links__target:focus-visible {
+  border-color: var(--accent-interactive);
+  color: var(--accent-interactive);
+}
+
+.typed-links__id {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.typed-links__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.typed-links__remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.typed-links__remove:hover,
+.typed-links__remove:focus-visible {
+  border-color: var(--accent-interactive);
+  color: var(--accent-interactive);
+}
+
+.typed-links__remove:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.typed-links__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.typed-links__lead {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Native checkbox row inside the Copy modal (a Toggle/Checkbox primitive lands in a later slice). */
+.typed-links__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.typed-links__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-interactive);
+}

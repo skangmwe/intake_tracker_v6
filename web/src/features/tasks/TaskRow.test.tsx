@@ -43,14 +43,26 @@ function buildTask(overrides: Partial<TaskDto> = {}): TaskDto {
   };
 }
 
-function renderRow(task: TaskDto, opts: { library?: TaskLibraryFieldDto[]; disabled?: boolean; onPatch?: jest.Mock } = {}) {
+function renderRow(
+  task: TaskDto,
+  opts: { library?: TaskLibraryFieldDto[]; disabled?: boolean; onPatch?: jest.Mock; onPromote?: jest.Mock } = {},
+) {
   const onPatch = opts.onPatch ?? jest.fn();
+  const onPromote = opts.onPromote ?? jest.fn();
   const utils = render(
     <ul>
-      <TaskRow task={task} currentUserId={ME} library={opts.library ?? []} disabled={opts.disabled ?? false} onPatch={onPatch} />
+      <TaskRow
+        task={task}
+        currentUserId={ME}
+        library={opts.library ?? []}
+        disabled={opts.disabled ?? false}
+        onPatch={onPatch}
+        onPromote={onPromote}
+        promoting={false}
+      />
     </ul>,
   );
-  return { onPatch, ...utils };
+  return { onPatch, onPromote, ...utils };
 }
 
 function typedTask(value: TaskTypedFieldValue): TaskDto {
@@ -105,6 +117,25 @@ describe('TaskRow', () => {
       createdAt: base.createdAt,
     });
     expect(within(none.container).getByText('Unassigned')).toBeInTheDocument();
+  });
+
+  it('TaskRow — an open task offers Promote and calls onPromote', async () => {
+    // Arrange
+    const { onPromote } = renderRow(buildTask({ title: 'Scope' }));
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Promote Scope to a request' }));
+
+    // Assert
+    expect(onPromote).toHaveBeenCalledTimes(1);
+  });
+
+  it('TaskRow — a done task hides the Promote action', () => {
+    // Act
+    renderRow(buildTask({ title: 'Scope', status: 'Done' }));
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Promote Scope to a request' })).not.toBeInTheDocument();
   });
 
   it('TaskRow — Locked task shows the precondition row', () => {

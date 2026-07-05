@@ -1,6 +1,6 @@
 // Tasks — lightweight children of Requests (BS §2.4).
 
-import type { FieldDefinitionId, IsoDate, IsoDateTime, RecordId, TaskId, UserId } from './common';
+import type { DraftId, FieldDefinitionId, IsoDate, IsoDateTime, RecordId, TaskId, UserId } from './common';
 
 /** Task status transitions: Locked → Open → Done (or Cancelled). */
 export type TaskStatus = 'Locked' | 'Open' | 'Done' | 'Cancelled';
@@ -63,6 +63,15 @@ export interface TaskPatchRequest {
   status?: TaskStatus;
   typedField?: { definitionId: FieldDefinitionId; value: TaskTypedFieldValue } | null;
   notes?: string;
+}
+
+/**
+ * POST /tasks/{id}/promote-to-request result — Promote runs Copy against the parent Request,
+ * opens a fresh Draft with a queued `related` link back, and cancels the source Task (BS §5).
+ * The caller opens the returned draft to review + submit.
+ */
+export interface PromoteToRequestResult {
+  draftId: DraftId;
 }
 
 /** A task-bundle template — a named set of tasks applied together (per prototype). */

@@ -3,11 +3,13 @@
 import type {
   AttachmentId,
   CommentId,
+  DraftId,
   IsoDateTime,
   ObjectType,
   RecordId,
   TypedLinkId,
   UserId,
+  WorkspaceId,
 } from './common';
 
 // ── Comments ─────────────────────────────────────────────────────────────
@@ -32,20 +34,38 @@ export interface CommentCreateRequest {
 
 export type TypedLinkKind = 'related' | 'duplicate-of' | 're-pursuit-of' | 'sourced-from';
 
+/** The subset of link kinds a Copy / Promote link-back may use (BS §5). */
+export type LinkBackKind = 'related' | 're-pursuit-of';
+
+/**
+ * One typed link on a record, resolved for the Relationships card (slice 10). `toName` / `toStage`
+ * are the far record's display name + current stage, resolved access-respectingly — both null when
+ * the caller cannot see the far side (the link shows, but only the id is revealed — BS §22.6).
+ */
 export interface TypedLinkDto {
   id: TypedLinkId;
   fromRecordId: RecordId;
   toRecordId: RecordId;
   kind: TypedLinkKind;
   rationale?: string;
+  toName: string | null;
+  toStage: string | null;
   createdAt: IsoDateTime;
-  createdBy: UserId;
 }
 
 export interface TypedLinkCreateRequest {
   toRecordId: RecordId;
   kind: TypedLinkKind;
   rationale?: string;
+}
+
+/**
+ * A link-back queued on a Draft (slice 10). A draft has no RecordId, so this cannot be a TypedLink
+ * yet — the create path stamps each queued link as a TypedLink from the newly-minted record.
+ */
+export interface QueuedLink {
+  toRecordId: RecordId;
+  kind: TypedLinkKind;
 }
 
 // ── Attachments ──────────────────────────────────────────────────────────
@@ -102,7 +122,14 @@ export interface AuditEventItem {
 
 /** Copy semantics — POST /records/{id}/copy. */
 export interface CopyRequest {
-  targetWorkspaceId: import('./common').WorkspaceId;
+  targetWorkspaceId: WorkspaceId;
+  /** Carry attachments across on copy. Accepted now; carry-across lands with Attachments (slice 11). */
   includeAttachments: boolean;
-  linkBackKind?: 'related' | 're-pursuit-of';
+  /** Optional link back from the new record to the source, stamped when the draft is submitted. */
+  linkBackKind?: LinkBackKind;
+}
+
+/** 201 response for Copy — the new draft's id (open it to review + submit). */
+export interface CopyResult {
+  draftId: DraftId;
 }

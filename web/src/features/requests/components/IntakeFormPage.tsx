@@ -13,6 +13,7 @@ import { ArrowSquareOut, Link as LinkIcon, X } from '@phosphor-icons/react';
 import type {
   DraftId,
   FieldDefinitionDto,
+  QueuedLink,
   RecordId,
   RequestCreateRequest,
   WorkspaceId,
@@ -89,16 +90,21 @@ export function IntakeFormPage() {
   // Similar-requests the user chose to link as `related` — stamped on the record at submit (slice 10
   // owns the typed-link write; the API accepts the queued ids on create).
   const [queuedRelated, setQueuedRelated] = useState<RecordId[]>([]);
+  // Kinded link-backs carried on the draft by Copy / Promote — stamped as typed links at submit.
+  const [queuedLinks, setQueuedLinks] = useState<QueuedLink[]>([]);
 
   const toggleRelated = (id: RecordId) =>
     setQueuedRelated((prev) => (prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id]));
 
-  // Seed values from a resumed draft once its body loads (defaults stay for anything it omits).
+  // Seed values + queued links from a resumed draft once its body loads (defaults stay for anything
+  // it omits). The queued links are what make a Copy / Promote link-back land as a typed link on submit.
   const seededDraftRef = useRef(false);
   useEffect(() => {
     const resumed = draftQuery.data;
     if (seededDraftRef.current || !draftId || !resumed) return;
     setValues((prev) => ({ ...prev, ...resumed.body.fields }));
+    if (resumed.body.related?.length) setQueuedRelated(resumed.body.related);
+    if (resumed.body.queuedLinks?.length) setQueuedLinks(resumed.body.queuedLinks);
     seededDraftRef.current = true;
   }, [draftId, draftQuery.data]);
 
@@ -187,6 +193,7 @@ export function IntakeFormPage() {
       description: String(values.description ?? ''),
       fields: values,
       ...(queuedRelated.length > 0 ? { queuedRelatedRecordIds: queuedRelated } : {}),
+      ...(queuedLinks.length > 0 ? { queuedLinks } : {}),
     };
     try {
       const created = await createRequest.mutateAsync(payload);
@@ -199,7 +206,15 @@ export function IntakeFormPage() {
   const handleSaveDraft = async () => {
     const title = typeof values.name === 'string' && values.name.trim() ? values.name : null;
     try {
-      await saveDraft.mutateAsync({ objectType: 'Request', title, body: { fields: values } });
+      await saveDraft.mutateAsync({
+        objectType: 'Request',
+        title,
+        body: {
+          fields: values,
+          ...(queuedRelated.length > 0 ? { related: queuedRelated } : {}),
+          ...(queuedLinks.length > 0 ? { queuedLinks } : {}),
+        },
+      });
       navigate('/requests');
     } catch {
       // Surfaced to the user via the inline alert (saveDraft.isError). No rethrow.

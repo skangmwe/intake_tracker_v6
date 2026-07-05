@@ -22,7 +22,7 @@ import { useMe } from '@/features/users/useMe';
 import { useApprovalRequests, useReRequest, useSubmitDecision } from '@/features/gates';
 
 import { TasksTab } from './TasksTab';
-import { useCreateTasks, usePatchTask, useTaskBundles, useTaskLibrary, useTasks } from './useTasks';
+import { useCreateTasks, usePatchTask, usePromoteTask, useTaskBundles, useTaskLibrary, useTasks } from './useTasks';
 
 jest.mock('@/features/users/useMe');
 jest.mock('./useTasks');
@@ -44,6 +44,7 @@ const mockedUseBundles = useTaskBundles as jest.MockedFunction<typeof useTaskBun
 const mockedUseLibrary = useTaskLibrary as jest.MockedFunction<typeof useTaskLibrary>;
 const mockedUseCreate = useCreateTasks as jest.MockedFunction<typeof useCreateTasks>;
 const mockedUsePatch = usePatchTask as jest.MockedFunction<typeof usePatchTask>;
+const mockedUsePromote = usePromoteTask as jest.MockedFunction<typeof usePromoteTask>;
 
 const RECORD = 'AIS-00000001' as RecordId;
 const WORKSPACE = '1A150000-0000-4000-8000-000000000001' as WorkspaceId;
@@ -97,6 +98,11 @@ function mockPatch(mutate = jest.fn(), extra: Record<string, unknown> = {}) {
   return mutate;
 }
 
+function mockPromote(mutate = jest.fn(), extra: Record<string, unknown> = {}) {
+  mockedUsePromote.mockReturnValue({ mutate, isPending: false, isError: false, error: null, variables: undefined, ...extra } as unknown as ReturnType<typeof usePromoteTask>);
+  return mutate;
+}
+
 function mockGates(gates: ReturnType<typeof buildApprovalRequest>[] = []) {
   mockedUseGates.mockReturnValue({ data: gates } as unknown as ReturnType<typeof useApprovalRequests>);
   const mutation = { mutate: jest.fn(), isPending: false, isError: false, error: null };
@@ -111,6 +117,7 @@ beforeEach(() => {
   mockedUseLibrary.mockReturnValue({ data: LIBRARY } as unknown as ReturnType<typeof useTaskLibrary>);
   mockCreate();
   mockPatch();
+  mockPromote();
   mockGates();
 });
 

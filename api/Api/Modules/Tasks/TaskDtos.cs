@@ -57,6 +57,9 @@ public sealed record TaskDto(
 /// <summary>A task-bundle template for the composer's "Add bundle" picker (mirrors TaskBundleTemplate).</summary>
 public sealed record TaskBundleTemplateDto(Guid Id, string Name, IReadOnlyList<TaskBundleTemplateTaskDto> Tasks);
 
+/// <summary>POST /tasks/{id}/promote-to-request result — the new draft's id (mirrors PromoteToRequestResult).</summary>
+public sealed record PromoteToRequestResultDto(Guid DraftId);
+
 /// <summary>One task entry inside a bundle template.</summary>
 public sealed record TaskBundleTemplateTaskDto(string Title, string Phase);
 

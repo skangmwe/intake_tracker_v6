@@ -85,6 +85,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<CrossingFieldRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<BridgeRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 10 (Closure, Copy, Typed links) — keyless projections read via stored procedures.
+        modelBuilder.Entity<TypedLinkRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<TypedLinkDeleteRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

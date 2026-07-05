@@ -19,6 +19,8 @@ import type {
   RequestDto,
   RequestListRow,
   StageDefinitionId,
+  TypedLinkDto,
+  TypedLinkId,
   UserId,
   WorkspaceId,
   WorkspaceMembershipDto,
@@ -225,6 +227,20 @@ export function buildApprovalRequest(overrides: Partial<ApprovalRequestDto> = {}
       },
     ],
     decisions: [],
+    ...overrides,
+  };
+}
+
+/** A resolved typed link for the Relationships card (S4/S5). Far side visible by default. */
+export function buildTypedLink(overrides: Partial<TypedLinkDto> = {}): TypedLinkDto {
+  return {
+    id: '00000000-0000-0000-0000-0000000000e1' as TypedLinkId,
+    fromRecordId: 'AIS-00000001' as RecordId,
+    toRecordId: 'AIS-00000002' as RecordId,
+    kind: 'related',
+    toName: 'Summariser',
+    toStage: 'qa',
+    createdAt: '2026-07-04T10:00:00Z',
     ...overrides,
   };
 }

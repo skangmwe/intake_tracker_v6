@@ -72,6 +72,20 @@ public sealed class TasksController : ControllerBase
         return task is null ? AccessDenied() : Ok(task);
     }
 
+    /// <summary>Promote a task to its own Request — copy the parent to a draft + cancel the task (Member+, via the service).</summary>
+    [HttpPost("tasks/{id:guid}/promote-to-request")]
+    [ProducesResponseType(typeof(PromoteToRequestResultDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> PromoteTask([FromRoute] Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _tasks.PromoteToRequestAsync(id, _currentUser.UserId, OperationId(), cancellationToken);
+        return result.Outcome switch
+        {
+            PromoteOutcome.Created => Created($"/api/v1/drafts/{result.DraftId}", new PromoteToRequestResultDto(result.DraftId!.Value)),
+            _ => AccessDenied(),
+        };
+    }
+
     /// <summary>The workspace's task-bundle templates for the composer (Viewer+).</summary>
     [HttpGet("workspaces/{workspaceId:guid}/task-bundles")]
     [ProducesResponseType(typeof(IReadOnlyList<TaskBundleTemplateDto>), StatusCodes.Status200OK)]

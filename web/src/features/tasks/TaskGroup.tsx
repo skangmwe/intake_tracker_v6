@@ -21,6 +21,8 @@ interface TaskGroupProps {
   taskDisabled: boolean;
   gateDisabled: boolean;
   onPatch: (taskId: string, patch: TaskPatchRequest) => void;
+  onPromote: (taskId: string) => void;
+  promotingTaskId: string | null;
   onDecision: (
     approvalRequestId: string,
     slotIndex: number,
@@ -42,6 +44,8 @@ export function TaskGroup({
   taskDisabled,
   gateDisabled,
   onPatch,
+  onPromote,
+  promotingTaskId,
   onDecision,
   onReRequest,
 }: TaskGroupProps) {
@@ -63,6 +67,8 @@ export function TaskGroup({
                 library={library}
                 disabled={taskDisabled}
                 onPatch={(body) => onPatch(task.id, body)}
+                onPromote={() => onPromote(task.id)}
+                promoting={promotingTaskId === task.id}
               />
             ))}
           </ul>

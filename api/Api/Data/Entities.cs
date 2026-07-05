@@ -454,6 +454,35 @@ public sealed class TaskFieldRow
     public string FieldType { get; set; } = string.Empty;
 }
 
+// ─── Slice 10 (Closure, Copy, Typed links) — keyless read projections ──────────────────
+// TypedLinks are read/written through stored procedures (access-respecting far-side resolution,
+// soft-delete, queued-link stamping in usp_CreateRequest → api-data-access.md). The API never
+// tracks the TypedLinks table as an EF entity — only this keyless projection bound via FromSqlRaw.
+
+/// <summary>
+/// One typed link from usp_GetTypedLinksForRecord / usp_CreateTypedLink. ToName / ToStage are the
+/// far record's name + stage, resolved only when the caller can see the far side (NULL otherwise —
+/// the id is all that is disclosed, BS §22.6). Name is Confidential — never logged.
+/// </summary>
+public sealed class TypedLinkRow
+{
+    public Guid LinkId { get; set; }
+    public string FromRecordId { get; set; } = string.Empty;
+    public string ToRecordId { get; set; } = string.Empty;
+    public string LinkKind { get; set; } = string.Empty;
+    public string? Rationale { get; set; }
+    public string? ToName { get; set; }
+    public string? ToStage { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>The affected-row count + soft-deleted link's FROM record from usp_DeleteTypedLink (0 → 403).</summary>
+public sealed class TypedLinkDeleteRow
+{
+    public int Deleted { get; set; }
+    public string? FromRecordId { get; set; }
+}
+
 /// <summary>The gate a transition is guarded by (usp_GetGateForTransition) — or no row when ungated.</summary>
 public sealed class GateForTransitionRow
 {
