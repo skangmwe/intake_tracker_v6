@@ -10,6 +10,7 @@ using System.Data;
 using System.Globalization;
 using System.Text.Json;
 using McDermott.AiTracker.Api.Data;
+using McDermott.AiTracker.Api.Modules.TypedLinks;
 using McDermott.AiTracker.Api.Shared.EventSpine;
 using McDermott.AiTracker.Api.Shared.Time;
 using Microsoft.Data.SqlClient;
@@ -24,6 +25,18 @@ public enum TaskCreateOutcome
     Forbidden,
     Invalid,
 }
+
+/// <summary>Outcome of a promote-to-request — the controller maps it to 201 / 403.</summary>
+public enum PromoteOutcome
+{
+    Created,
+    /// <summary>The task is not visible to the caller (403, never disclose existence).</summary>
+    NotFound,
+    /// <summary>The caller cannot create a record in the target workspace (403).</summary>
+    Denied,
+}
+
+public sealed record PromoteResult(PromoteOutcome Outcome, Guid? DraftId = null);
 
 /// <summary>Create result: tasks on success, or an outcome + validation errors otherwise.</summary>
 public sealed record TaskCreateResult(
@@ -46,6 +59,11 @@ public interface ITasksService
 
     /// <summary>The workspace's bundle templates for the composer's "Add bundle" picker.</summary>
     Task<IReadOnlyList<TaskBundleTemplateDto>> GetBundlesAsync(Guid workspaceId, CancellationToken cancellationToken);
+
+    /// <summary>Promote a task to its own Request (BS §5) — copies the parent to a fresh draft with a
+    /// queued <c>related</c> link back and cancels the task. Returns the new draft id.</summary>
+    Task<PromoteResult> PromoteToRequestAsync(
+        Guid taskId, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 }
 
 public sealed class TasksService : ITasksService
@@ -55,12 +73,14 @@ public sealed class TasksService : ITasksService
     private readonly AppDbContext _db;
     private readonly IEventSpine _eventSpine;
     private readonly IClock _clock;
+    private readonly ICopyService _copy;
 
-    public TasksService(AppDbContext db, IEventSpine eventSpine, IClock clock)
+    public TasksService(AppDbContext db, IEventSpine eventSpine, IClock clock, ICopyService copy)
     {
         _db = db;
         _eventSpine = eventSpine;
         _clock = clock;
+        _copy = copy;
     }
 
     public async Task<IReadOnlyList<TaskDto>?> GetTasksAsync(
@@ -151,6 +171,48 @@ public sealed class TasksService : ITasksService
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         return rows.Select(row => new TaskBundleTemplateDto(row.TaskBundleTemplateId, row.Name, ParseBundleTasks(row.TasksJson))).ToList();
+    }
+
+    public async Task<PromoteResult> PromoteToRequestAsync(
+        Guid taskId, Guid actorUserId, string operationId, CancellationToken cancellationToken)
+    {
+        // Gate on the task (access baked into usp_GetTaskById) — null → 403, never disclose existence.
+        var task = await ReadTaskAsync(taskId, actorUserId, cancellationToken).ConfigureAwait(false);
+        if (task is null)
+        {
+            return new PromoteResult(PromoteOutcome.NotFound);
+        }
+
+        // Copy the parent record to a fresh draft in the same workspace, queuing a `related` link
+        // back to the parent. CopyService re-checks the caller can create there (Member+). Copy first,
+        // then cancel — so a denied/failed copy never leaves the task cancelled with no draft.
+        var copy = await _copy.CopyAsync(
+            task.RecordId,
+            new CopyRequest { TargetWorkspaceId = task.WorkspaceId, IncludeAttachments = false, LinkBackKind = "related" },
+            actorUserId,
+            cancellationToken).ConfigureAwait(false);
+
+        if (copy.Outcome != CopyOutcome.Success)
+        {
+            return new PromoteResult(copy.Outcome == CopyOutcome.DeniedTarget ? PromoteOutcome.Denied : PromoteOutcome.NotFound);
+        }
+
+        // Cancel the source task (its own PatchAsync emits task.updated).
+        await PatchAsync(taskId, new TaskPatchRequest { Status = "Cancelled" }, actorUserId, operationId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PromoteResult(PromoteOutcome.Created, copy.DraftId);
+    }
+
+    private async Task<TaskRow?> ReadTaskAsync(Guid taskId, Guid userId, CancellationToken cancellationToken)
+    {
+        var rows = await _db.Set<TaskRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_GetTaskById @TaskId, @UserId",
+                new SqlParameter("@TaskId", taskId),
+                new SqlParameter("@UserId", userId))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        return rows.FirstOrDefault();
     }
 
     // ─── Create paths ──────────────────────────────────────────────────────────

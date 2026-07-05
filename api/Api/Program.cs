@@ -108,7 +108,18 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Escalation.IEscalatio
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Comments.ICommentsService,
     McDermott.AiTracker.Api.Modules.Comments.CommentsService>();
 
-// ─── Tasks (slice 7) ───────────────────────────────────────────────────────────
+// ─── Typed links + Copy (slice 10) — Copy depends on Requests + Drafts; registered before Tasks,
+//     which depends on ICopyService for promote-to-request ─────────────────────────────
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.TypedLinks.ITypedLinksService,
+    McDermott.AiTracker.Api.Modules.TypedLinks.TypedLinksService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.TypedLinks.ICopyService,
+    McDermott.AiTracker.Api.Modules.TypedLinks.CopyService>();
+
+// ─── Closure (slice 10) — depends on Requests ───────────────────────────────────
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Closure.IClosureService,
+    McDermott.AiTracker.Api.Modules.Closure.ClosureService>();
+
+// ─── Tasks (slice 7; slice 10 adds promote-to-request via ICopyService) ─────────
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Tasks.ITasksService,
     McDermott.AiTracker.Api.Modules.Tasks.TasksService>();
 

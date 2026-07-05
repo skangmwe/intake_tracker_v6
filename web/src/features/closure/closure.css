@@ -1,0 +1,9 @@
+/* Close-with-Outcome modal (S4/S5). Tokens only (design-conformance). Layout only — the modal
+   chrome comes from the shared Modal primitive. */
+
+.closure-modal__lead {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}

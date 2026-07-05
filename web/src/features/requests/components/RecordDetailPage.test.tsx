@@ -22,6 +22,14 @@ expect.extend(toHaveNoViolations);
 jest.mock('../useRequests');
 jest.mock('@/features/fields/api');
 jest.mock('@/features/users/useMe');
+// The Status tab hosts the Relationships card (slice 10), which fetches the record's typed links.
+// Mock the boundary so these tests stay network-free and the card renders its empty state.
+jest.mock('@/features/typed-links/api', () => ({
+  fetchRecordLinks: jest.fn().mockResolvedValue([]),
+  addRecordLink: jest.fn(),
+  deleteRecordLink: jest.fn(),
+  copyRecord: jest.fn(),
+}));
 
 const patchMutate = jest.fn();
 const setHoldMutate = jest.fn();

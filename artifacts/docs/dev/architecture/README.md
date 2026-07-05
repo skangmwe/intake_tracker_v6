@@ -34,3 +34,4 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 7 | Tasks (S4/S5 Tasks & gates — tasks section) | completed | [slice-plan.md §Slice 7](slice-plan.md) | [07-slice-tasks.md](07-slice-tasks.md) |
 | 8 | Gates on records + Approvals (S4/S5 gate section) | completed | [slice-plan.md §Slice 8](slice-plan.md) | [08-slice-gates-approvals.md](08-slice-gates-approvals.md) |
 | 9 | Escalation bridge (S5 escalated variant + S18 modal) | completed | [slice-plan.md §Slice 9](slice-plan.md) | [09-slice-escalation.md](09-slice-escalation.md) |
+| 10 | Closure, Copy, Re-pursuit + Typed links (S4/S5 + S19) | completed | [slice-plan.md §Slice 10](slice-plan.md) | [10-slice-closure-copy-links.md](10-slice-closure-copy-links.md) |

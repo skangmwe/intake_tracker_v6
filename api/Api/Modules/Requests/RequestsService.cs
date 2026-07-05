@@ -142,7 +142,7 @@ public sealed partial class RequestsService : IRequestsService
         };
 
         await _db.Database.ExecuteSqlRawAsync(
-            "EXEC dbo.usp_CreateRequest @WorkspaceId, @LifecycleId, @Stage, @Name, @Description, @FieldValuesJson, @ActorUserId, @RecordId OUTPUT",
+            "EXEC dbo.usp_CreateRequest @WorkspaceId, @LifecycleId, @Stage, @Name, @Description, @FieldValuesJson, @ActorUserId, @RecordId OUTPUT, @QueuedLinksJson",
             new[]
             {
                 new SqlParameter("@WorkspaceId", workspaceId),
@@ -153,12 +153,14 @@ public sealed partial class RequestsService : IRequestsService
                 new SqlParameter("@FieldValuesJson", SerializeFields(request.Fields)),
                 new SqlParameter("@ActorUserId", actorUserId.ToString()),
                 recordIdParameter,
+                // Queued link-backs (similar-requests nudge + Copy/Promote) are stamped in-transaction
+                // as typed links (best-effort — a non-existent target is skipped, never fails create).
+                new SqlParameter("@QueuedLinksJson", (object?)BuildQueuedLinksJson(request) ?? DBNull.Value),
             },
             cancellationToken).ConfigureAwait(false);
 
         var recordId = (string)recordIdParameter.Value!;
 
-        // Queued related links are stamped as typed links in slice 10 — ignored here (never fail on them).
         await EmitAsync(
             "request.created", workspaceId, recordId, actorUserId,
             new { lifecycleId = chosen.LifecycleId, stage = initialStage }, operationId, cancellationToken).ConfigureAwait(false);

@@ -20,6 +20,8 @@ import { ActivityTab } from '@/features/comments';
 import { TasksTab } from '@/features/tasks';
 import { useMe } from '@/features/users/useMe';
 import { EscalateModal, EscalatedIntakeNote } from '@/features/escalation';
+import { CloseRecordModal } from '@/features/closure';
+import { RelationshipsCard } from '@/features/typed-links';
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { useRequest, usePatchRequest, useSetHold, useSetStage } from '../useRequests';
@@ -49,7 +51,6 @@ const TABS: { id: string; label: string }[] = [
 const STATUS_OPTIONS = [
   { value: 'Active', label: 'Active' },
   { value: 'On hold', label: 'On hold' },
-  { value: 'Abandoned', label: 'Abandoned' },
 ];
 
 function displayStatusKind(status: string): StatusKind {
@@ -254,14 +255,14 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
   const [statusChoice, setStatusChoice] = useState(request.hold?.held ? 'On hold' : 'Active');
   const [reason, setReason] = useState(request.hold?.reason ?? '');
   const [toStage, setToStage] = useState(request.stage ?? request.stages[0]?.key ?? '');
+  const [closeOpen, setCloseOpen] = useState(false);
 
   const reasonRequired = statusChoice === 'On hold';
   const reasonMissing = reasonRequired && reason.trim() === '';
   const stageOptions = request.stages.map((s) => ({ value: s.key, label: s.label }));
+  const closed = request.outcome ?? null;
 
   const updateStatus = () => {
-    // TODO(slice-10 closure): route "Abandoned" through the close flow. This slice only sets/clears hold.
-    if (statusChoice === 'Abandoned') return;
     const held = statusChoice === 'On hold';
     const trimmed = reason.trim();
     setHold.mutate(trimmed ? { held, reason: trimmed } : { held });
@@ -309,10 +310,28 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
         </section>
       )}
 
-      <section className="record-card" aria-label="Relationships">
-        <span className="record-chip">Relationships</span>
-        <p className="caption">No linked records yet.</p>
+      <RelationshipsCard recordId={request.id as RecordId} workspaceId={request.workspaceId as WorkspaceId} />
+
+      <section className="record-card" aria-label="Close record">
+        <span className="record-chip">Close record</span>
+        {closed ? (
+          <p className="caption">
+            Closed · {closed.value}
+            {closed.notes ? ` — ${closed.notes}` : ''}
+          </p>
+        ) : (
+          <>
+            <p className="caption">Record a final outcome for this request. You can still read it afterward.</p>
+            <Button variant="secondary" onClick={() => setCloseOpen(true)}>
+              Close record
+            </Button>
+          </>
+        )}
       </section>
+
+      {closeOpen && (
+        <CloseRecordModal recordId={request.id as RecordId} recordName={request.name} onClose={() => setCloseOpen(false)} />
+      )}
     </div>
   );
 }

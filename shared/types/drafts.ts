@@ -13,6 +13,11 @@ export interface DraftBody {
   fields: Record<string, unknown>;
   /** Related-record ids queued during the intake similar-requests nudge (stamped on submit). */
   related?: RecordId[];
+  /**
+   * Kinded link-backs queued by Copy / Promote (BS §5). Stamped as typed links from the
+   * newly-minted record when this draft is submitted (slice 10).
+   */
+  queuedLinks?: import('./collaboration').QueuedLink[];
 }
 
 /** A saved Draft. */

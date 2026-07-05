@@ -119,6 +119,10 @@ public sealed class DraftsService : IDraftsService
             {
                 fields = body?.Fields ?? new Dictionary<string, JsonElement>(),
                 related = body?.Related,
+                queuedLinks = body?.QueuedLinks
+                    ?.Where(link => !string.IsNullOrWhiteSpace(link.ToRecordId))
+                    .Select(link => new { toRecordId = link.ToRecordId, kind = link.Kind ?? "related" })
+                    .ToList(),
             },
             JsonOptions);
 

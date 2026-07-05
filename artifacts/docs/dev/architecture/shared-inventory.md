@@ -426,6 +426,52 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
   `useSetStage` (requests) invalidates the gates query; the Status tab surfaces a gate-opened note.
 - Shared test builder added to `web/src/test-utils.tsx`: `buildApprovalRequest`.
 
+## Slice 10 additions (Closure, Copy, Re-pursuit + Typed links)
+
+### API — new Closure module (`api/Api/Modules/Closure/`)
+- `IClosureService` / `ClosureService` (`Scoped`) — reads the record on the caller's side via
+  `IRequestsService.GetByIdAsync` (403 never 404), requires Member+, writes the outcome into
+  `FieldValues` (`usp_CloseRequest`), emits one `request.closed`. `Validate` is a pure, unit-tested
+  helper (Duplicate needs a target). `ClosureController` — `POST /requests/{id}/close`.
+
+### API — new TypedLinks module (`api/Api/Modules/TypedLinks/`)
+- `ITypedLinksService` / `TypedLinksService` (`Scoped`) — list / add / remove typed links (access gated
+  through the FROM record), emits `link.added` / `link.removed`. `ICopyService` / `CopyService`
+  (`Scoped`) — copies a record to a fresh Draft in a target workspace (Member+ both sides), strips
+  outcome/hold/stage/system keys, queues an optional link-back; has **no DbContext** (composes
+  `IRequestsService` + `IDraftsService` + `IAccessGuard`), so it is fully unit-testable.
+  `TypedLinksController` — `GET/POST /records/{id}/links`, `DELETE /links/{id}`, `POST /records/{id}/copy`.
+- Keyless proc projections added to `Data/Entities.cs` + registered in `AppDbContext`: `TypedLinkRow`,
+  `TypedLinkDeleteRow`. Registered **before Tasks** in `Program.cs` (Tasks promote depends on `ICopyService`).
+
+### API — Requests + Tasks changes
+- `RequestsService.CreateAsync` now stamps queued link-backs (`BuildQueuedLinksJson`, pure) via
+  `usp_CreateRequest @QueuedLinksJson`; `MapRow` builds the `Outcome` block (`MapOutcome`, pure).
+  `DraftBodyDto` / `DraftBodyInput` + `usp_SaveDraft` serialization gained `queuedLinks`.
+- `TasksService.PromoteToRequestAsync` (depends on `ICopyService`) — reads the task (`usp_GetTaskById`),
+  copies the parent to a draft with a queued `related` link, cancels the task. `TasksController` —
+  `POST /tasks/{id}/promote-to-request`.
+
+### Database
+- New table `TypedLinks` (migration `20260704_038` + rollback). Procs: `usp_CreateTypedLink`,
+  `usp_GetTypedLinksForRecord`, `usp_DeleteTypedLink` (`database/procedures/links/`), `usp_CloseRequest`
+  (`database/procedures/requests/`), `usp_GetTaskById` (`database/procedures/tasks/`). `usp_CreateRequest`
+  gained the optional trailing `@QueuedLinksJson` (best-effort in-transaction stamping).
+
+### Web shared — `shared/components/Disclosure/`
+- **`Modal`** (`data-ds="modal"`) — the shared modal primitive (scrim + focus trap + Escape + scrim-click
+  + focus restore), extracted once close / link / copy joined escalate as consumers. Escalate keeps its
+  own inline modal (surgical scope).
+
+### Web features — `web/src/features/closure/` + `web/src/features/typed-links/`
+- `closure`: `api.ts`, `useClose.ts` (`useCloseRecord`), `CloseRecordModal` (public export). `typed-links`:
+  `api.ts`, `useTypedLinks.ts` (`useRecordLinks` / `useAddLink` / `useDeleteLink` / `useCopyRecord`),
+  `RelationshipsCard` (public export — replaces the Status-tab stub), `LinkRecordModal`, `CopyModal`, the
+  `linkKinds.ts` label constants. Record detail's Status tab hosts the Relationships card + Close-record
+  action; the Tasks tab hosts a per-task Promote action; `IntakeFormPage` seeds + forwards a resumed
+  draft's queued links (Copy / Promote link-back → typed link at submit). `usePromoteTask` added to the
+  tasks feature; `buildTypedLink` added to `test-utils.tsx`.
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.

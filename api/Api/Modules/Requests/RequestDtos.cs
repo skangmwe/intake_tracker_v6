@@ -100,8 +100,20 @@ public sealed class RequestCreateRequest
     /// <summary>Content-field values (open map — keys are field keys). Cross-field rules validated server-side.</summary>
     public Dictionary<string, JsonElement>? Fields { get; set; }
 
-    /// <summary>Typed links queued during the intake similar-requests nudge — ignored until slice 10.</summary>
+    /// <summary>Related-record ids queued during the intake similar-requests nudge — stamped as
+    /// <c>related</c> typed links at submission (slice 10).</summary>
     public IReadOnlyList<string>? QueuedRelatedRecordIds { get; set; }
+
+    /// <summary>Kinded link-backs queued by Copy / Promote — stamped as typed links at submission (slice 10).</summary>
+    public IReadOnlyList<QueuedLinkInput>? QueuedLinks { get; set; }
+}
+
+/// <summary>A queued link-back — mirrors QueuedLink in /shared/types/typed-links.ts.</summary>
+public sealed class QueuedLinkInput
+{
+    public string? ToRecordId { get; set; }
+
+    public string? Kind { get; set; }
 }
 
 /// <summary>PATCH /requests/{id}. Sparse — only changed fields are sent.</summary>
@@ -166,7 +178,11 @@ public sealed class SortSpec
 /// <summary>The prefilled body of a draft.</summary>
 public sealed record DraftBodyDto(
     IReadOnlyDictionary<string, JsonElement> Fields,
-    IReadOnlyList<string>? Related);
+    IReadOnlyList<string>? Related,
+    IReadOnlyList<QueuedLinkDto>? QueuedLinks = null);
+
+/// <summary>A kinded link-back queued on a draft — mirrors QueuedLink in /shared/types/typed-links.ts.</summary>
+public sealed record QueuedLinkDto(string ToRecordId, string Kind);
 
 /// <summary>A saved draft.</summary>
 public sealed record DraftDto(
@@ -207,4 +223,7 @@ public sealed class DraftBodyInput
     public Dictionary<string, JsonElement>? Fields { get; set; }
 
     public IReadOnlyList<string>? Related { get; set; }
+
+    /// <summary>Kinded link-backs queued by Copy / Promote (slice 10).</summary>
+    public IReadOnlyList<QueuedLinkInput>? QueuedLinks { get; set; }
 }

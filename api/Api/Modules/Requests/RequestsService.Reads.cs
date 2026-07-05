@@ -205,7 +205,7 @@ public sealed partial class RequestsService
             Stages: stages,
             Stage: string.IsNullOrEmpty(row.Stage) ? null : row.Stage,
             Hold: new HoldState(held, held ? reason : null),
-            Outcome: null,
+            Outcome: MapOutcome(fields),
             DisplayStatus: DeriveDisplayStatus(fields, row.Stage, stages),
             SlaStatus: null,
             Name: row.Name,
@@ -496,6 +496,63 @@ public sealed partial class RequestsService
         }
 
         return due <= today.AddDays(3) ? "DueSoon" : null;
+    }
+
+    /// <summary>
+    /// Build the queued-links JSON for usp_CreateRequest from a create request — merges the
+    /// similar-requests nudge's <c>related</c> ids and Copy/Promote's kinded link-backs into one
+    /// `[{ toRecordId, kind }]` array (slice 10). Returns null when there is nothing to stamp. Pure.
+    /// </summary>
+    public static string? BuildQueuedLinksJson(RequestCreateRequest request)
+    {
+        var links = new List<object>();
+
+        if (request.QueuedRelatedRecordIds is not null)
+        {
+            foreach (var toRecordId in request.QueuedRelatedRecordIds)
+            {
+                if (!string.IsNullOrWhiteSpace(toRecordId))
+                {
+                    links.Add(new { toRecordId = toRecordId.Trim(), kind = "related" });
+                }
+            }
+        }
+
+        if (request.QueuedLinks is not null)
+        {
+            foreach (var link in request.QueuedLinks)
+            {
+                if (!string.IsNullOrWhiteSpace(link.ToRecordId))
+                {
+                    links.Add(new { toRecordId = link.ToRecordId!.Trim(), kind = string.IsNullOrWhiteSpace(link.Kind) ? "related" : link.Kind });
+                }
+            }
+        }
+
+        return links.Count == 0 ? null : JsonSerializer.Serialize(links, JsonOptions);
+    }
+
+    /// <summary>
+    /// Build the Outcome block from the record's field map — set by closure (slice 10; usp_CloseRequest
+    /// writes $.outcome / $.outcomeKind / $.outcomeNotes / $.duplicateOfRecordId into FieldValues).
+    /// Null until the record is closed. Pure — unit-tested.
+    /// </summary>
+    public static OutcomeDto? MapOutcome(IReadOnlyDictionary<string, JsonElement> fields)
+    {
+        var value = GetString(fields, "outcome");
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var kind = GetString(fields, "outcomeKind");
+        var notes = GetString(fields, "outcomeNotes") ?? string.Empty;
+        var duplicateOf = GetString(fields, "duplicateOfRecordId");
+        return new OutcomeDto(
+            Kind: string.IsNullOrWhiteSpace(kind) ? "delivery" : kind!,
+            Value: value!,
+            Notes: notes,
+            DuplicateOfRecordId: string.IsNullOrWhiteSpace(duplicateOf) ? null : duplicateOf);
     }
 
     private static string SerializeFields(IReadOnlyDictionary<string, JsonElement>? fields) =>

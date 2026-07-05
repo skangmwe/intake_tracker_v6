@@ -208,6 +208,33 @@
   color: var(--accent-interactive);
 }
 
+.task-row__promote {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  background: none;
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.task-row__promote:hover,
+.task-row__promote:focus-visible {
+  border-color: var(--accent-interactive);
+  color: var(--accent-interactive);
+}
+
+.task-row__promote:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .task-row__precondition {
   display: flex;
   align-items: center;

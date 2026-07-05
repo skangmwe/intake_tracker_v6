@@ -78,4 +78,12 @@ public sealed class TasksEndpointsTests : IClassFixture<WebApplicationFactory<Pr
         var response = await client.GetAsync($"/api/v1/workspaces/{WorkspaceId}/task-bundles");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task PromoteTask_WithoutToken_Returns401()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.PostAsync($"/api/v1/tasks/{TaskId}/promote-to-request", Json("{}"));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }

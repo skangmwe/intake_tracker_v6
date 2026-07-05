@@ -5,6 +5,7 @@
 // loading / error / empty states (web-component-architecture.md).
 
 import { useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PauseCircle, Plus } from '@phosphor-icons/react';
 
 import type {
@@ -24,7 +25,7 @@ import { useApprovalRequests, useReRequest, useSubmitDecision } from '@/features
 import { TaskComposer, type AddTaskInput, type ComposerTab } from './TaskComposer';
 import { TaskGroup } from './TaskGroup';
 import { PHASE_ORDER, emptyValueForKind, groupTasksByPhase, openTaskCount } from './taskView';
-import { useCreateTasks, usePatchTask, useTaskBundles, useTaskLibrary, useTasks } from './useTasks';
+import { useCreateTasks, usePatchTask, usePromoteTask, useTaskBundles, useTaskLibrary, useTasks } from './useTasks';
 import './tasks.css';
 
 interface TasksTabProps {
@@ -40,6 +41,7 @@ function gateToPhase(gate: ApprovalRequestDto): TaskPhase {
 }
 
 export function TasksTab({ recordId, workspaceId, paused }: TasksTabProps) {
+  const navigate = useNavigate();
   const { data: me } = useMe();
   const currentUserId = me?.user.id;
 
@@ -49,6 +51,7 @@ export function TasksTab({ recordId, workspaceId, paused }: TasksTabProps) {
   const { data: library } = useTaskLibrary(workspaceId);
   const createTasks = useCreateTasks(recordId);
   const patchTask = usePatchTask(recordId);
+  const promoteTask = usePromoteTask(recordId);
   const submitDecision = useSubmitDecision(recordId);
   const reRequest = useReRequest(recordId);
 
@@ -104,6 +107,10 @@ export function TasksTab({ recordId, workspaceId, paused }: TasksTabProps) {
 
   const addBundle = (bundleId: string) => createTasks.mutate({ kind: 'bundle', bundleTemplateId: bundleId });
   const patch = (taskId: string, body: TaskPatchRequest) => patchTask.mutate({ taskId, patch: body });
+
+  // Promote a task to its own Request, then open the created draft in the intake form.
+  const promote = (taskId: string) =>
+    promoteTask.mutate(taskId, { onSuccess: (result) => navigate(`/requests/new?draftId=${result.draftId}`) });
 
   const decide = (
     approvalRequestId: string,
@@ -180,6 +187,8 @@ export function TasksTab({ recordId, workspaceId, paused }: TasksTabProps) {
             taskDisabled={paused || patchTask.isPending}
             gateDisabled={gateDisabled}
             onPatch={patch}
+            onPromote={promote}
+            promotingTaskId={promoteTask.isPending ? (promoteTask.variables ?? null) : null}
             onDecision={decide}
             onReRequest={reRequestSlot}
           />
@@ -188,6 +197,12 @@ export function TasksTab({ recordId, workspaceId, paused }: TasksTabProps) {
       {createTasks.isError && (
         <p className="mws-alert mws-alert--warning" role="alert">
           {problemMessage(createTasks.error, 'That task could not be added. Try again in a moment.')}
+        </p>
+      )}
+
+      {promoteTask.isError && (
+        <p className="mws-alert mws-alert--warning" role="alert">
+          {problemMessage(promoteTask.error, 'That task could not be promoted. Try again in a moment.')}
         </p>
       )}
 

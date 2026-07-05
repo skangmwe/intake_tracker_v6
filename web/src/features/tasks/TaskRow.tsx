@@ -5,7 +5,16 @@
 // values are Confidential — never logged.
 
 import { useEffect, useState } from 'react';
-import { ArrowSquareOut, CalendarCheck, CheckCircle, Circle, Lock, Note, NotePencil } from '@phosphor-icons/react';
+import {
+  ArrowBendUpRight,
+  ArrowSquareOut,
+  CalendarCheck,
+  CheckCircle,
+  Circle,
+  Lock,
+  Note,
+  NotePencil,
+} from '@phosphor-icons/react';
 
 import type {
   FieldDefinitionId,
@@ -28,6 +37,10 @@ interface TaskRowProps {
   library: TaskLibraryFieldDto[];
   disabled: boolean;
   onPatch: (patch: TaskPatchRequest) => void;
+  /** Promote this task to its own Request (copies the parent to a draft + cancels the task). */
+  onPromote: () => void;
+  /** True while a promote is in flight. */
+  promoting: boolean;
 }
 
 function statusKind(status: string): StatusKind {
@@ -164,7 +177,7 @@ function TaskFieldTextValue({
   );
 }
 
-export function TaskRow({ task, currentUserId, library, disabled, onPatch }: TaskRowProps) {
+export function TaskRow({ task, currentUserId, library, disabled, onPatch, onPromote, promoting }: TaskRowProps) {
   const [notesOpen, setNotesOpen] = useState(false);
   const [notesDraft, setNotesDraft] = useState(task.notes ?? '');
 
@@ -173,6 +186,8 @@ export function TaskRow({ task, currentUserId, library, disabled, onPatch }: Tas
   const done = isTaskDone(task.status);
   const completed = formatCompleted(task.completedAt);
   const hasNotes = (task.notes ?? '').trim().length > 0;
+  // Promote is offered on live tasks only — a done/cancelled task has nothing to promote.
+  const canPromote = task.status !== 'Done' && task.status !== 'Cancelled';
 
   return (
     <li className="task-row">
@@ -210,6 +225,19 @@ export function TaskRow({ task, currentUserId, library, disabled, onPatch }: Tas
           {hasNotes ? <NotePencil size={14} aria-hidden /> : <Note size={14} aria-hidden />}
           {hasNotes ? 'Notes' : ''}
         </button>
+
+        {canPromote && (
+          <button
+            type="button"
+            className="task-row__promote"
+            aria-label={`Promote ${task.title} to a request`}
+            disabled={disabled || promoting}
+            onClick={onPromote}
+          >
+            <ArrowBendUpRight size={14} aria-hidden />
+            Promote
+          </button>
+        )}
       </div>
 
       {task.status === 'Locked' && (

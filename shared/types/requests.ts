@@ -111,9 +111,14 @@ export interface RequestCreateRequest {
   fields: Record<string, unknown>;
   /**
    * Typed links queued on the draft during the similar-requests nudge (BS §9.8).
-   * Stamped as `related` links at submission.
+   * Stamped as `related` links at submission (slice 10).
    */
   queuedRelatedRecordIds?: RecordId[];
+  /**
+   * Kinded link-backs queued on the draft by Copy / Promote (BS §5). Each is stamped as a typed
+   * link from the newly-minted record to `toRecordId` at submission (slice 10).
+   */
+  queuedLinks?: import('./collaboration').QueuedLink[];
 }
 
 /** PATCH /requests/{id}. Sparse — send only fields that changed. */

@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
+  PromoteToRequestResult,
   RecordId,
   TaskBundleTemplate,
   TaskCreateRequest,
@@ -16,7 +17,7 @@ import type {
 
 import { fetchTaskLibrary } from '@/features/fields/api';
 
-import { createTasks, fetchTaskBundles, fetchTasks, patchTask } from './api';
+import { createTasks, fetchTaskBundles, fetchTasks, patchTask, promoteTaskToRequest } from './api';
 
 export const tasksKey = (recordId: RecordId) => ['tasks', recordId] as const;
 export const taskBundlesKey = (workspaceId: WorkspaceId) => ['task-bundles', workspaceId] as const;
@@ -69,6 +70,17 @@ export function usePatchTask(recordId: RecordId) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: tasksKey(recordId) });
       void queryClient.invalidateQueries({ queryKey: ['requests'] });
+    },
+  });
+}
+
+/** Promote a task to its own Request. Refreshes the task list (the task becomes cancelled). */
+export function usePromoteTask(recordId: RecordId) {
+  const queryClient = useQueryClient();
+  return useMutation<PromoteToRequestResult, Error, string>({
+    mutationFn: (taskId) => promoteTaskToRequest(taskId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: tasksKey(recordId) });
     },
   });
 }

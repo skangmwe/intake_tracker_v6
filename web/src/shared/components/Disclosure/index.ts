@@ -1,2 +1,2 @@
 // Barrel export for Disclosure. Individual components land in slices that need them.
-export {};
+export { Modal } from './Modal';

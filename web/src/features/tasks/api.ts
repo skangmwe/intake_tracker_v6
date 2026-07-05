@@ -3,6 +3,7 @@
 // task is a one-element array) so callers handle one shape.
 
 import type {
+  PromoteToRequestResult,
   RecordId,
   TaskBundleTemplate,
   TaskCreateRequest,
@@ -27,4 +28,9 @@ export function patchTask(taskId: string, request: TaskPatchRequest): Promise<Ta
 
 export function fetchTaskBundles(workspaceId: WorkspaceId, signal?: AbortSignal): Promise<TaskBundleTemplate[]> {
   return apiFetch<TaskBundleTemplate[]>(`/v1/workspaces/${workspaceId}/task-bundles`, signal ? { signal } : {});
+}
+
+/** Promote a task to its own Request — copies the parent to a draft, cancels the task (BS §5). */
+export function promoteTaskToRequest(taskId: string): Promise<PromoteToRequestResult> {
+  return apiFetch<PromoteToRequestResult>(`/v1/tasks/${taskId}/promote-to-request`, { method: 'POST' });
 }
