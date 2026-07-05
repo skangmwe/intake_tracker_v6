@@ -115,9 +115,9 @@ New shared items added in slice 3:
 - **Consumers:** Event Spine (publish), Worker (consume), Import module (schedule long-running import jobs). Peek-lock only (`api-worker.md`).
 
 ### `blob-client`
-- **Interface:** `BlobStreamer` — `UploadStream(blobPath, stream) → Task<BlobUploadResult>`, `DownloadStream(blobPath) → Task<Stream>`.
-- **Location:** `api/Shared/Storage/`
-- **Consumers:** Attachments module. Streams directly to/from Blob — never buffers full file in memory (`api-blob-attachments.md`). Managed Identity via `DefaultAzureCredential`.
+- **Interface (slice 11):** `IBlobStreamer` — `UploadAsync(blobPath, stream, contentType, ct)`, `DownloadAsync(blobPath, ct) → Task<Stream>`, `DeleteAsync(blobPath, ct)`. Two impls, selected in `Program.cs` by config: `AzureBlobStreamer` (Azure.Storage.Blobs + `DefaultAzureCredential`) when `Storage:BlobAccountUri` is set; `LocalBlobStreamer` (filesystem, path-traversal-guarded) otherwise — so the LocalDB / no-Azure dev/test stack runs the full attachment cycle (same no-op-when-config-empty pattern as the Service-Bus publisher).
+- **Location:** `api/Shared/Storage/` (`BlobStreamer.cs` = interface + Azure impl, `LocalBlobStreamer.cs`, `StorageOptions.cs`).
+- **Consumers:** Attachments module. Streams directly to/from Blob — never buffers the full file in memory (`api-blob-attachments.md`). SQL is the source of truth for the pointer; access is never derived from the path (enforced in the access-gated procs).
 
 ### `key-vault-secrets`
 - **Interface:** Injected `IOptions<TSecrets>` for each named secret group; loaded at startup via `DefaultAzureCredential` + Azure.Extensions.AspNetCore.Configuration.Secrets.

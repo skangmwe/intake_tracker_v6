@@ -89,6 +89,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<TypedLinkRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<TypedLinkDeleteRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 11 (Attachments) — keyless projections read via stored procedures.
+        modelBuilder.Entity<AttachmentListRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<AttachmentDownloadRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

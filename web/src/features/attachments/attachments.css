@@ -1,0 +1,168 @@
+/* Attachments card (S4/S5 Attachments tab). Tokens only (design-conformance). */
+
+.attachments__dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.attachments__dropzone--active {
+  border-color: var(--accent-interactive);
+  color: var(--accent-interactive);
+}
+
+.attachments__dropzone-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Visually-hidden native file input — the visible trigger is the button. */
+.attachments__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.attachments__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attachments__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.attachments__icon {
+  flex-shrink: 0;
+  color: var(--icon-default);
+  display: inline-flex;
+}
+
+/* Quiet text-bearing control — hover flips border AND text to the interactive accent. */
+.attachments__open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.attachments__open:hover,
+.attachments__open:focus-visible {
+  border-color: var(--accent-interactive);
+  color: var(--accent-interactive);
+}
+
+.attachments__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.attachments__meta {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.attachments__remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.attachments__remove:hover,
+.attachments__remove:focus-visible {
+  border-color: var(--accent-interactive);
+  color: var(--accent-interactive);
+}
+
+.attachments__remove:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* In-flight / failed upload rows (per-file progress). */
+.attachments__upload {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.attachments__upload--failed {
+  color: var(--text-primary);
+}
+
+.attachments__spinner {
+  display: inline-flex;
+  animation: attachments-spin 800ms linear infinite;
+  /* --accent-interactive (blue light / teal dark) — direct --color-teal is reserved for the
+     sidebar active state + chart series only (_core-requirements.md critical rule 2). */
+  color: var(--accent-interactive);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attachments__spinner {
+    animation: none;
+  }
+}
+
+@keyframes attachments-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.attachments__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.attachments__link-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
