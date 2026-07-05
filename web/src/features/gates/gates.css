@@ -1,0 +1,250 @@
+/* Gate block on the Tasks & gates tab (slice 8). Tokens only (design-conformance gate). Mirrors the
+   prototype's inline gate: seal-check header, pale-blue transition pill, pale-orange "Changes
+   requested" / pale-success "Resolved" chips (navy text — theme-stable foreground rule), team-only
+   approver slots with an inline name-select + Approve/Reject. */
+
+.gate-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.gate-block__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.gate-block__seal {
+  color: var(--accent-interactive);
+  flex-shrink: 0;
+}
+
+.gate-block__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.gate-block__transition {
+  padding: 1px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.gate-block__spacer {
+  flex: 1;
+}
+
+.gate-block__join {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.gate-block__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 10px;
+  border-radius: var(--radius-pill);
+  color: var(--color-navy);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.gate-block__chip--changes {
+  background: var(--color-pale-orange);
+}
+
+.gate-block__chip--resolved {
+  background: var(--color-pale-success);
+}
+
+.gate-block__slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* One approver slot. */
+.gate-slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 var(--space-2) var(--space-6);
+}
+
+.gate-slot__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.gate-slot__team-icon {
+  color: var(--icon-default);
+  flex-shrink: 0;
+}
+
+.gate-slot__role {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 150px;
+  color: var(--text-primary);
+}
+
+.gate-slot__spacer {
+  flex: 1;
+}
+
+.gate-slot__decision {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.gate-slot__decision--approved {
+  color: var(--text-primary);
+}
+
+.gate-slot__decision--approved svg {
+  color: var(--accent-interactive);
+}
+
+.gate-slot__decision--rejected svg {
+  color: var(--color-error);
+}
+
+.gate-slot__proxy {
+  color: var(--text-secondary);
+}
+
+.gate-slot__rejection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding-left: var(--space-6);
+}
+
+.gate-slot__comment {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding-left: var(--space-5);
+}
+
+.gate-slot__history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-6);
+}
+
+.gate-slot__history-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-error);
+}
+
+.gate-slot__history-toggle:hover {
+  opacity: 0.7;
+}
+
+.gate-slot__history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gate-slot__history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left: 2px solid var(--color-error);
+  padding-left: var(--space-3);
+}
+
+/* Pending inputs — name select on its own line, Approve/Reject, then the comment field. */
+.gate-slot__inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
+}
+
+.gate-slot__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.gate-slot__select {
+  flex: none;
+  width: 190px;
+  max-width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.gate-slot__comment-input {
+  width: 100%;
+  max-width: 480px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.gate-slot__no-members {
+  padding: 0;
+}
+
+@media (max-width: 640px) {
+  .gate-slot__select {
+    width: 100%;
+  }
+
+  .gate-slot__role {
+    min-width: 0;
+  }
+}

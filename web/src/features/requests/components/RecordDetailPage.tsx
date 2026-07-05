@@ -264,6 +264,11 @@ function StatusTab({ request, setHold, setStage }: StatusTabProps) {
         <Button variant="secondary" onClick={() => setStage.mutate(toStage)} disabled={setStage.isPending}>
           Move stage
         </Button>
+        {setStage.data && !setStage.data.advanced && (
+          <p className="mws-alert mws-alert--info" role="status">
+            {setStage.data.gateOpened.gateName} opened — approve it on the Tasks &amp; gates tab to advance.
+          </p>
+        )}
       </section>
 
       <section className="record-card" aria-label="Relationships">

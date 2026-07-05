@@ -219,6 +219,24 @@ off (`status: 'Done'`) stamps `completedAt`; reopening clears it.
 
 ## 6 · Gates and approvals
 
+### `GET /api/v1/requests/{recordId}/approval-requests` (Slice 8)
+The gates on a record — the Tasks & gates tab reads this to render each open gate inline within its
+target phase group (and resolved gates as a "Resolved" chip). Access is baked into the read: a
+forbidden or non-existent record returns **403, never 404** (BS §22.6); an accessible record with no
+gates returns an empty list.
+
+- **Response:** `ApprovalRequestDto[]` — each with its frozen `slots` and its `decisions`.
+  `FrozenApproverSlot` carries `eligibleMembers: { userId, displayName }[]` snapshotted at gate-open, so
+  the "Select your name" dropdown renders names without a live user-directory lookup (the directory is
+  slice 12). A superseded rejection is retained on `decisions` as history; the live (non-superseded)
+  decision drives each slot's state.
+- **Errors:** `403` — caller cannot see the record.
+
+> **Gate opening is folded into `POST /requests/{id}/stage`.** A gated transition returns
+> `200 { advanced: false, gateOpened: ApprovalRequestDto }` and opens the gate instead of advancing;
+> an ungated transition returns `{ advanced: true, newStage }`. A second attempt while a gate is open
+> returns `409 gate-already-open`. There is no separate open-gate endpoint.
+
 ### `POST /api/v1/approval-requests/{id}/decisions`
 Submit an approve or reject decision on a slot.
 
@@ -521,6 +539,9 @@ The **codes** the frontend consumes:
 - `stale-record` — 409 on optimistic-concurrency PATCH (ETag mismatch).
 - `gate-already-open` — 409 on stage advance when a gate is open.
 - `rejection-requires-comment` — 400 on approve/reject.
+- `not-eligible` — 400 on a decision when the picked name isn't in the frozen eligible set / a current member.
+- `unknown-slot` — 400 on a decision for a slot index not on the gate.
+- `gate-already-resolved` — 409 on a decision / re-request against a resolved gate.
 - `access-denied` — 403.
 - `platform-defined-field-locked` — 403 on any attempt to PATCH a platform-defined field (never possible for `AI Solutions Status`).
 

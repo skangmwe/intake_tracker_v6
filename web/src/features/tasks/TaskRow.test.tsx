@@ -93,7 +93,17 @@ describe('TaskRow', () => {
     expect(within(other.container).getByText('A teammate')).toBeInTheDocument();
     other.unmount();
 
-    const none = renderRow(buildTask({ assignee: undefined }));
+    // Build an unassigned task by omitting assignee (exactOptionalPropertyTypes forbids passing
+    // `assignee: undefined`), so the row falls back to the "Unassigned" label.
+    const base = buildTask({});
+    const none = renderRow({
+      id: base.id,
+      parentRequestId: base.parentRequestId,
+      title: base.title,
+      phase: base.phase,
+      status: base.status,
+      createdAt: base.createdAt,
+    });
     expect(within(none.container).getByText('Unassigned')).toBeInTheDocument();
   });
 

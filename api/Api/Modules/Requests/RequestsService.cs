@@ -9,6 +9,7 @@
 // (api-pii-handling.md). Read/serialization/validation helpers live in RequestsService.Reads.cs.
 
 using McDermott.AiTracker.Api.Data;
+using McDermott.AiTracker.Api.Modules.Gates;
 using McDermott.AiTracker.Api.Shared.Auth;
 using McDermott.AiTracker.Api.Shared.EventSpine;
 using McDermott.AiTracker.Api.Shared.Time;
@@ -32,6 +33,10 @@ public enum StageMoveOutcome
     Success,
     InvalidStage,
     Denied,
+    /// <summary>The transition is gated — an ApprovalRequest opened instead of advancing (200 with the gate).</summary>
+    GateOpened,
+    /// <summary>A gate is already open on this record — 409 gate-already-open.</summary>
+    GateAlreadyOpen,
 }
 
 public sealed record RequestCreateResult(
@@ -78,13 +83,16 @@ public sealed partial class RequestsService : IRequestsService
     private readonly IAccessGuard _accessGuard;
     private readonly IEventSpine _eventSpine;
     private readonly IClock _clock;
+    private readonly IApprovalsService _approvals;
 
-    public RequestsService(AppDbContext db, IAccessGuard accessGuard, IEventSpine eventSpine, IClock clock)
+    public RequestsService(
+        AppDbContext db, IAccessGuard accessGuard, IEventSpine eventSpine, IClock clock, IApprovalsService approvals)
     {
         _db = db;
         _accessGuard = accessGuard;
         _eventSpine = eventSpine;
         _clock = clock;
+        _approvals = approvals;
     }
 
     public async Task<RequestCreateResult> CreateAsync(
@@ -211,6 +219,23 @@ public sealed partial class RequestsService : IRequestsService
         if (row is null || !await _accessGuard.HasWorkspaceLevelAsync(actorUserId, row.WorkspaceId, WorkspaceLevel.Member, cancellationToken).ConfigureAwait(false))
         {
             return new StageMoveResult(StageMoveOutcome.Denied);
+        }
+
+        // If this transition is gated (slice 8), open the gate instead of advancing — the record
+        // advances only once every approver slot is signed (ApprovalsService resolves + advances).
+        var gateDefinitionId = await _approvals
+            .FindGateForTransitionAsync(recordId, row.WorkspaceId, toStage, cancellationToken).ConfigureAwait(false);
+        if (gateDefinitionId is { } gateId)
+        {
+            var open = await _approvals
+                .OpenGateAsync(recordId, row.WorkspaceId, gateId, actorUserId, operationId, cancellationToken).ConfigureAwait(false);
+            return open.Outcome switch
+            {
+                GateOpenOutcome.Opened => new StageMoveResult(
+                    StageMoveOutcome.GateOpened, new StageTransitionResultDto(false, GateOpened: open.Request)),
+                GateOpenOutcome.AlreadyOpen => new StageMoveResult(StageMoveOutcome.GateAlreadyOpen),
+                _ => new StageMoveResult(StageMoveOutcome.Denied),
+            };
         }
 
         try

@@ -6,6 +6,8 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using McDermott.AiTracker.Api.Modules.Gates;
 
 namespace McDermott.AiTracker.Api.Modules.Requests;
 
@@ -74,8 +76,15 @@ public sealed record PaginatedResponse<T>(
     int Page,
     int PageSize);
 
-/// <summary>POST /requests/{id}/stage result. Slice 5 has no gate integration — always advanced.</summary>
-public sealed record StageTransitionResultDto(bool Advanced, string NewStage);
+/// <summary>
+/// POST /requests/{id}/stage result — a discriminated union on <c>advanced</c>: either the record
+/// advanced (with the new stage) or a gate opened (slice 8). Mirrors StageTransitionResult in
+/// requests.ts; null members are omitted so each shape matches its union member exactly.
+/// </summary>
+public sealed record StageTransitionResultDto(
+    bool Advanced,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? NewStage = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ApprovalRequestDto? GateOpened = null);
 
 // ─── Request bodies ─────────────────────────────────────────────────────────────
 

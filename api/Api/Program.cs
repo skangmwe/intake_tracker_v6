@@ -84,6 +84,10 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.PlatformAdmin.IPlatfo
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Lifecycle.ILifecycleService,
     McDermott.AiTracker.Api.Modules.Lifecycle.LifecycleService>();
 
+// ─── Gates & approvals (slice 8) — registered before Requests, which depends on it ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Gates.IApprovalsService,
+    McDermott.AiTracker.Api.Modules.Gates.ApprovalsService>();
+
 // ─── Requests ───────────────────────────────────────────────────────────────
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Requests.IRequestsService,
     McDermott.AiTracker.Api.Modules.Requests.RequestsService>();
