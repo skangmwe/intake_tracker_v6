@@ -67,6 +67,9 @@ builder.Services.Configure<McDermott.AiTracker.Api.Modules.Attachments.Attachmen
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddSingleton<IServiceBusPublisher, ServiceBusPublisher>();
 builder.Services.AddScoped<IAuditWriter, AuditWriter>();
+// In-process Notifications consumer of the event spine (slice 12) — materialises bell rows on the
+// caller's transaction, next to AuditWriter (module-boundaries §16/§20).
+builder.Services.AddScoped<INotificationFanout, NotificationFanout>();
 builder.Services.AddScoped<IEventSpine, EventSpine>();
 
 // Blob storage (slice 11) — Azure via Managed Identity when Storage:BlobAccountUri is set;
@@ -149,6 +152,12 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Tasks.ITasksService,
 // ─── Attachments (slice 11) — depends on Requests (record access) + IBlobStreamer ─
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Attachments.IAttachmentsService,
     McDermott.AiTracker.Api.Modules.Attachments.AttachmentsService>();
+
+// ─── Watchers + Notifications (slice 12) — record subscriptions + the bell centre ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Watchers.IWatchersService,
+    McDermott.AiTracker.Api.Modules.Watchers.WatchersService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Notifications.INotificationsService,
+    McDermott.AiTracker.Api.Modules.Notifications.NotificationsService>();
 
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the

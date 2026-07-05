@@ -30,6 +30,13 @@ jest.mock('@/features/typed-links/api', () => ({
   deleteRecordLink: jest.fn(),
   copyRecord: jest.fn(),
 }));
+// The Watchers & alerts tab hosts the Watchers card (slice 12), which fetches the record's watchers.
+// Mock the boundary so these tests stay network-free and the card renders its empty state.
+jest.mock('@/features/watchers/api', () => ({
+  fetchWatchers: jest.fn().mockResolvedValue({ watchers: [], isWatching: false }),
+  watchRecord: jest.fn(),
+  unwatchRecord: jest.fn(),
+}));
 
 const patchMutate = jest.fn();
 const setHoldMutate = jest.fn();
@@ -257,16 +264,17 @@ describe('RecordDetailPage', () => {
     expect(setHoldMutate).toHaveBeenCalledWith({ held: false });
   });
 
-  it('RecordDetailPage — switching to a stub tab renders its placeholder', async () => {
-    // Arrange — Attachments is now a live feature (slice 11); Watchers & alerts is still a stub.
+  it('RecordDetailPage — the Watchers & alerts tab renders the live watchers card', async () => {
+    // Arrange — Watchers & alerts is a live feature now (slice 12); the card fetches the roster.
     const user = userEvent.setup();
     const { container } = renderPage();
 
     // Act
     await user.click(await screen.findByRole('tab', { name: 'Watchers & alerts' }));
 
-    // Assert
-    expect(screen.getByText('Notifications arrive in a later slice.')).toBeInTheDocument();
+    // Assert — the card renders its empty state + the firm-default notification rules.
+    expect(await screen.findByText('No one is watching this record yet.')).toBeInTheDocument();
+    expect(screen.getByText('Notify watchers about')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

@@ -4,7 +4,7 @@
 // land in later slices. The API returns 403 for both forbidden and non-existent records, so a 403 is
 // rendered as a no-access surface, never a 404 (never discloses existence). See BS §17, S4.
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowsLeftRight, CaretRight, CloudCheck } from '@phosphor-icons/react';
@@ -23,6 +23,7 @@ import { EscalateModal, EscalatedIntakeNote } from '@/features/escalation';
 import { CloseRecordModal } from '@/features/closure';
 import { RelationshipsCard } from '@/features/typed-links';
 import { AttachmentsCard } from '@/features/attachments';
+import { WatchersCard } from '@/features/watchers';
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { useRequest, usePatchRequest, useSetHold, useSetStage } from '../useRequests';
@@ -337,15 +338,6 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
   );
 }
 
-function StubCard({ label, message, children }: { label: string; message: string; children?: ReactNode }) {
-  return (
-    <section className="record-card" aria-label={label}>
-      {children}
-      <p className="caption">{message}</p>
-    </section>
-  );
-}
-
 export function RecordDetailPage() {
   const navigate = useNavigate();
   const { recordId } = useParams();
@@ -484,11 +476,7 @@ export function RecordDetailPage() {
           />
         )}
         {activeTab === 'activity' && <ActivityTab recordId={request.id as RecordId} />}
-        {activeTab === 'watchers' && (
-          <StubCard label="Watchers & alerts" message="Notifications arrive in a later slice.">
-            <Button variant="secondary">Watch this record</Button>
-          </StubCard>
-        )}
+        {activeTab === 'watchers' && <WatchersCard recordId={request.id as RecordId} />}
       </div>
 
       {escalateOpen && (

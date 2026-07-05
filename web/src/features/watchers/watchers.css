@@ -1,0 +1,88 @@
+/* Watchers & alerts tab (S4/S5). Tokens only (design-conformance). Avatar uses the pale-blue fill +
+   navy text theme-stable rule (text on a pale fill is always navy, never --text-primary). */
+
+.watchers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Scoped: the leading icon in the card chip gets a gap (the base .record-chip has none). */
+.watchers .record-chip {
+  gap: var(--space-2);
+}
+
+.watchers__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watchers__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  font-size: 14px;
+}
+
+.watchers__avatar {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  /* Theme-stable: pale-blue fill + navy text in both themes (_core-requirements.md critical rule 1). */
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.watchers__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.watchers__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.watchers__rules {
+  display: flex;
+  flex-direction: column;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watchers__rule {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.watchers__rule:first-child {
+  border-top: none;
+}
+
+.watchers__rule-label {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.watchers__rule-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

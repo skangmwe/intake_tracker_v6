@@ -328,14 +328,21 @@ Copy the record into a new draft in a target workspace. Returns the draft ID.
 
 ## 10 · Watchers
 
+### `GET /api/v1/records/{recordId}/watchers`  *(slice 12 — added: the prototyped Watchers card needs the roster)*
+List the record's live watchers + the caller's own subscription state. Access-gated on the caller's membership of the record's workspace — a forbidden/non-existent record is `403`, never `404` (BS §22.6).
+
+- **Response:** `WatcherListDto` — `{ watchers: WatcherListItemDto[], isWatching }`. `displayName` is carried so the card renders avatars without a directory fetch.
+
 ### `POST /api/v1/records/{recordId}/watchers`
-Subscribe the caller (or another user, if admin) to the record.
+Subscribe the caller (or another user, if admin) to the record. Idempotent — re-subscribing is a no-op.
 
 - **Body:** `{ userId?: string }` (defaults to caller).
 - **Response:** `204`.
 
 ### `DELETE /api/v1/records/{recordId}/watchers/{userId}`
-Unsubscribe. Owner or admin only.
+Unsubscribe. Caller may remove their own subscription; a WorkspaceAdmin may remove anyone's. `403` otherwise.
+
+- **Response:** `204`.
 
 ---
 
@@ -399,17 +406,24 @@ Retire (never hard-delete).
 
 ## 13 · Notifications and the bell
 
-### `GET /api/v1/notifications/query`
-Bell centre payload for the caller.
+### `POST /api/v1/notifications/query`  *(slice 12 — `POST` not `GET`: matches the established `POST …/query` body convention, requests/features; api/CLAUDE.md "no complex params in query strings")*
+Bell centre payload for the caller. Caller-scoped across all their workspaces; newest first.
 
-- **Body:** `{ page, pageSize, unreadOnly: boolean }`.
+- **Body:** `NotificationQuery` — `{ page, pageSize, unreadOnly }`.
 - **Response:** `PaginatedResponse<NotificationDto>` — mixed record events + announcement postings.
 
+### `GET /api/v1/notifications/unread-count`  *(slice 12 — added: drives the bell badge)*
+The caller's unread count across all their workspaces.
+
+- **Response:** `UnreadCountDto` — `{ count }`. `Cache-Control: private, no-store`.
+
 ### `POST /api/v1/notifications/mark-all-read`
-Mark all as read.
+Mark all the caller's notifications read. Idempotent. **Response:** `204`.
 
 ### `POST /api/v1/notifications/{id}/mark-read`
-Mark one as read.
+Mark one read. Only the caller's own notification — someone else's id is `403` (never discloses existence). Idempotent. **Response:** `204`.
+
+> **Fan-out mechanism (slice 12).** Notifications are materialised **in-process** on the event spine via `usp_FanOutNotification`, registered alongside `AuditWriter` (`module-boundaries.md §16/§20`). The Service-Bus/Worker path stays the documented production mechanism but is a **no-op in the dev/test stack** — the same "no-op when Azure infra unset" pattern as slice 9's derived mirror and slice 11's config-selected blob. Targets: **Watchers** (all events on the record), **mentioned users** (`comment.posted` payload), **approver-team eligible members** (`gate.opened` → sign-off-requested), and the **AI Intake group** (`escalation.opened`). Requestor / Business Owner are **not** targeted — they are text field values in Phase 1, not user references (see `module-boundaries.md §16`, which scopes targets to Watchers / ApproverTeamMembership / group membership). The actor is excluded; disabled accounts are suppressed (BS §6.8); cross-side receivers of an escalated record are deduped.
 
 ---
 

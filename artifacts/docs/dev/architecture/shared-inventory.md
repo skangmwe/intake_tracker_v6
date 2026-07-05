@@ -15,7 +15,8 @@ Per-concern on-disk locations are listed inline below.
 
 The following cross-cutting items moved from *scaffolded* → **implemented** in slice 1:
 
-- **`event-spine`** — `NoopEventSpine` replaced by `EventSpine` (`api/Api/Shared/EventSpine/EventSpine.cs`). On emit it (1) writes the append-only audit row synchronously via `AuditWriter` (the same-request Audit consumer) then (2) publishes the envelope to Service Bus for cross-service consumers. Registered `Scoped`.
+- **`event-spine`** — `NoopEventSpine` replaced by `EventSpine` (`api/Api/Shared/EventSpine/EventSpine.cs`). On emit it runs its in-process consumers in order — (1) `AuditWriter` writes the append-only audit row, (2) `NotificationFanout` materialises per-user bell rows (slice 12) — both on the caller's transaction, then (3) publishes the envelope to Service Bus for the remaining cross-service consumers. Registered `Scoped`.
+- **`notification-fanout`** — `INotificationFanout` / `NotificationFanout` (`api/Api/Shared/EventSpine/`, slice 12). Parameterized `EXEC usp_FanOutNotification`; the in-process Notifications consumer registered next to `AuditWriter`. A no-op for non-notifiable events. Registered `Scoped`.
 - **`service-bus-client`** — `ServiceBusPublisher` (`api/Api/Shared/Messaging/`) implemented over the Azure SDK with `DefaultAzureCredential`; no-ops when `ServiceBus:Namespace` is unset (local/dev). Registered `Singleton`. Config: `ServiceBusOptions` (non-secret).
 - **`serilog-config`** — `SerilogConfig.ConfigureSerilog(builder)` wires Console + (conditional) Application Insights sinks with `Enrich.FromLogContext`.
 - **`soft-delete-filter`** — `GlobalFilters.ApplySoftDeleteFilter(ModelBuilder)` (`api/Api/Data/GlobalFilters.cs`) applies `WHERE IsDeleted = 0` to every `ISoftDeletable` entity.
