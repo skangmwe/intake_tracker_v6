@@ -275,10 +275,21 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 - **Location:** `api/Shared/Rules/ConditionEngine.cs`
 - **Consumers:** Fields & Objects (per-stage visibility), Tasks (preconditions), Approvals (conditional approvers), form rendering.
 
-### `crossing-map-reader`
-- **Interface:** `GetMappingsForEscalation(pgWorkspaceId) → CrossingMap[]`.
+### `crossing-map-reader` (slice 9 — implemented)
+- **Interface:** `ICrossingMapReader.GetCrossingFieldsAsync(workspaceId, ct) → CrossingFieldRow[]` — the
+  workspace's Request crossing fields ([S]) from `usp_GetCrossingFields`, read off `FieldDefinition`
+  (`Category='Crossing'` + `CrossingToFieldKey`). No separate `CrossingMap` table in Phase 1.
 - **Location:** `api/Shared/Escalation/CrossingMapReader.cs`
 - **Consumers:** Escalation module only.
+
+### `bridge-reader` (slice 9)
+- **Interface:** `IBridgeReader.ReadAsync(recordId, userId, ct) → BridgeRow?` — the escalation-bridge
+  inputs from `usp_GetBridgeForRecord` (membership-gated caller side + system read of the AI side, since
+  the mirror is system-computed). Null when the record is not escalated or not visible to the caller.
+- **Location:** `api/Shared/Escalation/BridgeReader.cs`
+- **Consumers:** Requests module — composes the DTO `bridge` block on every record read (mirror status is
+  derived read-time from the row via `RequestsService.DeriveMirrorStatus`) and enforces the PG-side
+  crossing-field lock on `PATCH`. Lives in `Shared/` to avoid a Requests↔Escalation module cycle.
 
 ## Infra helpers (Database)
 

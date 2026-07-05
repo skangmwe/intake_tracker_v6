@@ -16,5 +16,10 @@ single-table EF CRUD goes through these (per `api-data-access.md`). All are
 | `usp_GetDraftsForUser` | List the caller's own Drafts (S26). |
 | `usp_GetDraftById` | Read one owner-scoped Draft. |
 | `usp_DeleteDraft` | Hard-delete a Draft (sole exception to the no-hard-delete floor). |
+| `usp_EscalateRequest` | Escalate a PG record (slice 9) — one-time/one-way guard, snapshot + lock crossing fields, adopt the shared ID onto a new AI-side row at Intake. |
+| `usp_GetBridgeForRecord` | Escalation-bridge inputs for a record (slice 9) — caller-side membership-gated, AI-side system read for the mirror; 0 rows = not escalated / not visible. |
+| `usp_GetCrossingFields` | The workspace's Request crossing fields ([S]) (slice 9) — read off `FieldDefinition` for the snapshot + AI-side map. |
 
-Error numbers: `50040` stale ETag, `50041` invalid stage, `50043` request not found.
+Error numbers: `50040` stale ETag, `50041` invalid stage, `50043` request not found,
+`50044` already escalated, `50045` no AI Solutions workspace, `50046` cannot escalate an AI record,
+`50047` AI lifecycle/stage misconfigured.

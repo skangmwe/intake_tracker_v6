@@ -181,6 +181,39 @@
   min-width: 0;
 }
 
+/* ─── Escalated record (S5) ─── */
+
+/* Escalated · [origin] status pill sits between the id and name; align to the row start. */
+.record-header__pill {
+  align-self: flex-start;
+}
+
+/* A crossing field on an escalated record — the "⇄ Crossed · locked on PG" marker above the control. */
+.record-crossed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.record-crossed__marker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  align-self: flex-start;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-pale-gold);
+  color: var(--color-navy);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.record-crossed__marker svg {
+  color: var(--color-navy);
+}
+
 .record-intake__readonly {
   display: grid;
   grid-template-columns: 170px 1fr;

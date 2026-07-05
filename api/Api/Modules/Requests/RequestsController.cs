@@ -126,6 +126,7 @@ public sealed class RequestsController : ControllerBase
         {
             RequestWriteOutcome.Success => Ok(result.Request),
             RequestWriteOutcome.Stale => StaleConflict(),
+            RequestWriteOutcome.Locked => LockedField(),
             _ => AccessDenied(),
         };
     }
@@ -244,6 +245,19 @@ public sealed class RequestsController : ControllerBase
             Title = "Access denied.",
             Status = StatusCodes.Status403Forbidden,
             Detail = "You do not have access to this request.",
+        })
+        {
+            StatusCode = StatusCodes.Status403Forbidden,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    private ObjectResult LockedField() =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/platform-defined-field-locked",
+            Title = "This field is locked.",
+            Status = StatusCodes.Status403Forbidden,
+            Detail = "This field is read-only — a crossing field frozen on escalation, or a platform-defined field.",
         })
         {
             StatusCode = StatusCodes.Status403Forbidden,

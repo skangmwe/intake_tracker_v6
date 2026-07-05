@@ -2,7 +2,6 @@
 // the fields the API surfaces, not the DB columns.
 
 import type {
-  FieldDefinitionId,
   IsoDate,
   IsoDateTime,
   LifecycleId,
@@ -97,8 +96,12 @@ export interface BridgeBlock {
    * written only by the bridge off the event spine.
    */
   aiSolutionsStatus: string;
-  /** Field definition IDs frozen on the PG side. */
-  lockedFields: FieldDefinitionId[];
+  /**
+   * The field *keys* frozen on the PG side at escalation — the crossing snapshot keys. The Intake
+   * tab renders the "⇄ Crossed · locked on PG" marker on each field whose `fieldKey` is in this set.
+   * (Keys, not definition ids: the marker is matched against the intake form's `fieldKey`.)
+   */
+  lockedFields: string[];
 }
 
 /** POST /workspaces/{id}/requests. */
@@ -144,7 +147,12 @@ export interface EscalateRequest {
 export interface EscalateResult {
   recordId: RecordId;
   aiWorkspaceId: WorkspaceId;
-  aiRecord: RequestDto;
+  /**
+   * The AI-side record — present only when the escalator is also a member of the AI Solutions
+   * workspace. A PG-only escalator (the common case) cannot see the AI record (BS §6.4), so this is
+   * null and the PG UI refetches the now-escalated PG record to render the bridge.
+   */
+  aiRecord: RequestDto | null;
 }
 
 /** POST /requests/{id}/close. */

@@ -4,10 +4,10 @@
 // land in later slices. The API returns 403 for both forbidden and non-existent records, so a 403 is
 // rendered as a no-access surface, never a 404 (never discloses existence). See BS §17, S4.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CaretRight, CloudCheck } from '@phosphor-icons/react';
+import { ArrowsLeftRight, CaretRight, CloudCheck } from '@phosphor-icons/react';
 
 import type { FieldDefinitionDto, RecordId, RequestDto, RequestPatchRequest, WorkspaceId } from '@shared/types';
 
@@ -18,6 +18,8 @@ import { ApiError } from '@/shared/http/apiClient';
 import { fetchWorkspaceFields } from '@/features/fields/api';
 import { ActivityTab } from '@/features/comments';
 import { TasksTab } from '@/features/tasks';
+import { useMe } from '@/features/users/useMe';
+import { EscalateModal, EscalatedIntakeNote } from '@/features/escalation';
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { useRequest, usePatchRequest, useSetHold, useSetStage } from '../useRequests';
@@ -174,8 +176,16 @@ function IntakeTab({ request, fields, schemaLoading, schemaError, patch, onFirst
   const conditions = evaluateFieldConditions(fields, values);
   const stage = request.stage;
 
+  // Escalated records: the crossing fields carry the "⇄ Crossed · locked on PG" marker. They lock
+  // read-only on the PG side (the API rejects edits too), but stay editable on the AI side — the lock
+  // is conceptual there (BS §6.2, blueprint §S5). `bridge.lockedFields` are the crossing field keys.
+  const bridge = request.bridge;
+  const onAiSide = bridge ? request.workspaceId === bridge.aiWorkspaceId : false;
+  const crossingKeys = bridge ? new Set(bridge.lockedFields) : null;
+
   return (
     <div className="record-intake">
+      {bridge && <EscalatedIntakeNote bridge={bridge} />}
       {groupFieldsBySection(fields).map((group) => {
         const visible = group.fields.filter((field) => {
           if (field.isReadOnly || field.fieldType === 'Calculation' || field.fieldType === 'DerivedCategory') return false;
@@ -187,15 +197,28 @@ function IntakeTab({ request, fields, schemaLoading, schemaError, patch, onFirst
           <section key={group.section} className="record-intake__section" aria-label={group.section}>
             <h2 className="record-intake__heading">{group.section}</h2>
             <div className="record-intake__grid">
-              {visible.map((field) => (
-                <RequestFieldControl
-                  key={field.fieldKey}
-                  field={field}
-                  value={values[field.fieldKey]}
-                  onChange={(value) => handleChange(field.fieldKey, value)}
-                  required={conditions.required.has(field.fieldKey)}
-                />
-              ))}
+              {visible.map((field) => {
+                const crossed = crossingKeys?.has(field.fieldKey) ?? false;
+                const control = (
+                  <RequestFieldControl
+                    field={field}
+                    value={values[field.fieldKey]}
+                    onChange={(value) => handleChange(field.fieldKey, value)}
+                    required={conditions.required.has(field.fieldKey)}
+                    disabled={crossed && !onAiSide}
+                  />
+                );
+                if (!crossed) return <div key={field.fieldKey}>{control}</div>;
+                return (
+                  <div key={field.fieldKey} className="record-crossed">
+                    <span className="record-crossed__marker">
+                      <ArrowsLeftRight size={14} weight="regular" aria-hidden />
+                      Crossed · locked on PG
+                    </span>
+                    {control}
+                  </div>
+                );
+              })}
             </div>
           </section>
         );
@@ -223,9 +246,11 @@ interface StatusTabProps {
   request: RequestDto;
   setHold: ReturnType<typeof useSetHold>;
   setStage: ReturnType<typeof useSetStage>;
+  canEscalate: boolean;
+  onEscalate: () => void;
 }
 
-function StatusTab({ request, setHold, setStage }: StatusTabProps) {
+function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: StatusTabProps) {
   const [statusChoice, setStatusChoice] = useState(request.hold?.held ? 'On hold' : 'Active');
   const [reason, setReason] = useState(request.hold?.reason ?? '');
   const [toStage, setToStage] = useState(request.stage ?? request.stages[0]?.key ?? '');
@@ -271,6 +296,19 @@ function StatusTab({ request, setHold, setStage }: StatusTabProps) {
         )}
       </section>
 
+      {canEscalate && (
+        <section className="record-card" aria-label="Escalate to AI Solutions">
+          <span className="record-chip">Escalate to AI Solutions</span>
+          <p className="caption">
+            Hand this request to the AI Solutions team. The crossing fields lock on this side and the
+            record tracks AI-side delivery through the AI Solutions Status mirror. One-time, one-way.
+          </p>
+          <Button variant="secondary" onClick={onEscalate}>
+            Escalate to AI Solutions
+          </Button>
+        </section>
+      )}
+
       <section className="record-card" aria-label="Relationships">
         <span className="record-chip">Relationships</span>
         <p className="caption">No linked records yet.</p>
@@ -306,9 +344,19 @@ export function RecordDetailPage() {
   const patch = usePatchRequest(fallbackId);
   const setStage = useSetStage(fallbackId);
   const setHold = useSetHold(fallbackId);
+  const { data: me } = useMe();
 
   const [activeTab, setActiveTab] = useState('intake');
   const [savedVisible, setSavedVisible] = useState(false);
+  const [escalateOpen, setEscalateOpen] = useState(false);
+
+  // Escalation is offered only on a not-yet-escalated record whose workspace is a PG workspace (the
+  // API is the authority — this just hides an action the AI Solutions hub never needs). BS §6.
+  const canEscalate = useMemo(() => {
+    if (!request || request.bridge) return false;
+    const membership = me?.memberships.find((entry) => entry.workspaceId === request.workspaceId);
+    return membership ? membership.workspaceKind !== 'ai-solutions' : false;
+  }, [me, request]);
 
   if (isLoading) {
     return (
@@ -361,6 +409,11 @@ export function RecordDetailPage() {
 
       <header className="record-header">
         <span className="record-header__id">{request.id}</span>
+        {request.bridge && (
+          <span className="record-header__pill">
+            <StatusPill status="info" label={`Escalated · ${request.bridge.originWorkspaceName}`} />
+          </span>
+        )}
         <h1 className="record-header__name">{request.name}</h1>
       </header>
 
@@ -393,7 +446,15 @@ export function RecordDetailPage() {
             onFirstEdit={() => setSavedVisible(true)}
           />
         )}
-        {activeTab === 'status' && <StatusTab request={request} setHold={setHold} setStage={setStage} />}
+        {activeTab === 'status' && (
+          <StatusTab
+            request={request}
+            setHold={setHold}
+            setStage={setStage}
+            canEscalate={canEscalate}
+            onEscalate={() => setEscalateOpen(true)}
+          />
+        )}
         {activeTab === 'attachments' && <StubCard label="Attachments" message="No attachments yet." />}
         {activeTab === 'tasks' && (
           <TasksTab
@@ -409,6 +470,14 @@ export function RecordDetailPage() {
           </StubCard>
         )}
       </div>
+
+      {escalateOpen && (
+        <EscalateModal
+          recordId={request.id as RecordId}
+          recordName={request.name}
+          onClose={() => setEscalateOpen(false)}
+        />
+      )}
     </main>
   );
 }

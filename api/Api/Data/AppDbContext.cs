@@ -81,6 +81,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<GateForTransitionRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<ApprovalRequestRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 9 (Escalation bridge) — keyless projections read via stored procedures.
+        modelBuilder.Entity<CrossingFieldRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<BridgeRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

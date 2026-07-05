@@ -88,11 +88,21 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Lifecycle.ILifecycleS
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Gates.IApprovalsService,
     McDermott.AiTracker.Api.Modules.Gates.ApprovalsService>();
 
+// ─── Escalation bridge readers (slice 9) — registered before Requests, which reads the bridge ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Shared.Escalation.IBridgeReader,
+    McDermott.AiTracker.Api.Shared.Escalation.BridgeReader>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Shared.Escalation.ICrossingMapReader,
+    McDermott.AiTracker.Api.Shared.Escalation.CrossingMapReader>();
+
 // ─── Requests ───────────────────────────────────────────────────────────────
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Requests.IRequestsService,
     McDermott.AiTracker.Api.Modules.Requests.RequestsService>();
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Requests.IDraftsService,
     McDermott.AiTracker.Api.Modules.Requests.DraftsService>();
+
+// ─── Escalation (slice 9) — depends on Requests + the crossing-map reader ─────
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Escalation.IEscalationService,
+    McDermott.AiTracker.Api.Modules.Escalation.EscalationService>();
 
 // ─── Comments & activity thread ───────────────────────────────────────────────
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Comments.ICommentsService,
