@@ -154,7 +154,13 @@ public sealed partial class RequestsService
         }
 
         var stages = await GetStageRefsAsync(row.WorkspaceId, row.LifecycleId, cancellationToken).ConfigureAwait(false);
-        return MapRow(row, stages);
+        var dto = MapRow(row, stages);
+
+        // Escalated records carry a bridge block — the "Escalated · [origin]" pill, the mirror status,
+        // and the PG-side locked-field keys (BS §6.4). Non-escalated records get null (one extra proc
+        // call only when the record has a bridge to describe).
+        var bridge = await _bridge.ReadAsync(recordId, userId, cancellationToken).ConfigureAwait(false);
+        return bridge is null ? dto : dto with { Bridge = ComposeBridge(bridge) };
     }
 
     private async Task<IReadOnlyList<LifecycleRow>> ReadLifecyclesAsync(Guid workspaceId, CancellationToken cancellationToken) =>
@@ -207,6 +213,138 @@ public sealed partial class RequestsService
             Fields: fields,
             Bridge: null,
             ETag: Convert.ToBase64String(row.RowVer));
+    }
+
+    // ─── Escalation bridge composition (slice 9) ──────────────────────────────
+
+    /// <summary>Platform-defined field keys with no manual write path at any access level (BS §4.3/§6.4).</summary>
+    private static readonly HashSet<string> PlatformLockedKeys = new(StringComparer.Ordinal)
+    {
+        "ai-solutions-status", "record-id", "workspace", "origin", "created-at", "updated-at",
+    };
+
+    private static BridgeBlockDto ComposeBridge(BridgeRow row) =>
+        new(
+            IsEscalated: true,
+            OriginWorkspaceId: row.OriginWorkspaceId,
+            OriginWorkspaceName: row.OriginWorkspaceName,
+            AiWorkspaceId: row.AiWorkspaceId,
+            EscalatedAt: DateTime.SpecifyKind(row.EscalatedAt, DateTimeKind.Utc),
+            AiSolutionsStatus: DeriveMirrorStatus(row.AiStage, row.AiFieldValues),
+            LockedFields: ParseLockedFieldKeys(row.LockedFieldKeysJson));
+
+    /// <summary>
+    /// The PG-side AI Solutions Status mirror — derived read-time from the AI-side record's current
+    /// stage + hold/outcome (BS §6.4; slice-9 read-time-derivation decision). Deploy and Post-launch
+    /// both collapse to "Deployed" so the PG side sees neither distinctly. Pure — unit-tested.
+    /// </summary>
+    public static string DeriveMirrorStatus(string aiStage, string aiFieldValues)
+    {
+        var fields = ParseFields(aiFieldValues);
+
+        var outcome = GetString(fields, "outcome");
+        if (!string.IsNullOrWhiteSpace(outcome))
+        {
+            return outcome!;
+        }
+
+        if (string.Equals(GetString(fields, "holdBlocked"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return "On hold";
+        }
+
+        return (aiStage?.ToLowerInvariant()) switch
+        {
+            "intake" => "Intake",
+            "discovery" => "Discovery",
+            "build" => "Build",
+            "qa" => "QA",
+            "deploy" => "Deployed",
+            "post-launch" => "Deployed",
+            _ => string.IsNullOrEmpty(aiStage) ? string.Empty : aiStage,
+        };
+    }
+
+    /// <summary>
+    /// Pure locked-field check (unit-tested). A patch violates the lock when it touches a platform-defined
+    /// key (never writable) OR changes any of <paramref name="lockedKeys"/> — the PG-side crossing fields
+    /// frozen on escalation — to a value different from what's stored. Name/Description are compared against
+    /// the record's columns; other keys against the stored field map. An unchanged value is allowed (the UI
+    /// re-sends name/description on every autosave).
+    /// </summary>
+    public static bool IsLockedFieldViolation(
+        RequestPatchRequest request,
+        IReadOnlyList<string> lockedKeys,
+        string storedName,
+        string storedDescription,
+        IReadOnlyDictionary<string, JsonElement> storedFields)
+    {
+        if (request.Fields is not null && request.Fields.Keys.Any(PlatformLockedKeys.Contains))
+        {
+            return true;
+        }
+
+        foreach (var key in lockedKeys)
+        {
+            switch (key)
+            {
+                case "name" when request.Name is not null && !string.Equals(request.Name, storedName, StringComparison.Ordinal):
+                    return true;
+                case "description" when request.Description is not null && !string.Equals(request.Description, storedDescription, StringComparison.Ordinal):
+                    return true;
+                case "name":
+                case "description":
+                    continue;
+                default:
+                    if (request.Fields is not null && request.Fields.TryGetValue(key, out var incoming))
+                    {
+                        var storedRaw = storedFields.TryGetValue(key, out var current) ? current.GetRawText() : null;
+                        if (!string.Equals(incoming.GetRawText(), storedRaw, StringComparison.Ordinal))
+                        {
+                            return true;
+                        }
+                    }
+
+                    continue;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Parse the locked crossing-field keys from usp_GetBridgeForRecord's `[{"key":"…"}]` JSON.</summary>
+    public static IReadOnlyList<string> ParseLockedFieldKeys(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return Array.Empty<string>();
+            }
+
+            var keys = new List<string>();
+            foreach (var item in document.RootElement.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Object
+                    && item.TryGetProperty("key", out var key)
+                    && key.ValueKind == JsonValueKind.String)
+                {
+                    keys.Add(key.GetString()!);
+                }
+            }
+
+            return keys;
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<string>();
+        }
     }
 
     // ─── Pure helpers (unit-tested without a database) ─────────────────────────

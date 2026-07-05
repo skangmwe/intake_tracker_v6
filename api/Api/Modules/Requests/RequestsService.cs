@@ -11,6 +11,7 @@
 using McDermott.AiTracker.Api.Data;
 using McDermott.AiTracker.Api.Modules.Gates;
 using McDermott.AiTracker.Api.Shared.Auth;
+using McDermott.AiTracker.Api.Shared.Escalation;
 using McDermott.AiTracker.Api.Shared.EventSpine;
 using McDermott.AiTracker.Api.Shared.Time;
 using Microsoft.Data.SqlClient;
@@ -25,6 +26,9 @@ public enum RequestWriteOutcome
     ValidationFailed,
     Denied,
     Stale,
+    /// <summary>The patch targets a locked field — a PG-side crossing field on an escalated record, or a
+    /// platform-defined field (AI Solutions Status / system fields). 403 (BS §6.2/§6.4).</summary>
+    Locked,
 }
 
 /// <summary>Outcome of a stage move.</summary>
@@ -84,15 +88,18 @@ public sealed partial class RequestsService : IRequestsService
     private readonly IEventSpine _eventSpine;
     private readonly IClock _clock;
     private readonly IApprovalsService _approvals;
+    private readonly IBridgeReader _bridge;
 
     public RequestsService(
-        AppDbContext db, IAccessGuard accessGuard, IEventSpine eventSpine, IClock clock, IApprovalsService approvals)
+        AppDbContext db, IAccessGuard accessGuard, IEventSpine eventSpine, IClock clock,
+        IApprovalsService approvals, IBridgeReader bridge)
     {
         _db = db;
         _accessGuard = accessGuard;
         _eventSpine = eventSpine;
         _clock = clock;
         _approvals = approvals;
+        _bridge = bridge;
     }
 
     public async Task<RequestCreateResult> CreateAsync(
@@ -170,6 +177,14 @@ public sealed partial class RequestsService : IRequestsService
         if (row is null || !await _accessGuard.HasWorkspaceLevelAsync(actorUserId, row.WorkspaceId, WorkspaceLevel.Member, cancellationToken).ConfigureAwait(false))
         {
             return new RequestPatchResult(RequestWriteOutcome.Denied);
+        }
+
+        // Locked-field guard: platform-defined fields (AI Solutions Status / system fields) are never
+        // writable, and PG-side crossing fields freeze once the record is escalated (BS §6.2/§6.4). A
+        // patch that changes any locked field is 403 — defense in depth behind the read-only UI.
+        if (await IsLockedFieldEditAsync(recordId, actorUserId, row, request, cancellationToken).ConfigureAwait(false))
+        {
+            return new RequestPatchResult(RequestWriteOutcome.Locked);
         }
 
         // A malformed or absent ETag can never match the stored RowVer — treat as a stale conflict.
@@ -306,5 +321,25 @@ public sealed partial class RequestsService : IRequestsService
         var envelope = new EventEnvelope(
             Guid.NewGuid(), eventType, workspaceId, recordId, actorUserId, _clock.UtcNow, payload, operationId);
         await _eventSpine.EmitAsync(envelope, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// True when a patch attempts to change a locked field. Platform-defined keys (AI Solutions Status,
+    /// system fields) are never writable. On the PG side of an escalated record, every frozen crossing
+    /// field (name/description columns + the snapshotted content keys) is read-only; the AI side is not
+    /// locked (its snapshot rows live under the PG workspace, so the bridge read reports no lock there).
+    /// </summary>
+    private async Task<bool> IsLockedFieldEditAsync(
+        string recordId, Guid userId, RequestRow row, RequestPatchRequest request, CancellationToken cancellationToken)
+    {
+        // Platform-defined keys are locked regardless of escalation; the PG-side crossing keys are
+        // locked only once escalated (and never on the AI side, whose snapshot rows live under the PG
+        // workspace, so the bridge read reports no lock there). The comparison itself is pure + tested.
+        var bridge = await _bridge.ReadAsync(recordId, userId, cancellationToken).ConfigureAwait(false);
+        var lockedKeys = bridge is null || bridge.CallerOnAiSide
+            ? Array.Empty<string>()
+            : ParseLockedFieldKeys(bridge.LockedFieldKeysJson);
+
+        return IsLockedFieldViolation(request, lockedKeys, row.Name, row.Description, ParseFields(row.FieldValues));
     }
 }

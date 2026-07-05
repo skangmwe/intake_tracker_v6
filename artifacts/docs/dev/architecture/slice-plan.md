@@ -129,6 +129,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S5** `[prototyped]`, **S18 Escalate modal** `[deferred]`.
 - **Depends on:** 3, 5, 7, 8.
 - **Estimated LoC:** 6,000.
+- **Status: completed** — plus `usp_GetCrossingFields` (crossing-map reader) and the PATCH locked-field guard (403 `platform-defined-field-locked`). Decisions recorded in [09-slice-escalation.md](09-slice-escalation.md): the **AI Solutions Status mirror is read-time-derived** (confirmed with the analyst — the dev/test stack has no Service Bus, so the mirror is derived live from the AI-side row's stage/hold/outcome, adding **zero migrations**; the stored+event-driven field defers to Phase 2); **attachment carry-across defers to slice 11** (its table doesn't exist yet — forced by build order); `EscalateResult.aiRecord` is **null for a PG-only escalator** (BS §6.4 — they can't see the AI record; the PG UI refetches the escalated PG record) and `BridgeBlock.lockedFields` is `string[]` (field keys); the crossing map is read from `FieldDefinition` (`Category='Crossing'`), no `CrossingMap` table in Phase 1.
+- **Started:** 2026-07-04T21:09:44-04:00
+- **Ended:** 2026-07-04T21:55:22-04:00
+- **Duration:** 00:45:38
 
 ### Slice 10: Closure, Copy, Re-pursuit + Typed links
 - **Spec section:** BS §2.2 (typed links), §5 (Copy action), §6.7 (re-pursuit), §8 (outcomes and closure).

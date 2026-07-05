@@ -9,9 +9,10 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 
 import type { RequestDto, WorkspaceFieldSchemaDto, WorkspaceId } from '@shared/types';
 
-import { buildFieldDefinition, buildRequestDto, renderWithProviders } from '@/test-utils';
+import { buildFieldDefinition, buildMe, buildMembership, buildRequestDto, renderWithProviders } from '@/test-utils';
 import { ApiError } from '@/shared/http/apiClient';
 import * as fieldsApi from '@/features/fields/api';
+import * as useMeModule from '@/features/users/useMe';
 
 import * as useRequests from '../useRequests';
 import { RecordDetailPage, SAVE_DEBOUNCE_MS } from './RecordDetailPage';
@@ -20,6 +21,7 @@ expect.extend(toHaveNoViolations);
 
 jest.mock('../useRequests');
 jest.mock('@/features/fields/api');
+jest.mock('@/features/users/useMe');
 
 const patchMutate = jest.fn();
 const setHoldMutate = jest.fn();
@@ -71,6 +73,28 @@ function seedDefaults() {
     .mocked(useRequests.useSetStage)
     .mockReturnValue(asMutation(setStageMutate) as unknown as ReturnType<typeof useRequests.useSetStage>);
   jest.mocked(fieldsApi.fetchWorkspaceFields).mockResolvedValue(SCHEMA);
+  // Default membership: the record's own workspace as the AI Solutions hub — escalation is not offered.
+  jest
+    .mocked(useMeModule.useMe)
+    .mockReturnValue({ data: buildMe({ memberships: [buildMembership()] }) } as unknown as ReturnType<typeof useMeModule.useMe>);
+}
+
+const PG_WORKSPACE = 'ws-pg' as WorkspaceId;
+
+/** A record escalated FROM Litigation, viewed on the given side (defaults to the AI side). */
+function escalatedRecord(overrides: Partial<RequestDto> = {}) {
+  return buildRequestDto({
+    bridge: {
+      isEscalated: true,
+      originWorkspaceId: PG_WORKSPACE,
+      originWorkspaceName: 'Litigation',
+      aiWorkspaceId: 'ws-1' as WorkspaceId,
+      escalatedAt: '2026-07-04T18:00:00Z',
+      aiSolutionsStatus: 'Build',
+      lockedFields: ['name'],
+    },
+    ...overrides,
+  });
 }
 
 function renderPage() {
@@ -253,5 +277,69 @@ describe('RecordDetailPage', () => {
     expect(screen.getByText(/access to this record/i)).toBeInTheDocument();
     expect(screen.queryByText('Meeting-notes action extraction')).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RecordDetailPage — escalated record (S5) shows the origin pill, mirror note, and locks the crossing field on the PG side', async () => {
+    // Arrange — viewed on the PG side (record workspace ≠ AI workspace), so crossing fields lock.
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(queryResult(escalatedRecord({ workspaceId: PG_WORKSPACE })));
+
+    // Act
+    const { container } = renderPage();
+
+    // Assert — the "Escalated · [origin]" pill, the slim mirror note, and a disabled crossed field.
+    // The note lives inside the schema-gated Intake tab, so await it (the schema query resolves async).
+    expect(await screen.findByText('Escalated · Litigation')).toBeInTheDocument();
+    const note = await screen.findByRole('complementary', { name: 'Escalation bridge' });
+    expect(note).toHaveTextContent('AI Solutions Status');
+    expect(screen.getByLabelText('Name')).toBeDisabled();
+    expect(screen.getByText('Crossed · locked on PG')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RecordDetailPage — escalated record on the AI side keeps the crossing field editable', async () => {
+    // Arrange — viewed on the AI side (record workspace == AI workspace); the lock is conceptual there.
+    jest.mocked(useRequests.useRequest).mockReturnValue(queryResult(escalatedRecord()));
+
+    // Act
+    renderPage();
+
+    // Assert — the marker still shows, but the field is editable (fully editable AI-side).
+    expect(await screen.findByText('Crossed · locked on PG')).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toBeEnabled();
+  });
+
+  it('RecordDetailPage — a PG member sees the Escalate action and can open the confirm modal', async () => {
+    // Arrange — a non-escalated record on a PG workspace the caller belongs to.
+    const user = userEvent.setup();
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(queryResult(buildRequestDto({ workspaceId: PG_WORKSPACE })));
+    jest.mocked(useMeModule.useMe).mockReturnValue({
+      data: buildMe({ memberships: [buildMembership({ workspaceId: PG_WORKSPACE, workspaceKind: 'pg-dept' })] }),
+    } as unknown as ReturnType<typeof useMeModule.useMe>);
+
+    // Act
+    const { container } = renderPage();
+    await user.click(await screen.findByRole('tab', { name: 'Status' }));
+    await user.click(await screen.findByRole('button', { name: 'Escalate to AI Solutions' }));
+
+    // Assert — the confirm-and-lock modal opens.
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/shares this record’s ID/i)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RecordDetailPage — the Escalate action is hidden on the AI Solutions workspace', async () => {
+    // Arrange — the default seed puts the record on the AI hub; escalation makes no sense there.
+    const user = userEvent.setup();
+
+    // Act
+    renderPage();
+    await user.click(await screen.findByRole('tab', { name: 'Status' }));
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Escalate to AI Solutions' })).not.toBeInTheDocument();
   });
 });

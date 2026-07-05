@@ -366,6 +366,42 @@ public sealed class SimilarRequestRow
     public string? Origin { get; set; }
 }
 
+// ─── Slice 9 (Escalation bridge) — keyless read projections ────────────────────────────
+
+/// <summary>
+/// One crossing field ([S]) from usp_GetCrossingFields — the workspace's own crossing map,
+/// marked on FieldDefinition (Category='Crossing'). The Escalation module reads this to snapshot +
+/// map the PG-side values into the AI-side row. CrossingToFieldKey is the 1:1 AI-side target key.
+/// </summary>
+public sealed class CrossingFieldRow
+{
+    public string FieldKey { get; set; } = string.Empty;
+    public string? CrossingToFieldKey { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public bool IsRequired { get; set; }
+}
+
+/// <summary>
+/// The escalation-bridge inputs for a record from usp_GetBridgeForRecord (membership-gated for the
+/// caller's own side; the AI-side row is read system-side because the mirror is system-computed,
+/// BS §6.4). Zero rows means "not escalated" or "caller can't see the record". The mirror status
+/// string is derived read-time from AiStage + hold/outcome in AiFieldValues (Confidential — the
+/// field map is never logged).
+/// </summary>
+public sealed class BridgeRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public Guid OriginWorkspaceId { get; set; }
+    public string OriginWorkspaceName { get; set; } = string.Empty;
+    public Guid AiWorkspaceId { get; set; }
+    public DateTime EscalatedAt { get; set; }
+    public string AiStage { get; set; } = string.Empty;
+    public string AiFieldValues { get; set; } = "{}";
+    public Guid CallerWorkspaceId { get; set; }
+    public bool CallerOnAiSide { get; set; }
+    public string LockedFieldKeysJson { get; set; } = "[]";
+}
+
 // ─── Slice 7 (Tasks) — keyless read projections ───────────────────────────────────────
 // Tasks are read/written through stored procedures (access-gated joins, per-record ordering,
 // bundle expansion → api-data-access.md). The API never tracks the Tasks / TaskBundleTemplate

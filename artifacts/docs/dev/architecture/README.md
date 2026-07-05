@@ -33,3 +33,4 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 6 | Similar-requests nudge + Comments & activity thread | completed | [slice-plan.md §Slice 6](slice-plan.md) | [06-slice-similar-comments.md](06-slice-similar-comments.md) |
 | 7 | Tasks (S4/S5 Tasks & gates — tasks section) | completed | [slice-plan.md §Slice 7](slice-plan.md) | [07-slice-tasks.md](07-slice-tasks.md) |
 | 8 | Gates on records + Approvals (S4/S5 gate section) | completed | [slice-plan.md §Slice 8](slice-plan.md) | [08-slice-gates-approvals.md](08-slice-gates-approvals.md) |
+| 9 | Escalation bridge (S5 escalated variant + S18 modal) | completed | [slice-plan.md §Slice 9](slice-plan.md) | [09-slice-escalation.md](09-slice-escalation.md) |
