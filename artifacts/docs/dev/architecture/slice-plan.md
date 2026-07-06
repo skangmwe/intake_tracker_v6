@@ -227,6 +227,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S29 Users & access** `[deferred]`.
 - **Depends on:** 2.
 - **Estimated LoC:** 2,500.
+- **Status: completed** — no new tables (reuses `WorkspaceMembership` / `Users` / `ApprovalRequests`). Three procs (`usp_ListWorkspaceMembers` / `usp_UpsertWorkspaceMembership` / `usp_DeactivateMember`) + tSQLt; the `Users` API-module `MembersController`/`MembersService` (WorkspaceAdmin-gated, event-spine emits); the S29 web surface (members table + email-resolve add form + destructive-confirm deactivate). Two decisions (see [17-slice-users-access.md](17-slice-users-access.md)): (1) `MembershipUpsertRequest` refined to `{ userId?, email?, level }` (exactly one) so "Add member" resolves an email server-side — no user-directory endpoint exists in R1; api-contracts §2 + the shared type updated first. (2) Deactivate = disable the account firm-wide (`Users.IsDisabled=1`, per BS §6.8 "disabled immediately" — analyst-confirmed) **and** soft-delete this-workspace membership; the §6.8 `409` block scans `FrozenApproverSet` for a `namedUserId` marker — structurally present but never fires in the team-only slot model (team-slot eligibility never blocks). Also added `GET /workspaces/{id}/members` (list read, WorkspaceAdmin). Pre-existing 13 tsc test-file errors (slices 6/8/11/12) unchanged; 0 new.
+- **Started:** 2026-07-06T07:15:11-04:00
+- **Ended:** 2026-07-06T07:43:52-04:00
+- **Duration:** 00:28:41
 
 ### Slice 18: Views & dashboards admin + workspace audit
 - **Spec section:** BS §10.2 (audience two-layer), §10.5 (workspace locality), §12 (audit surfaces).

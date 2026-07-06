@@ -110,6 +110,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<ImportJobRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<ImportReportRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 17 (Users & access admin) — keyless projections read via stored procedures.
+        modelBuilder.Entity<WorkspaceMemberRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<MembershipUpsertResultRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

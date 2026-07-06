@@ -98,6 +98,9 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Shared.Auth.IUserProvisioner,
     McDermott.AiTracker.Api.Shared.Auth.UserProvisioner>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 
+// ─── Users & access admin (slice 17) ────────────────────────────────────────
+builder.Services.AddScoped<IMembersService, MembersService>();
+
 // ─── Fields & objects (slice 3) ─────────────────────────────────────────────
 builder.Services.AddScoped<McDermott.AiTracker.Api.Shared.Auth.IAccessGuard,
     McDermott.AiTracker.Api.Shared.Auth.AccessGuard>();

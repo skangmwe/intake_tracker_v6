@@ -685,3 +685,29 @@ public sealed class ImportReportRow
     /// <summary>`[{code,message,field}]` JSON. Messages are PII-free (field + rule only).</summary>
     public string? ReasonsJson { get; set; }
 }
+
+// ─── Slice 17 (Users & access admin) — keyless read/write projections ────────────────────
+// WorkspaceMembership + Users are read via usp_ListWorkspaceMembers (a join → out of single-table
+// EF CRUD) and mutated via usp_UpsertWorkspaceMembership / usp_DeactivateMember. Only these keyless
+// projections are bound through FromSqlRaw.
+
+/// <summary>One S29 member row from usp_ListWorkspaceMembers.</summary>
+public sealed class WorkspaceMemberRow
+{
+    public Guid UserId { get; set; }
+    /// <summary>PII — never logged (api-logging.md).</summary>
+    public string DisplayName { get; set; } = string.Empty;
+    /// <summary>PII — never logged.</summary>
+    public string Email { get; set; } = string.Empty;
+    public string Level { get; set; } = string.Empty;
+    public bool IsDisabled { get; set; }
+    public DateTime LastActiveAt { get; set; }
+}
+
+/// <summary>The resolved member returned by usp_UpsertWorkspaceMembership.</summary>
+public sealed class MembershipUpsertResultRow
+{
+    public Guid UserId { get; set; }
+    public string Level { get; set; } = string.Empty;
+    public bool WasAdded { get; set; }
+}

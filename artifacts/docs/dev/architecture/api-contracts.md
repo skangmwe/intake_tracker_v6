@@ -67,14 +67,23 @@ Provision a new PG/Dept workspace by cloning the template.
 - **Response:** `201 → WorkspaceDto`.
 - **Errors:** `409 { detail: "Prefix already in use" }` on prefix collision.
 
+### `GET /api/v1/workspaces/{id}/members` — Workspace admin (Slice 17)
+The S29 members list. Members with SSO identity, level, last-active, and disabled state.
+
+- **Response:** `MembersListDto` — `{ members: WorkspaceMemberDto[] }` where `WorkspaceMemberDto = { userId, displayName, email, level, isDisabled, lastActiveAt }`.
+- **Errors:** `403` — caller is not a WorkspaceAdmin of the workspace (the list exposes member PII, so it is admin-only — the S29 audience).
+
 ### `POST /api/v1/workspaces/{id}/members` — Workspace admin
 Add/edit membership.
 
-- **Body:** `MembershipUpsertRequest` — `{ userId, level }`.
+- **Body:** `MembershipUpsertRequest` — **`{ userId?, email?, level }`, exactly one of `userId` / `email`** (Slice 17 refinement of the original `{ userId, level }` — R1 has no user-directory endpoint, so the S29 "Add member" affordance resolves a typed **email** server-side against active platform users; `userId` still changes an existing member's level). Resolution mirrors `usp_AddApproverTeamMember`.
 - **Response:** `204`.
+- **Errors:** `400` — unresolved / ambiguous email, both-or-neither of `userId`/`email`, or invalid level. `403` — not a WorkspaceAdmin.
 
 ### `DELETE /api/v1/workspaces/{id}/members/{userId}` — Workspace admin
-Deactivate. `409` if the target has a pending named-individual sign-off (BS §6.8). Team-slot sign-offs don't block.
+Deactivate. Sets `Users.IsDisabled = 1` (BS §6.8 — "the account is disabled immediately"; notifications to disabled accounts are suppressed by the slice-12 fan-out) and soft-deletes the member's membership in this workspace. `409` if the target has a pending named-individual sign-off (BS §6.8). Team-slot sign-offs don't block. Idempotent. `403` — not a WorkspaceAdmin.
+
+> **Slice 17 build note.** In the team-only slot model (slice 4 reconciliation) no gate slot names an individual, so the `409` block is structurally present (`usp_DeactivateMember` scans `ApprovalRequests.FrozenApproverSet` for a slot `namedUserId`) but never fires in Phase 1 — being a sole eligible team member does not block deactivation. Deactivation removes the caller's membership **in this workspace** while the account-disable is firm-wide; other-workspace memberships remain but the disabled account cannot sign in or receive notifications.
 
 ---
 

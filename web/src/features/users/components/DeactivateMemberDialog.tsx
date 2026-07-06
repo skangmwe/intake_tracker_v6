@@ -1,0 +1,48 @@
+// S29 deactivate confirmation (disclosure-surfaces.md modal — destructive action confirmed before
+// it runs). Names the specific consequence (ux-copy-and-microcopy.md); the destructive action button
+// names the member. A pending named-individual sign-off comes back as a 409 and renders inline so
+// the admin sees why it was blocked (BS §6.8).
+
+import type { WorkspaceMemberDto } from '@shared/types';
+
+import { Button } from '@/shared/components/Button';
+import { Modal } from '@/shared/components/Disclosure';
+import { problemMessage } from '@/shared/http/problemMessage';
+
+interface DeactivateMemberDialogProps {
+  member: WorkspaceMemberDto;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+  error: unknown;
+}
+
+export function DeactivateMemberDialog({ member, onConfirm, onCancel, isPending, error }: DeactivateMemberDialogProps) {
+  return (
+    <Modal
+      title="Deactivate this member?"
+      onClose={onCancel}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={isPending}>
+            {isPending ? 'Deactivating…' : `Deactivate ${member.displayName}`}
+          </Button>
+        </>
+      }
+    >
+      <p>
+        This disables <strong>{member.displayName}</strong>&rsquo;s account and removes them from this
+        workspace. Records they were named on stay visible as orphaned references for an admin to
+        reassign. This can&rsquo;t be undone.
+      </p>
+      {error != null && (
+        <p className="mws-alert mws-alert--error users-access__dialog-error" role="alert">
+          {problemMessage(error)}
+        </p>
+      )}
+    </Modal>
+  );
+}

@@ -1,0 +1,192 @@
+// Unit tests for MembersController — routing, WorkspaceAdmin access mapping, and status-code
+// mapping only (the service and access guard are mocked). Covers happy paths, each upsert / deactivate
+// outcome, the access-denied (403 never 404) branches, the 409 deactivation block, and
+// cancellation-token propagation (api-testing-guidelines.md).
+
+using McDermott.AiTracker.Api.Modules.Users;
+using McDermott.AiTracker.Api.Shared.Auth;
+using McDermott.AiTracker.Api.Shared.Middleware;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using Xunit;
+
+namespace McDermott.AiTracker.Api.Tests;
+
+public sealed class MembersControllerTests
+{
+    private static readonly Guid WorkspaceId = Guid.NewGuid();
+    private static readonly Guid ActorId = Guid.NewGuid();
+    private static readonly Guid TargetId = Guid.NewGuid();
+
+    private static MembersController Build(Mock<IMembersService> members, bool isAdmin = true)
+    {
+        var accessGuard = new Mock<IAccessGuard>();
+        accessGuard
+            .Setup(guard => guard.HasWorkspaceLevelAsync(ActorId, WorkspaceId, WorkspaceLevel.WorkspaceAdmin, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(isAdmin);
+
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.SetupGet(user => user.UserId).Returns(ActorId);
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.Items[OperationIdMiddleware.HeaderName] = "op-123";
+
+        return new MembersController(members.Object, accessGuard.Object, currentUser.Object)
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext },
+        };
+    }
+
+    private static MembershipUpsertRequest AddByEmail() => new() { Email = "priya@example.com", Level = "Member" };
+
+    [Fact]
+    public async Task ListMembers_AdminCanRead_ReturnsOk()
+    {
+        // Arrange
+        var list = new MembersListDto(new[]
+        {
+            new WorkspaceMemberDto(TargetId, "Priya Raman", "priya@example.com", "Member", false, DateTime.UtcNow),
+        });
+        var members = new Mock<IMembersService>();
+        members.Setup(service => service.ListAsync(WorkspaceId, It.IsAny<CancellationToken>())).ReturnsAsync(list);
+
+        // Act
+        var result = await Build(members).ListMembers(WorkspaceId, CancellationToken.None);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(list, ok.Value);
+    }
+
+    [Fact]
+    public async Task ListMembers_NotAdmin_Returns403()
+    {
+        // Arrange
+        var members = new Mock<IMembersService>();
+
+        // Act
+        var result = await Build(members, isAdmin: false).ListMembers(WorkspaceId, CancellationToken.None);
+
+        // Assert — ownership violation is 403, never 404 (api-error-handling.md).
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpsertMember_Success_Returns204()
+    {
+        // Arrange
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.UpsertAsync(WorkspaceId, It.IsAny<MembershipUpsertRequest>(), ActorId, "op-123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MembershipUpsertResult(MembershipUpsertOutcome.Success, TargetId, WasAdded: true));
+
+        // Act
+        var result = await Build(members).UpsertMember(WorkspaceId, AddByEmail(), CancellationToken.None);
+
+        // Assert
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task UpsertMember_Unresolved_Returns400()
+    {
+        // Arrange
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.UpsertAsync(WorkspaceId, It.IsAny<MembershipUpsertRequest>(), ActorId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MembershipUpsertResult(MembershipUpsertOutcome.Unresolved));
+
+        // Act
+        var result = await Build(members).UpsertMember(WorkspaceId, AddByEmail(), CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpsertMember_Ambiguous_Returns400()
+    {
+        // Arrange
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.UpsertAsync(WorkspaceId, It.IsAny<MembershipUpsertRequest>(), ActorId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MembershipUpsertResult(MembershipUpsertOutcome.Ambiguous));
+
+        // Act
+        var result = await Build(members).UpsertMember(WorkspaceId, AddByEmail(), CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpsertMember_NotAdmin_Returns403()
+    {
+        var members = new Mock<IMembersService>();
+        var result = await Build(members, isAdmin: false).UpsertMember(WorkspaceId, AddByEmail(), CancellationToken.None);
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeactivateMember_Success_Returns204()
+    {
+        // Arrange
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.DeactivateAsync(WorkspaceId, TargetId, ActorId, "op-123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DeactivateMemberResult(DeactivateMemberOutcome.Success));
+
+        // Act
+        var result = await Build(members).DeactivateMember(WorkspaceId, TargetId, CancellationToken.None);
+
+        // Assert
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task DeactivateMember_Blocked_Returns409()
+    {
+        // Arrange — a pending named-individual sign-off blocks deactivation (BS §6.8).
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.DeactivateAsync(WorkspaceId, TargetId, ActorId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DeactivateMemberResult(DeactivateMemberOutcome.Blocked));
+
+        // Act
+        var result = await Build(members).DeactivateMember(WorkspaceId, TargetId, CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeactivateMember_NotAdmin_Returns403()
+    {
+        var members = new Mock<IMembersService>();
+        var result = await Build(members, isAdmin: false).DeactivateMember(WorkspaceId, TargetId, CancellationToken.None);
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpsertMember_CancellationPropagates()
+    {
+        // Arrange — a cancelled token surfaces as an OperationCanceledException, not a swallowed result.
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.UpsertAsync(WorkspaceId, It.IsAny<MembershipUpsertRequest>(), ActorId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act + Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            Build(members).UpsertMember(WorkspaceId, AddByEmail(), cts.Token));
+    }
+}
