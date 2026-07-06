@@ -14,6 +14,8 @@ import type {
   RecordId,
   RequestDto,
   RequestPatchRequest,
+  SlaStatus,
+  TimeInStage,
   WorkspaceId,
 } from '@shared/types';
 
@@ -92,13 +94,26 @@ function formatSubmitted(iso: string): string {
     : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function slaLabel(request: RequestDto, values: FieldValueMap): string {
-  if (request.slaStatus) return request.slaStatus;
-  const due = values.dueDate;
-  if (due === undefined || due === null || due === '') return 'On track';
-  const dueDate = new Date(String(due));
-  if (Number.isNaN(dueDate.getTime())) return 'On track';
-  return dueDate.getTime() < Date.now() ? 'Overdue' : 'On track';
+// SLA Status (BS §17.2) — the API derives it authoritatively from Due Date and the workspace's
+// due-soon window; the UI only maps it to a pill kind + friendly label. null (no due date) = no pill.
+function slaPill(slaStatus?: SlaStatus): { kind: StatusKind; label: string } | null {
+  switch (slaStatus) {
+    case 'Overdue':
+      return { kind: 'error', label: 'Overdue' };
+    case 'DueSoon':
+      return { kind: 'warning', label: 'Due soon' };
+    case 'OnTrack':
+      return { kind: 'success', label: 'On track' };
+    default:
+      return null;
+  }
+}
+
+// Time-in-stage (BS §10.6) — whole days since the current stage began; the API omits it when unknown.
+function formatTimeInStage(timeInStage?: TimeInStage): string {
+  if (!timeInStage) return '—';
+  if (timeInStage.days <= 0) return 'Today';
+  return timeInStage.days === 1 ? '1 day' : `${timeInStage.days} days`;
 }
 
 function isForbidden(error: unknown): boolean {
@@ -132,6 +147,10 @@ function RecordMetaStrip({ request }: { request: RequestDto }) {
       <div className="record-meta__item">
         <dt className="record-meta__label">Due date</dt>
         <dd className="record-meta__value">{formatDayMonth(request.fields.dueDate)}</dd>
+      </div>
+      <div className="record-meta__item">
+        <dt className="record-meta__label">Time in stage</dt>
+        <dd className="record-meta__value">{formatTimeInStage(request.timeInStage)}</dd>
       </div>
     </dl>
   );
@@ -269,7 +288,12 @@ function IntakeTab({
           {computePriorityScore(values)}
         </span>
         <span className="record-intake__ro-label">SLA status</span>
-        <span className="record-intake__ro-value">{slaLabel(request, values)}</span>
+        <span className="record-intake__ro-value">
+          {(() => {
+            const sla = slaPill(request.slaStatus);
+            return sla ? <StatusPill status={sla.kind} label={sla.label} /> : '—';
+          })()}
+        </span>
         <span className="record-intake__ro-label">Submitted</span>
         <span className="record-intake__ro-value">{formatSubmitted(request.createdAt)}</span>
       </div>

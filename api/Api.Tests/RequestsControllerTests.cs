@@ -46,7 +46,7 @@ public sealed class RequestsControllerTests
         RecordId, WorkspaceId, "AI Solutions", DateTime.UtcNow, DateTime.UtcNow, UserId.ToString(), UserId.ToString(),
         LegacyId: null, LifecycleId: Guid.NewGuid(),
         Stages: new[] { new RequestStageRef("intake", "Intake") },
-        Stage: "intake", Hold: new HoldState(false, null), Outcome: null, DisplayStatus: "Intake", SlaStatus: null,
+        Stage: "intake", Hold: new HoldState(false, null), Outcome: null, DisplayStatus: "Intake", SlaStatus: null, TimeInStage: null,
         Name: "Doc extraction", Description: "Pull fields", Fields: new Dictionary<string, JsonElement>(),
         Bridge: null, ETag: "AAAAAAAAB9E=");
 

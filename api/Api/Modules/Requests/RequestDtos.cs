@@ -22,6 +22,9 @@ public sealed record HoldState(bool Held, string? Reason);
 /// <summary>Combined Outcome (delivery | local). Populated by close (later slice); null in slice 5.</summary>
 public sealed record OutcomeDto(string Kind, string Value, string Notes, string? DuplicateOfRecordId = null);
 
+/// <summary>Time-in-stage (BS §10.6) — whole days since the record entered its current stage. Mirrors TimeInStage in requests.ts.</summary>
+public sealed record TimeInStageDto(string StageKey, int Days);
+
 /// <summary>Escalation summary — present only on escalated records (later slice); null in slice 5.</summary>
 public sealed record BridgeBlockDto(
     bool IsEscalated,
@@ -49,6 +52,7 @@ public sealed record RequestDto(
     OutcomeDto? Outcome,
     string DisplayStatus,
     string? SlaStatus,
+    TimeInStageDto? TimeInStage,
     string Name,
     string Description,
     IReadOnlyDictionary<string, JsonElement> Fields,

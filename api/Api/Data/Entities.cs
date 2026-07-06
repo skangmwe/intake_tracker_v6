@@ -33,6 +33,8 @@ public sealed class Workspace : AuditableEntity
     /// <summary>Monotonic mint counter; first minted record is PREFIX-00000001.</summary>
     public long NextSequence { get; set; }
     public DateTime? RetiredAt { get; set; }
+    /// <summary>The SLA "Due soon" window in days (slice 21, §17.2). Default 3.</summary>
+    public int DueSoonWindowDays { get; set; } = 3;
 }
 
 /// <summary>A user — provisioned by EnsureUserMiddleware on first authenticated request.</summary>
@@ -356,6 +358,12 @@ public sealed class RequestRow
     /// <summary>Content-field map (JSON). Confidential — never logged.</summary>
     public string FieldValues { get; set; } = "{}";
     public int? PriorityScore { get; set; }
+    /// <summary>Due Date (projected from the field map) — drives SLA Status (slice 21, §17.2). Null = no SLA.</summary>
+    public DateOnly? DueDate { get; set; }
+    /// <summary>UTC timestamp the record's current stage began — drives time-in-stage (slice 21, §10.6).</summary>
+    public DateTime? StageEnteredAt { get; set; }
+    /// <summary>The record's workspace due-soon window (slice 21) — the SLA "Due soon" threshold in days.</summary>
+    public int DueSoonWindowDays { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;

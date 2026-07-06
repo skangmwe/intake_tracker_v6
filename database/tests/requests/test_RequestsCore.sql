@@ -46,6 +46,10 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = N'AI Solutions', @Actual = @Origin;
     EXEC tSQLt.AssertEquals @Expected = N'intake', @Actual = @MirroredStage;
     EXEC tSQLt.AssertEquals @Expected = N'Meeting-notes action extraction', @Actual = @MirroredName;
+
+    -- Slice 21: StageEnteredAt is stamped on create (drives time-in-stage).
+    DECLARE @StageEnteredAt DATETIME2 = (SELECT StageEnteredAt FROM dbo.Requests WHERE RecordId = @RecordId);
+    EXEC tSQLt.AssertNotEquals @Expected = NULL, @Actual = @StageEnteredAt;
 END;
 GO
 
@@ -179,6 +183,53 @@ BEGIN
     DECLARE @Mirror NVARCHAR(64) = (SELECT JSON_VALUE(FieldValues, N'$.stage') FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
     EXEC tSQLt.AssertEquals @Expected = N'build', @Actual = @Stage;
     EXEC tSQLt.AssertEquals @Expected = N'build', @Actual = @Mirror;
+END;
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_SetStageResetsStageEnteredAtOnChange]
+AS
+BEGIN
+    -- Arrange — a record parked in intake since 2020 (StageEnteredAt long in the past).
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.StageDefinition';
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StageEnteredAt, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+            N'Test', N'intake', '2020-01-01T00:00:00', N'{"stage":"intake"}', 0, N'seed', N'seed');
+    INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'build', N'Build', N'Build', 2, 0, N'seed', N'seed');
+
+    -- Act — advance to a different stage.
+    EXEC dbo.usp_SetRequestStage
+        @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @ToStage = N'build', @ActorUserId = N'actor';
+
+    -- Assert — the clock reset: StageEnteredAt is now recent, not the 2020 seed value.
+    DECLARE @Entered DATETIME2 = (SELECT StageEnteredAt FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    IF @Entered <= '2020-01-02T00:00:00'
+        EXEC tSQLt.Fail @Message0 = N'StageEnteredAt should reset to now when the stage changes.';
+END;
+GO
+
+CREATE PROCEDURE RequestsCoreTests.[test_SetStageSameStageKeepsStageEnteredAt]
+AS
+BEGIN
+    -- Arrange — a record in intake since a fixed past timestamp.
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.StageDefinition';
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StageEnteredAt, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+            N'Test', N'intake', '2026-01-01T00:00:00', N'{"stage":"intake"}', 0, N'seed', N'seed');
+    INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'intake', N'Intake', N'Intake', 0, 0, N'seed', N'seed');
+
+    -- Act — a no-op set to the SAME stage must not restart the time-in-stage clock.
+    EXEC dbo.usp_SetRequestStage
+        @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @ToStage = N'intake', @ActorUserId = N'actor';
+
+    -- Assert
+    DECLARE @Entered DATETIME2 = (SELECT StageEnteredAt FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
+    EXEC tSQLt.AssertEquals @Expected = '2026-01-01T00:00:00', @Actual = @Entered;
 END;
 GO
 

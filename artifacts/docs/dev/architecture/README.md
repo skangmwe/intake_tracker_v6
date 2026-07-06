@@ -45,3 +45,4 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 18 | Views & dashboards admin (S32 views half) + Workspace audit (S33) | completed | [slice-plan.md §Slice 18](slice-plan.md) | [18-slice-views-audit.md](18-slice-views-audit.md) |
 | 19 | Platform admin (S35 crossing map · S36 access · S37 role labels · S39 firm-wide audit · S38 provisioning API) | completed | [slice-plan.md §Slice 19](slice-plan.md) | [19-slice-platform-admin.md](19-slice-platform-admin.md) |
 | 20 | Error / empty edge states (S40 no-access · S41 zero-data · S42 filtered-to-zero) | completed | [slice-plan.md §Slice 20](slice-plan.md) | — (routine; decisions in the slice-plan note) |
+| 21 | Current-date + date-difference primitive + SLA Status + time-in-stage (S2 aging tint · S4/S5 SLA pill + time-in-stage) | completed | [slice-plan.md §Slice 21](slice-plan.md) | [21-slice-sla-timeinstage.md](21-slice-sla-timeinstage.md) |

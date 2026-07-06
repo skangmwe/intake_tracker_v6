@@ -282,6 +282,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** aging tint on S2 and every save-for-/build list surface `[prototyped]`; SLA Status pill on S4/S5 `[prototyped hooks]`.
 - **Depends on:** 5.
 - **Estimated LoC:** 3,000.
+- **Status: completed** — `StageEnteredAt` column (migration 048, stamped on create + reset-on-change in `usp_SetRequestStage`) + `Workspaces.DueSoonWindowDays` (migration 049, default 3). SLA Status + time-in-stage are **query-time derived in the C# service** (both depend on current-date, so neither can be a persisted computed column — matching the "view functions for the rest" clause): `ComputeSla(due, today, window)` is now three-state (`OnTrack`/`DueSoon`/`Overdue`, was list-only + hardcoded-3) applied to **both** list and detail; `ComputeTimeInStage`. `ConditionEngine` gained the §3.1 current-date reference (`@today`/`@now`/`@currentDate` token + date-aware comparisons) and the §3.3 `DateDifferenceDays` primitive, both off the injected `IClock`. Web: an SLA **pill** fills the prototype's binary SLA slot with the three-state derivation; **Time in stage** added to the S4/S5 meta strip; list aging tint was already wired (slice 5) — now driven by the config window. Decisions in [21-slice-sla-timeinstage.md](21-slice-sla-timeinstage.md). API + test projects build clean (0/0); web tsc/jest deferred to the ship gate (no local node_modules).
+- **Started:** 2026-07-06T15:57:44-04:00
+- **Ended:** 2026-07-06T16:28:11-04:00
+- **Duration:** 00:30:27
 
 ### Slice 22: Home surface (S1 — prototyped)
 - **Spec section:** BS §10.7 (Home surface). Requirements user-story panel list.

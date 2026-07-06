@@ -67,12 +67,15 @@ public sealed partial class RequestsService
             // Field-as-column rollup (slice 7): the first task-level URL field value, surfaced as the
             // Repo URL list column. NULL when the record has no URL-type task field yet.
             var repoIndex = reader.GetOrdinal("RepoUrl");
+            // The workspace's due-soon window (slice 21) — constant across the page; drives SLA Status.
+            var dueSoonWindowIndex = reader.GetOrdinal("DueSoonWindowDays");
 
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var recordId = reader.GetString(recordIdIndex);
                 var eTag = Convert.ToBase64String((byte[])reader.GetValue(rowVerIndex));
                 DateOnly? due = reader.IsDBNull(dueIndex) ? null : DateOnly.FromDateTime(reader.GetDateTime(dueIndex));
+                var dueSoonWindow = reader.GetInt32(dueSoonWindowIndex);
 
                 var columns = new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
@@ -87,7 +90,7 @@ public sealed partial class RequestsService
                     ["due"] = due?.ToString("yyyy-MM-dd"),
                 };
 
-                rows.Add(new RequestListRow(recordId, eTag, columns, ComputeSla(due, today)));
+                rows.Add(new RequestListRow(recordId, eTag, columns, ComputeSla(due, today, dueSoonWindow)));
             }
 
             if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false)
@@ -154,7 +157,8 @@ public sealed partial class RequestsService
         }
 
         var stages = await GetStageRefsAsync(row.WorkspaceId, row.LifecycleId, cancellationToken).ConfigureAwait(false);
-        var dto = MapRow(row, stages);
+        var today = DateOnly.FromDateTime(_clock.UtcNow.UtcDateTime);
+        var dto = MapRow(row, stages, today);
 
         // Escalated records carry a bridge block — the "Escalated · [origin]" pill, the mirror status,
         // and the PG-side locked-field keys (BS §6.4). Non-escalated records get null (one extra proc
@@ -186,7 +190,7 @@ public sealed partial class RequestsService
 
     // ─── Mapping ───────────────────────────────────────────────────────────────
 
-    private static RequestDto MapRow(RequestRow row, IReadOnlyList<RequestStageRef> stages)
+    private static RequestDto MapRow(RequestRow row, IReadOnlyList<RequestStageRef> stages, DateOnly today)
     {
         var fields = ParseFields(row.FieldValues);
         var held = string.Equals(GetString(fields, "holdBlocked"), "true", StringComparison.OrdinalIgnoreCase);
@@ -207,7 +211,8 @@ public sealed partial class RequestsService
             Hold: new HoldState(held, held ? reason : null),
             Outcome: MapOutcome(fields),
             DisplayStatus: DeriveDisplayStatus(fields, row.Stage, stages),
-            SlaStatus: null,
+            SlaStatus: ComputeSla(row.DueDate, today, row.DueSoonWindowDays),
+            TimeInStage: ComputeTimeInStage(row.Stage, row.StageEnteredAt, today),
             Name: row.Name,
             Description: row.Description,
             Fields: fields,
@@ -482,8 +487,12 @@ public sealed partial class RequestsService
         return match?.Label ?? (string.IsNullOrEmpty(stageKey) ? string.Empty : stageKey);
     }
 
-    /// <summary>Simple slice-5 SLA compute — Phase 2 owns the real derivation.</summary>
-    public static string? ComputeSla(DateOnly? due, DateOnly today)
+    /// <summary>
+    /// SLA Status (BS §17.2), derived from Due Date vs the current date and the workspace's due-soon
+    /// window. Overdue when the due date is past; Due soon within the window; On track beyond it. No due
+    /// date → null (no SLA, no aging tint). A non-positive window collapses the Due-soon band. Pure.
+    /// </summary>
+    public static string? ComputeSla(DateOnly? due, DateOnly today, int dueSoonWindowDays)
     {
         if (due is null)
         {
@@ -495,7 +504,24 @@ public sealed partial class RequestsService
             return "Overdue";
         }
 
-        return due <= today.AddDays(3) ? "DueSoon" : null;
+        var window = dueSoonWindowDays < 0 ? 0 : dueSoonWindowDays;
+        return due <= today.AddDays(window) ? "DueSoon" : "OnTrack";
+    }
+
+    /// <summary>
+    /// Time-in-stage (BS §10.6) — whole days from when the current stage was entered to today. Null when
+    /// the stage or its entry time is unknown (a never-transitioned legacy row); never negative. Pure.
+    /// </summary>
+    public static TimeInStageDto? ComputeTimeInStage(string? stageKey, DateTime? stageEnteredAt, DateOnly today)
+    {
+        if (string.IsNullOrEmpty(stageKey) || stageEnteredAt is null)
+        {
+            return null;
+        }
+
+        var enteredDate = DateOnly.FromDateTime(stageEnteredAt.Value);
+        var days = today.DayNumber - enteredDate.DayNumber;
+        return new TimeInStageDto(stageKey, days < 0 ? 0 : days);
     }
 
     /// <summary>

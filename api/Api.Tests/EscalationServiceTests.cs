@@ -67,6 +67,7 @@ public sealed class EscalationServiceTests
             Outcome: null,
             DisplayStatus: "Intake",
             SlaStatus: null,
+            TimeInStage: null,
             Name: "Contract clause finder",
             Description: "Find clauses fast.",
             Fields: fields ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal),

@@ -28,6 +28,10 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @Ws        UNIQUEIDENTIFIER = TRY_CONVERT(UNIQUEIDENTIFIER, @WorkspaceId);
+    -- The workspace's due-soon window (slice 21) — a single per-workspace constant returned on every
+    -- page row so the API derives SLA Status against the configured window, not a hardcoded value.
+    -- ISNULL guards the API's non-null Int32 read if the workspace row is somehow absent (default 3).
+    DECLARE @DueSoonWindow INT = ISNULL((SELECT DueSoonWindowDays FROM dbo.Workspaces WHERE WorkspaceId = @Ws), 3);
     DECLARE @PageLocal INT = CASE WHEN @Page < 1 THEN 1 ELSE @Page END;
     DECLARE @Size      INT = CASE WHEN @PageSize < 1 THEN 25 WHEN @PageSize > 100 THEN 100 ELSE @PageSize END;
     DECLARE @Filters   NVARCHAR(MAX)    = @FiltersJson;
@@ -89,7 +93,8 @@ BEGIN
     )
     SELECT
         m.RecordId, m.Name, m.Description, m.Stage, m.Origin, m.DeptPgClient,
-        m.AssignedAnalyst, m.DueDate, m.PriorityScore, m.Submitted, m.UpdatedAt, m.RowVer, m.RepoUrl
+        m.AssignedAnalyst, m.DueDate, m.PriorityScore, m.Submitted, m.UpdatedAt, m.RowVer, m.RepoUrl,
+        @DueSoonWindow AS DueSoonWindowDays
     FROM Matched AS m
     ORDER BY
         CASE WHEN @Dir = N'asc'  AND @Sort = N'id'       THEN m.RecordId END ASC,

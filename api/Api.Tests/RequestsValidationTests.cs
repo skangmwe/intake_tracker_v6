@@ -216,14 +216,18 @@ public sealed class RequestsValidationTests
     }
 
     [Theory]
-    [InlineData("2026-07-01", "2026-07-04", "Overdue")]   // due before today
-    [InlineData("2026-07-05", "2026-07-04", "DueSoon")]   // within 3 days
-    [InlineData("2026-07-07", "2026-07-04", "DueSoon")]   // exactly today+3
-    [InlineData("2026-07-30", "2026-07-04", null)]        // OnTrack → omitted this slice
-    public void ComputeSla_ClassifiesByDueDate(string due, string today, string? expected)
+    [InlineData("2026-07-01", "2026-07-04", 3, "Overdue")]   // due before today
+    [InlineData("2026-07-04", "2026-07-04", 3, "DueSoon")]   // due today = due soon (0 days left)
+    [InlineData("2026-07-05", "2026-07-04", 3, "DueSoon")]   // within the window
+    [InlineData("2026-07-07", "2026-07-04", 3, "DueSoon")]   // exactly today + window
+    [InlineData("2026-07-08", "2026-07-04", 3, "OnTrack")]   // just beyond the window
+    [InlineData("2026-07-30", "2026-07-04", 3, "OnTrack")]   // well beyond
+    [InlineData("2026-07-05", "2026-07-04", 7, "DueSoon")]   // a wider workspace window pulls it in
+    [InlineData("2026-07-05", "2026-07-04", 0, "OnTrack")]   // a zero window collapses the due-soon band
+    public void ComputeSla_ClassifiesByDueDateAndWindow(string due, string today, int window, string? expected)
     {
         // Act
-        var result = RequestsService.ComputeSla(DateOnly.Parse(due), DateOnly.Parse(today));
+        var result = RequestsService.ComputeSla(DateOnly.Parse(due), DateOnly.Parse(today), window);
 
         // Assert
         Assert.Equal(expected, result);
@@ -233,6 +237,34 @@ public sealed class RequestsValidationTests
     public void ComputeSla_NoDueDate_ReturnsNull()
     {
         // Act + Assert
-        Assert.Null(RequestsService.ComputeSla(null, new DateOnly(2026, 7, 4)));
+        Assert.Null(RequestsService.ComputeSla(null, new DateOnly(2026, 7, 4), 3));
+    }
+
+    [Theory]
+    [InlineData("intake", "2026-07-01", "2026-07-06", 5)]   // five days in stage
+    [InlineData("build", "2026-07-06", "2026-07-06", 0)]    // entered today = 0 days
+    public void ComputeTimeInStage_MeasuresWholeDays(string stage, string entered, string today, int expectedDays)
+    {
+        // Act
+        var result = RequestsService.ComputeTimeInStage(stage, DateTime.Parse(entered), DateOnly.Parse(today));
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(stage, result!.StageKey);
+        Assert.Equal(expectedDays, result.Days);
+    }
+
+    [Fact]
+    public void ComputeTimeInStage_NoStageEnteredAt_ReturnsNull()
+    {
+        // Act + Assert
+        Assert.Null(RequestsService.ComputeTimeInStage("intake", null, new DateOnly(2026, 7, 6)));
+    }
+
+    [Fact]
+    public void ComputeTimeInStage_MissingStage_ReturnsNull()
+    {
+        // Act + Assert
+        Assert.Null(RequestsService.ComputeTimeInStage(null, DateTime.Parse("2026-07-01"), new DateOnly(2026, 7, 6)));
     }
 }

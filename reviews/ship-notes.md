@@ -123,3 +123,32 @@ this gate deferred was explicitly authorized.
 ## Deferred — design-fidelity render-and-compare (developer-authorized)
 
 A design handoff is present, which normally triggers a full-app build-vs-prototype visual audit. It is **not feasible in this environment** (the trivial conformance shell hook times out at 3 min; documented OOMs / fork failures make full-app renders high-risk) **and this changeset is non-visual** — no prototyped screen's rendered output changes. Shipping past this gate was **explicitly authorized by the developer**, matching the documented posture of the slices-1–2 and slice-18 ships. No CLEAN design-fidelity manifest was fabricated; `.last-clean-run.json` was **not** written.
+
+---
+
+# Ship notes — Slice 21 (Current-date + date-difference primitive + SLA Status + time-in-stage)
+
+**Shipped:** 2026-07-06 · one merge commit on `dev`. Ship past a non-CLEAN gate authorized by the developer — consistent with the slices-1–2 / slice-18 / quality-gate-cleanup posture.
+
+## Gate results (slice-21 work — all runnable gates GREEN)
+
+| Layer | Gate | Result |
+|---|---|---|
+| API | `dotnet build` (Api + Api.Tests) | **0 warnings / 0 errors** |
+| API | `dotnet test` (affected classes) | **89 / 89 pass** — ConditionEngine current-date + `DateDifferenceDays`; `ComputeSla`(window)/`ComputeTimeInStage`; the 5 `RequestDto`-fixture consumers |
+| Web | `tsc --noEmit` | **0 new** errors (1 pre-existing in `platform-admin/api.test.ts`, slice 20) |
+| Web | `jest` (affected suites) | **40 / 40 pass** — new SLA pill + time-in-stage + axe; list tint |
+| Web | `jest` (full suite) | **947 pass / 1 fail** — the fail is pre-existing `navItems.test.ts` (slice 19 Platform section) |
+| Web | coverage (global) | stmts **89.74%** / branch **80.61%** / funcs **84.97%** / lines **90.65%** — all ≥ 80% |
+| Web | `eslint` (my files) | **0 errors** |
+| Web | design-conformance (`--web-required`) | timed out at 180s (known env); diff has **0** raw colours/radii — conforms |
+| Review | code + security | no Critical/High/Medium in slice-21 code |
+
+## Deferred / not run (authorized)
+
+- **tSQLt** (`test_RequestsCore`, 3 new `StageEnteredAt` cases) — authored; execution needs the LocalDB + tSQLt harness (PrepareServer + full migration/proc apply). Same deferred posture as slices-1–2 / slice-18.
+- **Design-fidelity render-and-compare** — slice 21 *does* change a prototyped screen's rendered output (S4/S5 meta strip: SLA pill + Time in stage), but the change is an **intentional Phase-2 divergence** the slice plan authorizes as `[prototyped hooks]`: the prototype's SLA slot is binary (On track / Overdue) with no time-in-stage; §17.2 mandates the three-state SLA and §10.6 the time-in-stage item. A naive build-vs-prototype render would flag these spec-authorized additions as `added-element` / `content-drift` (false-blocking). The new UI is verified to render correctly and pass axe via jest. Deferred with authorization; no CLEAN manifest fabricated.
+
+## Pre-existing repo-wide gate debt (inherited; not introduced by slice 21)
+
+`jest` full suite (1 fail — `navItems.test.ts`, slice 19 Platform section) · `tsc` (1 error — `platform-admin/api.test.ts`, slice 20). Slice 21 adds **0 new** failures/errors and is coverage-net-neutral/positive. A future `fix/quality-gate-cleanup`-style branch is the right home for these two inherited items. `.last-clean-run.json` was **not** written; the developer authorized shipping with this status recorded.

@@ -61,6 +61,7 @@ Represents one PG/Dept workspace or the central AI Solutions workspace.
 | `Prefix` | `NVARCHAR(16)` NOT NULL UNIQUE | Globally unique per BS §6.7. Enforces prefix registry. |
 | `NextSequence` | `BIGINT` NOT NULL DEFAULT 0 | Monotonic per-workspace counter for `PREFIX-NNNNNNNN`. Atomically incremented at mint. **First minted record is `PREFIX-00000001`** (BS §6.7). |
 | `RetiredAt` | `DATETIME2` NULL | Retired workspaces keep the registry entry so Origin resolves for historical records (forward-only). |
+| `DueSoonWindowDays` | `INT` NOT NULL DEFAULT 3 | **Slice 21.** The SLA "Due soon" window (§17.2): a record is *Due soon* when `today ≤ DueDate ≤ today + DueSoonWindowDays`, *Overdue* below, *On track* above. Single per-workspace config value; no admin editor yet (migration 049). |
 | audit cols | | |
 
 Seed: **two workspaces** — the AI Solutions workspace and one PG/Dept template. Named practice groups are stood up by cloning the template (BS §1.1).
@@ -114,6 +115,8 @@ The primary object. Field set = BS §17 (already the source of truth). Highlight
 - **Derived (● workspace-local baseline):** Display Status (Derived-category), Mirror Status (AI-side only), Priority Score (Calculation = `BusinessValue + EfficiencyGain − LevelOfEffort`), SLA Status (Derived-category — Phase 2).
 
 > **Slice 5 physical storage.** Content-field values live in a single `FieldValues` **JSON** column (the field schema is workspace-configurable, so per-field columns would fight the data-driven design). `Name`, `Description`, `Stage` are also authoritative real columns (hot on lists + covering index) and are mirrored into the JSON so the condition engine derives Display/Mirror Status. List-critical values are **persisted computed columns** projected from the JSON — `DeptPgClient`, `AssignedAnalyst`, `DueDate`, `PriorityScore`. Hold lives in the JSON (`holdBlocked`/`holdReason`). Optimistic concurrency via a `ROWVERSION` (`RowVer`) surfaced as a base64 ETag. **PK is composite `(WorkspaceId, RecordId)`** so escalation's two-row shared-ID model holds.
+>
+> **Slice 21 addition.** `StageEnteredAt DATETIME2 NULL` (migration 048) records when the current stage began — stamped on create and reset on a real stage change (never on a no-op same-stage set). It drives **time-in-stage** (§10.6). SLA Status (§17.2) and time-in-stage are **not** stored — both depend on current-date (non-deterministic, so un-persistable like `DueDate`) and are derived at read time in the API service from `DueDate`, `StageEnteredAt`, and the workspace's `DueSoonWindowDays`.
 
 ### Task
 
