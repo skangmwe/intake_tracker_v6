@@ -1,14 +1,20 @@
-// Condition-engine evaluator (BS §3.1). Two responsibilities:
+// Condition-engine evaluator (BS §3.1). Responsibilities:
 //   1. Evaluate a single rule's condition against a field-value map (show/hide/require/
 //      produce-value share the same condition form) — consumed at form-render time (slice 5+).
 //   2. Validate a workspace's field-rule dependency graph at save: it must be acyclic and no
 //      deeper than three levels (§3.1). The Fields module runs ValidateGraph before persisting
 //      a field change.
+//   3. (Slice 21, §3.1) Resolve the current-date reference: a rule's CompareValue of @today /
+//      @now / @currentDate resolves to today's date, and relational/equality comparators are
+//      date-aware, so a rule can compare a date field against the current date.
+//   4. (Slice 21, §3.3) Expose the date-difference primitive — whole days between two dates (or a
+//      date and current-date) — the numeric substrate a Calculation field uses to stay numeric-only.
 //
-// Phase 1 compares a field value against a literal only; the current-date / current-user
-// references (§3.1) are Phase 2 and are not implemented here.
+// Current date comes from IClock (never DateTime.UtcNow directly), so the engine is deterministic
+// under test.
 
 using System.Globalization;
+using McDermott.AiTracker.Api.Shared.Time;
 
 namespace McDermott.AiTracker.Api.Shared.Rules;
 
@@ -35,6 +41,16 @@ public interface IConditionEngine
 
     /// <summary>Validates the dependency edges (from → to) are acyclic and no deeper than three levels.</summary>
     GraphValidationResult ValidateGraph(IEnumerable<(string From, string To)> edges);
+
+    /// <summary>The current-date reference (§3.1) — today's date in UTC, from the injected clock.</summary>
+    DateOnly Today();
+
+    /// <summary>
+    /// The date-difference primitive (§3.3): whole days from <paramref name="from"/> to <paramref name="to"/>
+    /// (positive when <paramref name="to"/> is later). Either side may be an ISO date string or the
+    /// current-date token (@today / @now / @currentDate). Returns null when either side is not a date.
+    /// </summary>
+    int? DateDifferenceDays(string? from, string? to);
 }
 
 public sealed class ConditionEngine : IConditionEngine
@@ -42,11 +58,32 @@ public sealed class ConditionEngine : IConditionEngine
     // §3.1 — the dependency chain may build on another derived field but never deeper than three levels.
     public const int MaxDependencyDepth = 3;
 
+    private readonly IClock _clock;
+
+    public ConditionEngine(IClock clock)
+    {
+        _clock = clock;
+    }
+
+    public DateOnly Today() => DateOnly.FromDateTime(_clock.UtcNow.UtcDateTime);
+
+    public int? DateDifferenceDays(string? from, string? to)
+    {
+        if (TryParseDate(ResolveDateToken(from), out var fromDate)
+            && TryParseDate(ResolveDateToken(to), out var toDate))
+        {
+            return toDate.DayNumber - fromDate.DayNumber;
+        }
+
+        return null;
+    }
+
     public bool Evaluate(ConditionRule rule, IReadOnlyDictionary<string, object?> fieldValues)
     {
         fieldValues.TryGetValue(rule.WhenFieldKey, out var raw);
         var actual = Normalise(raw);
-        var expected = rule.CompareValue;
+        // §3.1 — @today / @now / @currentDate on the compare side resolve to the current date.
+        var expected = ResolveDateToken(rule.CompareValue);
 
         return rule.Comparator switch
         {
@@ -56,10 +93,10 @@ public sealed class ConditionEngine : IConditionEngine
             "neq" => !ValuesEqual(actual, expected),
             "contains" => actual is not null && expected is not null
                           && actual.Contains(expected, StringComparison.OrdinalIgnoreCase),
-            "gt" => CompareNumeric(actual, expected) > 0,
-            "gte" => CompareNumeric(actual, expected) >= 0,
-            "lt" => IsNumericComparable(actual, expected) && CompareNumeric(actual, expected) < 0,
-            "lte" => IsNumericComparable(actual, expected) && CompareNumeric(actual, expected) <= 0,
+            "gt" => Compare(actual, expected) is int gt && gt > 0,
+            "gte" => Compare(actual, expected) is int gte && gte >= 0,
+            "lt" => Compare(actual, expected) is int lt && lt < 0,
+            "lte" => Compare(actual, expected) is int lte && lte <= 0,
             _ => false,
         };
     }
@@ -121,25 +158,53 @@ public sealed class ConditionEngine : IConditionEngine
             return actualNumber == expectedNumber;
         }
 
+        if (TryParseDate(actual, out var actualDate) && TryParseDate(expected, out var expectedDate))
+        {
+            return actualDate == expectedDate;
+        }
+
         return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsNumericComparable(string? actual, string? expected) =>
-        TryParse(actual, out _) && TryParse(expected, out _);
-
-    private static int CompareNumeric(string? actual, string? expected)
+    /// <summary>
+    /// Ordering of two operands — numeric first, then date (§3.1 current-date comparisons), else
+    /// incomparable (null), so a relational comparator on non-numeric/non-date operands fails closed.
+    /// </summary>
+    private static int? Compare(string? actual, string? expected)
     {
         if (TryParse(actual, out var actualNumber) && TryParse(expected, out var expectedNumber))
         {
             return actualNumber.CompareTo(expectedNumber);
         }
 
-        // Non-numeric operands never satisfy a relational comparator.
-        return -1;
+        if (TryParseDate(actual, out var actualDate) && TryParseDate(expected, out var expectedDate))
+        {
+            return actualDate.CompareTo(expectedDate);
+        }
+
+        return null;
     }
 
     private static bool TryParse(string? value, out decimal number) =>
         decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out number);
+
+    private static bool TryParseDate(string? value, out DateOnly date) =>
+        DateOnly.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
+
+    /// <summary>Resolves the current-date token (@today / @now / @currentDate) to an ISO date; passes other values through.</summary>
+    private string? ResolveDateToken(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "@today" or "@now" or "@currentdate" => Today().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            _ => value,
+        };
+    }
 
     // ─── graph helpers ──────────────────────────────────────────────────
     private static List<string>? DetectCycle(Dictionary<string, List<string>> adjacency)

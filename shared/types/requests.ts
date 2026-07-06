@@ -36,8 +36,16 @@ export interface Outcome {
   duplicateOfRecordId?: RecordId;
 }
 
-/** SLA status — Phase 2 derivation. */
+/** SLA status — derived from Due Date vs the workspace's due-soon window (BS §17.2). */
 export type SlaStatus = 'OnTrack' | 'DueSoon' | 'Overdue';
+
+/** Time spent in the record's current stage (BS §10.6) — whole days since the stage was entered. */
+export interface TimeInStage {
+  /** The stage the record is currently in (matches `RequestDto.stage`). */
+  stageKey: string;
+  /** Whole days elapsed since the current stage began. */
+  days: number;
+}
 
 /**
  * The Request DTO returned by GET /requests/{id}. Carries content fields as an
@@ -70,6 +78,8 @@ export interface RequestDto {
   outcome?: Outcome;
   displayStatus: string;
   slaStatus?: SlaStatus;
+  /** Time in the current stage (BS §10.6) — omitted when the stage-entry time is unknown. */
+  timeInStage?: TimeInStage;
 
   // Values
   name: string;

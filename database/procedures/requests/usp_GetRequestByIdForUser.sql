@@ -33,6 +33,11 @@ BEGIN
         r.Submitted,
         r.FieldValues,
         r.PriorityScore,
+        -- Slice 21: DueDate + StageEnteredAt drive detail-side SLA Status (§17.2) and time-in-stage
+        -- (§10.6); DueSoonWindowDays is the workspace's due-soon window. All derived in the service.
+        r.DueDate,
+        r.StageEnteredAt,
+        w.DueSoonWindowDays,
         r.CreatedAt,
         r.UpdatedAt,
         r.CreatedBy,
@@ -43,6 +48,8 @@ BEGIN
         ON m.WorkspaceId = r.WorkspaceId
        AND m.UserId = @UserIdLocal
        AND m.IsDeleted = 0
+    INNER JOIN dbo.Workspaces AS w
+        ON w.WorkspaceId = r.WorkspaceId
     WHERE r.RecordId = @RecordIdLocal
       AND r.IsDeleted = 0;
 END;

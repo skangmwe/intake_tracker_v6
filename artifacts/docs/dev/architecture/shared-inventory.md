@@ -58,7 +58,7 @@ New web shared items added in slice 2:
 
 Cross-cutting items that moved from *placeholder* → **implemented** in slice 3:
 
-- **`condition-engine-eval`** — real `ConditionEngine` (`api/Api/Shared/Rules/ConditionEngine.cs`). `Evaluate(rule, fieldValues)` for show/hide/require/produce-value conditions, and `ValidateGraph(edges)` for the acyclic + depth ≤ 3 check (§3.1). Registered `Singleton` (stateless).
+- **`condition-engine-eval`** — real `ConditionEngine` (`api/Api/Shared/Rules/ConditionEngine.cs`). `Evaluate(rule, fieldValues)` for show/hide/require/produce-value conditions, and `ValidateGraph(edges)` for the acyclic + depth ≤ 3 check (§3.1). **Slice 21:** takes `IClock`; `Today()` + a `@today`/`@now`/`@currentDate` compare-value token (§3.1 current-date reference, date-aware comparisons) and the `DateDifferenceDays(from,to)` primitive (§3.3). Registered `Singleton`.
 - **`access-guard`** — real `IAccessGuard` / `AccessGuard` (`api/Api/Shared/Auth/AccessGuard.cs`). `HasWorkspaceLevelAsync(userId, workspaceId, minLevel)` + `IsPlatformAdminAsync(userId)`, reading `WorkspaceMembership` / `PlatformAdminGrant` via single-table EF. Returns booleans (403 is expected control flow, not an exception); controllers map false → 403 (never 404). Registered `Scoped`.
 
 New shared items added in slice 3:
@@ -272,9 +272,9 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 - **Consumers:** every controller endpoint. Ownership check returns `403`, never `404` (`api-error-handling.md`).
 
 ### `condition-engine-eval`
-- **Interface:** `Evaluate(rule, fieldValues) → RuleResult` — evaluates a show/hide/require/produce-value rule against a field-value map. Depth- and cycle-checked at save.
+- **Interface:** `Evaluate(rule, fieldValues) → bool` — evaluates a show/hide/require/produce-value rule against a field-value map. Depth- and cycle-checked at save via `ValidateGraph`. **Slice 21:** `Today()`, current-date compare-value token (`@today`/`@now`/`@currentDate`) with date-aware comparisons (§3.1), and `DateDifferenceDays(from, to) → int?` (§3.3). Constructed with `IClock` (deterministic under test).
 - **Location:** `api/Shared/Rules/ConditionEngine.cs`
-- **Consumers:** Fields & Objects (per-stage visibility), Tasks (preconditions), Approvals (conditional approvers), form rendering.
+- **Consumers:** Fields & Objects (per-stage visibility), Tasks (preconditions), Approvals (conditional approvers), form rendering. Current-date + date-diff are the substrate for configurable Calculation/DerivedCategory fields; SLA/time-in-stage compute directly in the Requests service (no engine coupling).
 
 ### `crossing-map-reader` (slice 9 — implemented)
 - **Interface:** `ICrossingMapReader.GetCrossingFieldsAsync(workspaceId, ct) → CrossingFieldRow[]` — the

@@ -32,6 +32,8 @@ public sealed class AppDbContext : DbContext
             entity.ToTable("Workspaces");
             entity.HasKey(workspace => workspace.WorkspaceId);
             entity.Property(workspace => workspace.Prefix).HasMaxLength(16);
+            // Slice 21 — SLA due-soon window (migration 049 owns the DB default of 3).
+            entity.Property(workspace => workspace.DueSoonWindowDays).HasDefaultValue(3);
         });
 
         modelBuilder.Entity<User>(entity =>

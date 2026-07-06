@@ -39,11 +39,15 @@ BEGIN
             WHERE LifecycleId = @LifecycleId AND StageKey = @ToStageLocal AND IsDeleted = 0)
             THROW 50041, N'usp_SetRequestStage: target stage is not part of the record''s lifecycle.', 1;
 
+        -- StageEnteredAt resets to now ONLY when the stage actually changes (BS §10.6): a no-op
+        -- set to the current stage must not restart the time-in-stage clock.
         UPDATE dbo.Requests
-        SET Stage       = @ToStageLocal,
-            FieldValues = JSON_MODIFY(FieldValues, N'$.stage', @ToStageLocal),
-            UpdatedBy   = @Actor,
-            UpdatedAt   = SYSUTCDATETIME()
+        SET Stage          = @ToStageLocal,
+            StageEnteredAt  = CASE WHEN Stage <> @ToStageLocal OR StageEnteredAt IS NULL
+                                   THEN SYSUTCDATETIME() ELSE StageEnteredAt END,
+            FieldValues     = JSON_MODIFY(FieldValues, N'$.stage', @ToStageLocal),
+            UpdatedBy       = @Actor,
+            UpdatedAt       = SYSUTCDATETIME()
         WHERE RecordId = @RecordIdLocal AND WorkspaceId = @Ws AND IsDeleted = 0;
 
         COMMIT TRANSACTION;

@@ -56,6 +56,7 @@ public sealed class CopyServiceTests
             Outcome: null,
             DisplayStatus: "Build",
             SlaStatus: null,
+            TimeInStage: null,
             Name: "Meeting-notes extractor",
             Description: "Pull actions from meetings.",
             Fields: fields ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal),

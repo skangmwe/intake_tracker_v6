@@ -58,10 +58,10 @@ BEGIN
 
         INSERT INTO dbo.Requests
             (RecordId, WorkspaceId, LifecycleId, Origin, Name, Description, Stage, Submitted,
-             FieldValues, CreatedBy, UpdatedBy)
+             StageEnteredAt, FieldValues, CreatedBy, UpdatedBy)
         VALUES
             (@RecordId, @Ws, @Lifecycle, @Origin, @NameLocal, @DescLocal, @StageLocal, SYSUTCDATETIME(),
-             @FieldsLocal, @Actor, @Actor);
+             SYSUTCDATETIME(), @FieldsLocal, @Actor, @Actor);
 
         -- Stamp any queued link-backs (slice 10). Best-effort: only targets that exist as a Request
         -- and pass the CHECK constraints (kind allow-list, not-self) are stamped; the rest are

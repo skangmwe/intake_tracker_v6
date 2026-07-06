@@ -127,7 +127,7 @@ beforeEach(() => {
 });
 
 describe('RecordDetailPage', () => {
-  it('RecordDetailPage — renders the breadcrumb, name, four meta fields, stepper, and six tabs', async () => {
+  it('RecordDetailPage — renders the breadcrumb, name, five meta fields, stepper, and six tabs', async () => {
     // Arrange / Act
     const { container } = renderPage();
 
@@ -139,12 +139,56 @@ describe('RecordDetailPage', () => {
     expect(screen.getByText('Assigned analyst')).toBeInTheDocument();
     expect(screen.getByText('Priority score')).toBeInTheDocument();
     expect(screen.getByText('Due date')).toBeInTheDocument();
+    expect(screen.getByText('Time in stage')).toBeInTheDocument();
     expect(container.querySelector('[data-ds="stepper"]')).toBeInTheDocument();
 
     const tablist = screen.getByRole('tablist', { name: 'Record sections' });
     expect(within(tablist).getAllByRole('tab')).toHaveLength(6);
 
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RecordDetailPage — time-in-stage shows in the meta strip and the SLA pill reflects Overdue', async () => {
+    // Arrange — an overdue record parked five days in its current stage.
+    jest.mocked(useRequests.useRequest).mockReturnValue(
+      queryResult(buildRequestDto({ slaStatus: 'Overdue', timeInStage: { stageKey: 'intake', days: 5 } })),
+    );
+
+    // Act
+    const { container } = renderPage();
+
+    // Assert — meta strip carries the day count; the Intake read-only SLA slot renders the pill.
+    expect(await screen.findByText('5 days')).toBeInTheDocument();
+    expect(await screen.findByText('Overdue')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RecordDetailPage — a Due-soon SLA renders the "Due soon" pill and singular/Today time-in-stage', async () => {
+    // Arrange — due soon, entered the stage today (0 days → "Today").
+    jest.mocked(useRequests.useRequest).mockReturnValue(
+      queryResult(buildRequestDto({ slaStatus: 'DueSoon', timeInStage: { stageKey: 'intake', days: 0 } })),
+    );
+
+    // Act
+    renderPage();
+
+    // Assert
+    expect(await screen.findByText('Due soon')).toBeInTheDocument();
+    expect(screen.getByText('Today')).toBeInTheDocument();
+  });
+
+  it('RecordDetailPage — no due date shows no SLA pill and an em-dash time-in-stage', async () => {
+    // Arrange — slaStatus omitted (no due date) and no time-in-stage.
+    jest.mocked(useRequests.useRequest).mockReturnValue(queryResult(buildRequestDto()));
+
+    // Act
+    renderPage();
+
+    // Assert — neither SLA state label appears; the SLA slot and time-in-stage fall back to em-dash.
+    expect(await screen.findByText('Meeting-notes action extraction')).toBeInTheDocument();
+    expect(screen.queryByText('Overdue')).not.toBeInTheDocument();
+    expect(screen.queryByText('Due soon')).not.toBeInTheDocument();
+    expect(screen.queryByText('On track')).not.toBeInTheDocument();
   });
 
   it('RecordDetailPage — Intake tab renders editable fields seeded from the record', async () => {
