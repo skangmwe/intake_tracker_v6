@@ -1,2 +1,3 @@
-// Public API of the audit feature. Only exports intended for other features go here.
-export {};
+// Public API of the audit feature (S33 Workspace audit, slice 18). Only exports intended for the
+// router / other features go here.
+export { WorkspaceAuditPage } from './components/WorkspaceAuditPage';

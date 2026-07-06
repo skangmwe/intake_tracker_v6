@@ -17,6 +17,7 @@
 | [`announcements.ts`](../../../../shared/types/announcements.ts) | `AnnouncementDto`, `AnnouncementCreateRequest`, `AnnouncementListRow`, `AnnouncementStatus`, `AnnouncementAudience`. |
 | [`notifications.ts`](../../../../shared/types/notifications.ts) | `EventEnvelope`, `EventType`, `NotificationDto`, `NotificationCategory`, `NotificationQuery` + `UnreadCountDto` (bell feed + badge, slice 12), `HomeDto` + `HomeApprovalItem`/`HomeRecordItem`/`HomeActivityItem`, `SearchHitDto`, `SearchResultDto`, `SavedViewDto`, `SavedViewUpsertRequest`, `SavedDashboardDto`, `DashboardWidgetDto`, `WidgetType`. |
 | [`imports.ts`](../../../../shared/types/imports.ts) | `ImportStatusDto`, `ImportFlaggedRow`, `ExportRequest`, `ImportStatus`. |
+| [`audit.ts`](../../../../shared/types/audit.ts) | Audit-log surfaces (S33 workspace audit, slice 18; S39 firm-wide, slice 19): `AuditLogRowDto`, `AuditLogQuery`. Read-only projection of the append-only `AuditEntry`; distinct from `collaboration.ts`'s per-record `AuditEventItem`. |
 | [`index.ts`](../../../../shared/types/index.ts) | Barrel export. |
 
 ## Conventions

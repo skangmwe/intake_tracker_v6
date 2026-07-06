@@ -13,3 +13,4 @@ export * from './collaboration';
 export * from './announcements';
 export * from './notifications';
 export * from './imports';
+export * from './audit';

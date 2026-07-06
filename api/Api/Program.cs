@@ -195,6 +195,12 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IExportS
     McDermott.AiTracker.Api.Modules.ImportExport.ExportService>();
 builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.ImportExport.ImportProcessor>();
 
+// ─── Audit (slice 18) — the S33 Workspace audit-log read. Reads the append-only dbo.AuditEntry
+//     through usp_QueryWorkspaceAudit; owns no write path (the event spine's AuditWriter, slice 1,
+//     is the only writer). WorkspaceAdmin-gated in the controller. ───
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Audit.IAuditService,
+    McDermott.AiTracker.Api.Modules.Audit.AuditService>();
+
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
 // intended contract (api-coding-standards.md — Swagger is gated by config, not

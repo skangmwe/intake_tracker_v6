@@ -522,9 +522,15 @@ Export a saved view as CSV. Access-respecting: columns follow the view, rows fol
 - `GET /api/v1/workspaces/{id}/fields` / `POST` / `PATCH` — Fields & objects (S30).
 - `GET /api/v1/workspaces/{id}/lifecycle` / `PATCH` — Lifecycle & gates (S31).
 - `GET /api/v1/workspaces/{id}/approver-teams` / `POST` / `DELETE` — Approver Teams membership.
-- `GET /api/v1/workspaces/{id}/audit/query` — Workspace audit log.
+- `POST /api/v1/workspaces/{id}/audit/query` — Workspace audit log (S33, slice 18). *(Built as `POST`, not the `GET` first sketched here: the filter set is multi-field — date range / actor / record / event type — so it takes a JSON body per api/CLAUDE.md, matching every peer `/query` endpoint.)*
 
 Fields & objects retire actions guarded (BS §6.2, §7.1).
+
+### `POST /api/v1/workspaces/{id}/audit/query`
+WorkspaceAdmin only (403, never 404). The append-only audit trail for one workspace, newest first, filtered and paginated.
+
+- **Body:** `AuditLogQuery` — `{ page, pageSize, dateFrom?, dateTo?, actorUserId?, recordId?, eventType? }`. `pageSize > 100` → `400` (never clamped).
+- **Response:** `PaginatedResponse<AuditLogRowDto>` (`AuditLogRowDto` in `shared/types/audit.ts` — `auditId`, `recordId`/`objectType` nullable, `eventType`, `actorUserId`/`actorName` nullable for system events, `eventAt`, `payload`). Two proc result sets (page rows + total count) from `usp_QueryWorkspaceAudit`; the `AuditEntry` row payload is already sanitised at emit time.
 
 ### `GET /api/v1/workspaces/{id}/lifecycle`
 The full S31 config. Any workspace member (Viewer+) may read — records and forms render from it.

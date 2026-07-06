@@ -1,0 +1,125 @@
+/* S33 Workspace audit. Design-system tokens only (no raw hex / off-spec radii). A data-dense surface
+   (the log table) — full-width with gutters, not the 1200px reading cap (data-visualization.md,
+   app-shell-and-headers.md). The table scrolls within its own shell so the page never scrolls
+   horizontally (responsive-and-mobile.md). */
+
+.audit-page {
+  max-width: none;
+  padding: var(--space-6);
+  min-width: 0;
+}
+
+.audit-page__title {
+  margin-bottom: var(--space-2);
+}
+
+.audit-page__lead {
+  color: var(--text-secondary);
+  max-width: 72ch;
+  margin-bottom: var(--space-5);
+}
+
+/* Filter bar */
+.audit-filters {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.audit-filters__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.audit-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.audit-page__count {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+/* Log table (semantic <table>, data-visualization.md) */
+.audit-table-shell {
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.audit-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.audit-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.audit-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: top;
+}
+
+.audit-table__when {
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.audit-table__record {
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.audit-table__details > summary {
+  cursor: pointer;
+  color: var(--accent-interactive);
+  font-size: 13px;
+}
+
+.audit-table__payload {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  max-width: 60ch;
+}
+
+/* Pagination */
+.audit-page__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .audit-page {
+    padding: var(--space-4);
+  }
+}
