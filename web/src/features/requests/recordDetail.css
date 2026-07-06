@@ -77,6 +77,11 @@
   overflow-wrap: break-word;
 }
 
+/* Add-to-catalog affordance (slice 14) — sits just under the record name. */
+.record-header__action {
+  margin-top: var(--space-2);
+}
+
 /* ─── Meta strip ─── */
 
 .record-meta {

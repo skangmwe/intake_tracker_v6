@@ -170,21 +170,31 @@ export interface SearchResultDto extends SearchHitDto {
 
 export type SavedViewScope = 'personal' | 'shared';
 
+/**
+ * The list surface a saved view binds to (slice 14). A view is scoped to one object type so a
+ * Request view never appears on the Feature Catalog picker and vice versa.
+ */
+export type SavedViewObjectType = 'Request' | 'Feature' | 'Task' | 'Announcement';
+
 export interface SavedViewDto {
   id: SavedViewId;
   workspaceId: WorkspaceId;
+  objectType: SavedViewObjectType;
   name: string;
   scope: SavedViewScope;
   isDefault: boolean;
   columns: string[];
   filters: Record<string, import('./common').FilterClause>;
   sort: Array<{ column: string; direction: 'asc' | 'desc' }>;
+  /** The owning user — personal views are visible only to their owner. */
+  ownerUserId: UserId;
   createdBy: UserId;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
 }
 
 export interface SavedViewUpsertRequest {
+  objectType: SavedViewObjectType;
   name: string;
   scope: SavedViewScope;
   isDefault?: boolean;

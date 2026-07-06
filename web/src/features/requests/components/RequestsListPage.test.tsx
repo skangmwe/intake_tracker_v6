@@ -13,6 +13,14 @@ import { useRequestsList } from '../useRequests';
 jest.mock('@/features/users/useMe');
 jest.mock('../useRequests');
 
+// Slice 14 wired the saved-view picker to the real saved-views feature. These tests focus on the
+// list itself; stub the feature so no network call fires and the editor stays out of the tree.
+jest.mock('@/features/saved-views', () => ({
+  useSavedViews: () => ({ data: [] }),
+  toPickerView: (view: { id: string; name: string; scope: string }) => view,
+  SavedViewEditor: () => null,
+}));
+
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
@@ -24,7 +32,10 @@ const mockedUseRequestsList = useRequestsList as jest.MockedFunction<typeof useR
 
 const me = buildMe({ memberships: [buildMembership({ level: 'Member' })] });
 
-function page(items: RequestListRow[], totalCount = items.length): PaginatedResponse<RequestListRow> {
+function page(
+  items: RequestListRow[],
+  totalCount = items.length,
+): PaginatedResponse<RequestListRow> {
   return { items, totalCount, page: 1, pageSize: 25 };
 }
 
@@ -36,7 +47,9 @@ interface ListState {
 }
 
 function mockHooks(list: ListState) {
-  mockedUseMe.mockReturnValue({ data: me, isLoading: false, isError: false } as ReturnType<typeof useMe>);
+  mockedUseMe.mockReturnValue({ data: me, isLoading: false, isError: false } as ReturnType<
+    typeof useMe
+  >);
   mockedUseRequestsList.mockReturnValue({
     data: list.data,
     isLoading: list.isLoading ?? false,
@@ -81,8 +94,16 @@ describe('RequestsListPage', () => {
   it('RequestsListPage — Repo URL keeps an http(s) URL as-is and shows em-dash when absent', () => {
     // Arrange — one row with an absolute URL, one with no repo value.
     const base = buildRequestListRow();
-    const withHttp = { ...base, id: 'AIS-00000001', columns: { ...base.columns, id: 'AIS-00000001', repo: 'http://repo/y' } };
-    const noRepo = { ...base, id: 'AIS-00000002', columns: { ...base.columns, id: 'AIS-00000002', repo: null } };
+    const withHttp = {
+      ...base,
+      id: 'AIS-00000001',
+      columns: { ...base.columns, id: 'AIS-00000001', repo: 'http://repo/y' },
+    };
+    const noRepo = {
+      ...base,
+      id: 'AIS-00000002',
+      columns: { ...base.columns, id: 'AIS-00000002', repo: null },
+    };
     mockHooks({ data: page([withHttp, noRepo] as never) });
 
     // Act
@@ -261,7 +282,9 @@ describe('RequestsListPage', () => {
 
   it('RequestsListPage — a malformed due date renders an em-dash, not a crash', async () => {
     // Arrange — an unparseable due value exercises the formatDue guard.
-    const row = buildRequestListRow({ columns: { ...buildRequestListRow().columns, due: 'not-a-date' } });
+    const row = buildRequestListRow({
+      columns: { ...buildRequestListRow().columns, due: 'not-a-date' },
+    });
     mockHooks({ data: page([row]) });
 
     // Act

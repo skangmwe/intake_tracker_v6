@@ -401,6 +401,40 @@ Pre-record and pre-audit. Sits outside the no-hard-delete floor.
 
 Discardable freely by owner (real DELETE, not soft) — the sole exception to the no-hard-delete floor.
 
+### Feature (slice 14 — BS §2.5 / §18)
+
+The reusable-feature inventory record. AI-Solutions-workspace-only; a feature **never escalates and never crosses the bridge**, so it carries none of the Request's lifecycle/gate/crossing machinery. Runs on the same metadata engine as Requests — content-field values live in a `FieldValues` JSON map, with a few list-critical values projected as PERSISTED computed columns. Minted from the AI workspace's own prefix/sequence (the object type, not a distinct prefix, distinguishes a feature from a Request — BS §18.1).
+
+| Column | Type | Notes |
+|---|---|---|
+| `RecordId` | `NVARCHAR(20)` | `PREFIX-NNNNNNNN`, minted via `usp_MintRecordId` on the AI workspace. |
+| `WorkspaceId` | FK → Workspace | Always the AI Solutions workspace. Composite PK `(WorkspaceId, RecordId)` mirrors Requests. |
+| `Origin` | `NVARCHAR(200)` NULL | Resolved from the prefix at mint (BS §17.1). |
+| `Name` | `NVARCHAR(400)` | Required. Promoted real column + mirrored into `FieldValues`. |
+| `Maturity` | `NVARCHAR(16)` | `Draft` → `Published` → `Deprecated` (BS §18.5). Set by publish/deprecate; no gate. |
+| `FieldValues` | JSON (`NVARCHAR(MAX)`) | `oneLiner`, `whatItDoes`, `featureType`, `capabilityTags[]`, `solutionPattern[]`, `techStack[]`, `howToReuse`, `demoUrl`, `repoUrl`, `owner`, `dataClassification`, `complianceFlags[]`. `name`/`maturity` mirrored in. |
+| `OneLiner` / `FeatureType` / `OwnerUserId` | computed PERSISTED | Projected from the JSON for the S9 list/covering index. |
+| `RowVer` | `ROWVERSION` | Backs the PATCH ETag. |
+
+`sourced-from` provenance is a **typed link** (feature → Request), not a column — stamped at submission from an Add-to-catalog draft (§TypedLink). Visuals are the Attachments object (BS §18.6), never a scalar field. Standard six audit columns + soft delete. Indexes: `IX_Features_RecordId`, covering `IX_Features_List (WorkspaceId, IsDeleted) INCLUDE (Name, Maturity, OneLiner, FeatureType, OwnerUserId, Origin, UpdatedAt)`.
+
+### SavedView (slice 14 — BS §22.3-22.4)
+
+A named column/filter/sort definition over a list surface. **Presentation only — never widens access** (applied over an already access-filtered query; rows resolve to the caller's entitlements). `ObjectType` binds a view to one surface (a Request view never appears on the Feature picker). Columns/Filters/Sort are opaque JSON matching the shared `SavedViewDto` shape.
+
+| Column | Type | Notes |
+|---|---|---|
+| `SavedViewId` | `UNIQUEIDENTIFIER` PK | `NEWSEQUENTIALID()`. |
+| `WorkspaceId` | FK → Workspace | |
+| `ObjectType` | `NVARCHAR(16)` | `Request` \| `Feature` \| `Task` \| `Announcement`. |
+| `Name` | `NVARCHAR(200)` | |
+| `Scope` | `NVARCHAR(16)` | `personal` (owner-only) \| `shared` (all workspace members). |
+| `OwnerUserId` | FK → User | Personal views visible only to their owner. |
+| `IsDefault` | `BIT` | One default per (owner, workspace, objectType) — the upsert proc clears the prior default on set. |
+| `ColumnsJson` / `FiltersJson` / `SortJson` | JSON | `string[]` · `Record<key, FilterClause>` · `[{ column, direction }]`. |
+
+Access: personal by owner (Member+ to create), shared by WorkspaceAdmin. Soft delete never touches records. Indexes: `IX_SavedView_Surface (WorkspaceId, ObjectType, IsDeleted) INCLUDE (Scope, OwnerUserId, Name, IsDefault)`, FK `IX_SavedView_OwnerUserId`.
+
 ## The escalation bridge (data-model view)
 
 Escalation creates a **second Request row** in the AI Solutions workspace with the **same `RecordId`** as the PG-side row. This is the shared canonical ID (BS §6.1). Both rows persist. The bridge is:

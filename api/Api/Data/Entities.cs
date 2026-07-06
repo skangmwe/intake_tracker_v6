@@ -616,3 +616,41 @@ public sealed class AnnouncementListRowEntity
     public Guid AuthorUserId { get; set; }
     public int TotalCount { get; set; }
 }
+
+// ─── Slice 14 (Feature Catalog + Saved views) — keyless read projections ───────────────
+
+/// <summary>One full Feature row from usp_GetFeatureByIdForUser (access baked into the proc join).</summary>
+public sealed class FeatureRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public Guid WorkspaceId { get; set; }
+    public string Origin { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Maturity { get; set; } = string.Empty;
+    /// <summary>Content-field map (JSON). Confidential — never logged.</summary>
+    public string FieldValues { get; set; } = "{}";
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+    public string UpdatedBy { get; set; } = string.Empty;
+    /// <summary>SQL rowversion — surfaced as the base64 ETag for optimistic concurrency.</summary>
+    public byte[] RowVer { get; set; } = Array.Empty<byte>();
+}
+
+/// <summary>One SavedView row from usp_ListSavedViews / usp_GetSavedViewById.</summary>
+public sealed class SavedViewRow
+{
+    public Guid SavedViewId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string ObjectType { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Scope { get; set; } = string.Empty;
+    public Guid OwnerUserId { get; set; }
+    public bool IsDefault { get; set; }
+    public string ColumnsJson { get; set; } = "[]";
+    public string FiltersJson { get; set; } = "{}";
+    public string SortJson { get; set; } = "[]";
+    public string CreatedBy { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}

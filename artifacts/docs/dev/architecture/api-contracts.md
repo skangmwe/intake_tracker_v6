@@ -348,23 +348,23 @@ Unsubscribe. Caller may remove their own subscription; a WorkspaceAdmin may remo
 
 ## 11 · Feature Catalog
 
-### `GET /api/v1/features/query`
-List Features (AI Solutions workspace only — the reporting hub). Access-respecting per BS §10.2.
+### `POST /api/v1/features/query`  *(slice 14 — `POST` not the earlier `GET /query`: matches the established `POST …/query` body convention; api/CLAUDE.md "no complex params in query strings")*
+List Features (AI Solutions workspace only — the reporting hub). AI-workspace Viewer+ (a non-member gets `403`). Firm-wide read-only access to Published features via the Dashboard-viewer surface (BS §10.4) is slice 23.
 
-- **Body:** `FeatureListQuery` — same shape as `RequestListQuery`.
+- **Body:** `PaginatedQuery` (the `FeatureListQuery` "same shape as `RequestListQuery`" — both are `PaginatedQuery`). Filter keys: `maturity`/`featureType`/`techStack`/`capabilityTags` (select), `name` (text). Sort keys: `id`/`name`/`featureType`/`maturity`/`updatedAt` (default `updatedAt` desc — the "Published catalog" starter view).
 - **Response:** `PaginatedResponse<FeatureListRow>`.
 
 ### `GET /api/v1/features/{id}`
-Feature detail.
+Feature detail. `403` (never `404`) when not visible (BS §22.6). `sourcedFromRecordIds` resolves from the feature's `sourced-from` typed links.
 
 ### `POST /api/v1/features`
-Create a Feature (Analyst-level in AI Solutions workspace).
+Create a Feature (Member+ in AI Solutions workspace — resolved server-side by `Kind='ai-solutions'`). `503` if no AI Solutions workspace is provisioned.
 
-- **Body:** `FeatureCreateRequest`.
+- **Body:** `FeatureCreateRequest` (carries optional `queuedLinks` — the `sourced-from` link-back from an Add-to-catalog draft, stamped at create).
 - **Response:** `201 → FeatureDto`.
 
 ### `POST /api/v1/requests/{recordId}/add-to-catalog`
-Prefill a Feature draft from a shipped Request. Stamps `sourced-from` link on submit (BS §5).
+Prefill a Feature draft from a shipped Request. **Service-level operation** (no dedicated proc) mirroring Copy (§9): reads the source Request access-gated, builds a `Feature`-typed Draft prefilled same-field-identity (name, techStack, solutionPattern, repoUrl) via `usp_SaveDraft`, and queues a `sourced-from` link. The link is stamped from the new feature at submission (`POST /features`). Source not visible → `403`.
 
 - **Response:** `201 → { draftId }`.
 
@@ -449,17 +449,17 @@ Full workspace search — fields, comments, attachment filenames (BS §9.5, `S27
 
 ## 15 · Saved views and dashboards
 
-### `GET /api/v1/workspaces/{id}/saved-views`
-List saved views the caller can see (personal + shared audience-scoped).
+### `GET /api/v1/workspaces/{id}/saved-views?objectType={Request|Feature|Task|Announcement}`  *(slice 14 — `objectType` query param added so a view binds to one list surface: a Request view never shows on the Feature picker. Defaults to `Request` when omitted.)*
+List saved views the caller can see on one surface — every shared view in the workspace + the caller's own personal views (Viewer+).
 
 ### `POST /api/v1/workspaces/{id}/saved-views`
-Create.
+Create — personal (Member+) or shared (WorkspaceAdmin).
 
-- **Body:** `SavedViewUpsertRequest` — `{ name, scope: 'personal' | 'shared', isDefault, columns, filters, sort }`.
-- **Response:** `201 → SavedViewDto`.
+- **Body:** `SavedViewUpsertRequest` — `{ objectType, name, scope: 'personal' | 'shared', isDefault, columns, filters, sort }` *(slice 14 — `objectType` added)*.
+- **Response:** `201 → SavedViewDto` *(slice 14 — the DTO carries `objectType` + `ownerUserId`)*.
 
 ### `PATCH /api/v1/saved-views/{id}` / `DELETE /api/v1/saved-views/{id}`
-Edit / soft-delete (personal by owner; shared by admin).
+Edit / soft-delete (personal by owner; shared by WorkspaceAdmin). Unknown id → `404`; not authorized → `403`. Delete never touches records (BS §22.4).
 
 ### `GET /api/v1/workspaces/{id}/dashboards`
 Dashboards visible to the caller (audience two-layer).
