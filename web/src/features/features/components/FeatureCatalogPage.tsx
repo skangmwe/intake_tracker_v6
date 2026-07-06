@@ -5,11 +5,12 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GridFour, Plus } from '@phosphor-icons/react';
+import { Cards, GridFour, Plus } from '@phosphor-icons/react';
 
 import type { FeatureListRow, FilterClause, PaginatedQuery, SavedViewDto } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
+import { EmptyListFilteredToZero, EmptyListZeroData } from '@/shared/components/EdgeStates';
 import {
   FilterFunnel,
   SavedViewPicker,
@@ -334,28 +335,25 @@ export function FeatureCatalogPage() {
       {viewBar}
       <div className="feature-catalog-page__grid">
         {rows.length === 0 ? (
-          <div className="fc-empty" data-ds={hasFilters ? 'empty-filtered' : 'empty-zero'}>
-            <p className="fc-empty__title">
-              {hasFilters
-                ? 'No features match the current filters.'
-                : 'No features in the catalog yet.'}
-            </p>
-            {hasFilters ? (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setFilters({});
-                  setPage(1);
-                }}
-              >
-                Clear all filters
-              </Button>
-            ) : (
-              <Button variant="primary" onClick={() => navigate('/feature-catalog/new')}>
-                New feature
-              </Button>
-            )}
-          </div>
+          hasFilters ? (
+            <EmptyListFilteredToZero
+              onClearFilters={() => {
+                setFilters({});
+                setPage(1);
+              }}
+            />
+          ) : (
+            <EmptyListZeroData
+              icon={Cards}
+              title="No features in the catalog yet"
+              message="Harvest a feature from a shipped request, or add one to start the catalog."
+              action={
+                <Button variant="primary" onClick={() => navigate('/feature-catalog/new')}>
+                  Add your first feature
+                </Button>
+              }
+            />
+          )
         ) : (
           <>
             <TableShell

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 
 import type { FeatureDto, RecordId, UserId, WorkspaceId } from '@shared/types';
 
+import { ApiError } from '@/shared/http/apiClient';
 import { renderWithProviders, buildMe, buildMembership } from '@/test-utils';
 import { useMe } from '@/features/users/useMe';
 
@@ -57,7 +58,7 @@ function buildFeature(overrides: Partial<FeatureDto> = {}): FeatureDto {
 
 function mockHooks(
   feature: FeatureDto | undefined,
-  opts: { isLoading?: boolean; isError?: boolean } = {},
+  opts: { isLoading?: boolean; isError?: boolean; error?: unknown } = {},
 ) {
   mockedUseMe.mockReturnValue({
     data: buildMe({ memberships: [buildMembership({ level: 'Member' })] }),
@@ -66,6 +67,7 @@ function mockHooks(
     data: feature,
     isLoading: opts.isLoading ?? false,
     isError: opts.isError ?? false,
+    error: opts.error ?? null,
   } as ReturnType<typeof useFeature>);
   mockedUseSetMaturity.mockReturnValue({
     mutate: maturityMutate,
@@ -116,5 +118,30 @@ describe('FeatureDetailPage', () => {
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent("couldn't be loaded");
+  });
+
+  it('FeatureDetailPage — a 403 renders the no-access surface, never the feature', async () => {
+    // Arrange
+    mockHooks(undefined, {
+      isError: true,
+      error: new ApiError(403, {
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Forbidden.',
+      }),
+    });
+
+    // Act
+    const { container } = renderWithProviders(<FeatureDetailPage />, {
+      route: '/feature-catalog/AIS-00000042',
+    });
+
+    // Assert — the shared NoAccessPage (S40); never reveals whether the feature exists.
+    expect(
+      screen.getByRole('heading', { name: 'You don’t have access to this feature.' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Citation overlay')).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

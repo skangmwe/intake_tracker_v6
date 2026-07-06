@@ -7,6 +7,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft } from '@phosphor-icons/react';
 
+import { NoAccessPage } from '@/shared/components/EdgeStates';
 import { ApiError } from '@/shared/http/apiClient';
 
 import { useAnnouncement } from '../useAnnouncements';
@@ -37,16 +38,15 @@ export function AnnouncementDetailPage() {
 
   if (query.isError) {
     const isForbidden = query.error instanceof ApiError && query.error.status === 403;
+    if (isForbidden) {
+      return <NoAccessPage resourceNoun="announcement" />;
+    }
     return (
       <div className="ann-page">
         {backLink}
-        <section className="mws-empty mws-empty--zero" aria-labelledby="ann-detail-error">
-          <h1 id="ann-detail-error" className="h2">{isForbidden ? 'You don’t have access to this' : 'Announcement unavailable'}</h1>
-          <p className="body">
-            {isForbidden
-              ? 'This announcement isn’t available to you. Ask your workspace admin if you think that’s a mistake.'
-              : 'We couldn’t load this announcement. Try again in a moment.'}
-          </p>
+        <section className="mws-empty mws-empty--filtered" aria-labelledby="ann-detail-error">
+          <h1 id="ann-detail-error" className="h2">Announcement unavailable</h1>
+          <p className="body">We couldn’t load this announcement. Try again in a moment.</p>
         </section>
       </div>
     );

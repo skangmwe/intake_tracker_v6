@@ -284,20 +284,3 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-
-/* ─── No-access surface ─── */
-
-.record-noaccess {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  align-items: flex-start;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  background: var(--bg-surface);
-  padding: var(--space-6);
-}
-
-.record-noaccess h1 {
-  margin: 0;
-}

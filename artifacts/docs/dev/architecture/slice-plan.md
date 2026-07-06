@@ -266,6 +266,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S40**, **S41**, **S42** all `[deferred]`.
 - **Depends on:** 2.
 - **Estimated LoC:** 1,500.
+- **Status: completed** — three shared `EdgeStates` components (`NoAccessPage`/`EmptyListZeroData`/`EmptyListFilteredToZero`) replacing the ad-hoc inline empty/no-access markup across the named surfaces. Decisions: (1) the design-system `.mws-empty` classes already existed, but `.mws-empty__body` used `--text-secondary` — fixed to navy on the pale zero/no-access variants (theme-stable rule) and theme-aware only on the bordered filtered card. (2) `NoAccessPage` renders on **any 403** (the API returns 403 identically for forbidden and non-existent — never a 404); it takes a `resourceNoun` for the object type only, and its CTA always goes to Home per the blueprint (no `homeTo` override on the wired surfaces). (3) In-card "no items" notes (Attachments/Watchers/Gates/Relationships/option editors) were left as-is — section-level, not the S40/S41/S42 canonical list/route states. (4) Dashboards' embedded grid is out of scope (no dashboards until slice 23). (5) Orphaned `.rl-empty`/`.fc-empty`/`.record-noaccess` CSS removed. New tsc errors: 0 (one pre-existing error in `platform-admin/api.test.ts`, untouched here, left for the test-file cleanup pass per the slice-15–18 precedent).
+- **Started:** 2026-07-06T14:29:26-04:00
+- **Ended:** 2026-07-06T14:50:01-04:00
+- **Duration:** 00:20:35
 
 ---
 

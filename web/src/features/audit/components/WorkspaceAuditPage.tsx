@@ -10,6 +10,7 @@ import type { AuditLogQuery } from '@shared/types';
 
 import { AUDIT_LOG_PAGE_SIZE } from '@/shared/constants';
 import { Button } from '@/shared/components/Button';
+import { EmptyListFilteredToZero } from '@/shared/components/EdgeStates';
 import type { SelectOption } from '@/shared/components/Form';
 import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
 import { useMe } from '@/features/users/useMe';
@@ -127,15 +128,11 @@ export function WorkspaceAuditPage() {
       )}
 
       {audit.data && rows.length === 0 && (
-        <section className="mws-empty mws-empty--filtered" aria-labelledby="audit-none">
-          <h2 id="audit-none" className="h3">
-            No matching activity
-          </h2>
-          <p className="body">No audit entries match these filters. Try widening the date range or clearing filters.</p>
-          <Button variant="secondary" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        </section>
+        <EmptyListFilteredToZero
+          title="No matching activity"
+          message="No audit entries match these filters. Try widening the date range or clearing filters."
+          onClearFilters={clearFilters}
+        />
       )}
 
       {audit.data && rows.length > 0 && (

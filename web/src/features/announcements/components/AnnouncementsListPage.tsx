@@ -3,7 +3,9 @@
 // (S21). Renders explicit loading / error / empty states (web-component-architecture.md).
 
 import { Link } from 'react-router-dom';
-import { PushPin } from '@phosphor-icons/react';
+import { Megaphone, PushPin } from '@phosphor-icons/react';
+
+import { EmptyListZeroData } from '@/shared/components/EdgeStates';
 
 import { useAnnouncementsFeed } from '../useAnnouncements';
 
@@ -26,10 +28,11 @@ export function AnnouncementsListPage() {
       )}
 
       {feed.data && items.length === 0 && (
-        <section className="mws-empty mws-empty--zero" aria-labelledby="ann-feed-empty">
-          <h2 id="ann-feed-empty" className="h3">No announcements yet</h2>
-          <p className="body">When your workspace posts news, it will show up here and in your bell.</p>
-        </section>
+        <EmptyListZeroData
+          icon={Megaphone}
+          title="No announcements yet"
+          message="When your workspace posts news, it will show up here and in your bell."
+        />
       )}
 
       {items.length > 0 && (

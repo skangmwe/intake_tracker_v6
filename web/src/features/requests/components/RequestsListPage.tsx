@@ -24,6 +24,7 @@ import {
   type TableRow,
 } from '@/shared/components/Table';
 import { agingTintClass } from '@/shared/components/Feedback';
+import { EmptyListFilteredToZero, EmptyListZeroData } from '@/shared/components/EdgeStates';
 import { useMe } from '@/features/users/useMe';
 import {
   SavedViewEditor,
@@ -299,37 +300,6 @@ function RequestsPagination({
   );
 }
 
-interface RequestsEmptyProps {
-  filtered: boolean;
-  onClearFilters: () => void;
-  onCreate: () => void;
-}
-
-function RequestsEmpty({ filtered, onClearFilters, onCreate }: RequestsEmptyProps) {
-  if (filtered) {
-    return (
-      <div className="rl-empty" data-ds="empty-filtered">
-        <p className="rl-empty__title">No requests match the current filters.</p>
-        <div className="rl-empty__actions">
-          <Button variant="secondary" onClick={onClearFilters}>
-            Clear all filters
-          </Button>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="rl-empty" data-ds="empty-zero">
-      <p className="rl-empty__title">No requests yet.</p>
-      <div className="rl-empty__actions">
-        <Button variant="primary" onClick={onCreate}>
-          Create request
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export function RequestsListPage() {
@@ -527,11 +497,20 @@ export function RequestsListPage() {
       {viewBar}
       {rows.length === 0 ? (
         <div className="requests-list-page__grid">
-          <RequestsEmpty
-            filtered={hasFilters}
-            onClearFilters={clearAllFilters}
-            onCreate={() => navigate('/requests/new')}
-          />
+          {hasFilters ? (
+            <EmptyListFilteredToZero onClearFilters={clearAllFilters} />
+          ) : (
+            <EmptyListZeroData
+              icon={FilePlus}
+              title="No requests yet"
+              message="Create your first request to start tracking work across the workspace."
+              action={
+                <Button variant="primary" onClick={() => navigate('/requests/new')}>
+                  Create your first request
+                </Button>
+              }
+            />
+          )}
         </div>
       ) : (
         <div className="requests-list-page__grid">

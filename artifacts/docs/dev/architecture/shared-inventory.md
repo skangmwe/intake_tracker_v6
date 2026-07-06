@@ -239,12 +239,12 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 - **Location:** `web/src/shared/components/Feedback/`
 - **Consumers:** Record detail (S4/S5) stepper + status pills, list surfaces (aging tint, empty state, skeleton loading), gates on record (approve/reject buttons with status pills).
 
-### Edge states (S40 / S41 / S42)
-- `NoAccessPage` — S40. Never reveals existence.
-- `EmptyListZeroData` — S41. Pale-fill new-user ceremony.
-- `EmptyListFilteredToZero` — S42. Bordered card, "Clear filters" secondary CTA.
-- **Location:** `web/src/shared/components/EdgeStates/`
-- **Consumers:** every list surface (S2, S9, S22, audit logs, dashboards' embedded grid) and every record-detail route.
+### Edge states (S40 / S41 / S42) — built in slice 20
+- `NoAccessPage` — S40. Full-page pale surface, "Go to Home" CTA. Never reveals existence (no id/title/"not found"); rendered on any 403. Props: `resourceNoun` (default "record"), `homeTo`, `onGoHome`. `data-ds="no-access"`.
+- `EmptyListZeroData` — S41. Pale-fill new-user ceremony (navy text, theme-stable). Props: `title`, `message`, `action?`, `icon?`. `data-ds="empty-zero"`.
+- `EmptyListFilteredToZero` — S42. Bordered card (`--bg-surface`, never pale), "Clear filters" secondary CTA. Props: `onClearFilters`, `title?`, `message?`, `clearLabel?`. `data-ds="empty-filtered"`.
+- **Location:** `web/src/shared/components/EdgeStates/` (consume the shared `.mws-empty` design-system classes; the zero/no-access variants force navy body text per the theme-stable rule).
+- **Consumers wired (slice 20):** lists — Requests (S2), Feature catalog (S9), Announcements (S22), Workspace audit (S33), Firm-wide audit (S39); detail routes — Record (S4/S5), Feature (S10), Announcement (S21). Dashboards' embedded grid arrives with dashboards (slice 23).
 
 ### Icons
 - Phosphor React icons — regular weight only. Sizes 16 / 20 / 24 / 32 / 48 (no in-between per `iconography.md`).

@@ -139,7 +139,7 @@ describe('RequestsListPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('RequestsListPage — filtered-to-zero shows a Clear all filters action', async () => {
+  it('RequestsListPage — filtered-to-zero shows a Clear filters action', async () => {
     // Arrange — a preset saved view activates a filter, and the result set is empty.
     mockHooks({ data: page([], 0) });
 
@@ -148,21 +148,24 @@ describe('RequestsListPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /All open requests/ }));
     await userEvent.click(screen.getByRole('button', { name: /^Unassigned/ }));
 
-    // Assert
-    expect(screen.getByText('No requests match the current filters.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeInTheDocument();
+    // Assert — the shared EmptyListFilteredToZero (S42): bordered card, "Clear filters" CTA.
+    expect(screen.getByText('No matches for these filters')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('RequestsListPage — zero-data (no rows, no filters) offers Create request', async () => {
+  it('RequestsListPage — zero-data (no rows, no filters) offers Create your first request', async () => {
     // Arrange
     mockHooks({ data: page([], 0) });
 
     // Act
     const { container } = renderWithProviders(<RequestsListPage />, { route: '/requests' });
 
-    // Assert
-    expect(screen.getByText('No requests yet.')).toBeInTheDocument();
+    // Assert — the shared EmptyListZeroData (S41): pale ceremony + first-run CTA.
+    expect(screen.getByText('No requests yet')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Create your first request' }),
+    ).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
