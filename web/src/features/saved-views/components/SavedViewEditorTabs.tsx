@@ -200,7 +200,7 @@ export function SortTab({
     <div className="sv-tab" role="tabpanel" aria-label="Sort">
       <p className="sv-tab__hint">Rows sort by each rule in order.</p>
       {rows.length === 0 && (
-        <p className="sv-tab__empty">No sort — rows use the surface's default order.</p>
+        <p className="sv-tab__empty">No sort — rows use the surface&apos;s default order.</p>
       )}
       <ul className="sv-rows">
         {rows.map((row) => (

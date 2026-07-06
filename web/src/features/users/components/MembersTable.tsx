@@ -29,6 +29,7 @@ interface MembersTableProps {
 
 export function MembersTable({ members, onChangeLevel, onDeactivate, pendingLevelUserId }: MembersTableProps) {
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a horizontally-scrollable region must be keyboard-focusable so keyboard users can scroll it (axe scrollable-region-focusable).
     <div className="users-access__table-shell" tabIndex={0} role="region" aria-label="Workspace members">
       <table className="users-access__table">
         <caption className="users-access__caption">Members of this workspace</caption>

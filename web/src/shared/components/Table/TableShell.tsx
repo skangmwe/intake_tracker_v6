@@ -159,21 +159,25 @@ export function TableShell({ columns, rows, sort, onSortChange, renderFilter, ca
                       <span className="ast-grid__filter">{renderFilter(column)}</span>
                     )}
                     {index !== lastIndex && (
-                      <div
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label={`Resize ${column.label} column`}
-                        aria-valuenow={widths[index] ?? DEFAULT_COL_WIDTH}
-                        aria-valuemin={MIN_COL_WIDTH}
-                        tabIndex={0}
-                        className="ast-grid__resize"
-                        onMouseDown={(event) => {
-                          event.stopPropagation();
-                          setDrag({ index, startX: event.clientX, startWidth: widths[index] ?? DEFAULT_COL_WIDTH });
-                        }}
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => onHandleKeyDown(event, index)}
-                      />
+                      <>
+                        {/* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- the resize handle is a focusable window-splitter (role=separator + aria-valuenow + arrow-key resize); jsx-a11y treats separator as non-interactive, which is a false positive here. */}
+                        <div
+                          role="separator"
+                          aria-orientation="vertical"
+                          aria-label={`Resize ${column.label} column`}
+                          aria-valuenow={widths[index] ?? DEFAULT_COL_WIDTH}
+                          aria-valuemin={MIN_COL_WIDTH}
+                          tabIndex={0}
+                          className="ast-grid__resize"
+                          onMouseDown={(event) => {
+                            event.stopPropagation();
+                            setDrag({ index, startX: event.clientX, startWidth: widths[index] ?? DEFAULT_COL_WIDTH });
+                          }}
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => onHandleKeyDown(event, index)}
+                        />
+                        {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
+                      </>
                     )}
                   </div>
                 );
@@ -183,6 +187,7 @@ export function TableShell({ columns, rows, sort, onSortChange, renderFilter, ca
 
           <div className="ast-grid__rowgroup" role="rowgroup">
             {rows.map((row) => (
+              // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- the row click is a convenience; the accessible open trigger is a per-row control the consumer supplies (data-visualization.md), so the row itself is not focusable or keyboard-activated.
               <div
                 key={row.id}
                 role="row"

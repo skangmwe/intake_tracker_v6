@@ -109,4 +109,71 @@ describe('fieldForm', () => {
     const request = formToRequest(baseForm({ fieldType: 'ShortText' }), 'Request');
     expect(request.visibleStages).toBeNull();
   });
+
+  it('buildInitialForm — no field and no type options — falls back to ShortText', () => {
+    const form = buildInitialForm(null, 'Request', []);
+    expect(form.fieldType).toBe('ShortText');
+  });
+
+  it('buildInitialForm — existing field with null optionals — coerces to empty strings and lists', () => {
+    // Arrange — every nullable source field is null, and the surviving rule has no compare value
+    const field = buildFieldDefinition({
+      section: null,
+      minValue: null,
+      maxValue: null,
+      visibleStages: null,
+      derived: null,
+      rules: [
+        { id: 'r', action: 'Show', whenFieldKey: 'stage', comparator: 'isSet', compareValue: null, produceValue: null, sortOrder: 1 },
+      ],
+    });
+
+    // Act
+    const form = buildInitialForm(field, 'Request', TYPES);
+
+    // Assert
+    expect(form.section).toBe('');
+    expect(form.minValue).toBe('');
+    expect(form.maxValue).toBe('');
+    expect(form.visibleStages).toEqual([]);
+    expect(form.rules[0]!.compareValue).toBe('');
+    expect(form.expression).toBe('');
+  });
+
+  it('formToRequest — trims a blank section to null and forwards non-empty visible stages', () => {
+    const request = formToRequest(
+      baseForm({ fieldType: 'ShortText', section: '   ', visibleStages: ['build', 'qa'] }),
+      'Request',
+    );
+    expect(request.section).toBeNull();
+    expect(request.visibleStages).toEqual(['build', 'qa']);
+  });
+
+  it('formToRequest — a select option keeps a provided label', () => {
+    const request = formToRequest(
+      baseForm({ options: [{ id: 'a', value: 'high', label: 'High priority' }] }),
+      'Request',
+    );
+    expect(request.options).toEqual([{ value: 'high', label: 'High priority', sortOrder: 0 }]);
+  });
+
+  it('formToRequest — a comparator that needs a value keeps the trimmed value', () => {
+    const form = baseForm({
+      fieldType: 'ShortText',
+      rules: [{ id: 'r', action: 'Require', whenFieldKey: 'x', comparator: 'eq', compareValue: '  build  ' }],
+    });
+    const request = formToRequest(form, 'Request');
+    expect(request.rules?.[0]?.compareValue).toBe('build');
+  });
+
+  it('formToRequest — DerivedCategory field builds a DerivedCategory config', () => {
+    const request = formToRequest(baseForm({ fieldType: 'DerivedCategory', defaultValue: '@stage' }), 'Request');
+    expect(request.derived).toEqual({ kind: 'DerivedCategory', expression: null, defaultValue: '@stage' });
+  });
+
+  it('formToRequest — a non-numeric bound on a numeric field parses to null', () => {
+    const request = formToRequest(baseForm({ fieldType: 'Number', minValue: 'abc', maxValue: '' }), 'Request');
+    expect(request.minValue).toBeNull();
+    expect(request.maxValue).toBeNull();
+  });
 });

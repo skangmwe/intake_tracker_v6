@@ -21,9 +21,11 @@ const mockedSave = saveBlob as jest.MockedFunction<typeof saveBlob>;
 
 function wrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return ({ children }: { children: ReactNode }) => (
+  const Wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
+  Wrapper.displayName = 'TestQueryWrapper';
+  return Wrapper;
 }
 
 beforeEach(() => jest.clearAllMocks());

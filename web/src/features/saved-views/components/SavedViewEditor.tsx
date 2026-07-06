@@ -137,7 +137,9 @@ export function SavedViewEditor({
   const heading = useMemo(() => (editingView ? 'Edit view' : 'New saved view'), [editingView]);
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- scrim: mousedown-to-close is a convenience; Escape and the in-sheet controls are the accessible affordances.
     <div className="sv-overlay" onMouseDown={onClose}>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the sheet swallows mousedown so an in-sheet drag doesn't bubble to the scrim and close it; not a user-facing interaction. */}
       <div
         ref={sheetRef}
         className="sv-sheet"

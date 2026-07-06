@@ -27,7 +27,7 @@ describe('import-export api', () => {
     await startImport(WORKSPACE, file);
 
     // Assert
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/workspaces/${WORKSPACE}/imports/csv`);
     expect(opts).toMatchObject({ method: 'POST' });
     expect((opts as { body: FormData }).body).toBeInstanceOf(FormData);

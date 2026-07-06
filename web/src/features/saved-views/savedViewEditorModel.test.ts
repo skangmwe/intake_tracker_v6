@@ -95,4 +95,59 @@ describe('savedViewEditorModel', () => {
     expect(isDraftValid({ ...emptyDraft([]), name: '  ' })).toBe(false);
     expect(isDraftValid({ ...emptyDraft([]), name: 'Named' })).toBe(true);
   });
+
+  it('draftFromView — maps number and boolean clauses to comparator rows', () => {
+    // Arrange — one clause of each remaining kind, plus a number op the reverse map does not know
+    const view = buildView({
+      filters: {
+        priority: { kind: 'number', op: '>=', value: 5 },
+        score: { kind: 'number', op: '=', value: 7 },
+        flagged: { kind: 'boolean', value: true },
+        archived: { kind: 'boolean', value: false },
+      },
+    });
+
+    // Act
+    const rows = Object.fromEntries(draftFromView(view).filters.map((row) => [row.column, row]));
+
+    // Assert
+    expect(rows.priority).toMatchObject({ comparator: 'gte', value: '5' });
+    expect(rows.score).toMatchObject({ comparator: 'gt', value: '7' }); // unknown op → 'gt' fallback
+    expect(rows.flagged).toMatchObject({ comparator: 'is', value: 'true' });
+    expect(rows.archived).toMatchObject({ comparator: 'is', value: 'false' });
+  });
+
+  it('filterRowToClause — trims text and splits a multi-value select row', () => {
+    // Act + Assert
+    expect(filterRowToClause({ id: 'a', column: 'name', comparator: 'contains', value: ' Acme ' })).toEqual({
+      kind: 'text',
+      contains: 'Acme',
+    });
+    expect(filterRowToClause({ id: 'b', column: 'stage', comparator: 'is', value: 'build, , qa ' })).toEqual({
+      kind: 'select',
+      values: ['build', 'qa'],
+    });
+  });
+
+  it('filterRowToClause — a row with no column is dropped', () => {
+    expect(filterRowToClause({ id: 'c', column: '', comparator: 'contains', value: 'x' })).toBeNull();
+  });
+
+  it('draftToUpsertRequest — drops sort rows that have no column', () => {
+    // Arrange
+    const draft = {
+      ...emptyDraft(['name']),
+      name: 'V',
+      sort: [
+        { id: 's1', column: 'name', direction: 'asc' as const },
+        { id: 's2', column: '', direction: 'desc' as const },
+      ],
+    };
+
+    // Act
+    const request = draftToUpsertRequest(draft, 'Request');
+
+    // Assert
+    expect(request.sort).toEqual([{ column: 'name', direction: 'asc' }]);
+  });
 });

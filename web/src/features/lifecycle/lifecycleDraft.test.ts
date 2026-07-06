@@ -51,6 +51,21 @@ describe('draftFromConfig / draftToRequest', () => {
     const request = draftToRequest([newLifecycle()]);
     expect(request.lifecycles[0]).not.toHaveProperty('id');
   });
+
+  it('draftToRequest — omits id for newly added stages and gates but keeps seeded ids', () => {
+    // Arrange — add a fresh (id-less) stage and gate to a seeded lifecycle
+    const state = seed();
+    const withStage = lifecycleDraftReducer(state, { type: 'STAGE_ADD', lifecycleUid: state[0]!.uid });
+    const withGate = lifecycleDraftReducer(withStage, { type: 'GATE_ADD', lifecycleUid: state[0]!.uid });
+
+    // Act
+    const lifecycle = draftToRequest(withGate).lifecycles[0]!;
+
+    // Assert
+    expect(lifecycle.stages[0]).toHaveProperty('id'); // seeded stage keeps its id
+    expect(lifecycle.stages.at(-1)).not.toHaveProperty('id'); // the new stage omits id
+    expect(lifecycle.gates.at(-1)).not.toHaveProperty('id'); // the new gate omits id
+  });
 });
 
 describe('factory helpers', () => {
@@ -136,6 +151,21 @@ describe('lifecycleDraftReducer', () => {
     const next = lifecycleDraftReducer(state, { type: 'STAGE_REMOVE', lifecycleUid: state[0]!.uid, stageUid: qaStageUid });
     expect(next[0]!.stages).toHaveLength(1);
     expect(next[0]!.gates[0]!.toStageKey).toBe('build');
+  });
+
+  it('STAGE_REMOVE — leaves stages and gates untouched when the stage uid is unknown', () => {
+    const state = seed();
+    const next = lifecycleDraftReducer(state, { type: 'STAGE_REMOVE', lifecycleUid: state[0]!.uid, stageUid: 'no-such-uid' });
+    expect(next[0]!.stages).toHaveLength(2);
+    expect(next[0]!.gates[0]!.toStageKey).toBe('qa'); // gate keys unchanged (nothing was removed)
+  });
+
+  it('LIFECYCLE_REMOVE — removing a non-default lifecycle leaves the default in place', () => {
+    const withSecond = lifecycleDraftReducer(seed(), { type: 'LIFECYCLE_ADD', lifecycle: newLifecycle() });
+    const nonDefaultUid = withSecond[1]!.uid;
+    const next = lifecycleDraftReducer(withSecond, { type: 'LIFECYCLE_REMOVE', uid: nonDefaultUid });
+    expect(next).toHaveLength(1);
+    expect(next[0]!.isDefault).toBe(true);
   });
 
   it('GATE_ADD / GATE_UPDATE / GATE_REMOVE — manage gates', () => {

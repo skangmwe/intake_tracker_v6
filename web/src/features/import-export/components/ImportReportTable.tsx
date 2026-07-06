@@ -40,6 +40,7 @@ export function ImportReportTable({ rows }: { rows: ImportFlaggedRow[] }) {
   return (
     // Keyboard-focusable so a keyboard-only user can scroll the report horizontally
     // (axe scrollable-region-focusable); labelled as a region for screen readers.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a horizontally-scrollable region must be keyboard-focusable so keyboard users can scroll it (axe scrollable-region-focusable).
     <div className="ie-report" tabIndex={0} role="region" aria-label="Import validation report">
       <table className="ie-report__table">
         <caption className="ie-report__caption">Rows needing attention</caption>

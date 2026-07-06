@@ -57,7 +57,9 @@ export function Modal({ title, onClose, children, footer }: ModalProps) {
   }, [onClose]);
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- scrim: mousedown-to-close is a convenience; Escape and the in-dialog controls are the accessible affordances.
     <div className="mws-modal-scrim" onMouseDown={onClose}>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the dialog swallows mousedown so an in-dialog drag doesn't bubble to the scrim and close it; not a user-facing interaction. */}
       <div
         className="mws-modal"
         data-ds="modal"
