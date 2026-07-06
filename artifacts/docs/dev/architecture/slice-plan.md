@@ -202,6 +202,11 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** top-bar workspace-search popover `[prototyped]`; **S27 Search results** `[deferred]`.
 - **Depends on:** 5, 6.
 - **Estimated LoC:** 3,000.
+- **Divergence resolved (Step 3):** the plan named a **SQL Server full-text index** but the dev/test stack is **LocalDB, which has no Full-Text component** — the same wall slice 6 hit and deferred here. Resolved (approved at plan-confirmation): both procs use **LIKE-based token overlap**, workspace-scoped + access-gated by a `WorkspaceMembership` join — `usp_SearchRecords` (records: Name/Description/RecordId/Legacy ID, top 6) and `usp_SearchFull` (S27: records + comment bodies + attachment filenames, paged). No OCR; Legacy ID (in `FieldValues`) searchable. Access returns **empty, never 403** (never discloses existence — BS §9.5/§22.6). No new tables. See [15-slice-search.md](15-slice-search.md).
+- **Status: completed** — plus the shared extraction of `resolveActiveWorkspaceId` → `shared/workspace/activeWorkspace.ts` (3rd consumer) and a new `useDebouncedValue` hook. Pre-existing `tsc` errors in slice 6/8/11/12 test files surfaced (none in slice 15) and left for cleanup — they don't gate this ship flow.
+- **Started:** 2026-07-05T21:32:19-04:00
+- **Ended:** 2026-07-05T22:22:54-04:00
+- **Duration:** 00:50:35
 
 ### Slice 16: CSV Import & Export
 - **Spec section:** BS §13 (Import, export, and the API).

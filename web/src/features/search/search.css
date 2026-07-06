@@ -1,0 +1,160 @@
+/* S27 Search results (slice 15). Composed from design tokens only — cards on --bg-surface, 1px
+   --border-light, 2px radius, --space-* rhythm. Theme-stable: pale badge fills carry navy text via
+   the shared .mws-badge system. */
+
+.search-page {
+  max-width: min(100%, 1200px);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  min-width: 0;
+}
+
+.search-page__header {
+  margin-bottom: var(--space-5);
+}
+
+.search-page__header .body {
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+.search-page__refine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-4);
+}
+
+.search-page__input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.search-page__input-icon {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--icon-default);
+  pointer-events: none;
+}
+
+.search-page__input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: var(--control-h);
+  padding: 0 var(--space-3) 0 var(--space-7);
+  font-size: 16px; /* ≥16px so iOS does not zoom on focus (responsive-and-mobile.md) */
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.search-page__input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.search-page__count {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.search-group {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+}
+
+.search-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.search-group__title {
+  font-family: var(--font-mix);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.search-group__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.search-group__id {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.search-group__hits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.search-hit {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.search-hit__snippet {
+  min-width: 0;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+
+.search-hit__mark {
+  background: var(--color-pale-gold);
+  color: var(--color-navy); /* theme-stable: navy on a pale fill */
+  padding: 0 2px;
+  border-radius: var(--radius);
+}
+
+.search-page__pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.search-page__pager .caption {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .search-page {
+    padding: var(--space-5) var(--space-4) var(--space-7);
+  }
+
+  .search-hit {
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+}

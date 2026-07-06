@@ -473,6 +473,28 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
   draft's queued links (Copy / Promote link-back → typed link at submit). `usePromoteTask` added to the
   tasks feature; `buildTypedLink` added to `test-utils.tsx`.
 
+### Slice 15 — Search
+
+- **Web shared util `shared/workspace/activeWorkspace.ts`** — `resolveActiveWorkspaceId(memberships)`,
+  **extracted from `features/requests/workspace.ts`** once a third consumer (Search) appeared (Requests,
+  Feature Catalog, Search). `features/requests/workspace.ts` is now a one-line re-export, so existing
+  requests-feature imports are unchanged. Its test moved to `shared/workspace/activeWorkspace.test.ts`.
+- **Web shared hook `shared/hooks/useDebouncedValue.ts`** — generic value-debounce (timer cleared on
+  change/unmount). Consumed by the top-bar `WorkspaceSearch`. (`IntakeForm`'s pre-existing inline
+  debounce was left as-is — out of scope.)
+- **Search constants** added to `shared/constants.ts`: `SEARCH_DEBOUNCE_MS` (300), `SEARCH_MIN_QUERY_LENGTH`
+  (3, mirrors the proc token floor), `SEARCH_RESULTS_PAGE_SIZE` (20).
+- **Shared types reused (no new types):** `SearchHitDto` / `SearchResultDto` already existed in
+  `/shared/types/notifications.ts`.
+- **API module `Modules/Search`** — `SearchController` (`GET /search`, `POST /search/full`),
+  `SearchService` (raw ADO.NET over `usp_SearchRecords` / `usp_SearchFull`; the full read is two result
+  sets), `SearchDtos`. No DbContext entities added (raw reader). Registered in `Program.cs`. References
+  `PaginatedResponse<T>` from the Requests module (the shared paginated envelope).
+- **Database** (no new tables — reads existing Requests / Comments / Attachments): procs
+  `usp_SearchRecords`, `usp_SearchFull` (`database/procedures/search/`); tSQLt `database/tests/search/test_Search.sql`.
+  Matching is **LIKE-based token overlap**, not full-text (LocalDB has no Full-Text component — the same
+  resolution as slice 6's similar-requests nudge).
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.

@@ -7,3 +7,12 @@ export const SIMILAR_DEBOUNCE_MS = 400;
 
 /** Minimum query length before the similar-requests nudge fires — mirrors the proc's token floor. */
 export const SIMILAR_MIN_QUERY_LENGTH = 3;
+
+/** Debounce before the top-bar workspace search queries as the user types (S27, BS §9.5). */
+export const SEARCH_DEBOUNCE_MS = 300;
+
+/** Minimum query length before workspace search fires — mirrors the proc's 3-char token floor. */
+export const SEARCH_MIN_QUERY_LENGTH = 3;
+
+/** Page size for the S27 full Search results surface. */
+export const SEARCH_RESULTS_PAGE_SIZE = 20;

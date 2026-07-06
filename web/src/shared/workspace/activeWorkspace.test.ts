@@ -2,7 +2,7 @@
 
 import type { WorkspaceId } from '@shared/types';
 
-import { resolveActiveWorkspaceId } from './workspace';
+import { resolveActiveWorkspaceId } from './activeWorkspace';
 
 interface Membership {
   workspaceId: WorkspaceId;

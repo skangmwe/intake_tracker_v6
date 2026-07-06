@@ -22,7 +22,7 @@ describe('TopBar', () => {
   it('TopBar — shows the page title and the control cluster', () => {
     renderTopBar();
     expect(screen.getByText('Home')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Search this workspace' })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search this workspace' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Switch to dark theme' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Account — Priya Raman' })).toBeInTheDocument();

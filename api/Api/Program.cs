@@ -170,6 +170,11 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Features.IFeaturesSer
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.SavedViews.ISavedViewsService,
     McDermott.AiTracker.Api.Modules.SavedViews.SavedViewsService>();
 
+// ─── Search (slice 15) — records-only quick search + the S27 full search. Reads Requests /
+//     Comments / Attachments through access-gated procs; owns no state of its own ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Search.ISearchService,
+    McDermott.AiTracker.Api.Modules.Search.SearchService>();
+
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
 // intended contract (api-coding-standards.md — Swagger is gated by config, not

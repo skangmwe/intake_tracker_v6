@@ -434,16 +434,25 @@ Mark one read. Only the caller's own notification — someone else's id is `403`
 
 ## 14 · Search
 
+> **Access model (slice 15).** Both endpoints gate access **inside the stored proc** (a
+> `WorkspaceMembership` join on the searched workspace): a non-member — or any query matching nothing
+> the caller can see — gets an **empty result, never a `403`**, so search never discloses existence
+> (BS §9.5 / §22.6). There is no controller-level `403`; every authenticated caller may search and the
+> results are the access boundary. **Matching is LIKE-based token overlap, not SQL Server full-text** —
+> the dev/test stack is LocalDB (no Full-Text component); same resolution as slice 6's similar-requests
+> nudge, approved at the slice-15 plan-confirmation. No OCR (attachments match on filename only). Legacy
+> ID (in `Requests.FieldValues.$.legacyId`) is searchable.
+
 ### `GET /api/v1/search?q={query}&workspaceId={id}`
-Records-only workspace search — top-bar workspace-search behavior (records name + ID, max 6 results, access-respecting).
+Records-only workspace search — top-bar workspace-search behavior (records name + ID, max 6 results, access-respecting). *(slice 15 — matches on Name / Description / RecordId / Legacy ID.)*
 
 - **Response:** `SearchHitDto[]` — capped at 6.
 
 ### `POST /api/v1/search/full`
-Full workspace search — fields, comments, attachment filenames (BS §9.5, `S27`).
+Full workspace search — fields, comments, attachment filenames (BS §9.5, `S27`). *(slice 15 — `pageSize > 100` → `400`, never clamped, per api/CLAUDE.md pagination.)*
 
 - **Body:** `{ query, workspaceId, page, pageSize }`.
-- **Response:** `PaginatedResponse<SearchResultDto>`.
+- **Response:** `PaginatedResponse<SearchResultDto>` — two proc result sets (page rows + total count).
 
 ---
 
