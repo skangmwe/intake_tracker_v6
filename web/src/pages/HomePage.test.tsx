@@ -1,49 +1,59 @@
-import { screen, waitFor } from '@testing-library/react';
-import { axe } from 'jest-axe';
+// Tests for the HomePage route (S1). Since slice 22 it is a thin wrapper that mounts the Home surface
+// (HomeView); the full panel behaviour is covered in features/home. Here we verify it mounts the surface
+// (heading + Pin-as-home) with a workspace, and shows the no-workspace note without one. The home api is
+// mocked; renderWithProviders seeds `me` and hosts the query + router.
+
+import { screen } from '@testing-library/react';
+import { axe, toHaveNoViolations } from 'jest-axe';
+
+import type { HomeDto, WorkspaceId } from '@shared/types';
 
 import { buildMe, buildMembership, renderWithProviders } from '@/test-utils';
 
+import * as homeApi from '@/features/home/api';
 import { HomePage } from './HomePage';
 
-const membership = buildMembership();
+expect.extend(toHaveNoViolations);
+jest.mock('@/features/home/api');
+const mockedHomeApi = homeApi as jest.Mocked<typeof homeApi>;
 
-describe('HomePage', () => {
-  it('HomePage — memberships present — lists them', () => {
-    renderWithProviders(<HomePage />, { seedMe: buildMe({ memberships: [membership] }) });
-    expect(screen.getByText('AI Solutions')).toBeInTheDocument();
+const WORKSPACE_ID = 'ws-1' as WorkspaceId;
+
+function emptyHome(): HomeDto {
+  return {
+    workspaceId: WORKSPACE_ID,
+    decisions: [], decisionCount: 0,
+    work: [], workCount: 0,
+    activity: [], sinceLastSeenAt: null,
+    triage: [], triageCount: 0,
+    pinnedAnnouncements: [],
+  };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
+it('HomePage — with a workspace — mounts the Home surface (heading + Pin-as-home)', async () => {
+  // Arrange
+  mockedHomeApi.fetchHome.mockResolvedValue(emptyHome());
+
+  // Act
+  const { container } = renderWithProviders(<HomePage />, {
+    seedMe: buildMe({ memberships: [buildMembership({ workspaceId: WORKSPACE_ID })] }),
   });
 
-  it('HomePage — no memberships — shows the empty note', () => {
-    renderWithProviders(<HomePage />, { seedMe: buildMe({ memberships: [] }) });
-    expect(screen.getByText(/not a member of any workspace/i)).toBeInTheDocument();
-  });
+  // Assert
+  expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /default landing surface/i })).toBeInTheDocument();
+  expect(await axe(container)).toHaveNoViolations();
+});
 
-  it('HomePage — loading — shows a status message', () => {
-    // Arrange — a pending fetch keeps the query loading.
-    globalThis.fetch = jest.fn().mockReturnValue(new Promise(() => undefined)) as unknown as typeof fetch;
+it('HomePage — no membership — shows the no-workspace note', () => {
+  // Act
+  renderWithProviders(<HomePage />, { seedMe: buildMe({ memberships: [] }) });
 
-    // Act
-    renderWithProviders(<HomePage />);
-
-    // Assert
-    expect(screen.getByRole('status')).toHaveTextContent('Loading your workspaces…');
-  });
-
-  it('HomePage — fetch error — shows an alert', async () => {
-    // Arrange
-    globalThis.fetch = jest.fn().mockRejectedValue(new Error('network')) as unknown as typeof fetch;
-
-    // Act
-    renderWithProviders(<HomePage />);
-
-    // Assert
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
-  });
-
-  it('HomePage — no axe violations', async () => {
-    const { container } = renderWithProviders(<HomePage />, {
-      seedMe: buildMe({ memberships: [membership] }),
-    });
-    expect(await axe(container)).toHaveNoViolations();
-  });
+  // Assert
+  expect(screen.getByText(/not a member of any workspace/i)).toBeInTheDocument();
+  expect(mockedHomeApi.fetchHome).not.toHaveBeenCalled();
 });

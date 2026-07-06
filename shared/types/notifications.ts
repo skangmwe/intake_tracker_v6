@@ -2,7 +2,6 @@
 
 import type {
   AnnouncementId,
-  ApprovalRequestId,
   IsoDateTime,
   RecordId,
   SavedDashboardId,
@@ -108,47 +107,9 @@ export interface UnreadCountDto {
   count: number;
 }
 
-// ── Home surface (BS §10.7) ─────────────────────────────────────────────
-
-/**
- * Home surface composite payload — assembles viewer-scoped queries for the panels.
- * Each panel is capped and access-respecting.
- */
-export interface HomeDto {
-  needsYourDecision: HomeApprovalItem[];
-  yourWorkToday: HomeRecordItem[];
-  sinceYouWereLastHere: HomeActivityItem[];
-  newToTriage: HomeRecordItem[];
-  pinnedAnnouncements: import('./announcements').AnnouncementDto[];
-}
-
-export interface HomeApprovalItem {
-  approvalRequestId: ApprovalRequestId;
-  recordId: RecordId;
-  recordName: string;
-  gateName: string;
-  fromStage: string;
-  toStage: string;
-  /** The slot(s) the caller is eligible on. */
-  eligibleSlots: number[];
-}
-
-export interface HomeRecordItem {
-  recordId: RecordId;
-  name: string;
-  displayStatus: string;
-  dueDate?: string;
-  slaStatus?: import('./requests').SlaStatus;
-  origin?: string;
-}
-
-export interface HomeActivityItem {
-  recordId: RecordId;
-  recordName: string;
-  eventType: EventType;
-  eventAt: IsoDateTime;
-  summary: string;
-}
+// Home surface (BS §10.7) — the composite payload + panel item shapes moved to home.ts when slice 22
+// implemented S1 (the scaffold's placeholder Home types lived here; the real ones are the dedicated
+// per-surface file). See shared/types/home.ts.
 
 // ── Search ───────────────────────────────────────────────────────────────
 

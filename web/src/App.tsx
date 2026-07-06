@@ -40,6 +40,7 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import '@/mws/styles.css';
 import '@/mws/tokens.css';
 import '@/mws/app-shell.css';
+import '@/features/home/home.css';
 import '@/features/announcements/announcements.css';
 import '@/features/fields/fields.css';
 import '@/features/lifecycle/lifecycle.css';
