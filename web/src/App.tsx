@@ -23,6 +23,7 @@ import {
   RecordDetailPage,
   RequestsListPage,
 } from '@/features/requests';
+import { SearchResultsPage } from '@/features/search';
 import { HomePage } from '@/pages/HomePage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 
@@ -35,6 +36,7 @@ import '@/features/lifecycle/lifecycle.css';
 import '@/features/requests/requests.css';
 import '@/features/features/features.css';
 import '@/features/saved-views/savedViews.css';
+import '@/features/search/search.css';
 
 // Routes implemented by real feature surfaces; excluded from the placeholder fallback.
 const IMPLEMENTED_ROUTES = new Set([
@@ -67,6 +69,7 @@ export function App() {
               <Route path="/feature-catalog" element={<FeatureCatalogPage />} />
               <Route path="/feature-catalog/new" element={<AddToCatalogPage />} />
               <Route path="/feature-catalog/:recordId" element={<FeatureDetailPage />} />
+              <Route path="/search" element={<SearchResultsPage />} />
               <Route path="/announcements" element={<AnnouncementsListPage />} />
               <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
               <Route path="/admin/announcements" element={<ManageAnnouncementsPage />} />

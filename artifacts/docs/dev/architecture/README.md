@@ -39,3 +39,4 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 12 | Watchers + Notifications (S20 bell + Watchers & alerts tab) | completed | [slice-plan.md §Slice 12](slice-plan.md) | [12-slice-watchers-notifications.md](12-slice-watchers-notifications.md) |
 | 13 | Announcements (S21 detail + S22 list + S23 manage + bell deep-link) | completed | [slice-plan.md §Slice 13](slice-plan.md) | [13-slice-announcements.md](13-slice-announcements.md) |
 | 14 | Feature Catalog (S9/S10/S13) + Saved-view editor (S24 + S2 wiring) | completed | [slice-plan.md §Slice 14](slice-plan.md) | [14-slice-feature-catalog-saved-views.md](14-slice-feature-catalog-saved-views.md) |
+| 15 | Search — top-bar quick search + S27 results | completed | [slice-plan.md §Slice 15](slice-plan.md) | [15-slice-search.md](15-slice-search.md) |
