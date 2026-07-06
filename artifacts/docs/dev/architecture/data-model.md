@@ -78,6 +78,7 @@ Provisioned by `EnsureUserMiddleware` on first authenticated request (BS §4.1, 
 | `LastSignInAt` | `DATETIME2` NOT NULL | |
 | `IsDisabled` | `BIT` NOT NULL DEFAULT 0 | On deactivation. Notifications to disabled accounts are suppressed (BS §6.8). |
 | `Theme` | `NVARCHAR(10)` NOT NULL DEFAULT `'light'` | **Slice 2.** UI theme preference (`light`/`dark`, `CK_Users_Theme`). Persisted server-side so it roams across devices; the SPA mirrors it to `localStorage` for the pre-paint theme-init script. Non-PII. Preserved across sign-ins by `usp_UpsertUser`. |
+| `LastHomeSeenAt` | `DATETIME2` NULL | **Slice 22.** The anchor for Home's "Since you were last here" panel (§10.7). `usp_GetHomeActivity` reads the prior value, returns audit activity newer than it, then stamps the column to now (so the next Home load shows only what changed). NULL = never opened Home → the first visit falls back to a 7-day window. Distinct from `LastSignInAt` (bumped by provisioning, not per Home visit). Migration 050. Non-PII. |
 | audit cols | | |
 
 **Always-Encrypted** on `DisplayName` and `Email` per `database/CLAUDE.md` PII rules. **Slice 1 note:** the migration creates these as plain `NVARCHAR` because Always-Encrypted needs a Column Master Key (Key Vault) + Column Encryption Key that do not exist on a bare LocalDB/dev instance. Provisioning the CMK/CEK and converting the two columns to `ENCRYPTED WITH (...)` is a **deploy prerequisite** (staging/prod), tracked in the deployment plan — not built into the migration.

@@ -764,3 +764,48 @@ public sealed class MembershipUpsertResultRow
     public string Level { get; set; } = string.Empty;
     public bool WasAdded { get; set; }
 }
+
+// ─── Slice 22 (Home surface) — keyless panel projections ───────────────────────────────
+
+/// <summary>One "Needs your decision" row from usp_GetHomeDecisions. TotalCount is the windowed match.</summary>
+public sealed class HomeDecisionRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string GateLabel { get; set; } = string.Empty;
+    public string RoleLabel { get; set; } = string.Empty;
+    public DateTime OpenedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+/// <summary>One "Your work today" row from usp_GetHomeWork. SLA is derived API-side from DueDate +
+/// DueSoonWindowDays (RequestsService.ComputeSla). TotalCount is the windowed match.</summary>
+public sealed class HomeWorkRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string StageLabel { get; set; } = string.Empty;
+    public string Origin { get; set; } = string.Empty;
+    public DateTime? DueDate { get; set; }
+    public int DueSoonWindowDays { get; set; }
+    public int TotalCount { get; set; }
+}
+
+/// <summary>One "New to triage" row from usp_GetHomeTriage. TotalCount is the windowed match.</summary>
+public sealed class HomeTriageRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Origin { get; set; } = string.Empty;
+    public DateTime ReceivedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+/// <summary>One pinned-announcement row from usp_GetHomePinnedAnnouncements.</summary>
+public sealed class HomePinnedAnnouncementRow
+{
+    public Guid AnnouncementId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string BodySnippet { get; set; } = string.Empty;
+    public DateTime? PublishedAt { get; set; }
+}

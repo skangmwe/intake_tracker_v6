@@ -294,6 +294,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S1 Home** `[prototyped]`.
 - **Depends on:** 21, 5, 6, 8, 12, 13.
 - **Estimated LoC:** 5,500.
+- **Status: completed** — new `Modules/Home` (`GET /api/v1/home?workspaceId=`, Viewer-gated) composes five focused procs (`usp_GetHomeDecisions`/`Work`/`Activity`/`Triage`/`GetHomePinnedAnnouncements`) into `HomeDto`; `Users.LastHomeSeenAt` (migration 050) anchors "Since you were last here" (read-prev → stamp-now, OUTPUT param); `ConditionEngine` gains the `@currentUser`/`@me` token; web `features/home` builds the S1 four-panel layout + pinned strip + Pin-as-home. Four reconciliations resolved (workspace-scoped `/home`; `CreatedBy`-as-ownership + no-analyst triage; `quickCreateStubs` dropped; Pin-as-home is a static indicator) and the scaffold's placeholder Home types (in `notifications.ts`) excised in favour of the real `home.ts`. See [22-slice-home.md](22-slice-home.md).
+- **Started:** 2026-07-06T17:09:56-04:00
+- **Ended:** 2026-07-06T17:46:37-04:00
+- **Duration:** 00:36:41
 
 ### Slice 23: Seeded dashboards — AI Solutions default (S6), Workload (S14), Feature Catalog (S12); Dashboards list + PG starter + Dashboard-viewer surface
 - **Spec section:** BS §10.2 (widget palette), §10.3 (AI Solutions default), §10.3.1 (Workload), §10.3.2 (Feature Catalog dashboard), §10.4 (Dashboard-viewer), §10.5 (starter dashboards and locality).

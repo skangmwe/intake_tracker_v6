@@ -561,6 +561,33 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
   `EventGroup` promoted from the audit feature's internals to its barrel (`@/features/audit`) for the
   firm-wide table + filter bar.
 
+### Slice 22 — Home surface (S1)
+
+- **Shared types `/shared/types/home.ts` (new)** — `HomeDto` + `HomeDecisionItem` / `HomeWorkItem` /
+  `HomeActivityItem` / `HomeTriageItem` / `HomePinnedAnnouncement`. **Replaces** the scaffold's
+  placeholder Home types (`HomeDto`/`HomeApprovalItem`/`HomeRecordItem`/`HomeActivityItem`) removed from
+  `notifications.ts` (never consumed — slice 22 is the first Home build). Exported from the barrel.
+- **`ConditionEngine` (extended)** — `Evaluate` gains an optional `currentUserId` param and resolves the
+  `@currentUser` / `@me` compare-side token (§10.7) — the substrate for viewer-scoped saved-view filters.
+  Mirrors slice 21's `@today` addition; existing callers unchanged (default null).
+- **API `Modules/Home` (new)** — `IHomeService` / `HomeService` (`Scoped`) composes five viewer-scoped
+  reads into `HomeDto`; four bind keyless projections via `FromSqlRaw`, the activity read runs raw
+  ADO.NET (it returns rows **and** the prior-visit `@SinceLastSeenAt` OUTPUT). `HomeController`
+  (`GET /api/v1/home?workspaceId=`, Viewer-gated via `IAccessGuard` → 403 never 404). SLA on the work
+  panel reuses `RequestsService.ComputeSla`. Keyless projections `HomeDecisionRow` / `HomeWorkRow` /
+  `HomeTriageRow` / `HomePinnedAnnouncementRow` added to `Data/Entities.cs` + `AppDbContext`. Registered
+  in `Program.cs`.
+- **Database `procedures/home` (new)** — `usp_GetHomeDecisions`, `usp_GetHomeWork`, `usp_GetHomeActivity`
+  (owns the `LastHomeSeenAt` read-prev → stamp-now → return-since), `usp_GetHomeTriage`,
+  `usp_GetHomePinnedAnnouncements`. Migration 050 adds `Users.LastHomeSeenAt`. No new tables. tSQLt in
+  `tests/home`.
+- **Web `features/home` (from stub)** — `api.ts` (`fetchHome`), `useHome`, the pure `homeView.ts`
+  helpers (relative/waiting/since formatting, due-badge class, activity icon/label — reuses
+  `@/features/audit`'s `eventGroup`/`eventTypeLabel`), `HomeView` + the panel components
+  (`HomePanel`, `DecisionsPanel`, `WorkPanel`, `ActivityPanel`, `TriagePanel`, `PinnedStrip`,
+  `PinAsHomeButton`), `home.css`. `pages/HomePage` now mounts `HomeView` (replacing the slice-2 welcome).
+  Reuses `resolveActiveWorkspaceId` (workspace scope) + `EdgeStates` conventions; no new shared util.
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.

@@ -15,3 +15,4 @@ export * from './notifications';
 export * from './imports';
 export * from './audit';
 export * from './platform';
+export * from './home';

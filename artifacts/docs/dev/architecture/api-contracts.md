@@ -489,10 +489,17 @@ Dashboard definition + widget query results (each widget resolves to the caller'
 
 ## 16 · Home surface
 
-### `GET /api/v1/home`
-Composite payload for the per-user Home (BS §10.7). Assembles viewer-scoped queries for the panels.
+### `GET /api/v1/home?workspaceId={id}` — Viewer+
+Composite payload for the per-user Home (BS §10.7, S1). Assembles five viewer-scoped reads for the active workspace. **Slice 22:** scoped to `?workspaceId=` (not the parameterless form the earlier draft named) — every panel is workspace-specific and the SPA resolves an active workspace on every surface; the prototype's Home lives inside the workspace-switcher context, so it re-queries when the workspace changes. The single authoritative access check is workspace membership (Viewer+ → 403, never 404). Empty/missing `workspaceId` → 400.
 
-- **Response:** `HomeDto` — `{ needsYourDecision, yourWorkToday, sinceYouWereLastHere, newToTriage, pinnedAnnouncements, quickCreateStubs }`. Each panel is capped (e.g., 20 items) and paginated via panel-specific follow-up endpoints if the user wants more.
+- **Response:** `HomeDto` (`shared/types/home.ts`) — `{ workspaceId, decisions[], decisionCount, work[], workCount, activity[], sinceLastSeenAt, triage[], triageCount, pinnedAnnouncements[] }`.
+  - `decisions` — "Needs your decision": open gates where the caller is an eligible, unsigned frozen-slot member (`usp_GetHomeDecisions`).
+  - `work` — "Your work today": records the caller owns (`CreatedBy`; Phase 1 has no assignee *user reference*), open only, urgency-ordered; SLA derived API-side from `RequestsService.ComputeSla` (`usp_GetHomeWork`).
+  - `activity` + `sinceLastSeenAt` — "Since you were last here": record audit events newer than the caller's previous Home visit; the read stamps `Users.LastHomeSeenAt` so the next load shows only what changed (`usp_GetHomeActivity`, OUTPUT param).
+  - `triage` — "New to triage": open records with no assigned analyst (`usp_GetHomeTriage`).
+  - `pinnedAnnouncements` — pinned, published, in-audience announcements for the strip (`usp_GetHomePinnedAnnouncements`).
+- Each panel is capped server-side (20 items; pinned 5); the `*Count` fields are the full match for the header counts.
+- **`quickCreateStubs` is not returned** — the prototype's Home renders no quick-create affordance (quick-create lives on the S2 Requests-list view bar per the changelog); the earlier draft field was dropped as the prototype governs.
 
 ---
 

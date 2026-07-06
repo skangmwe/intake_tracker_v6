@@ -9,6 +9,10 @@
 //      date-aware, so a rule can compare a date field against the current date.
 //   4. (Slice 21, §3.3) Expose the date-difference primitive — whole days between two dates (or a
 //      date and current-date) — the numeric substrate a Calculation field uses to stay numeric-only.
+//   5. (Slice 22, §10.7) Resolve the current-user reference: a rule's CompareValue of @currentUser /
+//      @me resolves to the evaluating caller's user id, so a viewer-scoped saved-view filter (e.g.
+//      "Assigned analyst eq @me") targets the reader. The id is passed per evaluation (request-scoped),
+//      not injected, because the engine is a singleton.
 //
 // Current date comes from IClock (never DateTime.UtcNow directly), so the engine is deterministic
 // under test.
@@ -36,8 +40,13 @@ public sealed record GraphValidationResult(
 
 public interface IConditionEngine
 {
-    /// <summary>Evaluates a rule's condition against the supplied field values. Returns true when the condition holds.</summary>
-    bool Evaluate(ConditionRule rule, IReadOnlyDictionary<string, object?> fieldValues);
+    /// <summary>
+    /// Evaluates a rule's condition against the supplied field values. Returns true when the condition
+    /// holds. <paramref name="currentUserId"/> resolves the @currentUser / @me compare-side token (§10.7);
+    /// pass null when there is no viewer context (form-render evaluation) — the token then compares as unset.
+    /// </summary>
+    bool Evaluate(
+        ConditionRule rule, IReadOnlyDictionary<string, object?> fieldValues, string? currentUserId = null);
 
     /// <summary>Validates the dependency edges (from → to) are acyclic and no deeper than three levels.</summary>
     GraphValidationResult ValidateGraph(IEnumerable<(string From, string To)> edges);
@@ -78,12 +87,14 @@ public sealed class ConditionEngine : IConditionEngine
         return null;
     }
 
-    public bool Evaluate(ConditionRule rule, IReadOnlyDictionary<string, object?> fieldValues)
+    public bool Evaluate(
+        ConditionRule rule, IReadOnlyDictionary<string, object?> fieldValues, string? currentUserId = null)
     {
         fieldValues.TryGetValue(rule.WhenFieldKey, out var raw);
         var actual = Normalise(raw);
-        // §3.1 — @today / @now / @currentDate on the compare side resolve to the current date.
-        var expected = ResolveDateToken(rule.CompareValue);
+        // §10.7 — @currentUser / @me resolve to the caller; then §3.1 — @today / @now / @currentDate
+        // resolve to the current date. Compose so a single CompareValue is at most one kind of token.
+        var expected = ResolveDateToken(ResolveUserToken(rule.CompareValue, currentUserId));
 
         return rule.Comparator switch
         {
@@ -202,6 +213,25 @@ public sealed class ConditionEngine : IConditionEngine
         return value.Trim().ToLowerInvariant() switch
         {
             "@today" or "@now" or "@currentdate" => Today().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            _ => value,
+        };
+    }
+
+    /// <summary>
+    /// Resolves the current-user token (@currentUser / @me) to the caller's id (§10.7); passes other
+    /// values through. A null caller resolves the token to null so it compares as unset rather than
+    /// matching the literal string "@me".
+    /// </summary>
+    private static string? ResolveUserToken(string? value, string? currentUserId)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "@currentuser" or "@me" => currentUserId,
             _ => value,
         };
     }

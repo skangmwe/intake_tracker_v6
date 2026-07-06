@@ -217,6 +217,12 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.PlatformAdmin.IFirmWi
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Workspaces.IWorkspaceProvisioningService,
     McDermott.AiTracker.Api.Modules.Workspaces.WorkspaceProvisioningService>();
 
+// ─── Home surface (slice 22) — the S1 per-user landing (BS §10.7). Composes five viewer-scoped reads
+//     (needs-your-decision / your-work-today / since-you-were-last-here / new-to-triage / pinned
+//     announcements) into one payload, scoped to the active workspace and gated on membership. ───
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Home.IHomeService,
+    McDermott.AiTracker.Api.Modules.Home.HomeService>();
+
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
 // intended contract (api-coding-standards.md — Swagger is gated by config, not

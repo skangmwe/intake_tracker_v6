@@ -215,4 +215,55 @@ public sealed class ConditionEngineTests
     {
         Assert.Null(_sut.DateDifferenceDays("not-a-date", "2026-07-06"));
     }
+
+    // ─── Current-user reference (§10.7, slice 22) ────────────────────────────────
+
+    [Fact]
+    public void Evaluate_EqCurrentUserToken_MatchesTheCaller()
+    {
+        // Arrange — a viewer-scoped filter "assignedAnalyst eq @me" resolves @me to the reader.
+        var caller = "11111111-1111-1111-1111-111111111111";
+        var values = new Dictionary<string, object?> { ["deptPgClient"] = caller };
+        var rule = Rule("eq", "@me");
+
+        // Act
+        var result = _sut.Evaluate(rule, values, caller);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Evaluate_EqCurrentUserToken_DoesNotMatchAnotherUser()
+    {
+        var caller = "11111111-1111-1111-1111-111111111111";
+        var values = new Dictionary<string, object?> { ["deptPgClient"] = "22222222-2222-2222-2222-222222222222" };
+
+        Assert.False(_sut.Evaluate(Rule("eq", "@currentUser"), values, caller));
+    }
+
+    [Fact]
+    public void Evaluate_CurrentUserToken_NullCaller_ComparesAsUnset()
+    {
+        // Arrange — no viewer context: @me resolves to null, so it never equals a real value and the
+        // token is never mistaken for the literal string "@me".
+        var values = new Dictionary<string, object?> { ["deptPgClient"] = "@me" };
+
+        // Act — eq against the token with a null caller does not match the literal "@me".
+        var result = _sut.Evaluate(Rule("eq", "@me"), values, currentUserId: null);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void Evaluate_CurrentUserToken_IsNotSetWhenCallerNull()
+    {
+        // Arrange — a field holding a literal "@me" is still "set"; the token only resolves on the
+        // compare side. This guards that ResolveUserToken doesn't leak into the actual value.
+        var values = new Dictionary<string, object?> { ["deptPgClient"] = "@me" };
+        var rule = new ConditionRule("Show", "deptPgClient", "isSet", null, null, 1);
+
+        Assert.True(_sut.Evaluate(rule, values, currentUserId: null));
+    }
 }

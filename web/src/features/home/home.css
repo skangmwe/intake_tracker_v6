@@ -1,0 +1,236 @@
+/* Home surface (S1 — prototyped). Composes the McDermott design tokens; no raw colours or off-scale
+   radii. Reading-width column of stacked panels. Theme-stable rule: text on pale fills is navy. */
+
+.home {
+  max-width: min(100%, 1200px);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.home__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.home__title {
+  font-family: var(--font-mix);
+  font-size: 32px;
+  font-weight: 400;
+  margin: 0;
+}
+
+/* Pin-as-home indicator — accent-coloured, pressed state (Home is the default landing surface). */
+.home__pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--accent-interactive);
+  cursor: default;
+}
+
+.home__pin:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Pinned-announcement slim strip — pale-blue fill, navy text (theme-stable). */
+.home-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.home-strip__icon {
+  flex-shrink: 0;
+  color: var(--color-navy);
+}
+
+.home-strip__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-strip__link {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Panels — card with a tinted header bar. */
+.home-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.home-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: color-mix(in srgb, var(--color-navy) 8%, var(--bg-surface));
+}
+
+.home-panel__title {
+  font-family: var(--font-mix);
+  font-size: 24px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.home-panel__meta {
+  font-family: var(--font-mono, ui-monospace);
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.home-panel__empty {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.home-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Rows — a link with id · main · trailing affordance. */
+.home-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--border-light);
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.home-row:hover,
+.home-row:focus-visible {
+  color: var(--accent-interactive);
+}
+
+.home-row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.home-row__id {
+  font-family: var(--font-mono, ui-monospace);
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.home-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-row__name {
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-row__meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.home-row__trail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.home-row__caret {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* Activity rows lead with an icon and a wrapping text line. */
+.home-activity {
+  align-items: flex-start;
+}
+
+.home-activity--static {
+  cursor: default;
+}
+
+.home-activity__icon {
+  color: var(--icon-default);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.home-activity__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.home-activity__text strong {
+  font-weight: 600;
+}
+
+/* Due / status pills — pale fills, navy text (theme-stable). */
+.home-badge {
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  color: var(--color-navy);
+  flex-shrink: 0;
+}
+
+.home-badge--overdue {
+  background: var(--color-pale-orange);
+}
+
+.home-badge--due-soon {
+  background: var(--color-pale-gold);
+}
+
+.home-badge--unassigned {
+  background: var(--color-pale-blue);
+}
+
+@media (max-width: 640px) {
+  .home__title {
+    font-size: 28px;
+  }
+
+  .home-row {
+    flex-wrap: wrap;
+  }
+
+  .home-row__caret {
+    display: none;
+  }
+}
