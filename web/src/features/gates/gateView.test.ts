@@ -16,9 +16,9 @@ describe('gateView helpers', () => {
 
     // Assert
     expect(views).toHaveLength(1);
-    expect(views[0].status).toBe('pending');
-    expect(views[0].current).toBeUndefined();
-    expect(views[0].rejections).toHaveLength(0);
+    expect(views[0]!.status).toBe('pending');
+    expect(views[0]!.current).toBeUndefined();
+    expect(views[0]!.rejections).toHaveLength(0);
   });
 
   it('buildSlotViews — live approval — slot is approved', () => {
@@ -30,7 +30,7 @@ describe('gateView helpers', () => {
     });
 
     // Act
-    const view = buildSlotViews(gate)[0];
+    const view = buildSlotViews(gate)[0]!;
 
     // Assert
     expect(view.status).toBe('approved');
@@ -48,13 +48,13 @@ describe('gateView helpers', () => {
     });
 
     // Act
-    const view = buildSlotViews(gate)[0];
+    const view = buildSlotViews(gate)[0]!;
 
     // Assert
     expect(view.status).toBe('rejected');
     expect(view.current?.comment).toBe('Add a load test');
     expect(view.rejections).toHaveLength(1);
-    expect(view.rejections[0].decidedByName).toBe('Casey');
+    expect(view.rejections[0]!.decidedByName).toBe('Casey');
   });
 
   it('joinNote — single slot vs AND-join', () => {
@@ -81,7 +81,7 @@ describe('gateView helpers', () => {
 
   it('memberOptions — maps frozen members to name/value options', () => {
     // Arrange
-    const slot = buildApprovalRequest().slots[0];
+    const slot = buildApprovalRequest().slots[0]!;
 
     // Act
     const options = memberOptions(slot);

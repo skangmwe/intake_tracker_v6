@@ -146,7 +146,7 @@ describe('FieldEditorSheet', () => {
     await user.click(screen.getByRole('button', { name: 'Save field' }));
 
     // Assert
-    const [, request] = onSave.mock.calls[0];
+    const [, request] = onSave.mock.calls[0]!;
     expect(request.visibleStages).toContain('build');
     expect(request.rules).toHaveLength(1);
   });

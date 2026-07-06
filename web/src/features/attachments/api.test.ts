@@ -56,7 +56,7 @@ describe('attachments api', () => {
     await uploadAttachment(RECORD, file);
 
     // Assert
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/records/${RECORD}/attachments`);
     expect(opts).toMatchObject({ method: 'POST' });
     expect((opts as { body: FormData }).body).toBeInstanceOf(FormData);

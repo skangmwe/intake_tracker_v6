@@ -26,7 +26,7 @@ describe('users members api', () => {
     await fetchMembers(WORKSPACE, controller.signal);
 
     // Assert
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/workspaces/${WORKSPACE}/members`);
     expect((opts as { signal: AbortSignal }).signal).toBe(controller.signal);
   });
@@ -39,7 +39,7 @@ describe('users members api', () => {
     await upsertMember(WORKSPACE, { email: 'x@mws.ai', level: 'Member' });
 
     // Assert
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/workspaces/${WORKSPACE}/members`);
     expect(opts).toMatchObject({ method: 'POST', body: { email: 'x@mws.ai', level: 'Member' } });
   });
@@ -52,7 +52,7 @@ describe('users members api', () => {
     await deactivateMember(WORKSPACE, USER);
 
     // Assert
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/workspaces/${WORKSPACE}/members/${USER}`);
     expect(opts).toMatchObject({ method: 'DELETE' });
   });

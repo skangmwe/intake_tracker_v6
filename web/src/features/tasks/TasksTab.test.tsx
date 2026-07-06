@@ -9,6 +9,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type {
+  ApprovalRequestId,
   FieldDefinitionId,
   RecordId,
   TaskDto,
@@ -341,5 +342,98 @@ describe('TasksTab', () => {
     expect(screen.getByText('Gate · fires on Build → QA')).toBeInTheDocument();
     expect(screen.queryByText(/No tasks yet/i)).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('TasksTab — a failed create surfaces the add-task warning', () => {
+    // Arrange
+    mockCreate(jest.fn(), { isError: true, error: new Error('nope') });
+    mockTasks({ data: [] });
+
+    // Act
+    render();
+
+    // Assert
+    expect(screen.getByText(/could not be added/)).toBeInTheDocument();
+  });
+
+  it('TasksTab — a failed promote surfaces the promote warning', () => {
+    // Arrange
+    mockPromote(jest.fn(), { isError: true, error: new Error('nope') });
+    mockTasks({ data: [buildTask({ id: 't1' as TaskId })] });
+
+    // Act
+    render();
+
+    // Assert
+    expect(screen.getByText(/could not be promoted/)).toBeInTheDocument();
+  });
+
+  it('TasksTab — a failed approval action surfaces the approval warning', () => {
+    // Arrange — the submit-decision mutation reports an error
+    mockTasks({ data: [] });
+    mockGates();
+    mockedUseSubmit.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+      isError: true,
+      error: new Error('nope'),
+    } as unknown as ReturnType<typeof useSubmitDecision>);
+
+    // Act
+    render();
+
+    // Assert
+    expect(screen.getByText(/approval action could not be saved/)).toBeInTheDocument();
+  });
+
+  it('TasksTab — a gate whose target stage is off the phase order renders under Unphased', () => {
+    // Arrange
+    mockTasks({ data: [] });
+    mockGates([buildApprovalRequest({ toStage: 'Nowhere' })]);
+
+    // Act
+    render();
+
+    // Assert — it still renders (grouped under the Unphased fallback), not dropped.
+    expect(screen.getByLabelText('Gate: QA readiness gate')).toBeInTheDocument();
+  });
+
+  it('TasksTab — two gates targeting the same phase both render', () => {
+    // Arrange
+    mockTasks({ data: [] });
+    mockGates([
+      buildApprovalRequest({ id: 'g1' as ApprovalRequestId }),
+      buildApprovalRequest({ id: 'g2' as ApprovalRequestId }),
+    ]);
+
+    // Act
+    render();
+
+    // Assert — the second gate exercises the "append to the existing bucket" branch.
+    expect(screen.getAllByLabelText('Gate: QA readiness gate')).toHaveLength(2);
+  });
+
+  it('TasksTab — renders without a current user (me not yet loaded)', () => {
+    // Arrange
+    mockedUseMe.mockReturnValue({ data: undefined } as ReturnType<typeof useMe>);
+    mockTasks({ data: [buildTask({ id: 't1' as TaskId, title: 'Scope' })] });
+
+    // Act
+    render();
+
+    // Assert — no crash; the task still lists.
+    expect(screen.getByText('Scope')).toBeInTheDocument();
+  });
+
+  it('TasksTab — marks the in-flight task while a promote is pending', () => {
+    // Arrange — a promote is running for t1
+    mockPromote(jest.fn(), { isPending: true, variables: 't1' });
+    mockTasks({ data: [buildTask({ id: 't1' as TaskId, title: 'Scope' })] });
+
+    // Act
+    render();
+
+    // Assert — the row still renders while the promote is pending.
+    expect(screen.getByText('Scope')).toBeInTheDocument();
   });
 });

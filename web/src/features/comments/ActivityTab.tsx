@@ -13,7 +13,7 @@ import {
   PencilSimple,
 } from '@phosphor-icons/react';
 
-import type { ActivityThreadItem, AuditEventItem, CommentDto, RecordId, UserId } from '@shared/types';
+import type { AuditEventItem, CommentDto, RecordId, UserId } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { TextArea } from '@/shared/components/Form';

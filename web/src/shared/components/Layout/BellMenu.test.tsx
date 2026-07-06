@@ -126,11 +126,17 @@ describe('BellMenu', () => {
   });
 
   it('BellMenu — a notification without a record marks read and closes without navigating', async () => {
-    // Arrange — a record-less notification exercises the no-navigate branch.
+    // Arrange — a record-less notification exercises the no-navigate branch (recordId omitted,
+    // not set to undefined, per exactOptionalPropertyTypes).
     mockedApi.fetchUnreadCount.mockResolvedValue({ count: 1 });
-    mockedApi.queryNotifications.mockResolvedValue(
-      feed([notification({ id: 'n2', recordId: undefined, summary: 'An announcement was posted' })]),
-    );
+    const recordless: NotificationDto = {
+      id: 'n2',
+      category: 'gate-decided',
+      summary: 'An announcement was posted',
+      createdAt: '2026-07-05T10:00:00Z',
+      sourceEventId: '11111111-1111-4111-8111-111111111111',
+    };
+    mockedApi.queryNotifications.mockResolvedValue(feed([recordless]));
     const user = userEvent.setup();
     renderWithProviders(<BellMenu />);
     await user.click(bell());

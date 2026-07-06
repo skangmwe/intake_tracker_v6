@@ -98,3 +98,28 @@ this gate deferred was explicitly authorized.
 ## Pre-existing repo-wide gate debt (inherited; not introduced by slice 18)
 
 `tsc` (13 errors, slices 6/8/11/12) · `eslint .` (slices 14 `SavedViewEditor`/`SavedViewEditorTabs`, slice 17 `MembersTable`) · coverage 80% global (eroded from 80.4% at slice 2) · `HealthTests` (slice 2). Slice 18 adds **0 new** tsc/lint errors, is coverage-net-positive, and all its own new tests pass. A literal `CLEAN` cache was **not** written; the developer authorized shipping with this status recorded.
+
+---
+
+# Ship notes — Fix: quality-gate cleanup (`fix/quality-gate-cleanup`)
+
+**Shipped:** 2026-07-06 · ad-hoc fix branch (not a slice) off `dev` @ ebedd36. Clears the four pre-existing quality-gate failures that had been shipping unaddressed since earlier slices (inventoried in `iteration-log/slice-views-dashboards-audit-843471f.md`).
+
+## The four failures — all now GREEN
+
+| Gate | Before | After | Fix |
+|---|---|---|---|
+| Web `tsc --noEmit` | 13 test-file errors (surfaced higher as the shared `mock.calls[0]` pattern) | **0** | Non-null assertions on known-populated fixtures; `BellMenu` record-less notification built as a literal (recordId omitted, not `undefined`). |
+| Web `eslint .` | **19 errors / 12 files** (ship-notes had named only 3) | **0 errors** (1 pre-existing warning, non-blocking) | Dead imports/vars removed; one `&apos;` escape; one `react/display-name`; justified `eslint-disable` for the intentional a11y patterns (scrim overlays, scrollable regions, resize separator, convenience row-click) — matching the `AuditLogTable.tsx` precedent. |
+| Web coverage | branches 76.63% / funcs 79.18% | branches **80.2%** / funcs **84.4%** (stmts 89.32% / lines 90.24%) | Real behaviour tests on the worst-covered files (SavedViewEditorTabs, SavedViewEditor, TableShell, download.ts, requests/features api, savedViewEditorModel, lifecycleDraft, fieldForm, TasksTab, AddToCatalogPage). **888 tests pass.** |
+| API `dotnet test` | 437 pass, **1 fail** (`HealthTests` IDW10106) | **438 pass, 0 fail** | Gave `HealthTests` the same in-memory AzureAd config `AuditEndpointsTests`/`SearchEndpointsTests` use. |
+
+## Review (`/dev-review-and-remediate`)
+
+- **Code review:** 0 findings — every non-test source edit is non-functional (eslint-disable comments, `&apos;` escape, unused-import removal, a semantically-identical `<>…</>` fragment around the TableShell separator).
+- **Security review (OWASP):** 0 findings — no auth/injection/secrets/PII/dependency surface touched.
+- **Design-token conformance:** verified on the diff (no raw colours/radii added); the full-repo hook timed out at 3 min in this environment.
+
+## Deferred — design-fidelity render-and-compare (developer-authorized)
+
+A design handoff is present, which normally triggers a full-app build-vs-prototype visual audit. It is **not feasible in this environment** (the trivial conformance shell hook times out at 3 min; documented OOMs / fork failures make full-app renders high-risk) **and this changeset is non-visual** — no prototyped screen's rendered output changes. Shipping past this gate was **explicitly authorized by the developer**, matching the documented posture of the slices-1–2 and slice-18 ships. No CLEAN design-fidelity manifest was fabricated; `.last-clean-run.json` was **not** written.

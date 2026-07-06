@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 
@@ -86,6 +86,91 @@ describe('TableShell', () => {
     const rows: TableRow[] = [{ id: 'r1', cells: ['Alpha', 'Build', '7'], tint: 'mws-aging-tint--overdue' }];
     render(<TableShell columns={COLUMNS} rows={rows} caption="Requests" />);
     expect(screen.getByText('Alpha').closest('.ast-grid__row')).toHaveClass('mws-aging-tint--overdue');
+  });
+
+  it('TableShell — sorting a different column moves the active sort onto it', async () => {
+    // Arrange — Name is already the sorted column
+    const user = userEvent.setup();
+    function Harness() {
+      const [sort, setSort] = useState<SortState | undefined>({ column: 'name', direction: 'asc' });
+      return (
+        <TableShell columns={COLUMNS} rows={buildRows()} sort={sort} onSortChange={setSort} caption="Requests" />
+      );
+    }
+    render(<Harness />);
+    const scoreHeader = screen.getByRole('columnheader', { name: /Score/ });
+
+    // Act — sort by Score instead
+    await user.click(within(scoreHeader).getByRole('button', { name: /Score/ }));
+
+    // Assert
+    expect(scoreHeader).toHaveAttribute('aria-sort', 'ascending');
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'none');
+  });
+
+  it('TableShell — a sortable header is inert when no onSortChange is supplied', async () => {
+    // Arrange — no handler wired
+    const user = userEvent.setup();
+    render(<TableShell columns={COLUMNS} rows={buildRows()} caption="Requests" />);
+    const nameHeader = screen.getByRole('columnheader', { name: /Name/ });
+
+    // Act — clicking must not throw
+    await user.click(within(nameHeader).getByRole('button', { name: /Name/ }));
+
+    // Assert — sort stays unset
+    expect(nameHeader).toHaveAttribute('aria-sort', 'none');
+  });
+
+  it('TableShell — a centre-aligned column applies the centre cell class', () => {
+    // Arrange
+    const columns: TableColumn[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'flag', label: 'Flag', align: 'center' },
+    ];
+    const rows: TableRow[] = [{ id: 'r1', cells: ['Alpha', 'Yes'] }];
+
+    // Act
+    render(<TableShell columns={columns} rows={rows} caption="Requests" />);
+
+    // Assert
+    expect(screen.getByText('Yes').closest('.ast-grid__cell')).toHaveClass('ast-grid__cell--center');
+  });
+
+  it('TableShell — renders a per-column filter slot for filterable columns', () => {
+    // Arrange
+    const columns: TableColumn[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'stage', label: 'Stage', filterable: true },
+    ];
+
+    // Act
+    render(
+      <TableShell
+        columns={columns}
+        rows={buildRows()}
+        caption="Requests"
+        renderFilter={(column) => <button type="button">Filter {column.label}</button>}
+      />,
+    );
+
+    // Assert
+    expect(screen.getByRole('button', { name: 'Filter Stage' })).toBeInTheDocument();
+  });
+
+  it('TableShell — dragging the resize handle widens the column', () => {
+    // Arrange
+    render(<TableShell columns={COLUMNS} rows={buildRows()} caption="Requests" />);
+    const handle = screen.getAllByRole('separator')[0]!;
+    const before = Number(handle.getAttribute('aria-valuenow'));
+
+    // Act — press on the handle and drag 60px to the right
+    fireEvent.mouseDown(handle, { clientX: 100 });
+    fireEvent.mouseMove(window, { clientX: 160 });
+    fireEvent.mouseUp(window);
+
+    // Assert
+    const after = Number(screen.getAllByRole('separator')[0]!.getAttribute('aria-valuenow'));
+    expect(after).toBeGreaterThan(before);
   });
 
   it('TableShell — no axe violations', async () => {

@@ -1,7 +1,7 @@
 // Tests for AnnouncementsListPage (S22) — loading / error / empty / list states + jest-axe on the
 // meaningful states. The feature api boundary is mocked; renderWithProviders hosts the query + router.
 
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
 import type { AnnouncementListRow, PaginatedResponse } from '@shared/types';
