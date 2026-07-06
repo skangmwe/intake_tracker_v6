@@ -43,3 +43,4 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 16 | CSV Import & Export (S28 + S2 Export button) | completed | [slice-plan.md §Slice 16](slice-plan.md) | [16-slice-import-export.md](16-slice-import-export.md) |
 | 17 | Users & access admin (S29) | completed | [slice-plan.md §Slice 17](slice-plan.md) | [17-slice-users-access.md](17-slice-users-access.md) |
 | 18 | Views & dashboards admin (S32 views half) + Workspace audit (S33) | completed | [slice-plan.md §Slice 18](slice-plan.md) | [18-slice-views-audit.md](18-slice-views-audit.md) |
+| 19 | Platform admin (S35 crossing map · S36 access · S37 role labels · S39 firm-wide audit · S38 provisioning API) | completed | [slice-plan.md §Slice 19](slice-plan.md) | [19-slice-platform-admin.md](19-slice-platform-admin.md) |

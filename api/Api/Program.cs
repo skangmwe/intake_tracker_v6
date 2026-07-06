@@ -201,6 +201,22 @@ builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.ImportExport.I
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Audit.IAuditService,
     McDermott.AiTracker.Api.Modules.Audit.AuditService>();
 
+// ─── Platform admin (slice 19) — the S35–S39 firm-wide config surfaces. Every service is gated on
+//     the caller's Platform-admin grant in its controller (IsPlatformAdmin → 403 never 404). Reads go
+//     through platform-scope procs (crossing map off FieldDefinition, role labels, privileged grants,
+//     firm-wide audit); writes emit events onto the spine so config changes land in the firm-wide
+//     audit. Workspace provisioning clones the PG/Dept template. ───
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.PlatformAdmin.ICrossingMapService,
+    McDermott.AiTracker.Api.Modules.PlatformAdmin.CrossingMapService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.PlatformAdmin.IRoleLabelsService,
+    McDermott.AiTracker.Api.Modules.PlatformAdmin.RoleLabelsService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.PlatformAdmin.IAccessGrantsService,
+    McDermott.AiTracker.Api.Modules.PlatformAdmin.AccessGrantsService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.PlatformAdmin.IFirmWideAuditService,
+    McDermott.AiTracker.Api.Modules.PlatformAdmin.FirmWideAuditService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Workspaces.IWorkspaceProvisioningService,
+    McDermott.AiTracker.Api.Modules.Workspaces.WorkspaceProvisioningService>();
+
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
 // intended contract (api-coding-standards.md — Swagger is gated by config, not

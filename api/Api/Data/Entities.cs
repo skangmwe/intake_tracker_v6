@@ -291,6 +291,51 @@ public sealed class ApproverMemberResultRow
     public string DisplayName { get; set; } = string.Empty;
 }
 
+// ─── Slice 19 (Platform admin) — keyless read projections ──────────────────────────────
+
+/// <summary>One PG→AI crossing pair from usp_GetCrossingMap (S35, read-only). Field types are the
+/// schema's display strings.</summary>
+public sealed class CrossingMapRow
+{
+    public string SourceFieldKey { get; set; } = string.Empty;
+    public string SourceDisplayName { get; set; } = string.Empty;
+    public string SourceFieldType { get; set; } = string.Empty;
+    public string TargetFieldKey { get; set; } = string.Empty;
+    public string TargetDisplayName { get; set; } = string.Empty;
+    public string TargetFieldType { get; set; } = string.Empty;
+}
+
+/// <summary>One privileged-grant row from usp_ListPrivilegedGrants (S36). Workspace fields are null
+/// for a PlatformAdmin grant. DisplayName / Email are PII — presentation only, never logged.</summary>
+public sealed class PrivilegedGrantRow
+{
+    public string GrantKind { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public Guid? WorkspaceId { get; set; }
+    public string? WorkspaceName { get; set; }
+    public DateTime GrantedAt { get; set; }
+}
+
+/// <summary>The resolved user returned by usp_UpsertPlatformAdminGrant.</summary>
+public sealed class PlatformAdminGrantResultRow
+{
+    public Guid UserId { get; set; }
+    /// <summary>PII (display name). Presentation only — never logged.</summary>
+    public string DisplayName { get; set; } = string.Empty;
+    public bool WasAdded { get; set; }
+}
+
+/// <summary>The new workspace summary returned by usp_ProvisionWorkspace (S38).</summary>
+public sealed class WorkspaceProvisionRow
+{
+    public Guid WorkspaceId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+    public string Prefix { get; set; } = string.Empty;
+}
+
 // ─── Slice 5 (Requests core) — keyless read projections ────────────────────────────────
 // Requests and Drafts are read/written through stored procedures (mint + origin resolution,
 // optimistic-concurrency PATCH, multi-filter list → api-data-access.md). The API never tracks the

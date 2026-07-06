@@ -12,6 +12,7 @@ function renderSidebar(props: Partial<Parameters<typeof Sidebar>[0]> = {}) {
       open={false}
       collapsed={false}
       memberships={[]}
+      isPlatformAdmin={false}
       onToggleCollapse={jest.fn()}
       onNavigate={jest.fn()}
       {...props}
@@ -49,6 +50,18 @@ describe('Sidebar', () => {
     expect(screen.getByRole('button', { name: 'Expand navigation' })).toBeInTheDocument();
   });
 
+  it('Sidebar — non-platform-admin — hides the Platform section', () => {
+    renderSidebar({ isPlatformAdmin: false });
+    expect(screen.queryByRole('navigation', { name: 'Platform' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Crossing map' })).not.toBeInTheDocument();
+  });
+
+  it('Sidebar — platform admin — shows the Platform section', () => {
+    renderSidebar({ isPlatformAdmin: true });
+    expect(screen.getByRole('navigation', { name: 'Platform' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Firm-wide audit' })).toBeInTheDocument();
+  });
+
   it('Sidebar — open drawer — sets data-open on the aside', () => {
     renderSidebar({ open: true });
     expect(screen.getByRole('complementary', { name: 'Application navigation' })).toHaveAttribute(
@@ -62,5 +75,7 @@ describe('Sidebar', () => {
     expect(await axe(expanded.container)).toHaveNoViolations();
     const collapsed = renderSidebar({ collapsed: true });
     expect(await axe(collapsed.container)).toHaveNoViolations();
+    const platformAdmin = renderSidebar({ isPlatformAdmin: true });
+    expect(await axe(platformAdmin.container)).toHaveNoViolations();
   });
 });

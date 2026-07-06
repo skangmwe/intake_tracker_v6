@@ -16,14 +16,19 @@ interface SidebarProps {
   open: boolean;
   collapsed: boolean;
   memberships: WorkspaceMembershipDto[];
+  /** Holds the additive Platform-admin grant — gates the Platform nav section (S34–S39). */
+  isPlatformAdmin: boolean;
   onToggleCollapse: () => void;
   onNavigate: () => void;
 }
 
 export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
-  { open, collapsed, memberships, onToggleCollapse, onNavigate },
+  { open, collapsed, memberships, isPlatformAdmin, onToggleCollapse, onNavigate },
   ref,
 ) {
+  // Platform-scoped sections show only to a Platform admin; the API is the boundary, this is a courtesy.
+  const sections = NAV_SECTIONS.filter((section) => !section.platformOnly || isPlatformAdmin);
+
   return (
     <aside
       ref={ref}
@@ -40,7 +45,7 @@ export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
       <WorkspaceSwitcher memberships={memberships} />
 
       <div className="mws-sidebar__primary">
-        {NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.label}>
             <div className="mws-sidebar__section-label">{section.label}</div>
             <nav aria-label={section.label}>

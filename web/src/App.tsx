@@ -27,6 +27,12 @@ import {
 import { SearchResultsPage } from '@/features/search';
 import { ViewsDashboardsPage } from '@/features/saved-views';
 import { WorkspaceAuditPage } from '@/features/audit';
+import {
+  AccessPage,
+  CrossingMapPage,
+  FirmWideAuditPage,
+  RoleLabelsPage,
+} from '@/features/platform-admin';
 import { UsersAccessPage } from '@/features/users';
 import { HomePage } from '@/pages/HomePage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
@@ -44,6 +50,7 @@ import '@/features/search/search.css';
 import '@/features/import-export/importExport.css';
 import '@/features/users/users.css';
 import '@/features/audit/audit.css';
+import '@/features/platform-admin/platformAdmin.css';
 
 // Routes implemented by real feature surfaces; excluded from the placeholder fallback.
 const IMPLEMENTED_ROUTES = new Set([
@@ -54,6 +61,11 @@ const IMPLEMENTED_ROUTES = new Set([
   '/admin/import-export',
   '/admin/views',
   '/admin/audit',
+  '/platform/fields',
+  '/platform/crossing-map',
+  '/platform/access',
+  '/platform/role-labels',
+  '/platform/audit',
   '/requests',
   '/feature-catalog',
 ]);
@@ -74,6 +86,10 @@ export function App() {
               <Route path="/admin/fields" element={<FieldsAdminPage />} />
               <Route path="/admin/lifecycle" element={<LifecyclePage />} />
               <Route path="/platform/fields" element={<PlatformFieldsPage />} />
+              <Route path="/platform/crossing-map" element={<CrossingMapPage />} />
+              <Route path="/platform/access" element={<AccessPage />} />
+              <Route path="/platform/role-labels" element={<RoleLabelsPage />} />
+              <Route path="/platform/audit" element={<FirmWideAuditPage />} />
               <Route path="/requests" element={<RequestsListPage />} />
               <Route path="/requests/new" element={<IntakeFormPage />} />
               <Route path="/requests/:recordId" element={<RecordDetailPage />} />
