@@ -302,3 +302,91 @@
     min-width: 0;
   }
 }
+
+/* ── S32 Views & dashboards admin (slice 18) ────────────────────────────────
+   Reading-width admin surface; each object-type section holds a small table that
+   scrolls within its own shell so the page never scrolls horizontally. Tokens only. */
+
+.views-admin {
+  max-width: min(100%, 1200px);
+  padding: var(--space-5);
+}
+
+.views-admin__title {
+  margin-bottom: var(--space-2);
+}
+
+.views-admin__lead {
+  color: var(--text-secondary);
+  max-width: 72ch;
+  margin-bottom: var(--space-6);
+}
+
+.views-admin__section {
+  margin-bottom: var(--space-6);
+}
+
+.views-admin__section-title {
+  margin-bottom: var(--space-3);
+}
+
+.views-admin__error,
+.views-admin__dialog-error {
+  margin-top: var(--space-3);
+}
+
+.views-admin__empty {
+  color: var(--text-secondary);
+  padding: var(--space-4) 0;
+}
+
+.views-admin__table-shell {
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.views-admin__table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.views-admin__table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.views-admin__table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.views-admin__name {
+  font-weight: 500;
+}
+
+.views-admin__col-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.views-admin__col-action .mws-btn + .mws-btn {
+  margin-left: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .views-admin {
+    padding: var(--space-4);
+  }
+}

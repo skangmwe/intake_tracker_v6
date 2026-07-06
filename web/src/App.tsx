@@ -25,6 +25,8 @@ import {
   RequestsListPage,
 } from '@/features/requests';
 import { SearchResultsPage } from '@/features/search';
+import { ViewsDashboardsPage } from '@/features/saved-views';
+import { WorkspaceAuditPage } from '@/features/audit';
 import { UsersAccessPage } from '@/features/users';
 import { HomePage } from '@/pages/HomePage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
@@ -41,6 +43,7 @@ import '@/features/saved-views/savedViews.css';
 import '@/features/search/search.css';
 import '@/features/import-export/importExport.css';
 import '@/features/users/users.css';
+import '@/features/audit/audit.css';
 
 // Routes implemented by real feature surfaces; excluded from the placeholder fallback.
 const IMPLEMENTED_ROUTES = new Set([
@@ -49,6 +52,8 @@ const IMPLEMENTED_ROUTES = new Set([
   '/admin/lifecycle',
   '/admin/announcements',
   '/admin/import-export',
+  '/admin/views',
+  '/admin/audit',
   '/requests',
   '/feature-catalog',
 ]);
@@ -81,6 +86,8 @@ export function App() {
               <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
               <Route path="/admin/announcements" element={<ManageAnnouncementsPage />} />
               <Route path="/admin/import-export" element={<ImportExportPage />} />
+              <Route path="/admin/views" element={<ViewsDashboardsPage />} />
+              <Route path="/admin/audit" element={<WorkspaceAuditPage />} />
               {PLACEHOLDER_ROUTES.map((item) => (
                 <Route
                   key={item.to}

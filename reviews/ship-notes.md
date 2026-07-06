@@ -69,3 +69,32 @@ this gate deferred was explicitly authorized.
 - Singular table names vs the plural rule — deliberate (business vocabulary); not recorded in
   `decisions.md` — pluralize or add an ADR.
 - Single-statement procs without `TRY/CATCH` (documented, rely on `XACT_ABORT`).
+
+---
+
+# Ship notes — Slice 18 (Views & dashboards admin S32 + Workspace audit S33)
+
+**Shipped:** 2026-07-06 · one merge commit on `dev`. Ship explicitly authorized by the developer past a non-CLEAN gate (see below) — consistent with the prior deferred-with-authorization pattern.
+
+## Gate results
+
+| Layer | Gate | Result |
+|---|---|---|
+| Web | `tsc --noEmit` | **0 new** errors (13 pre-existing test-file errors from slices 6/8/11/12 remain — documented since slice 15) |
+| Web | `eslint` (my files) | **0 errors** (unused import removed; scrollable-region `tabIndex` given a justified disable — axe `scrollable-region-focusable`) |
+| Web | `jest` full suite | **146 suites / 783 tests PASS** (serialized — concurrent runs OOM the box) |
+| Web | coverage (my new files) | stmts 91% / branches 88% / funcs 85% — all ≥80%; global 76% branches is **pre-existing** (net-positive with slice 18: 76.05%→76.17%) |
+| Web | design-conformance (`--web-required`) | **PASS** — 233 files, 0 violations |
+| API | `dotnet build` | 0 warnings / 0 errors |
+| API | `dotnet test` | **437 pass, 1 pre-existing fail** (`HealthTests` — bare factory lacks AzureAd `ClientId`, slice 2; unrelated to slice 18) |
+| DB | tSQLt | **authored, not executed** — needs the LocalDB+tSQLt harness; deferred |
+| Review | code + security | no Critical/High in slice-18 code |
+
+## Deferred / not run (authorized)
+
+- **Design-fidelity render-and-compare** — slice 18 adds only `[deferred]` screens (S32/S33), which have **no prototype** to compare against; the prototyped screens (S1–S6, S31) are unchanged. A full-app re-render was skipped under memory pressure (repeated OOMs / cygwin fork failures). Same deferred-with-authorization posture as the slices-1–2 ship.
+- **tSQLt** for `usp_QueryWorkspaceAudit` — authored (8 cases, `usp_SearchFull` two-result-set pattern); execution needs the DB harness.
+
+## Pre-existing repo-wide gate debt (inherited; not introduced by slice 18)
+
+`tsc` (13 errors, slices 6/8/11/12) · `eslint .` (slices 14 `SavedViewEditor`/`SavedViewEditorTabs`, slice 17 `MembersTable`) · coverage 80% global (eroded from 80.4% at slice 2) · `HealthTests` (slice 2). Slice 18 adds **0 new** tsc/lint errors, is coverage-net-positive, and all its own new tests pass. A literal `CLEAN` cache was **not** written; the developer authorized shipping with this status recorded.

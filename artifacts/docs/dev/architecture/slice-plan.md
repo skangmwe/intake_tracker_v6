@@ -240,6 +240,11 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S32**, **S33** both `[deferred]`.
 - **Depends on:** 14, 1 (audit table).
 - **Estimated LoC:** 3,500.
+- **Divergence resolved (Step 3, approved):** the slice's **shared-dashboards** management half (part of S32) is **deferred to slice 23**. The `SavedDashboard` table + Dashboards module are owned by slice 23 (data-model §Slice-1 note — "FK to `SavedDashboard` is added in slice 23 when that table exists"; module-boundaries §15), and no dashboards exist to manage until slice 23 seeds them. Slice 18 builds the S32 shared-**views** management fully; the dashboards panel is an explicit "arrives with dashboards" note, not a dead control (mirrors the build-order deferrals in slices 9→11, 13→22). Three smaller decisions: (1) the audit query is **`POST /workspaces/{id}/audit/query`** (api-contracts §18 text said `GET`, but api/CLAUDE.md mandates POST-with-body for filtered/paginated reads and every peer `/query` endpoint is POST); (2) **`PATCH /saved-views/{id}` shared-scope permissions were already satisfied by slice 14** (`SavedViewsService.CanWriteAsync` gates shared create/edit/promote to WorkspaceAdmin) — slice 18 adds the S32 surface that exercises it, no new saved-views API; (3) **no migration** — `AuditEntry` + its `IX_AuditEntry_Workspace_EventAt_EventType` index were created in slice 1 *for this slice*, and `SavedView` exists from slice 14, so the only DB artifact is the new `usp_QueryWorkspaceAudit` proc. New `shared/types/audit.ts` added (`AuditLogRowDto`, `AuditLogQuery`). Pre-existing 13 tsc test-file errors (slices 6/8/11/12) unchanged; 0 new. See [18-slice-views-audit.md](18-slice-views-audit.md).
+- **Status: completed**
+- **Started:** 2026-07-06T10:03:15-04:00
+- **Ended:** 2026-07-06T10:36:13-04:00
+- **Duration:** 00:32:58
 
 ### Slice 19: Platform admin — crossing map (read-only seed), access, role-labels, workspace provisioning, firm-wide audit
 - **Spec section:** BS §4.3 (Platform admin), §6.2 (crossing map — R1 Phase 1 read-only seed), §7.2 (role-label catalog), §1.1 (workspace provisioning — R1 Phase 1 out-of-band).
@@ -284,6 +289,7 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S6** `[prototyped]`; **S12**, **S14**, **S15**, **S16**, **S17** all `[deferred]`.
 - **Depends on:** 21, 5, 14 (saved views drive records-grid widget).
 - **Estimated LoC:** 6,000.
+- **Carried from slice 18:** this slice creates the `SavedDashboard` table + Dashboards module, so it also owns the **S32 shared-dashboards management half** deferred from slice 18 (audience picker · promote · retire for shared dashboards). Slice 18 already ships the S32 shared-**views** half and a placeholder note in the S32 surface pointing here — replace that note with the real dashboards-management panel.
 
 ### Slice 24: Advanced views + self-serve workspace provisioning + admin-editable crossing map
 - **Spec section:** BS §10.5 (advanced views incl. gallery), §15 Phase 2 (self-serve workspace provisioning, admin-editable crossing map).

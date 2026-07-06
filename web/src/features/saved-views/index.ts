@@ -4,6 +4,7 @@
 import type { SavedViewDto } from '@shared/types';
 import type { SavedView } from '@/shared/components/Table';
 
+export { ViewsDashboardsPage } from './components/ViewsDashboardsPage';
 export { SavedViewEditor } from './components/SavedViewEditor';
 export type { SavedViewEditorProps } from './components/SavedViewEditor';
 export type { ColumnOption } from './components/SavedViewEditorTabs';
