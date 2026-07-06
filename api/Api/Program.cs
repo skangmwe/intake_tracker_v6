@@ -163,6 +163,13 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Notifications.INotifi
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Announcements.IAnnouncementsService,
     McDermott.AiTracker.Api.Modules.Announcements.AnnouncementsService>();
 
+// ─── Feature Catalog + Saved views (slice 14) — Features depends on Requests / Drafts / TypedLinks
+//     (all registered above); Saved views is presentation metadata over the list surfaces ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Features.IFeaturesService,
+    McDermott.AiTracker.Api.Modules.Features.FeaturesService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.SavedViews.ISavedViewsService,
+    McDermott.AiTracker.Api.Modules.SavedViews.SavedViewsService>();
+
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
 // intended contract (api-coding-standards.md — Swagger is gated by config, not

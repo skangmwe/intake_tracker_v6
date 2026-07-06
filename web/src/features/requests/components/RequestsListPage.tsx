@@ -7,7 +7,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CaretLeft, CaretRight, DownloadSimple, FilePlus, LinkSimple } from '@phosphor-icons/react';
 
-import type { FilterClause, PaginatedQuery, RequestListRow, SlaStatus } from '@shared/types';
+import type { FilterClause, PaginatedQuery, RequestListRow, SavedViewDto, SlaStatus } from '@shared/types';
 
 import { Button, IconButton } from '@/shared/components/Button';
 import {
@@ -25,6 +25,12 @@ import {
 } from '@/shared/components/Table';
 import { agingTintClass } from '@/shared/components/Feedback';
 import { useMe } from '@/features/users/useMe';
+import {
+  SavedViewEditor,
+  toPickerView,
+  useSavedViews,
+  type ColumnOption,
+} from '@/features/saved-views';
 
 import { useRequestsList } from '../useRequests';
 import { resolveActiveWorkspaceId } from '../workspace';
@@ -44,10 +50,24 @@ const COLUMNS: TableColumn[] = [
   { key: 'origin', label: 'Dept/PG/Client', width: 150, sortable: true, filterable: true },
   { key: 'analyst', label: 'Assigned analyst', width: 160, sortable: true, filterable: true },
   { key: 'tags', label: 'Tags', width: 190 },
-  { key: 'priority', label: 'Priority', width: 90, align: 'right', sortable: true, filterable: true },
+  {
+    key: 'priority',
+    label: 'Priority',
+    width: 90,
+    align: 'right',
+    sortable: true,
+    filterable: true,
+  },
   { key: 'repo', label: 'Repo URL', width: 210 },
   { key: 'due', label: 'Due date', sortable: true, filterable: true },
 ];
+
+/** Columns offered by the saved-view editor (S24) — key + human label. */
+const EDITOR_COLUMNS: ColumnOption[] = COLUMNS.map((column) => ({
+  key: column.key,
+  label: column.label,
+}));
+const DEFAULT_COLUMN_KEYS = COLUMNS.map((column) => column.key);
 
 /** Filterable column → funnel type. */
 const FILTER_TYPES: Record<string, FilterType> = {
@@ -79,9 +99,13 @@ export function parseNumberExpression(expression: string): NumberFilter | null {
 export function filterValueToClause(value: FilterValue): FilterClause | undefined {
   switch (value.kind) {
     case 'select':
-      return value.values && value.values.length > 0 ? { kind: 'select', values: value.values } : undefined;
+      return value.values && value.values.length > 0
+        ? { kind: 'select', values: value.values }
+        : undefined;
     case 'text':
-      return value.contains && value.contains.trim() ? { kind: 'text', contains: value.contains.trim() } : undefined;
+      return value.contains && value.contains.trim()
+        ? { kind: 'text', contains: value.contains.trim() }
+        : undefined;
     case 'number': {
       const parsed = value.expression ? parseNumberExpression(value.expression) : null;
       return parsed ? { kind: 'number', op: parsed.op, value: parsed.value } : undefined;
@@ -249,7 +273,15 @@ interface RequestsPaginationProps {
   onNext: () => void;
 }
 
-function RequestsPagination({ page, totalPages, total, start, end, onPrev, onNext }: RequestsPaginationProps) {
+function RequestsPagination({
+  page,
+  totalPages,
+  total,
+  start,
+  end,
+  onPrev,
+  onNext,
+}: RequestsPaginationProps) {
   return (
     <div className="rl-pagination">
       <span className="rl-pagination__summary">
@@ -304,11 +336,24 @@ export function RequestsListPage() {
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
   const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
   const displayName = me?.user.displayName ?? '';
+  const isAdmin = useMemo(
+    () =>
+      (me?.memberships ?? []).some(
+        (m) => m.workspaceId === workspaceId && m.level === 'WorkspaceAdmin',
+      ),
+    [me, workspaceId],
+  );
+
+  const { data: savedViews } = useSavedViews(workspaceId ?? undefined, 'Request');
 
   const [activeViewId, setActiveViewId] = useState('all');
   const [filters, setFilters] = useState<Record<string, FilterClause>>({});
   const [sort, setSort] = useState<SortState | undefined>(undefined);
   const [page, setPage] = useState(1);
+  const [editor, setEditor] = useState<{
+    editingView: SavedViewDto | null;
+    initialTab: 'filters' | 'fields' | 'sort';
+  } | null>(null);
 
   const query = useMemo<PaginatedQuery>(() => {
     const built: PaginatedQuery = { page, pageSize: PAGE_SIZE };
@@ -350,9 +395,25 @@ export function RequestsListPage() {
 
   const selectView = (viewId: string) => {
     setActiveViewId(viewId);
-    setFilters(presetFilters(viewId, displayName));
     setPage(1);
+    const real = (savedViews ?? []).find((view) => view.id === viewId);
+    if (real) {
+      setFilters({ ...real.filters });
+      setSort(
+        real.sort[0]
+          ? { column: real.sort[0].column, direction: real.sort[0].direction }
+          : undefined,
+      );
+    } else {
+      setFilters(presetFilters(viewId, displayName));
+    }
   };
+
+  const pickerViews: SavedView[] = useMemo(
+    () => [...SAVED_VIEWS, ...(savedViews ?? []).map(toPickerView)],
+    [savedViews],
+  );
+  const activeSavedView = (savedViews ?? []).find((view) => view.id === activeViewId) ?? null;
 
   const onSortChange = (next: SortState | undefined) => {
     setSort(next);
@@ -378,17 +439,22 @@ export function RequestsListPage() {
     <ViewBar
       viewPicker={
         <SavedViewPicker
-          views={SAVED_VIEWS}
+          views={pickerViews}
           activeViewId={activeViewId}
           onSelect={selectView}
           countFor={countFor}
-          onModifyColumns={noop}
-          onEditView={noop}
-          onSaveAsNew={noop}
+          onModifyColumns={() => setEditor({ editingView: activeSavedView, initialTab: 'fields' })}
+          onEditView={() => setEditor({ editingView: activeSavedView, initialTab: 'filters' })}
+          onSaveAsNew={() => setEditor({ editingView: null, initialTab: 'filters' })}
         />
       }
       exportSlot={
-        <Button variant="secondary" compact onClick={noop} title="Export the current view (coming soon)">
+        <Button
+          variant="secondary"
+          compact
+          onClick={noop}
+          title="Export the current view (coming soon)"
+        >
           <DownloadSimple size={16} weight="regular" aria-hidden /> Export view
         </Button>
       }
@@ -474,6 +540,20 @@ export function RequestsListPage() {
             onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
           />
         </div>
+      )}
+
+      {editor && workspaceId && (
+        <SavedViewEditor
+          workspaceId={workspaceId}
+          objectType="Request"
+          availableColumns={EDITOR_COLUMNS}
+          defaultColumns={DEFAULT_COLUMN_KEYS}
+          editingView={editor.editingView}
+          initialTab={editor.initialTab}
+          canShare={isAdmin}
+          onClose={() => setEditor(null)}
+          onSaved={(view) => selectView(view.id)}
+        />
       )}
     </main>
   );

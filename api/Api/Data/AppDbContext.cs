@@ -102,6 +102,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<AnnouncementRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<AnnouncementListRowEntity>().HasNoKey().ToView((string?)null);
 
+        // Slice 14 (Feature Catalog + Saved views) — keyless projections read via stored procedures.
+        modelBuilder.Entity<FeatureRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<SavedViewRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

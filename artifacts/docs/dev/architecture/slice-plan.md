@@ -190,6 +190,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S9**, **S10**, **S13**, **S24** all `[deferred]`.
 - **Depends on:** 3 (saved views need field definitions), 5 (Add-to-catalog reads a shipped Request), 10 (typed link creation).
 - **Estimated LoC:** 5,500.
+- **Status: completed** — Features table + 5 access-gated procs; SavedView table (with an added `ObjectType` discriminator) + 4 procs; both API modules; the saved-views feature (S24 tabbed side sheet) wired into **both** the S9 and S2 pickers; S9 list (disabled Gallery toggle per the S11 deferral), S10 detail (reusing the Attachments + Relationships cards for visuals + `sourced-from` provenance), S13 form with an Add-to-catalog entry on the Request detail (S4). Decisions in [14-slice-feature-catalog-saved-views.md](14-slice-feature-catalog-saved-views.md): Add-to-catalog is a **service** (mirrors Copy — no new proc); `POST /features/query` replaces the contract's stray `GET /query`; `objectType` added to the saved-view types/endpoints so a view binds to one surface; the feature list gates on AI-workspace Viewer+ (firm-wide read → slice 23); `FeatureCreateRequest.owner` optional + `FeatureDto.eTag` shared-type refinements.
+- **Started:** 2026-07-05T15:20:38-04:00
+- **Ended:** 2026-07-05T16:53:45-04:00
+- **Duration:** 01:33:07
 
 ### Slice 15: Search
 - **Spec section:** BS §9.5 (search — access-respecting, no OCR, Legacy ID searchable).

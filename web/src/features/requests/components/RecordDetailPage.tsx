@@ -9,7 +9,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowsLeftRight, CaretRight, CloudCheck } from '@phosphor-icons/react';
 
-import type { FieldDefinitionDto, RecordId, RequestDto, RequestPatchRequest, WorkspaceId } from '@shared/types';
+import type {
+  FieldDefinitionDto,
+  RecordId,
+  RequestDto,
+  RequestPatchRequest,
+  WorkspaceId,
+} from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { Select, TextArea } from '@/shared/components/Form';
@@ -20,6 +26,7 @@ import { ActivityTab } from '@/features/comments';
 import { TasksTab } from '@/features/tasks';
 import { useMe } from '@/features/users/useMe';
 import { EscalateModal, EscalatedIntakeNote } from '@/features/escalation';
+import { AddToCatalogButton } from '@/features/features';
 import { CloseRecordModal } from '@/features/closure';
 import { RelationshipsCard } from '@/features/typed-links';
 import { AttachmentsCard } from '@/features/attachments';
@@ -72,7 +79,9 @@ function formatDayMonth(value: unknown): string {
   const date = isoDate
     ? new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]))
     : new Date(raw);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
 function formatSubmitted(iso: string): string {
@@ -103,7 +112,10 @@ function RecordMetaStrip({ request }: { request: RequestDto }) {
       <div className="record-meta__item">
         <dt className="record-meta__label">Display status</dt>
         <dd className="record-meta__value">
-          <StatusPill status={displayStatusKind(request.displayStatus)} label={request.displayStatus} />
+          <StatusPill
+            status={displayStatusKind(request.displayStatus)}
+            label={request.displayStatus}
+          />
         </dd>
       </div>
       <div className="record-meta__item">
@@ -112,7 +124,9 @@ function RecordMetaStrip({ request }: { request: RequestDto }) {
       </div>
       <div className="record-meta__item">
         <dt className="record-meta__label">Priority score</dt>
-        <dd className="record-meta__value record-meta__value--mono">{computePriorityScore(request.fields)}</dd>
+        <dd className="record-meta__value record-meta__value--mono">
+          {computePriorityScore(request.fields)}
+        </dd>
       </div>
       <div className="record-meta__item">
         <dt className="record-meta__label">Due date</dt>
@@ -131,7 +145,14 @@ interface IntakeTabProps {
   onFirstEdit: () => void;
 }
 
-function IntakeTab({ request, fields, schemaLoading, schemaError, patch, onFirstEdit }: IntakeTabProps) {
+function IntakeTab({
+  request,
+  fields,
+  schemaLoading,
+  schemaError,
+  patch,
+  onFirstEdit,
+}: IntakeTabProps) {
   const [values, setValues] = useState<FieldValueMap>(() => ({ ...request.fields }));
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -141,9 +162,12 @@ function IntakeTab({ request, fields, schemaLoading, schemaError, patch, onFirst
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => setValues({ ...request.fields }), [request.id]);
 
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const handleChange = (fieldKey: string, value: unknown) => {
     onFirstEdit();
@@ -191,13 +215,24 @@ function IntakeTab({ request, fields, schemaLoading, schemaError, patch, onFirst
       {bridge && <EscalatedIntakeNote bridge={bridge} />}
       {groupFieldsBySection(fields).map((group) => {
         const visible = group.fields.filter((field) => {
-          if (field.isReadOnly || field.fieldType === 'Calculation' || field.fieldType === 'DerivedCategory') return false;
+          if (
+            field.isReadOnly ||
+            field.fieldType === 'Calculation' ||
+            field.fieldType === 'DerivedCategory'
+          )
+            return false;
           if (conditions.hidden.has(field.fieldKey)) return false;
-          return field.visibleStages == null || (stage != null && field.visibleStages.includes(stage));
+          return (
+            field.visibleStages == null || (stage != null && field.visibleStages.includes(stage))
+          );
         });
         if (visible.length === 0) return null;
         return (
-          <section key={group.section} className="record-intake__section" aria-label={group.section}>
+          <section
+            key={group.section}
+            className="record-intake__section"
+            aria-label={group.section}
+          >
             <h2 className="record-intake__heading">{group.section}</h2>
             <div className="record-intake__grid">
               {visible.map((field) => {
@@ -229,7 +264,9 @@ function IntakeTab({ request, fields, schemaLoading, schemaError, patch, onFirst
 
       <div className="record-intake__readonly">
         <span className="record-intake__ro-label">Priority at escalation</span>
-        <span className="record-intake__ro-value record-meta__value--mono">{computePriorityScore(values)}</span>
+        <span className="record-intake__ro-value record-meta__value--mono">
+          {computePriorityScore(values)}
+        </span>
         <span className="record-intake__ro-label">SLA status</span>
         <span className="record-intake__ro-value">{slaLabel(request, values)}</span>
         <span className="record-intake__ro-label">Submitted</span>
@@ -273,7 +310,12 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
   return (
     <div className="record-status">
       <section className="record-card" aria-label="Status override">
-        <Select label="Status override" value={statusChoice} onChange={setStatusChoice} options={STATUS_OPTIONS} />
+        <Select
+          label="Status override"
+          value={statusChoice}
+          onChange={setStatusChoice}
+          options={STATUS_OPTIONS}
+        />
         {reasonRequired && (
           <TextArea
             label="Reason"
@@ -282,19 +324,28 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
             error={reasonMissing ? 'Add a reason for the hold.' : undefined}
           />
         )}
-        <Button variant="secondary" onClick={updateStatus} disabled={setHold.isPending || reasonMissing}>
+        <Button
+          variant="secondary"
+          onClick={updateStatus}
+          disabled={setHold.isPending || reasonMissing}
+        >
           Update status
         </Button>
       </section>
 
       <section className="record-card" aria-label="Move stage">
         <Select label="Stage" value={toStage} onChange={setToStage} options={stageOptions} />
-        <Button variant="secondary" onClick={() => setStage.mutate(toStage)} disabled={setStage.isPending}>
+        <Button
+          variant="secondary"
+          onClick={() => setStage.mutate(toStage)}
+          disabled={setStage.isPending}
+        >
           Move stage
         </Button>
         {setStage.data && !setStage.data.advanced && (
           <p className="mws-alert mws-alert--info" role="status">
-            {setStage.data.gateOpened.gateName} opened — approve it on the Tasks &amp; gates tab to advance.
+            {setStage.data.gateOpened.gateName} opened — approve it on the Tasks &amp; gates tab to
+            advance.
           </p>
         )}
       </section>
@@ -303,8 +354,9 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
         <section className="record-card" aria-label="Escalate to AI Solutions">
           <span className="record-chip">Escalate to AI Solutions</span>
           <p className="caption">
-            Hand this request to the AI Solutions team. The crossing fields lock on this side and the
-            record tracks AI-side delivery through the AI Solutions Status mirror. One-time, one-way.
+            Hand this request to the AI Solutions team. The crossing fields lock on this side and
+            the record tracks AI-side delivery through the AI Solutions Status mirror. One-time,
+            one-way.
           </p>
           <Button variant="secondary" onClick={onEscalate}>
             Escalate to AI Solutions
@@ -312,7 +364,10 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
         </section>
       )}
 
-      <RelationshipsCard recordId={request.id as RecordId} workspaceId={request.workspaceId as WorkspaceId} />
+      <RelationshipsCard
+        recordId={request.id as RecordId}
+        workspaceId={request.workspaceId as WorkspaceId}
+      />
 
       <section className="record-card" aria-label="Close record">
         <span className="record-chip">Close record</span>
@@ -323,7 +378,9 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
           </p>
         ) : (
           <>
-            <p className="caption">Record a final outcome for this request. You can still read it afterward.</p>
+            <p className="caption">
+              Record a final outcome for this request. You can still read it afterward.
+            </p>
             <Button variant="secondary" onClick={() => setCloseOpen(true)}>
               Close record
             </Button>
@@ -332,7 +389,11 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
       </section>
 
       {closeOpen && (
-        <CloseRecordModal recordId={request.id as RecordId} recordName={request.name} onClose={() => setCloseOpen(false)} />
+        <CloseRecordModal
+          recordId={request.id as RecordId}
+          recordName={request.name}
+          onClose={() => setCloseOpen(false)}
+        />
       )}
     </div>
   );
@@ -385,7 +446,9 @@ export function RecordDetailPage() {
       <main className="record-detail">
         <div className="record-noaccess" role="alert">
           <h1 className="h3">You don’t have access to this record.</h1>
-          <p className="caption">If you think this is a mistake, ask the record owner or your workspace admin for access.</p>
+          <p className="caption">
+            If you think this is a mistake, ask the record owner or your workspace admin for access.
+          </p>
           <Button variant="secondary" onClick={() => navigate('/requests')}>
             Back to requests
           </Button>
@@ -410,7 +473,11 @@ export function RecordDetailPage() {
   return (
     <main className="record-detail">
       <nav aria-label="Breadcrumb" className="record-breadcrumb">
-        <button type="button" className="record-breadcrumb__link" onClick={() => navigate('/requests')}>
+        <button
+          type="button"
+          className="record-breadcrumb__link"
+          onClick={() => navigate('/requests')}
+        >
           Requests
         </button>
         <CaretRight size={14} aria-hidden />
@@ -427,12 +494,17 @@ export function RecordDetailPage() {
           </span>
         )}
         <h1 className="record-header__name">{request.name}</h1>
+        <AddToCatalogButton sourceRecordId={request.id} />
       </header>
 
       <RecordMetaStrip request={request} />
 
       <div className="ast-stepper-bar">
-        <Stepper compact steps={request.stages.map((stage) => ({ label: stage.label }))} currentIndex={currentIndex} />
+        <Stepper
+          compact
+          steps={request.stages.map((stage) => ({ label: stage.label }))}
+          currentIndex={currentIndex}
+        />
       </div>
 
       <div className="record-tabrow">
