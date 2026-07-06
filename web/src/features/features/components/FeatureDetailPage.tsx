@@ -10,6 +10,8 @@ import { ArrowLeft } from '@phosphor-icons/react';
 import type { FeatureDto, RecordId } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
+import { NoAccessPage } from '@/shared/components/EdgeStates';
+import { ApiError } from '@/shared/http/apiClient';
 import { AttachmentsCard } from '@/features/attachments';
 import { RelationshipsCard } from '@/features/typed-links';
 import { useMe } from '@/features/users/useMe';
@@ -121,7 +123,12 @@ function MaturityActions({ feature }: { feature: FeatureDto }) {
 export function FeatureDetailPage() {
   const { recordId } = useParams<{ recordId: string }>();
   const { data: me } = useMe();
-  const { data: feature, isLoading, isError } = useFeature(recordId as RecordId | undefined);
+  const {
+    data: feature,
+    isLoading,
+    isError,
+    error,
+  } = useFeature(recordId as RecordId | undefined);
 
   const canEdit = useMemo(
     () =>
@@ -143,6 +150,10 @@ export function FeatureDetailPage() {
     );
   }
 
+  if (isError && error instanceof ApiError && error.status === 403) {
+    return <NoAccessPage resourceNoun="feature" />;
+  }
+
   if (isError || !feature) {
     return (
       <main className="feature-detail-page">
@@ -150,7 +161,7 @@ export function FeatureDetailPage() {
           <ArrowLeft size={16} weight="regular" aria-hidden /> Back to catalog
         </Link>
         <p className="mws-alert mws-alert--error" role="alert">
-          This feature couldn&apos;t be loaded — it may not exist or you may not have access.
+          This feature couldn&apos;t be loaded. Try again in a moment.
         </p>
       </main>
     );

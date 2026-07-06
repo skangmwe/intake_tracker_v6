@@ -113,7 +113,7 @@ describe('FeatureCatalogPage', () => {
 
   it('FeatureCatalogPage — an empty result under the default Published filter shows filtered-to-zero', async () => {
     // Arrange — the default "Published catalog" view carries a maturity filter, so an empty result
-    // is a filtered-to-zero state (a bordered card + Clear all filters), never the zero-data ceremony.
+    // is a filtered-to-zero state (a bordered card + Clear filters), never the zero-data ceremony.
     mockHooks({ data: page([]) });
 
     // Act
@@ -121,9 +121,9 @@ describe('FeatureCatalogPage', () => {
       route: '/feature-catalog',
     });
 
-    // Assert
-    expect(screen.getByText('No features match the current filters.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeInTheDocument();
+    // Assert — the shared EmptyListFilteredToZero (S42).
+    expect(screen.getByText('No matches for these filters')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

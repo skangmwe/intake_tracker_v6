@@ -456,11 +456,21 @@
   padding: var(--space-8) var(--space-5);
   border-radius: var(--radius);
 }
+/* Zero-data ceremony: pale fill, navy text throughout (theme-stable — pale fills never use the
+   themed --text-primary). Filtered-to-zero: bordered card on the surface colour, theme-aware text. */
 .mws-empty--zero { background: var(--color-pale-blue); color: var(--color-navy); }
-.mws-empty--filtered { background: var(--bg-surface); border: 1px solid var(--border-light); }
+.mws-empty--filtered { background: var(--bg-surface); border: 1px solid var(--border-light); color: var(--text-primary); }
 .mws-empty__icon { font-size: 48px; color: var(--icon-default); margin-bottom: var(--space-4); }
+.mws-empty--zero .mws-empty__icon { color: var(--color-navy); }
 .mws-empty__title { font-family: var(--font-mix); font-size: 24px; margin-bottom: var(--space-2); }
-.mws-empty__body { color: var(--text-secondary); max-width: 380px; margin: 0 auto var(--space-5); }
+.mws-empty__body { max-width: 380px; margin: 0 auto var(--space-5); }
+.mws-empty--zero .mws-empty__body { color: var(--color-navy); }
+.mws-empty--filtered .mws-empty__body { color: var(--text-secondary); }
+.mws-empty__actions { display: flex; gap: var(--space-2); justify-content: center; flex-wrap: wrap; }
+
+/* No-access route (S40): centres the pale zero-data surface within the content area. */
+.mws-noaccess { display: flex; justify-content: center; padding: var(--space-7) var(--space-5); }
+.mws-noaccess .mws-empty { max-width: 480px; }
 
 /* =========================================================
    STATUS INDICATOR

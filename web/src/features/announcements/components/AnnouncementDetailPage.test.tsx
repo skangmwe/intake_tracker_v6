@@ -70,8 +70,10 @@ it('AnnouncementDetailPage — 403 — shows the no-access message', async () =>
   // Act
   const { container } = renderDetail();
 
-  // Assert — never reveals whether the announcement exists.
-  expect(await screen.findByRole('heading', { name: 'You don’t have access to this' })).toBeInTheDocument();
+  // Assert — the shared NoAccessPage (S40); never reveals whether the announcement exists.
+  expect(
+    await screen.findByRole('heading', { name: 'You don’t have access to this announcement.' }),
+  ).toBeInTheDocument();
   expect(await axe(container)).toHaveNoViolations();
 });
 

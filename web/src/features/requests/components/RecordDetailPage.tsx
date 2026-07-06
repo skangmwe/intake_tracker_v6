@@ -20,6 +20,7 @@ import type {
 import { Button } from '@/shared/components/Button';
 import { Select, TextArea } from '@/shared/components/Form';
 import { Stepper, StatusPill, Tabs } from '@/shared/components/Feedback';
+import { NoAccessPage } from '@/shared/components/EdgeStates';
 import { ApiError } from '@/shared/http/apiClient';
 import { fetchWorkspaceFields } from '@/features/fields/api';
 import { ActivityTab } from '@/features/comments';
@@ -442,19 +443,7 @@ export function RecordDetailPage() {
   }
 
   if (isError && isForbidden(error)) {
-    return (
-      <main className="record-detail">
-        <div className="record-noaccess" role="alert">
-          <h1 className="h3">You don’t have access to this record.</h1>
-          <p className="caption">
-            If you think this is a mistake, ask the record owner or your workspace admin for access.
-          </p>
-          <Button variant="secondary" onClick={() => navigate('/requests')}>
-            Back to requests
-          </Button>
-        </div>
-      </main>
-    );
+    return <NoAccessPage resourceNoun="record" />;
   }
 
   if (isError || !request) {

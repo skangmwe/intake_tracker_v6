@@ -10,6 +10,7 @@ import type { FirmWideAuditQuery } from '@shared/types';
 
 import { AUDIT_LOG_PAGE_SIZE } from '@/shared/constants';
 import { Button } from '@/shared/components/Button';
+import { EmptyListFilteredToZero } from '@/shared/components/EdgeStates';
 
 import { PlatformGate } from './PlatformGate';
 import {
@@ -65,17 +66,11 @@ function FirmWideAuditSurface() {
       )}
 
       {audit.data && rows.length === 0 && (
-        <section className="mws-empty mws-empty--filtered" aria-labelledby="firm-audit-none">
-          <h2 id="firm-audit-none" className="h3">
-            No matching activity
-          </h2>
-          <p className="body">
-            No audit entries match these filters. Try widening the date range or clearing filters.
-          </p>
-          <Button variant="secondary" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        </section>
+        <EmptyListFilteredToZero
+          title="No matching activity"
+          message="No audit entries match these filters. Try widening the date range or clearing filters."
+          onClearFilters={clearFilters}
+        />
       )}
 
       {audit.data && rows.length > 0 && (
