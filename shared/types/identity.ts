@@ -76,8 +76,39 @@ export interface WorkspaceProvisionRequest {
   initialAdminUserId: UserId;
 }
 
-/** Membership upsert — add or change level. */
+/**
+ * Membership upsert — add a new member or change an existing member's level (S29).
+ * Exactly one of `userId` / `email` must be supplied:
+ *  - `userId` — change an existing member's level (or add a member already known by id).
+ *  - `email` — resolve an active platform user by email and add/update their membership.
+ *    Resolution mirrors the approver-team add (slice 4): unresolved / ambiguous → 400.
+ * (Slice 17 refinement of the api-contracts §2 body — the R1 stack has no user-directory
+ * endpoint, so the S29 "Add member" affordance resolves a typed email server-side.)
+ */
 export interface MembershipUpsertRequest {
-  userId: UserId;
+  userId?: UserId;
+  email?: string;
   level: AccessLevel;
+}
+
+/**
+ * One row of the S29 Users & access members list — the caller-facing view of a
+ * workspace member: SSO identity, their level in this workspace, last-active, and
+ * whether the account is disabled (BS §4.2 / blueprint S29).
+ */
+export interface WorkspaceMemberDto {
+  userId: UserId;
+  /** PII — never logged (api-logging.md). */
+  displayName: string;
+  /** PII — never logged. */
+  email: string;
+  level: AccessLevel;
+  isDisabled: boolean;
+  /** Last authenticated request (Users.LastSignInAt). */
+  lastActiveAt: IsoDateTime;
+}
+
+/** Response of GET /workspaces/{id}/members. */
+export interface MembersListDto {
+  members: WorkspaceMemberDto[];
 }

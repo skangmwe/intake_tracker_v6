@@ -41,3 +41,4 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 14 | Feature Catalog (S9/S10/S13) + Saved-view editor (S24 + S2 wiring) | completed | [slice-plan.md §Slice 14](slice-plan.md) | [14-slice-feature-catalog-saved-views.md](14-slice-feature-catalog-saved-views.md) |
 | 15 | Search — top-bar quick search + S27 results | completed | [slice-plan.md §Slice 15](slice-plan.md) | [15-slice-search.md](15-slice-search.md) |
 | 16 | CSV Import & Export (S28 + S2 Export button) | completed | [slice-plan.md §Slice 16](slice-plan.md) | [16-slice-import-export.md](16-slice-import-export.md) |
+| 17 | Users & access admin (S29) | completed | [slice-plan.md §Slice 17](slice-plan.md) | [17-slice-users-access.md](17-slice-users-access.md) |

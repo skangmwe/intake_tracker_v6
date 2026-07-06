@@ -23,6 +23,7 @@ import type {
   TypedLinkId,
   UserId,
   WorkspaceId,
+  WorkspaceMemberDto,
   WorkspaceMembershipDto,
 } from '@shared/types';
 
@@ -241,6 +242,19 @@ export function buildTypedLink(overrides: Partial<TypedLinkDto> = {}): TypedLink
     toName: 'Summariser',
     toStage: 'qa',
     createdAt: '2026-07-04T10:00:00Z',
+    ...overrides,
+  };
+}
+
+/** One S29 members-list row. Defaults to an active Member. */
+export function buildMember(overrides: Partial<WorkspaceMemberDto> = {}): WorkspaceMemberDto {
+  return {
+    userId: '00000000-0000-0000-0000-0000000000a1' as UserId,
+    displayName: 'Priya Raman',
+    email: 'priya@mws.ai',
+    level: 'Member',
+    isDisabled: false,
+    lastActiveAt: '2026-07-03T13:00:00Z',
     ...overrides,
   };
 }

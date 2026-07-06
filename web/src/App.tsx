@@ -25,6 +25,7 @@ import {
   RequestsListPage,
 } from '@/features/requests';
 import { SearchResultsPage } from '@/features/search';
+import { UsersAccessPage } from '@/features/users';
 import { HomePage } from '@/pages/HomePage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 
@@ -39,9 +40,11 @@ import '@/features/features/features.css';
 import '@/features/saved-views/savedViews.css';
 import '@/features/search/search.css';
 import '@/features/import-export/importExport.css';
+import '@/features/users/users.css';
 
 // Routes implemented by real feature surfaces; excluded from the placeholder fallback.
 const IMPLEMENTED_ROUTES = new Set([
+  '/admin/users',
   '/admin/fields',
   '/admin/lifecycle',
   '/admin/announcements',
@@ -62,6 +65,7 @@ export function App() {
           <Routes>
             <Route element={<AppShell />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/admin/users" element={<UsersAccessPage />} />
               <Route path="/admin/fields" element={<FieldsAdminPage />} />
               <Route path="/admin/lifecycle" element={<LifecyclePage />} />
               <Route path="/platform/fields" element={<PlatformFieldsPage />} />
