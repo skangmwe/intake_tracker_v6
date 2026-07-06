@@ -6,14 +6,19 @@ import type { ComponentType } from 'react';
 import type { IconProps } from '@phosphor-icons/react';
 import {
   ArrowsDownUp,
+  ArrowsLeftRight,
   ChartBar,
+  ClipboardText,
   FlowArrow,
   House,
   ListDashes,
   Megaphone,
   Scroll,
+  ShieldCheck,
   SquaresFour,
   Stack,
+  Table,
+  Tag,
   Toolbox,
   Tray,
   Users,
@@ -28,6 +33,8 @@ export interface NavEntry {
 export interface NavSection {
   label: string;
   items: NavEntry[];
+  /** Section shown only to holders of the additive Platform-admin grant (S34–S39). */
+  platformOnly?: boolean;
 }
 
 export const NAV_SECTIONS: NavSection[] = [
@@ -56,6 +63,17 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/admin/announcements', icon: Megaphone, label: 'Manage announcements' },
       { to: '/admin/import-export', icon: ArrowsDownUp, label: 'Import & export' },
       { to: '/admin/audit', icon: Scroll, label: 'Audit log' },
+    ],
+  },
+  {
+    label: 'Platform',
+    platformOnly: true,
+    items: [
+      { to: '/platform/fields', icon: Table, label: 'Field schema' },
+      { to: '/platform/crossing-map', icon: ArrowsLeftRight, label: 'Crossing map' },
+      { to: '/platform/access', icon: ShieldCheck, label: 'Access provisioning' },
+      { to: '/platform/role-labels', icon: Tag, label: 'Role labels' },
+      { to: '/platform/audit', icon: ClipboardText, label: 'Firm-wide audit' },
     ],
   },
 ];

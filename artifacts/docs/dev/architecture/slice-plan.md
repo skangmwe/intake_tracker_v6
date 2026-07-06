@@ -253,6 +253,11 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S35**, **S36**, **S37**, **S38** (API only), **S39** all `[deferred]`.
 - **Depends on:** 1, 2, 3, 17.
 - **Estimated LoC:** 5,000.
+- **Divergences resolved (Step 3, analyst-approved):** (1) **No `CrossingMap` table** — `RoleLabelCatalog` (slice 4) and `PlatformAdminGrant` (slice 1) already exist, and the Phase-1 crossing map is read-only, so S35 reads the seeded PG→AI pairs off `FieldDefinition` via `usp_GetCrossingMap` (workspaces resolved by `Kind`, no seed GUIDs) — matching slice 9's `usp_GetCrossingFields`/data-model "no CrossingMap table in Phase 1". The durable table + propose/confirm stays slice 24. (2) **Role-labels are GET+POST+PATCH+DELETE** (a superset of api-contracts §19's GET/POST) to honour blueprint S37's "add / rename / retire"; rename/retire are forward-only (procs never touch `GateApproverSlot` / `ApproverTeamMembership` / `ApprovalRequest`). (3) **`POST /workspaces` clones the PG/Dept template** (`usp_ProvisionWorkspace`: workspace + `PrefixRegistry` + initial-admin membership + the template's `FieldDefinition`/`SelectOption`/`FieldRule`/`DerivedField`/`FieldRuleDependency` via id-remap); the template ships no lifecycle, so a new PG workspace has none either (admins configure via S31). Response is a focused `WorkspaceProvisionResult` (`{id,name,kind,prefix}`), not the awkward member-less `WorkspaceDto`. `GET /workspaces` was not needed (the switcher reads `/users/me` memberships) and is out of scope. (4) **S34 was already built in slice 3** (`/platform/fields`) — no rebuild; slice 19 only adds the Platform nav section that surfaces it. (5) Platform-level events anchor on the AI Solutions workspace id (the `PlatformFieldService` slice-3 convention — `AuditEntry.WorkspaceId` is NOT NULL) so role-label / grant edits land in the firm-wide audit; `workspace.provisioned` anchors on the new workspace. See [19-slice-platform-admin.md](19-slice-platform-admin.md).
+- **Status: completed**
+- **Started:** 2026-07-06T11:21:32-04:00
+- **Ended:** 2026-07-06T12:21:55-04:00
+- **Duration:** 01:00:23
 
 ### Slice 20: Error / empty edge states (S40, S41, S42)
 - **Spec section:** `loading-empty-and-error-states.md` + BS §22.6 (no-access response).

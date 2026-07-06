@@ -60,12 +60,12 @@ List workspaces the caller is a member of. Response resolves to memberships the 
 
 - **Response:** `WorkspaceListItem[]` — `{ id, name, kind, prefix, level }`.
 
-### `POST /api/v1/workspaces` — Platform admin only (R1 Phase 2 self-serve)
-Provision a new PG/Dept workspace by cloning the template.
+### `POST /api/v1/workspaces` — Platform admin only (Slice 19; wizard UI slice 24)
+Provision a new PG/Dept workspace by cloning the template (`usp_ProvisionWorkspace`).
 
-- **Body:** `WorkspaceProvisionRequest` — `{ name, prefix, initialAdminUserId }`. Prefix must be globally unique (validated against `PrefixRegistry`).
-- **Response:** `201 → WorkspaceDto`.
-- **Errors:** `409 { detail: "Prefix already in use" }` on prefix collision.
+- **Body:** `WorkspaceProvisionRequest` — `{ name, prefix, initialAdminUserId }`. Prefix is upper-cased and must be globally unique (validated against `Workspaces` **and** `PrefixRegistry`).
+- **Response:** `201 → WorkspaceProvisionResult` — `{ id, name, kind, prefix }`. *(Slice 19: a focused result, not the member-less `WorkspaceDto` first sketched — the Platform-admin caller isn't necessarily a member, so a `level` field is meaningless. The clone copies the template's field schema; the template has no lifecycle, so a fresh workspace has none until S31.)*
+- **Errors:** `409 duplicate-prefix` on prefix collision; `400` on blank name/prefix or an unknown/inactive initial admin; `503` when the PG/Dept template workspace is not provisioned.
 
 ### `GET /api/v1/workspaces/{id}/members` — Workspace admin (Slice 17)
 The S29 members list. Members with SSO identity, level, last-active, and disabled state.
@@ -548,14 +548,14 @@ Approver-team roster. GET returns `ApproverTeamDto[]` (one per role label with i
 
 ## 19 · Admin surfaces (platform)
 
-- `GET /api/v1/platform/fields` / `PATCH` — Platform field schema (S34).
-- `GET /api/v1/platform/crossing-map` / `POST` / `PATCH` — Crossing map (S35). Propose (PG admin) + confirm (AI Solutions admin) — R1 Phase 2.
-- `GET /api/v1/platform/role-labels` / `POST` — Role-label catalog (S37).
-- `GET /api/v1/platform/access` / `POST` — Access provisioning (S36).
-- `POST /api/v1/workspaces` — Workspace provisioning (S38). Phase 1: out-of-band (this endpoint stays available but is called by ops tooling). Phase 2: called by an in-app wizard.
-- `GET /api/v1/platform/audit/query` — Firm-wide audit log (S39).
+- `GET /api/v1/platform/fields` / `PATCH` — Platform field schema (S34, built slice 3).
+- `GET /api/v1/platform/crossing-map` — Crossing map (S35). *(slice 19 — **GET-only, read-only** in R1 Phase 1: reads the seeded PG→AI pairs off `FieldDefinition` via `usp_GetCrossingMap`; there is no `CrossingMap` table until slice 24. The `POST`/`PATCH` propose/confirm workflow is R1 Phase 2 — slice 24.)* → `CrossingMapRowDto[]`.
+- `GET /api/v1/platform/role-labels` / `POST` / `PATCH {id}` / `DELETE {id}` — Role-label catalog (S37). *(slice 19 — PATCH rename + DELETE retire added to honour blueprint S37's "add / rename / retire"; a superset of the GET/POST first sketched. Rename/retire are forward-only. POST → `201 RoleLabelDto`; PATCH → `200 RoleLabelDto`; DELETE → `204` idempotent. Blank → `400`, duplicate → `409`, unknown-on-rename → `404`.)*
+- `GET /api/v1/platform/access` / `POST` / `DELETE {userId}` — Access provisioning (S36). *(slice 19 — DELETE revoke added. GET → `PrivilegedGrantsListDto` (PlatformAdmin + WorkspaceAdmin holders; WorkspaceAdmin rows read-only). POST `{ userId? | email? }` grants the additive Platform-admin grant (email resolved server-side; unresolved/ambiguous → `400`) → `204`. DELETE → `204` idempotent.)*
+- `POST /api/v1/workspaces` — Workspace provisioning (S38, api-contracts §2). *(slice 19 — clones the PG/Dept template via `usp_ProvisionWorkspace`; returns `201 → WorkspaceProvisionResult { id, name, kind, prefix }` (a focused result, not the member-less `WorkspaceDto` §2 first sketched). `409 duplicate-prefix`; `400` on blank input / unknown initial admin; `503` when the template workspace is not provisioned. Phase 1: ops tooling only — the wizard UI is slice 24.)*
+- `POST /api/v1/platform/audit/query` — Firm-wide audit log (S39). *(slice 19 — **POST-with-body**, not `GET`: the multi-field filter set takes a JSON body per api/CLAUDE.md, matching every peer `/query` endpoint. Platform-admin only; invisible to workspace admins. **Body:** `FirmWideAuditQuery` — `AuditLogQuery` + optional `workspaceId` narrower. `pageSize > 100` → `400`. **Response:** `PaginatedResponse<FirmWideAuditRowDto>` (adds `workspaceName`).)*
 
-Every platform-admin endpoint verifies `IsPlatformAdmin` on the current user.
+Every platform-admin endpoint verifies `IsPlatformAdmin` on the current user (403 never 404). Platform-level config edits (role-label create/rename/retire, grant/revoke, workspace provision) emit spine events so they land in the firm-wide audit (S39).
 
 ## 20 · Error contract detail
 

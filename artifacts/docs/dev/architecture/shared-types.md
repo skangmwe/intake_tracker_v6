@@ -18,6 +18,7 @@
 | [`notifications.ts`](../../../../shared/types/notifications.ts) | `EventEnvelope`, `EventType`, `NotificationDto`, `NotificationCategory`, `NotificationQuery` + `UnreadCountDto` (bell feed + badge, slice 12), `HomeDto` + `HomeApprovalItem`/`HomeRecordItem`/`HomeActivityItem`, `SearchHitDto`, `SearchResultDto`, `SavedViewDto`, `SavedViewUpsertRequest`, `SavedDashboardDto`, `DashboardWidgetDto`, `WidgetType`. |
 | [`imports.ts`](../../../../shared/types/imports.ts) | `ImportStatusDto`, `ImportFlaggedRow`, `ExportRequest`, `ImportStatus`. |
 | [`audit.ts`](../../../../shared/types/audit.ts) | Audit-log surfaces (S33 workspace audit, slice 18; S39 firm-wide, slice 19): `AuditLogRowDto`, `AuditLogQuery`. Read-only projection of the append-only `AuditEntry`; distinct from `collaboration.ts`'s per-record `AuditEventItem`. |
+| [`platform.ts`](../../../../shared/types/platform.ts) | Platform-admin surfaces (S35–S39, slice 19): `CrossingMapRowDto` (S35, read-only); `RoleLabelDto` + `RoleLabel{Create,Rename}Request` (S37); `PrivilegedGrantKind`/`PrivilegedGrantDto`/`PrivilegedGrantsListDto` + `PlatformAdminGrantRequest` (S36); `WorkspaceProvisionResult` (S38); `FirmWideAuditRowDto`/`FirmWideAuditQuery` (S39, extend the `audit.ts` shapes). |
 | [`index.ts`](../../../../shared/types/index.ts) | Barrel export. |
 
 ## Conventions

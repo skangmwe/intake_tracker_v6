@@ -526,6 +526,41 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
   `usp_GetImportRows` (`database/procedures/imports/`); tSQLt `database/tests/imports/test_Imports.sql`.
   Per-row create reuses `usp_MintRecordId` (shared counter, BS §6.7) via `IRequestsService`.
 
+### Slice 19 — Platform admin (S35 · S36 · S37 · S38 API · S39)
+
+- **Shared types `/shared/types/platform.ts` (new)** — `CrossingMapRowDto`; `RoleLabelDto` +
+  `RoleLabel{Create,Rename}Request`; `PrivilegedGrantKind` / `PrivilegedGrantDto` /
+  `PrivilegedGrantsListDto` + `PlatformAdminGrantRequest`; `WorkspaceProvisionResult`;
+  `FirmWideAuditRowDto` (extends `AuditLogRowDto` + `workspaceName`) + `FirmWideAuditQuery` (extends
+  `AuditLogQuery` + optional `workspaceId`). Exported from the barrel. `WorkspaceProvisionRequest`
+  reused from `identity.ts`.
+- **API `Modules/PlatformAdmin` (extended)** — `CrossingMapService` (`usp_GetCrossingMap`),
+  `RoleLabelsService` (list/create/rename/retire + spine events), `AccessGrantsService`
+  (list/grant/revoke + events), `FirmWideAuditService` (raw ADO.NET two-result-set read),
+  `PlatformProblems` (shared RFC-7807 builders), and controllers `CrossingMapController` /
+  `RoleLabelsController` / `AccessController` / `PlatformAuditController` — all gated on
+  `IAccessGuard.IsPlatformAdminAsync` (403 never 404). Keyless projections `CrossingMapRow` /
+  `PrivilegedGrantRow` / `PlatformAdminGrantResultRow` / `WorkspaceProvisionRow` added to `Data/Entities.cs`
+  + `AppDbContext`. Registered in `Program.cs`.
+- **API `Modules/Workspaces` (from stub)** — `WorkspaceProvisioningService` (`usp_ProvisionWorkspace`,
+  outcome-mapped guards) + `WorkspacesController` (`POST /api/v1/workspaces`, Platform-admin-gated).
+- **Database `procedures/platform` (new)** — `usp_GetCrossingMap`, `usp_CreateRoleLabel`,
+  `usp_RenameRoleLabel`, `usp_RetireRoleLabel`, `usp_UpsertPlatformAdminGrant`,
+  `usp_RevokePlatformAdminGrant`, `usp_ListPrivilegedGrants`, `usp_ProvisionWorkspace`,
+  `usp_QueryFirmWideAudit`. **No new tables** — reuses `RoleLabelCatalog` (slice 4), `PlatformAdminGrant`
+  (slice 1), `FieldDefinition` crossing fields (slice 3/9), `AuditEntry` (slice 1). tSQLt in
+  `tests/platform`.
+- **Web `features/platform-admin` (from stub)** — `api.ts`, hooks (`usePlatformAdmin`, `useCrossingMap`,
+  `useRoleLabels`, `useAccessGrants`, `useFirmWideAudit`), the `PlatformGate` frame, the four pages
+  (`CrossingMapPage` S35, `AccessPage` S36, `RoleLabelsPage` S37, `FirmWideAuditPage` S39) + their
+  sub-components, `platformAdmin.css`. Routes + `IMPLEMENTED_ROUTES` in `App.tsx`.
+- **Web shared — nav gating.** `NavSection` gained `platformOnly?`; a **Platform** section added to
+  `navItems.ts`; `Sidebar` filters it on a new required `isPlatformAdmin` prop threaded from `AppShell`
+  (`me?.isPlatformAdmin`).
+- **Web shared — audit barrel promotion.** `eventGroup` / `eventTypeLabel` / `EVENT_TYPE_OPTIONS` /
+  `EventGroup` promoted from the audit feature's internals to its barrel (`@/features/audit`) for the
+  firm-wide table + filter bar.
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.

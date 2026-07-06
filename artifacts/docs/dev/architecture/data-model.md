@@ -384,7 +384,7 @@ Role-label → **real workspace users** (not free text). Powers the S31 Approver
 Platform-scope tables governed centrally. See BS §4.3 and §6.2. Not per-workspace.
 
 - **PrefixRegistry** — `Prefix (PK) → WorkspaceId + workspace name at mint time`. Immutable historical record so Origin resolves for records minted under retired workspaces (BS §6.7).
-- **CrossingMap** — `PgFieldId × AiFieldId + option correspondence (JSON)` for select mappings; type-compatibility validated at save; retirement guarded.
+- **CrossingMap** — `PgFieldId × AiFieldId + option correspondence (JSON)` for select mappings; type-compatibility validated at save; retirement guarded. **Slice 19 note:** this durable table is **Phase 2 (slice 24)**. In R1 Phase 1 the crossing map is read-only and lives on `FieldDefinition` (`Category='Crossing'` + `CrossingToFieldKey`) — S35 reads the seeded PG→AI pairs via `usp_GetCrossingMap` (template + AI workspaces resolved by `Kind`), consistent with slice 9's `usp_GetCrossingFields`. No `CrossingMap` table is created in Phase 1.
 
 ### Draft
 

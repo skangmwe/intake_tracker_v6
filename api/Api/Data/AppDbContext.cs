@@ -114,6 +114,12 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<WorkspaceMemberRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<MembershipUpsertResultRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 19 (Platform admin) — keyless projections read via stored procedures.
+        modelBuilder.Entity<CrossingMapRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<PrivilegedGrantRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<PlatformAdminGrantResultRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<WorkspaceProvisionRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

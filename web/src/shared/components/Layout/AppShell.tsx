@@ -89,6 +89,7 @@ export function AppShell() {
         open={drawerOpen}
         collapsed={collapsed}
         memberships={memberships}
+        isPlatformAdmin={me?.isPlatformAdmin ?? false}
         onToggleCollapse={onToggleCollapse}
         onNavigate={closeDrawer}
       />
