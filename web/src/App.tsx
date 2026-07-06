@@ -16,6 +16,7 @@ import {
 } from '@/features/announcements';
 import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
 import { AddToCatalogPage, FeatureCatalogPage, FeatureDetailPage } from '@/features/features';
+import { ImportExportPage } from '@/features/import-export';
 import { LifecyclePage } from '@/features/lifecycle';
 import {
   DraftsPage,
@@ -37,12 +38,14 @@ import '@/features/requests/requests.css';
 import '@/features/features/features.css';
 import '@/features/saved-views/savedViews.css';
 import '@/features/search/search.css';
+import '@/features/import-export/importExport.css';
 
 // Routes implemented by real feature surfaces; excluded from the placeholder fallback.
 const IMPLEMENTED_ROUTES = new Set([
   '/admin/fields',
   '/admin/lifecycle',
   '/admin/announcements',
+  '/admin/import-export',
   '/requests',
   '/feature-catalog',
 ]);
@@ -73,6 +76,7 @@ export function App() {
               <Route path="/announcements" element={<AnnouncementsListPage />} />
               <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
               <Route path="/admin/announcements" element={<ManageAnnouncementsPage />} />
+              <Route path="/admin/import-export" element={<ImportExportPage />} />
               {PLACEHOLDER_ROUTES.map((item) => (
                 <Route
                   key={item.to}

@@ -654,3 +654,34 @@ public sealed class SavedViewRow
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
+
+// ─── Slice 16 (CSV Import & Export) — keyless read projections ──────────────────────────
+// The Imports / ImportRows tables are read via stored procedures (admin-gated joins) and written via
+// usp_CreateImport / usp_RecordImportRow / usp_CompleteImport. The API tracks neither as an EF entity
+// — only these keyless projections bound through FromSqlRaw.
+
+/// <summary>One import job row from usp_GetImportById (admin access baked into the proc join).</summary>
+public sealed class ImportJobRow
+{
+    public Guid ImportId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    /// <summary>The uploaded file name — Confidential-adjacent; never logged.</summary>
+    public string FileName { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int TotalRows { get; set; }
+    public int LandedRows { get; set; }
+    public int FlaggedRows { get; set; }
+    public Guid StartedByUserId { get; set; }
+    public DateTime StartedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+}
+
+/// <summary>One reasoned import row (hard failure or fallback warning) from usp_GetImportRows.</summary>
+public sealed class ImportReportRow
+{
+    public int RowIndex { get; set; }
+    public string Outcome { get; set; } = string.Empty;
+    public string? RecordId { get; set; }
+    /// <summary>`[{code,message,field}]` JSON. Messages are PII-free (field + rule only).</summary>
+    public string? ReasonsJson { get; set; }
+}

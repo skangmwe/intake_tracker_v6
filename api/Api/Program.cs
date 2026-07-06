@@ -62,6 +62,8 @@ builder.Services.Configure<McDermott.AiTracker.Api.Shared.Storage.StorageOptions
     builder.Configuration.GetSection(McDermott.AiTracker.Api.Shared.Storage.StorageOptions.SectionName));
 builder.Services.Configure<McDermott.AiTracker.Api.Modules.Attachments.AttachmentsOptions>(
     builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.Attachments.AttachmentsOptions.SectionName));
+builder.Services.Configure<McDermott.AiTracker.Api.Modules.ImportExport.ImportExportOptions>(
+    builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.ImportExport.ImportExportOptions.SectionName));
 
 // ─── Shared services (shared-inventory.md) ─────────────────────────────────
 builder.Services.AddSingleton<IClock, SystemClock>();
@@ -174,6 +176,21 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.SavedViews.ISavedView
 //     Comments / Attachments through access-gated procs; owns no state of its own ─
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Search.ISearchService,
     McDermott.AiTracker.Api.Modules.Search.SearchService>();
+
+// ─── Import / Export (slice 16) — CSV import (create-only) + Export view. Import streams to Blob and
+//     hands off to an in-process queue drained by ImportProcessor OFF the request thread (the dev/test
+//     stack has no Service Bus — same in-process precedent as slice 12's fan-out; the Worker/Service-Bus
+//     path stays the documented production mechanism). Export composes SavedViews + the access-gated
+//     Requests query (no DbContext of its own) so it is fully unit-testable. ───
+builder.Services.AddSingleton<McDermott.AiTracker.Api.Modules.ImportExport.IImportQueue,
+    McDermott.AiTracker.Api.Modules.ImportExport.ImportQueue>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IImportService,
+    McDermott.AiTracker.Api.Modules.ImportExport.ImportService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IImportRunner,
+    McDermott.AiTracker.Api.Modules.ImportExport.ImportRunner>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IExportService,
+    McDermott.AiTracker.Api.Modules.ImportExport.ExportService>();
+builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.ImportExport.ImportProcessor>();
 
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the

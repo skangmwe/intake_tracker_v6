@@ -31,6 +31,7 @@ import {
   useSavedViews,
   type ColumnOption,
 } from '@/features/saved-views';
+import { useExportView } from '@/features/import-export';
 
 import { useRequestsList } from '../useRequests';
 import { resolveActiveWorkspaceId } from '../workspace';
@@ -345,6 +346,7 @@ export function RequestsListPage() {
   );
 
   const { data: savedViews } = useSavedViews(workspaceId ?? undefined, 'Request');
+  const exportView = useExportView();
 
   const [activeViewId, setActiveViewId] = useState('all');
   const [filters, setFilters] = useState<Record<string, FilterClause>>({});
@@ -433,7 +435,12 @@ export function RequestsListPage() {
     <span className="rl-count">{viewId === activeViewId ? total : EM_DASH}</span>
   );
 
-  const noop = () => undefined;
+  // Export runs against a real saved view (the API keys on a savedViewId). A built-in preset (All /
+  // Unassigned / …) has no stored id, so the button is disabled until a real view is active.
+  const canExport = Boolean(activeSavedView);
+  const onExportView = () => {
+    if (activeSavedView) exportView.mutate(activeSavedView.id);
+  };
 
   const viewBar = (
     <ViewBar
@@ -452,10 +459,16 @@ export function RequestsListPage() {
         <Button
           variant="secondary"
           compact
-          onClick={noop}
-          title="Export the current view (coming soon)"
+          onClick={onExportView}
+          disabled={!canExport || exportView.isPending}
+          title={
+            canExport
+              ? 'Export the current saved view as CSV'
+              : 'Save this view to export it'
+          }
         >
-          <DownloadSimple size={16} weight="regular" aria-hidden /> Export view
+          <DownloadSimple size={16} weight="regular" aria-hidden />{' '}
+          {exportView.isPending ? 'Exporting…' : 'Export view'}
         </Button>
       }
       filters={activePills}

@@ -215,6 +215,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S28 Import & export** `[deferred]`; Export View buttons on S2 (and later S9, S22, audit logs).
 - **Depends on:** 1, 3, 5.
 - **Estimated LoC:** 4,500.
+- **Status: completed** — DB `Imports` + `ImportRows` (migrations 046/047) + 5 access-gated procs + tSQLt. API `Modules/ImportExport` — `ImportService` (stream → blob → `usp_CreateImport` → enqueue → 202), in-process `ImportProcessor`/`ImportQueue` + scoped `ImportRunner` (CsvHelper parse → `IRequestsService.CreateAsync` per row → record → complete), DbContext-free `ExportService`, pure `CsvRowMapper`/`ImportOutcomeMapper`/`CsvExportWriter`. Web `features/import-export` (S28 page + Import/Export panels + report table), `useExportView` wired to the S2 Export button, `/admin/import-export` route promoted from placeholder. Decisions (see [16-slice-import-export.md](16-slice-import-export.md)): in-process processing (no Service Bus in dev — slice 9/11/12 precedent, analyst-approved); **CsvHelper 33.1.0** added (analyst-approved); Requestor SSO-resolve with flagged admin fallback; export composes the access-gated Requests query (Request-object views only in R1; keyed on a real saved view); added `ISavedViewsService.GetByIdAsync`, `ImportStartResponse`, `apiFetchBlobPost`, `saveBlob`. New tsc errors: 0 (13 pre-existing test-file errors from slices 6/8/11/12 left per slice 15).
+- **Started:** 2026-07-05T23:23:34-04:00
+- **Ended:** 2026-07-06T00:08:06-04:00
+- **Duration:** 00:44:32
 
 ### Slice 17: Users & access admin
 - **Spec section:** BS §4.2 (access levels), §6.8 (deactivation and reassignment).

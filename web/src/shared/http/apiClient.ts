@@ -80,6 +80,27 @@ export async function apiFetchBlob(path: string, signal?: AbortSignal): Promise<
   return res.blob();
 }
 
+/**
+ * POST a JSON body and read the binary response as a Blob (CSV export, slice 16). Like apiFetchBlob
+ * but with a request body — a `<form>` POST can't carry the bearer token, so exports go through fetch
+ * + the same token provider, then the caller saves the returned Blob.
+ */
+export async function apiFetchBlobPost(path: string, body: unknown, signal?: AbortSignal): Promise<Blob> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = await tokenProvider();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const init: RequestInit = { method: 'POST', headers, body: JSON.stringify(body) };
+  if (signal) init.signal = signal;
+
+  const res = await fetch(`/api${path}`, init);
+  if (!res.ok) {
+    throw await toApiError(res);
+  }
+
+  return res.blob();
+}
+
 async function toApiError(res: Response): Promise<ApiError> {
   let problem: ProblemDetails;
   try {

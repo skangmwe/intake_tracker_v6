@@ -495,6 +495,37 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
   Matching is **LIKE-based token overlap**, not full-text (LocalDB has no Full-Text component — the same
   resolution as slice 6's similar-requests nudge).
 
+### Slice 16 — CSV Import & Export
+
+- **Web shared `shared/http/apiClient.ts`** — added **`apiFetchBlobPost(path, body, signal?)`**: POST a
+  JSON body and read the binary response as a Blob (bearer-authenticated), for the CSV export download.
+  Complements the existing `apiFetchBlob` (GET).
+- **Web shared `shared/http/download.ts` (new)** — **`saveBlob(blob, fileName)`**: transient
+  `<a download>` save of a Blob obtained through an authenticated fetch. First consumer is the export;
+  attachments keeps its own inline `saveAttachment` (not refactored — surgical scope).
+- **Import constant** added to `shared/constants.ts`: `IMPORT_POLL_INTERVAL_MS` (2000) — the S28 status poll.
+- **Shared types** — added `ImportStartResponse { importId, status }` to `/shared/types/imports.ts`
+  (the `202` body); the rest of `imports.ts` (`ImportStatusDto`, `ImportFlaggedRow`, `ExportRequest`)
+  already existed.
+- **API `Modules/SavedViews`** — added `ISavedViewsService.GetByIdAsync(savedViewId, ct)` (ungated read
+  of a view's definition; the Export service applies its own access gate).
+- **API module `Modules/ImportExport`** — `ImportExportController` (`POST /workspaces/{id}/imports/csv`,
+  `GET /imports/{id}`, `POST /exports`); `IImportService`/`ImportService` (stream → blob → `usp_CreateImport`
+  → enqueue → 202; admin-gated status read); `IImportQueue`/`ImportQueue` (Singleton, in-process
+  `Channel`); `ImportProcessor` (hosted `BackgroundService` draining the queue off the request thread);
+  `IImportRunner`/`ImportRunner` (Scoped — CsvHelper parse → per-row create via `IRequestsService`);
+  `IExportService`/`ExportService` (DbContext-free — composes SavedViews + the access-gated Requests
+  query + `IAccessGuard`); pure `CsvRowMapper` / `ImportOutcomeMapper` / `CsvExportWriter`;
+  `ImportExportOptions` (`IOptions`, "ImportExport" section). Keyless projections `ImportJobRow` /
+  `ImportReportRow` added to `Data/Entities.cs` + `AppDbContext`. All registered in `Program.cs`
+  (`ImportProcessor` via `AddHostedService`). **In-process processing** stands in for the
+  Worker/Service-Bus path (no Service Bus in dev — slice 9/11/12 precedent). **New NuGet dependency:
+  `CsvHelper` 33.1.0** (RFC-4180 parse), verified live on NuGet.
+- **Database** — tables `Imports` + `ImportRows` (migrations `20260705_046` / `20260705_047` + rollbacks);
+  procs `usp_CreateImport`, `usp_RecordImportRow`, `usp_CompleteImport`, `usp_GetImportById`,
+  `usp_GetImportRows` (`database/procedures/imports/`); tSQLt `database/tests/imports/test_Imports.sql`.
+  Per-row create reuses `usp_MintRecordId` (shared counter, BS §6.7) via `IRequestsService`.
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.
