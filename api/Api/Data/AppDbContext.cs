@@ -106,6 +106,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<FeatureRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<SavedViewRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 16 (CSV Import & Export) — keyless projections read via stored procedures.
+        modelBuilder.Entity<ImportJobRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<ImportReportRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

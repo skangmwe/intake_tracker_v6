@@ -1,0 +1,186 @@
+/* S28 Import & export. Design-system tokens only (no raw hex / off-spec radii). Panels are a
+   two-column grid that stacks below the md breakpoint; the report table scrolls within its own
+   container so the page never scrolls horizontally (responsive-and-mobile.md). */
+
+.import-export-page {
+  max-width: min(100%, 1200px);
+  padding: var(--space-5);
+}
+
+.import-export-page__title {
+  margin-bottom: var(--space-5);
+}
+
+.import-export-page__panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.ie-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.ie-panel__title {
+  font-family: var(--font-mix);
+  font-size: 24px;
+  line-height: 1.2;
+  margin-bottom: var(--space-2);
+}
+
+.ie-panel__lead {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.ie-panel__alert,
+.ie-panel__note {
+  margin-top: var(--space-4);
+}
+
+.ie-panel__note {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.ie-panel__empty {
+  color: var(--text-secondary);
+}
+
+/* Import form */
+.ie-import__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.ie-import__label,
+.ie-export__label {
+  display: block;
+  width: 100%;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.ie-import__file {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+/* Status line — pale fill + navy text (theme-stable foreground rule) */
+.ie-status {
+  margin-top: var(--space-4);
+}
+
+.ie-status__line {
+  display: inline-block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--color-navy);
+}
+
+.ie-status--pending {
+  background: var(--color-pale-blue);
+}
+
+.ie-status--success {
+  background: var(--color-pale-success);
+}
+
+.ie-status--warning {
+  background: var(--color-pale-gold);
+}
+
+.ie-status--error {
+  background: var(--color-pale-orange);
+}
+
+/* Per-row report table */
+.ie-report {
+  margin-top: var(--space-4);
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.ie-report__table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ie-report__caption {
+  text-align: left;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding-bottom: var(--space-2);
+}
+
+.ie-report__table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ie-report__table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: top;
+}
+
+.ie-report__num {
+  width: 56px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ie-report__code {
+  display: inline-block;
+  background: var(--color-pale-gold);
+  color: var(--color-navy);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Export row */
+.ie-export__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.ie-export__select {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: var(--control-h);
+  box-sizing: border-box;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 16px;
+}

@@ -38,6 +38,11 @@ public interface ISavedViewsService
         Guid savedViewId, SavedViewUpsertRequest request, Guid userId, CancellationToken cancellationToken);
 
     Task<SavedViewWriteOutcome> DeleteAsync(Guid savedViewId, Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Read one view's definition by id (Export, slice 16). Null when the id is unknown. The
+    /// definition itself is not access-hidden (a saved view is 404 on unknown id, not 403); the caller
+    /// applies its own access gate against the returned <c>WorkspaceId</c> / <c>Scope</c> / owner.</summary>
+    Task<SavedViewResponse?> GetByIdAsync(Guid savedViewId, CancellationToken cancellationToken);
 }
 
 public sealed class SavedViewsService : ISavedViewsService
@@ -124,6 +129,9 @@ public sealed class SavedViewsService : ISavedViewsService
             .ConfigureAwait(false);
         return SavedViewWriteOutcome.Success;
     }
+
+    public Task<SavedViewResponse?> GetByIdAsync(Guid savedViewId, CancellationToken cancellationToken) =>
+        ReadByIdAsync(savedViewId, cancellationToken);
 
     private async Task<bool> CanWriteAsync(
         SavedViewRow existing, string? targetScope, Guid userId, CancellationToken cancellationToken)

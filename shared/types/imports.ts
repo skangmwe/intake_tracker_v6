@@ -34,3 +34,9 @@ export interface ImportFlaggedRow {
 export interface ExportRequest {
   savedViewId: SavedViewId;
 }
+
+/** 202 body returned by POST /workspaces/{id}/imports/csv — the client then polls GET /imports/{id}. */
+export interface ImportStartResponse {
+  importId: ImportId;
+  status: ImportStatus;
+}

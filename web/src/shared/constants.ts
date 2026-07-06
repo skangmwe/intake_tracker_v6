@@ -16,3 +16,6 @@ export const SEARCH_MIN_QUERY_LENGTH = 3;
 
 /** Page size for the S27 full Search results surface. */
 export const SEARCH_RESULTS_PAGE_SIZE = 20;
+
+/** Poll interval for a CSV import's status while it is still Processing (S28, BS §13). */
+export const IMPORT_POLL_INTERVAL_MS = 2000;

@@ -30,6 +30,10 @@
          api-blob-attachments.md). Version verified against the live NuGet registry
          (latest stable 12.29.1). -->
     <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
+    <!-- CSV parse (import) — RFC-4180 quoting/escaping handled for us (slice 16,
+         BS §13). Version verified against the live NuGet registry (latest stable
+         33.1.0); MIT, no known high/critical advisories. -->
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
     <!-- Entra ID token validation for the SPA/API (api-auth.md). Version verified
          against the live NuGet registry during slice 2 (latest stable 4.12.2). -->
     <PackageReference Include="Microsoft.Identity.Web" Version="4.12.2" />
