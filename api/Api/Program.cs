@@ -175,6 +175,14 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Features.IFeaturesSer
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.SavedViews.ISavedViewsService,
     McDermott.AiTracker.Api.Modules.SavedViews.SavedViewsService>();
 
+// ─── Seeded Dashboards (slice 23) — the S6/S14/S12/S15 fixed-layout dashboards. The service composes a
+//     dashboard's widgets, resolving each metric to the caller's entitlements via DashboardMetricResolver
+//     (one proc per metric). A dashboard never widens access; the read is gated on the dashboard's own
+//     workspace (Viewer+ or a bound Dashboard-viewer, S16); edit/retire needs WorkspaceAdmin (S32). ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Dashboards.IDashboardsService,
+    McDermott.AiTracker.Api.Modules.Dashboards.DashboardsService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Dashboards.DashboardMetricResolver>();
+
 // ─── Search (slice 15) — records-only quick search + the S27 full search. Reads Requests /
 //     Comments / Attachments through access-gated procs; owns no state of its own ─
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Search.ISearchService,

@@ -3,11 +3,8 @@
 // whole surface is WorkspaceAdmin-only (the API enforces it too — the UI gate is a courtesy). Renders
 // one section per list surface (Requests / Feature Catalog / Tasks / Announcements).
 //
-// The shared-DASHBOARDS half of S32 lands with the Dashboards module (slice 23): the SavedDashboard
-// table and the seeded dashboards it manages don't exist until then (data-model.md slice-1 note;
-// module-boundaries.md §15), so there is nothing to manage here yet. It is shown as an explicit
-// "arrives with dashboards" note — not a dead control — mirroring the build-order deferrals in
-// slices 9→11 and 13→22.
+// The shared-DASHBOARDS half of S32 is now live (slice 23): the DashboardsManagementSection lists the
+// workspace's seeded dashboards and lets an admin edit their audience or retire them.
 
 import { useMemo } from 'react';
 
@@ -15,6 +12,7 @@ import type { SavedViewObjectType } from '@shared/types';
 
 import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
 import { useMe } from '@/features/users/useMe';
+import { DashboardsManagementSection } from '@/features/dashboards';
 
 import { SavedViewsSection } from './SavedViewsSection';
 
@@ -79,15 +77,7 @@ export function ViewsDashboardsPage() {
         <SavedViewsSection key={objectType} workspaceId={workspaceId} objectType={objectType} />
       ))}
 
-      <section className="views-admin__section" aria-labelledby="views-dashboards-note">
-        <h2 id="views-dashboards-note" className="h3 views-admin__section-title">
-          Shared dashboards
-        </h2>
-        <p className="mws-alert mws-alert--info" role="note">
-          Shared dashboard management arrives with dashboards. Until then, there are no dashboards to
-          manage here.
-        </p>
-      </section>
+      <DashboardsManagementSection workspaceId={workspaceId} />
     </div>
   );
 }

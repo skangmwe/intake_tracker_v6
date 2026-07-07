@@ -439,6 +439,26 @@ A named column/filter/sort definition over a list surface. **Presentation only �
 
 Access: personal by owner (Member+ to create), shared by WorkspaceAdmin. Soft delete never touches records. Indexes: `IX_SavedView_Surface (WorkspaceId, ObjectType, IsDeleted) INCLUDE (Scope, OwnerUserId, Name, IsDefault)`, FK `IX_SavedView_OwnerUserId`.
 
+### SavedDashboard (slice 23 — BS §10.2-§10.5)
+
+A workspace-local dashboard: a fixed-layout `WidgetsJson` list (R1 has no builder), resolved per viewer at read time. **Presentation only — never widens access.** Layout is data on the row so a dashboard is a clonable local object (the provisioning clone copies `WidgetsJson` verbatim into new PG workspaces, §10.5).
+
+| Column | Type | Notes |
+|---|---|---|
+| `SavedDashboardId` | `UNIQUEIDENTIFIER` PK | `NEWSEQUENTIALID()`. Seeded rows use fixed GUIDs `DA5B…0001-0004`. |
+| `WorkspaceId` | FK → Workspace | AI workspace (ai-default/ai-workload/feature-catalog) or PG template (pg-starter). |
+| `Slug` | `NVARCHAR(32)` | `ai-default` \| `ai-workload` \| `feature-catalog` \| `pg-starter` (CHECK). |
+| `Name` / `Description` | `NVARCHAR(200)` / `NVARCHAR(500) NULL` | |
+| `ObjectType` | `NVARCHAR(16)` | `Request` \| `Feature` (CHECK). |
+| `AudienceJson` | JSON | `AnnouncementAudience` shape (two-layer, §10.2). R1 seeds all `{"kind":"everyone"}`. |
+| `IsDefault` | `BIT` | Default landing dashboard for the workspace. |
+| `SupportsDrillThrough` | `BIT` | Suppressed to `false` for a bound Dashboard-viewer (S16). |
+| `WidgetsJson` | JSON | `[{ id, type, title, config:{ metric, objectType?, savedViewId? } }]` (CHECK ISJSON). |
+
+The API resolves each widget's data via a **fixed metric-resolver map** keyed by `config.metric` (16 resolvers — no generic query engine in R1). Access: Viewer+ on `WorkspaceId` **OR** the caller's `WorkspaceMembership.BoundDashboardId == SavedDashboardId` (S16). The deferred FK `WorkspaceMembership.BoundDashboardId → SavedDashboard` was added here (migration 052 — the column has lived on `WorkspaceMembership` since slice-1 migration 004; the slice-1 note's "Users" reference was inaccurate). Index: `IX_SavedDashboard_Workspace (WorkspaceId, IsDeleted) INCLUDE (Slug, Name, ObjectType, IsDefault, UpdatedAt)`. Soft-deleted; `retire` (S32) sets `IsDeleted`.
+
+**Metric-source notes (Phase-1 approximations, forced by the real schema):** `escalation-status` = `RequestCrossingSnapshot` presence (the AI Solutions Status field has no PG-side write path — slice 9 derives its mirror at read time; the *stored* field remains a future concern); `closures-by-outcome` closure-time = `UpdatedAt` (no `ClosedAt`; Outcome is `FieldValues.$.outcome`); `median-time-to-triage` ≈ `CreatedAt → StageEnteredAt` (no first-assignment timestamp). Status category comes from `StageDefinition.StatusCategory` joined on `(LifecycleId, StageKey)`.
+
 ## The escalation bridge (data-model view)
 
 Escalation creates a **second Request row** in the AI Solutions workspace with the **same `RecordId`** as the PG-side row. This is the shared canonical ID (BS §6.1). Both rows persist. The bridge is:

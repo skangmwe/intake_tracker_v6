@@ -809,3 +809,125 @@ public sealed class HomePinnedAnnouncementRow
     public string BodySnippet { get; set; } = string.Empty;
     public DateTime? PublishedAt { get; set; }
 }
+
+// ─── Slice 23 (Seeded Dashboards) — keyless read projections ───────────────────────────
+// The SavedDashboard table is read via stored procedures (list / by-id) and the metric resolvers;
+// writes go through usp_UpdateDashboard. The API tracks the table only through these keyless
+// projections bound via FromSqlRaw. The two records-grid procs (#15, #16) return two result sets
+// and are read through raw ADO in DashboardMetricResolver — they need no keyless row here.
+
+/// <summary>One dashboard list row from usp_ListDashboards (metadata + widget count).</summary>
+public sealed class DashboardListRow
+{
+    public Guid SavedDashboardId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string Slug { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string AudienceJson { get; set; } = "{}";
+    public bool IsDefault { get; set; }
+    public string ObjectType { get; set; } = string.Empty;
+    public int WidgetCount { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>The single dashboard row from usp_GetDashboardById (carries the WidgetsJson to compose).</summary>
+public sealed class DashboardRow
+{
+    public Guid SavedDashboardId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string Slug { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string AudienceJson { get; set; } = "{}";
+    public bool IsDefault { get; set; }
+    public string ObjectType { get; set; } = string.Empty;
+    public bool SupportsDrillThrough { get; set; }
+    public string WidgetsJson { get; set; } = "[]";
+}
+
+/// <summary>pipeline-by-category — one open-record count per status category.</summary>
+public sealed class DashboardCategoryCountRow
+{
+    public string Category { get; set; } = string.Empty;
+    public int Cnt { get; set; }
+}
+
+/// <summary>escalations-by-quarter-origin — this-quarter vs prior-quarter escalation counts per origin.</summary>
+public sealed class DashboardEscalationQuarterRow
+{
+    public string Origin { get; set; } = string.Empty;
+    public int ThisCnt { get; set; }
+    public int PriorCnt { get; set; }
+}
+
+/// <summary>unassigned-past-intake / requests-by-origin — one count per origin.</summary>
+public sealed class DashboardOriginCountRow
+{
+    public string Origin { get; set; } = string.Empty;
+    public int Cnt { get; set; }
+}
+
+/// <summary>closures-by-outcome — one closed-record count per outcome.</summary>
+public sealed class DashboardOutcomeCountRow
+{
+    public string Outcome { get; set; } = string.Empty;
+    public int Cnt { get; set; }
+}
+
+/// <summary>origin-by-status-heatmap — one count per (origin, column key) pair.</summary>
+public sealed class DashboardHeatmapCellRow
+{
+    public string Origin { get; set; } = string.Empty;
+    public string ColKey { get; set; } = string.Empty;
+    public int Cnt { get; set; }
+}
+
+/// <summary>open-per-analyst — one open-record count per assigned analyst.</summary>
+public sealed class DashboardAnalystCountRow
+{
+    public string Analyst { get; set; } = string.Empty;
+    public int Cnt { get; set; }
+}
+
+/// <summary>A single scalar count (pending-signoff, features-published).</summary>
+public sealed class DashboardScalarCountRow
+{
+    public int Cnt { get; set; }
+}
+
+/// <summary>median-time-to-triage — trailing-window median vs the prior window (NULL when no data).</summary>
+public sealed class DashboardMedianTriageRow
+{
+    public double? MedianDays { get; set; }
+    public double? PriorMedianDays { get; set; }
+}
+
+/// <summary>aging-in-stage — one open-record count per age bucket, in bucket order.</summary>
+public sealed class DashboardAgingBucketRow
+{
+    public string Bucket { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+    public int Cnt { get; set; }
+}
+
+/// <summary>features-by-type — one Published-feature count per type label.</summary>
+public sealed class DashboardTypeCountRow
+{
+    public string TypeLabel { get; set; } = string.Empty;
+    public int Cnt { get; set; }
+}
+
+/// <summary>features-by-tech — one Published-feature count per tech / stack label.</summary>
+public sealed class DashboardTechCountRow
+{
+    public string TechLabel { get; set; } = string.Empty;
+    public int Cnt { get; set; }
+}
+
+/// <summary>escalation-status — records whose AI Solutions Status is set vs blank.</summary>
+public sealed class DashboardEscalationStatusRow
+{
+    public int SetCnt { get; set; }
+    public int BlankCnt { get; set; }
+}

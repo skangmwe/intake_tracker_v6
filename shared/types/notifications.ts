@@ -4,7 +4,6 @@ import type {
   AnnouncementId,
   IsoDateTime,
   RecordId,
-  SavedDashboardId,
   SavedViewId,
   UserId,
   WorkspaceId,
@@ -164,32 +163,5 @@ export interface SavedViewUpsertRequest {
   sort?: Array<{ column: string; direction: 'asc' | 'desc' }>;
 }
 
-// ── Dashboards (BS §10.2, palette of 8 widget types) ────────────────────
-
-export type WidgetType =
-  | 'kpi-tile'
-  | 'kpi-with-trend'
-  | 'segmented-bar'
-  | 'bar-breakdown'
-  | 'histogram'
-  | 'line-timeseries'
-  | 'heatmap-matrix'
-  | 'records-grid';
-
-export interface DashboardWidgetDto {
-  id: string;
-  type: WidgetType;
-  title: string;
-  /** Widget-specific config. Type-aware — validated per widget type. */
-  config: Record<string, unknown>;
-  /** Result data resolved per viewer. */
-  data: unknown;
-}
-
-export interface SavedDashboardDto {
-  id: SavedDashboardId;
-  workspaceId: WorkspaceId;
-  name: string;
-  audience: import('./announcements').AnnouncementAudience;
-  widgets: DashboardWidgetDto[];
-}
+// Dashboards (BS §10.2-§10.5) moved to their own per-surface file when slice 23 implemented the
+// seeded dashboards (S6/S12/S14/S15/S16/S17). See shared/types/dashboards.ts.

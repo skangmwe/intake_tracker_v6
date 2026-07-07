@@ -479,11 +479,14 @@ Create — personal (Member+) or shared (WorkspaceAdmin).
 ### `PATCH /api/v1/saved-views/{id}` / `DELETE /api/v1/saved-views/{id}`
 Edit / soft-delete (personal by owner; shared by WorkspaceAdmin). Unknown id → `404`; not authorized → `403`. Delete never touches records (BS §22.4).
 
-### `GET /api/v1/workspaces/{id}/dashboards`
-Dashboards visible to the caller (audience two-layer).
+### `GET /api/v1/workspaces/{id}/dashboards`  *(slice 23)*
+Dashboards visible to the caller (audience two-layer). **Viewer+** of the workspace → `DashboardListDto` (`items[]` = metadata only: id, slug, name, description, audience, isDefault, objectType, widgetCount, updatedAt). Non-member → `403`. R1 seeds are all `everyone`-audience.
 
-### `GET /api/v1/dashboards/{id}`
-Dashboard definition + widget query results (each widget resolves to the caller's entitlements).
+### `GET /api/v1/dashboards/{id}?drill={urlEncodedJson}`  *(slice 23)*
+Full dashboard with **every widget resolved to the caller's entitlements** → `SavedDashboardDto`. Each widget's `data` is narrowed by `type` (KpiTileData / SegmentedBarData / HeatmapMatrixData / RecordsGridData / …); the API walks the row's `widgets` list and runs the fixed metric resolver named by `config.metric` (unknown metric → empty widget, never a failure). **Access:** Viewer+ on the dashboard's workspace **OR** the caller's `WorkspaceMembership.BoundDashboardId == id` (bound Dashboard-viewer, S16 — forces `supportsDrillThrough=false` and ignores `drill`). Existence checked before access: unknown id → `404`, inaccessible → `403` (never disclosing). `drill` (S6 only) filters the embedded records-grid widget server-side — shapes: `{type:'origin'|'category'|'outcome',value}` · `{type:'cell',origin,category}` · `{type:'closedCell',origin,outcome}` · `{type:'unassigned'}`.
+
+### `PATCH /api/v1/dashboards/{id}`  *(slice 23 — S32 shared-dashboards management)*
+Edit a dashboard's `name` / `audience`, or `retire` it (soft-delete). **WorkspaceAdmin** of the dashboard's workspace → `200 SavedDashboardDto`; unknown id → `404`; not admin → `403`. Body `DashboardPatchRequest` (`{ name?, audience?, retire? }`). Promote-from-personal is N/A in R1 (no personal dashboards — fixed layouts only).
 
 ---
 

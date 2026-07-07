@@ -12,6 +12,7 @@ export * from './features';
 export * from './collaboration';
 export * from './announcements';
 export * from './notifications';
+export * from './dashboards';
 export * from './imports';
 export * from './audit';
 export * from './platform';

@@ -125,6 +125,26 @@ BEGIN
         FROM dbo.FieldRuleDependency AS dep
         WHERE dep.WorkspaceId = @TemplateId AND dep.IsDeleted = 0;
 
+        -- ── Clone the template's starter dashboards (slice 23, §10.5 locality) ────
+        -- Each template SavedDashboard (e.g. pg-starter) is copied into the new workspace with a
+        -- fresh id; WidgetsJson is copied verbatim (the template's records-grid widgets carry no
+        -- savedViewId, so nothing to remap). The new workspace is freshly minted above, so the
+        -- NOT EXISTS guard is belt-and-braces idempotency within this transaction.
+        INSERT INTO dbo.SavedDashboard
+            (SavedDashboardId, WorkspaceId, Slug, Name, Description, ObjectType, AudienceJson,
+             IsDefault, SupportsDrillThrough, WidgetsJson, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
+        SELECT NEWID(), @NewWorkspaceId, tmpl.Slug, tmpl.Name, tmpl.Description, tmpl.ObjectType,
+               tmpl.AudienceJson, tmpl.IsDefault, tmpl.SupportsDrillThrough, tmpl.WidgetsJson,
+               @Actor, @Actor, @Now, @Now
+        FROM dbo.SavedDashboard AS tmpl
+        WHERE tmpl.WorkspaceId = @TemplateId
+          AND tmpl.IsDeleted = 0
+          AND NOT EXISTS (
+                SELECT 1 FROM dbo.SavedDashboard AS existing
+                WHERE existing.WorkspaceId = @NewWorkspaceId
+                  AND existing.Slug = tmpl.Slug
+                  AND existing.IsDeleted = 0);
+
         SELECT
             ws.WorkspaceId AS WorkspaceId,
             ws.Name        AS Name,

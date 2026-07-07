@@ -15,6 +15,7 @@ import {
   ManageAnnouncementsPage,
 } from '@/features/announcements';
 import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
+import { DashboardPage, DashboardsListPage } from '@/features/dashboards';
 import { AddToCatalogPage, FeatureCatalogPage, FeatureDetailPage } from '@/features/features';
 import { ImportExportPage } from '@/features/import-export';
 import { LifecyclePage } from '@/features/lifecycle';
@@ -46,6 +47,7 @@ import '@/features/fields/fields.css';
 import '@/features/lifecycle/lifecycle.css';
 import '@/features/requests/requests.css';
 import '@/features/features/features.css';
+import '@/features/dashboards/dashboards.css';
 import '@/features/saved-views/savedViews.css';
 import '@/features/search/search.css';
 import '@/features/import-export/importExport.css';
@@ -69,6 +71,7 @@ const IMPLEMENTED_ROUTES = new Set([
   '/platform/audit',
   '/requests',
   '/feature-catalog',
+  '/dashboards',
 ]);
 
 const PLACEHOLDER_ROUTES = NAV_SECTIONS.flatMap((section) => section.items).filter(
@@ -95,6 +98,8 @@ export function App() {
               <Route path="/requests/new" element={<IntakeFormPage />} />
               <Route path="/requests/:recordId" element={<RecordDetailPage />} />
               <Route path="/drafts" element={<DraftsPage />} />
+              <Route path="/dashboards" element={<DashboardsListPage />} />
+              <Route path="/dashboards/:id" element={<DashboardPage />} />
               <Route path="/feature-catalog" element={<FeatureCatalogPage />} />
               <Route path="/feature-catalog/new" element={<AddToCatalogPage />} />
               <Route path="/feature-catalog/:recordId" element={<FeatureDetailPage />} />
