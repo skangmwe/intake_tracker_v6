@@ -7,9 +7,10 @@
 --                - A platform-defined field cannot be retired here (governed in S34) → THROW.
 --                - A field another live field still DEPENDS ON (a rule/derivation source)
 --                  cannot be retired until that reference is removed → THROW.
---              The full crossing-map retirement guard (a live PG<->AI mapping) lands with
---              the CrossingMap table in slice 19; this proc enforces the in-workspace
---              dependency guard now. Idempotent — re-retiring an already-retired field is a no-op.
+--                - A field referenced by a live (non-deleted) CrossingMap mapping — proposed or
+--                  confirmed — on either side cannot be retired until that mapping is removed → THROW
+--                  50014 (BS §6.2 crossing-map retirement guard; the CrossingMap table lands in slice 24).
+--              Idempotent — re-retiring an already-retired field is a no-op.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_RetireFieldDefinition
     @WorkspaceId UNIQUEIDENTIFIER,
@@ -52,6 +53,21 @@ BEGIN
             WHERE dep.WorkspaceId = @WorkspaceIdLocal AND dep.ObjectType = @ObjectTypeLocal
               AND dep.ToFieldKey = @FieldKeyLocal AND dep.IsDeleted = 0)
             THROW 50013, 'This field is referenced by another field''s rule or derivation and cannot be retired until that reference is removed.', 1;
+
+        -- Crossing-map guard (slice 24): a live PG<->AI mapping (proposed or confirmed) on either side
+        -- keeps this field mappable — retiring it would strand the mapping. Resolve this field's id and
+        -- check the CrossingMap table.
+        IF EXISTS (
+            SELECT 1
+            FROM dbo.CrossingMap cm
+            INNER JOIN dbo.FieldDefinition fd
+                ON fd.FieldDefinitionId IN (cm.PgFieldDefinitionId, cm.AiFieldDefinitionId)
+            WHERE cm.IsDeleted = 0
+              AND fd.WorkspaceId = @WorkspaceIdLocal
+              AND fd.ObjectType = @ObjectTypeLocal
+              AND fd.FieldKey = @FieldKeyLocal
+              AND fd.IsDeleted = 0)
+            THROW 50014, 'This field is used by a live crossing-map mapping and cannot be retired until that mapping is removed.', 1;
 
         IF @IsRetired = 0
             UPDATE dbo.FieldDefinition

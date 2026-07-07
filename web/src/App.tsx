@@ -33,6 +33,7 @@ import {
   CrossingMapPage,
   FirmWideAuditPage,
   RoleLabelsPage,
+  WorkspaceProvisioningPage,
 } from '@/features/platform-admin';
 import { UsersAccessPage } from '@/features/users';
 import { HomePage } from '@/pages/HomePage';
@@ -68,6 +69,7 @@ const IMPLEMENTED_ROUTES = new Set([
   '/platform/crossing-map',
   '/platform/access',
   '/platform/role-labels',
+  '/platform/workspaces',
   '/platform/audit',
   '/requests',
   '/feature-catalog',
@@ -93,6 +95,7 @@ export function App() {
               <Route path="/platform/crossing-map" element={<CrossingMapPage />} />
               <Route path="/platform/access" element={<AccessPage />} />
               <Route path="/platform/role-labels" element={<RoleLabelsPage />} />
+              <Route path="/platform/workspaces" element={<WorkspaceProvisioningPage />} />
               <Route path="/platform/audit" element={<FirmWideAuditPage />} />
               <Route path="/requests" element={<RequestsListPage />} />
               <Route path="/requests/new" element={<IntakeFormPage />} />

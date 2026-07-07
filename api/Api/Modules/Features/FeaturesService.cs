@@ -348,10 +348,16 @@ public sealed class FeaturesService : IFeaturesService
             var fieldValuesIndex = reader.GetOrdinal("FieldValues");
             var updatedAtIndex = reader.GetOrdinal("UpdatedAt");
             var rowVerIndex = reader.GetOrdinal("RowVer");
+            var thumbnailIndex = reader.GetOrdinal("ThumbnailAttachmentId");
 
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var fields = ParseFields(reader.IsDBNull(fieldValuesIndex) ? null : reader.GetString(fieldValuesIndex));
+                // The first native image attachment feeds the S11 gallery thumbnail. The path is the
+                // bearer-authenticated content endpoint; the SPA fetches it via the authenticated client.
+                var thumbnailUrl = reader.IsDBNull(thumbnailIndex)
+                    ? null
+                    : $"/api/v1/attachments/{reader.GetGuid(thumbnailIndex):D}/content";
                 rows.Add(new FeatureListRowDto(
                     Id: reader.GetString(recordIdIndex),
                     ETag: Convert.ToBase64String((byte[])reader.GetValue(rowVerIndex)),
@@ -364,7 +370,7 @@ public sealed class FeaturesService : IFeaturesService
                     Maturity: reader.IsDBNull(maturityIndex) ? string.Empty : reader.GetString(maturityIndex),
                     Origin: reader.IsDBNull(originIndex) ? string.Empty : reader.GetString(originIndex),
                     UpdatedAt: DateTime.SpecifyKind(reader.GetDateTime(updatedAtIndex), DateTimeKind.Utc),
-                    ThumbnailUrl: null));
+                    ThumbnailUrl: thumbnailUrl));
             }
 
             if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false)

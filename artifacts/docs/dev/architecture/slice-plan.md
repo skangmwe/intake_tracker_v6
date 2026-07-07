@@ -319,6 +319,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Screens covered:** **S11 Feature gallery** `[deferred]`; **S35 Crossing map** (Phase 2 upgrade) `[deferred]`; **S38 Workspace provisioning** UI `[deferred]`.
 - **Depends on:** 14, 19.
 - **Estimated LoC:** 4,500.
+- **Status: completed** — built in three checkpointed sub-cuts (A advanced views + S11 gallery, B S38 provisioning wizard, C S35 editable crossing map). Advanced views are an ad-hoc per-surface toggle (not persisted on saved views — the blueprint names a "toggle"); gallery thumbnails resolve the first image attachment (`usp_QueryFeatures` join). S38 extends `usp_ProvisionWorkspace` with an initial-admin **email** resolve (R1 has no user-directory endpoint — mirrors S29/S36). S35 adds a durable `CrossingMap` table (mig 054) + propose/confirm procs (type-compat + direction + one-to-one + option-set guards) + the deferred retire guard in `usp_RetireFieldDefinition`; both propose and confirm are Platform-admin-gated (S35 is in the Platform-admin-only band, so a distinct AI-workspace confirmer can't reach it — the two-step keeps a mapping inert until confirmed). API + Api.Tests build 0/0; web `tsc` clean; 16 crossing/provisioning controller tests + all touched web suites green; tSQLt authored (run at the ship gate). See [24-slice-advanced-views-provisioning-crossing.md](24-slice-advanced-views-provisioning-crossing.md).
+- **Started:** 2026-07-06T21:20:35-04:00
+- **Ended:** 2026-07-06T22:42:34-04:00
+- **Duration:** 01:21:59
 
 ---
 

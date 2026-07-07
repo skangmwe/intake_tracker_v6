@@ -209,3 +209,132 @@
     padding: var(--space-4);
   }
 }
+
+/* ── S38 Workspace provisioning wizard (Slice 24) ─────────────────────────── */
+
+.wp-wizard,
+.wp-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 560px;
+}
+
+.wp-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.wp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+.wp-review {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+}
+
+.wp-review__row {
+  display: flex;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.wp-review__label {
+  flex: 0 0 120px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.wp-review__value {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.wp-review__note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.wp-result__banner {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .wp-actions {
+    justify-content: stretch;
+  }
+
+  .wp-review__row {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .wp-review__label {
+    flex-basis: auto;
+  }
+}
+
+/* ── S35 Crossing map propose / confirm (Slice 24) ────────────────────────── */
+
+.cm-propose__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.cm-propose__fields > * {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+/* The field key under the display name in a crossing-map cell. */
+.platform-table td .platform-table__key {
+  display: block;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cm-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--color-navy);
+}
+
+.cm-status--seeded {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+
+.cm-status--proposed {
+  background: var(--color-pale-gold);
+}
+
+.cm-status--confirmed {
+  background: var(--color-pale-success);
+}
+
+.cm-noaction {
+  color: var(--text-secondary);
+}

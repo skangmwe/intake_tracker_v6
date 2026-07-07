@@ -7,21 +7,54 @@
 import type { IsoDateTime, UserId, WorkspaceId, WorkspaceKind } from './common';
 import type { AuditLogQuery, AuditLogRowDto } from './audit';
 
-/* ── S35 Crossing map (read-only, BS §6.2) ───────────────────────────────── */
+/* ── S35 Crossing map (propose / confirm, BS §6.2) ───────────────────────── */
+
+/** A crossing-map row's provenance: an immutable seeded pair, or a durable admin-authored mapping. */
+export type CrossingMapStatus = 'Seeded' | 'Proposed' | 'Confirmed';
 
 /**
- * One PG→AI field mapping in the firm crossing map. In R1 Phase 1 the map is the seeded 1:1
- * pairing read off FieldDefinition (Category='Crossing') — there is no CrossingMap table until
- * slice 24 (data-model.md). `source` is the PG/Dept template field; `target` is the AI Solutions
- * field its CrossingToFieldKey points at. Field types are display strings from the schema.
+ * One PG→AI field mapping in the firm crossing map (slice 24). `source` is the PG/Dept field;
+ * `target` is the AI Solutions field. A SEEDED row (`crossingMapId` null) is the immutable 1:1 pair
+ * read off FieldDefinition; a DURABLE row (Proposed / Confirmed) comes from the CrossingMap table and
+ * carries an id, the optional option-correspondence JSON, and the confirmed-by/at audit. Field types
+ * are display strings from the schema.
  */
 export interface CrossingMapRowDto {
+  crossingMapId: string | null;
   sourceFieldKey: string;
   sourceDisplayName: string;
   sourceFieldType: string;
   targetFieldKey: string;
   targetDisplayName: string;
   targetFieldType: string;
+  status: CrossingMapStatus;
+  /** Select-type option map as raw JSON (PG option value → AI option value), or null. */
+  optionCorrespondenceJson: string | null;
+  confirmedByUserId: string | null;
+  confirmedAt: IsoDateTime | null;
+}
+
+/** Body for POST /platform/crossing-map — propose a PG→AI mapping (validated server-side). */
+export interface CrossingMapProposeRequest {
+  pgFieldDefinitionId: string;
+  aiFieldDefinitionId: string;
+  /** Optional select-type option map, serialized JSON (PG option value → AI option value). */
+  optionCorrespondenceJson?: string;
+}
+
+/** One mappable field for the S35 propose form (Side is 'PG' or 'AI'). */
+export interface CrossingCandidateDto {
+  fieldDefinitionId: string;
+  side: 'PG' | 'AI';
+  fieldKey: string;
+  displayName: string;
+  fieldType: string;
+}
+
+/** GET /platform/crossing-map/candidates response — the mappable fields on each side. */
+export interface CrossingCandidatesDto {
+  pgFields: CrossingCandidateDto[];
+  aiFields: CrossingCandidateDto[];
 }
 
 /* ── S37 Role-label catalog (BS §7.2) ────────────────────────────────────── */

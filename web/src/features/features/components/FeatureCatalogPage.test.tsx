@@ -1,5 +1,6 @@
 import { axe } from 'jest-axe';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import type { FeatureListRow, PaginatedResponse, RecordId, UserId } from '@shared/types';
 
@@ -11,6 +12,8 @@ import { useFeaturesList } from '../useFeatures';
 
 jest.mock('@/features/users/useMe');
 jest.mock('../useFeatures');
+// The gallery layout's thumbnails fetch via the authenticated client; mock it so cards render placeholders.
+jest.mock('@/shared/http/apiClient', () => ({ apiFetchBlob: jest.fn(() => Promise.resolve(new Blob())) }));
 jest.mock('@/features/saved-views', () => ({
   useSavedViews: () => ({ data: [] }),
   toPickerView: (view: unknown) => view,
@@ -89,15 +92,18 @@ describe('FeatureCatalogPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('FeatureCatalogPage — the Gallery view toggle is present but disabled (S11 deferred)', () => {
+  it('FeatureCatalogPage — switching to the Gallery layout renders feature cards (S11)', async () => {
     // Arrange
     mockHooks({ data: page([buildFeatureRow()]) });
-
-    // Act
+    const user = userEvent.setup();
     renderWithProviders(<FeatureCatalogPage />, { route: '/feature-catalog' });
 
-    // Assert
-    expect(screen.getByRole('button', { name: /Gallery view/ })).toBeDisabled();
+    // Act — toggle from Table to Gallery
+    await user.click(screen.getByRole('button', { name: /Gallery/ }));
+
+    // Assert — the feature renders as a gallery card and the gallery region is present
+    expect(screen.getByRole('list', { name: 'Feature gallery' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Citation overlay/ })).toBeInTheDocument();
   });
 
   it('FeatureCatalogPage — renders the loading state', () => {

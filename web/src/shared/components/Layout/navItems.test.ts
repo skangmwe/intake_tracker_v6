@@ -1,8 +1,13 @@
 import { NAV_SECTIONS, titleForPath } from './navItems';
 
 describe('navItems', () => {
-  it('NAV_SECTIONS — has the three grouped sections', () => {
-    expect(NAV_SECTIONS.map((section) => section.label)).toEqual(['Workspace', 'Reference', 'Admin']);
+  it('NAV_SECTIONS — has the four grouped sections', () => {
+    expect(NAV_SECTIONS.map((section) => section.label)).toEqual([
+      'Workspace',
+      'Reference',
+      'Admin',
+      'Platform',
+    ]);
   });
 
   it('titleForPath — root — returns Home', () => {

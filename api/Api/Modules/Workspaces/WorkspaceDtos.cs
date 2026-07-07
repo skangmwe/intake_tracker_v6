@@ -19,8 +19,13 @@ public sealed class WorkspaceProvisionRequest
     [RegularExpression("^[A-Za-z0-9]{2,16}$", ErrorMessage = "Prefix must be 2–16 letters or digits.")]
     public string? Prefix { get; set; }
 
-    [Required]
-    public Guid InitialAdminUserId { get; set; }
+    /// <summary>Exactly one of this / <see cref="InitialAdminEmail"/> identifies the first WorkspaceAdmin.</summary>
+    public Guid? InitialAdminUserId { get; set; }
+
+    /// <summary>Resolved server-side to an active platform user (unresolved / ambiguous → 400). The S38
+    /// wizard uses this — R1 has no user-directory endpoint (mirrors the S29 / S36 email-resolve).</summary>
+    [MaxLength(320)]
+    public string? InitialAdminEmail { get; set; }
 }
 
 /// <summary>The provisioned workspace summary (mirrors WorkspaceProvisionResult).</summary>

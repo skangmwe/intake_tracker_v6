@@ -17,17 +17,27 @@ export interface ActiveFilterPill {
 interface ViewBarProps {
   viewPicker?: ReactNode;
   exportSlot?: ReactNode;
+  /** Layout switcher slot (Slice 24 — the advanced-view ViewModeToggle). */
+  layoutSlot?: ReactNode;
   filters?: ActiveFilterPill[];
   onClearAll?: () => void;
   primaryAction?: ReactNode;
 }
 
-export function ViewBar({ viewPicker, exportSlot, filters = [], onClearAll, primaryAction }: ViewBarProps) {
+export function ViewBar({
+  viewPicker,
+  exportSlot,
+  layoutSlot,
+  filters = [],
+  onClearAll,
+  primaryAction,
+}: ViewBarProps) {
   const hasFilters = filters.length > 0;
   return (
     <div className="ast-viewbar" data-ds="view-bar">
       {viewPicker && <div className="ast-viewbar__slot">{viewPicker}</div>}
       {exportSlot && <div className="ast-viewbar__slot">{exportSlot}</div>}
+      {layoutSlot && <div className="ast-viewbar__slot">{layoutSlot}</div>}
 
       {hasFilters && (
         <ul className="ast-viewbar__filters" aria-label="Active filters">

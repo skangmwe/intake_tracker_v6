@@ -1,0 +1,491 @@
+/* Advanced views (Slice 24 — S24 Kanban / timeline / agenda / gallery, S11). Tokens only: 1px
+   --border-light framing, 2px radius (pills at --radius-pill), --accent-interactive for the active
+   segment, pale-fill badges with navy text (theme-stable rule). Every layout works from 320px up. */
+
+/* ── View-mode segmented control ─────────────────────────────────────────── */
+
+.rv-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.rv-toggle__seg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h-compact);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-right: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.rv-toggle__seg:last-child {
+  border-right: 0;
+}
+
+.rv-toggle__seg:hover {
+  color: var(--accent-interactive);
+}
+
+.rv-toggle__seg--active {
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  font-weight: 500;
+}
+
+.rv-toggle__seg:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+@media (max-width: 640px) {
+  .rv-toggle__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .rv-toggle__seg {
+    padding: 0 var(--space-3);
+  }
+}
+
+/* ── Shared card ─────────────────────────────────────────────────────────── */
+
+.rv-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  padding: var(--space-3);
+  text-align: left;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.rv-card:hover {
+  border-color: var(--accent-interactive);
+  box-shadow: var(--shadow-sm);
+}
+
+/* The card's title is the single real button (accessibility.md — a real <button>, not role="button").
+   Its ::after stretches over the whole card so the entire card is one clean click/tap target while
+   remaining keyboard-native and axe-clean. */
+.rv-card__open {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-mix);
+  font-size: 15px;
+  line-height: 1.25;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.rv-card__open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+
+.rv-card__open:hover {
+  color: var(--accent-interactive);
+}
+
+.rv-card__open:focus-visible {
+  outline: none;
+}
+
+.rv-card__open:focus-visible::after {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.rv-card__subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.rv-card__badges,
+.rv-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.rv-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--color-navy);
+  background: var(--color-pale-blue);
+}
+
+.rv-badge--neutral {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+.rv-badge--info {
+  background: var(--color-pale-blue);
+}
+.rv-badge--success {
+  background: var(--color-pale-success);
+}
+.rv-badge--warning {
+  background: var(--color-pale-gold);
+}
+.rv-badge--error {
+  background: var(--color-pale-orange);
+}
+
+.rv-card__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+}
+
+.rv-card__meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rv-card__meta-row {
+  display: flex;
+  gap: var(--space-2);
+  font-size: 12px;
+}
+
+.rv-card__meta-label {
+  color: var(--text-secondary);
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.rv-card__meta-value {
+  margin: 0;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* ── Kanban board ────────────────────────────────────────────────────────── */
+
+.rv-board {
+  display: flex;
+  gap: var(--space-4);
+  overflow-x: auto;
+  padding-bottom: var(--space-3);
+  min-width: 0;
+}
+
+.rv-board__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 0 0 280px;
+  min-width: 0;
+}
+
+.rv-board__column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 2px solid var(--border-light);
+}
+
+.rv-board__column-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.rv-board__column-count {
+  flex-shrink: 0;
+  min-width: 22px;
+  text-align: center;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rv-board__cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rv-board__column-empty {
+  margin: 0;
+  padding: var(--space-4);
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius);
+}
+
+/* ── Gallery ─────────────────────────────────────────────────────────────── */
+
+.rv-gallery {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: var(--space-4);
+}
+
+.rv-gallery__cell {
+  min-width: 0;
+}
+
+.rv-card--gallery {
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+.rv-card__thumb {
+  aspect-ratio: 16 / 9;
+  background: var(--bg-page);
+  border-bottom: 1px solid var(--border-light);
+  overflow: hidden;
+}
+
+.rv-card__thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.rv-card__thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.rv-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  min-width: 0;
+}
+
+/* ── Timeline ────────────────────────────────────────────────────────────── */
+
+.rv-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rv-timeline__node {
+  display: flex;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.rv-timeline__rail {
+  position: relative;
+  flex: 0 0 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.rv-timeline__rail::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-light);
+}
+
+.rv-timeline__dot {
+  position: relative;
+  margin-top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-interactive);
+  z-index: 1;
+}
+
+.rv-timeline__content {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: var(--space-5);
+}
+
+.rv-timeline__date {
+  margin: 0 0 var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rv-timeline__cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── Agenda ──────────────────────────────────────────────────────────────── */
+
+.rv-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.rv-agenda__group {
+  min-width: 0;
+}
+
+.rv-agenda__date {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: var(--space-2);
+}
+
+.rv-agenda__count {
+  min-width: 22px;
+  text-align: center;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.rv-agenda__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rv-agenda__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  min-width: 0;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+.rv-agenda__row:hover {
+  border-color: var(--accent-interactive);
+}
+
+.rv-agenda__row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Agenda rows are compact — the title button reverts to sans (not the serif card title). */
+.rv-agenda__title {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+}
+
+.rv-agenda__subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-card,
+  .rv-toggle__seg,
+  .rv-agenda__row {
+    transition: none;
+  }
+}

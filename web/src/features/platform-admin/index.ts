@@ -4,3 +4,4 @@ export { CrossingMapPage } from './components/CrossingMapPage';
 export { AccessPage } from './components/AccessPage';
 export { RoleLabelsPage } from './components/RoleLabelsPage';
 export { FirmWideAuditPage } from './components/FirmWideAuditPage';
+export { WorkspaceProvisioningPage } from './components/WorkspaceProvisioningPage';

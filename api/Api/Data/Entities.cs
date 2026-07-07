@@ -295,16 +295,32 @@ public sealed class ApproverMemberResultRow
 
 // ─── Slice 19 (Platform admin) — keyless read projections ──────────────────────────────
 
-/// <summary>One PG→AI crossing pair from usp_GetCrossingMap (S35, read-only). Field types are the
-/// schema's display strings.</summary>
+/// <summary>One crossing-map row from usp_GetCrossingMap / usp_ProposeCrossingMap / usp_ConfirmCrossingMap
+/// (S35). Seeded rows carry a null CrossingMapId and Status='Seeded'; durable rows carry the id, the
+/// option map, and the confirmed audit. Field types are the schema's display strings.</summary>
 public sealed class CrossingMapRow
 {
+    public Guid? CrossingMapId { get; set; }
     public string SourceFieldKey { get; set; } = string.Empty;
     public string SourceDisplayName { get; set; } = string.Empty;
     public string SourceFieldType { get; set; } = string.Empty;
     public string TargetFieldKey { get; set; } = string.Empty;
     public string TargetDisplayName { get; set; } = string.Empty;
     public string TargetFieldType { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? OptionCorrespondenceJson { get; set; }
+    public string? ConfirmedByUserId { get; set; }
+    public DateTime? ConfirmedAt { get; set; }
+}
+
+/// <summary>One mappable field for the S35 propose form, from usp_GetCrossingCandidates (Side='PG'|'AI').</summary>
+public sealed class CrossingCandidateRow
+{
+    public Guid FieldDefinitionId { get; set; }
+    public string Side { get; set; } = string.Empty;
+    public string FieldKey { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string FieldType { get; set; } = string.Empty;
 }
 
 /// <summary>One privileged-grant row from usp_ListPrivilegedGrants (S36). Workspace fields are null

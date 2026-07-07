@@ -109,3 +109,41 @@ BEGIN
     EXEC dbo.usp_ProvisionWorkspace @Name = N'Litigation', @Prefix = N'LIT', @InitialAdminUserId = @Rando, @ActorUserId = N'actor';
 END;
 GO
+
+CREATE PROCEDURE ProvisionWorkspaceTests.[test_ResolvesInitialAdminByEmail]
+AS
+BEGIN
+    -- Arrange — the S38 wizard path: only an email is supplied; the proc resolves it to the active user.
+    DECLARE @Template UNIQUEIDENTIFIER = NEWID();
+    DECLARE @Admin    UNIQUEIDENTIFIER = NEWID();
+    INSERT INTO dbo.Workspaces (WorkspaceId, Name, Kind, Prefix, NextSequence, IsDeleted)
+    VALUES (@Template, N'Template', N'pg-dept-template', N'TMPL', 0, 0);
+    INSERT INTO dbo.Users (UserId, DisplayName, Email, IsDisabled, IsDeleted)
+    VALUES (@Admin, N'Ada Admin', N'ada@firm.example', 0, 0);
+
+    -- Act — provision by email (no @InitialAdminUserId)
+    CREATE TABLE #New (WorkspaceId UNIQUEIDENTIFIER, Name NVARCHAR(200), Kind NVARCHAR(32), Prefix NVARCHAR(16));
+    INSERT INTO #New EXEC dbo.usp_ProvisionWorkspace
+        @Name = N'Litigation', @Prefix = N'lit', @InitialAdminEmail = N'ada@firm.example', @ActorUserId = N'actor';
+
+    -- Assert — the resolved user is the new workspace's WorkspaceAdmin
+    DECLARE @NewWs UNIQUEIDENTIFIER = (SELECT WorkspaceId FROM #New);
+    DECLARE @Mem INT = (SELECT COUNT(*) FROM dbo.WorkspaceMembership
+        WHERE WorkspaceId = @NewWs AND UserId = @Admin AND [Level] = N'WorkspaceAdmin');
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Mem;
+END;
+GO
+
+CREATE PROCEDURE ProvisionWorkspaceTests.[test_UnresolvableAdminEmail_Throws]
+AS
+BEGIN
+    -- Arrange — an email that matches no active user.
+    DECLARE @Template UNIQUEIDENTIFIER = NEWID();
+    INSERT INTO dbo.Workspaces (WorkspaceId, Name, Kind, Prefix, NextSequence, IsDeleted)
+    VALUES (@Template, N'Template', N'pg-dept-template', N'TMPL', 0, 0);
+
+    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%active user%';
+    EXEC dbo.usp_ProvisionWorkspace @Name = N'Litigation', @Prefix = N'LIT',
+        @InitialAdminEmail = N'nobody@firm.example', @ActorUserId = N'actor';
+END;
+GO

@@ -75,8 +75,18 @@ BEGIN
     )
     SELECT
         m.RecordId, m.Name, m.Maturity, m.OneLiner, m.FeatureType, m.OwnerUserId,
-        m.Origin, m.FieldValues, m.UpdatedAt, m.RowVer
+        m.Origin, m.FieldValues, m.UpdatedAt, m.RowVer,
+        thumb.AttachmentId AS ThumbnailAttachmentId   -- first native image attachment (S11 gallery); NULL when none
     FROM Matched AS m
+    OUTER APPLY (
+        SELECT TOP (1) a.AttachmentId
+        FROM dbo.Attachments AS a
+        WHERE a.RecordId = m.RecordId
+          AND a.IsDeleted = 0
+          AND a.IsLink = 0
+          AND a.ContentType LIKE N'image/%'
+        ORDER BY a.CreatedAt ASC, a.AttachmentId ASC
+    ) AS thumb
     ORDER BY
         CASE WHEN @Dir = N'asc'  AND @Sort = N'id'       THEN m.RecordId END ASC,
         CASE WHEN @Dir = N'desc' AND @Sort = N'id'       THEN m.RecordId END DESC,

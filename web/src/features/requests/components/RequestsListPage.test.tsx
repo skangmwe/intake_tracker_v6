@@ -77,6 +77,35 @@ describe('RequestsListPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('RequestsListPage — switching to the Board layout groups requests by stage (S24)', async () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()]) });
+    const user = userEvent.setup();
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Act — toggle Table → Board
+    await user.click(screen.getByRole('button', { name: /Board/ }));
+
+    // Assert — a column for the row's stage, and the record as a card
+    expect(screen.getByRole('region', { name: 'intake (1)' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Meeting-notes action extraction/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('RequestsListPage — switching to the Timeline layout anchors requests by due date (S24)', async () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()]) });
+    const user = userEvent.setup();
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Act — toggle Table → Timeline
+    await user.click(screen.getByRole('button', { name: /Timeline/ }));
+
+    // Assert — the due date becomes a timeline node
+    expect(screen.getByText('16 Jul 2026')).toBeInTheDocument();
+  });
+
   it('RequestsListPage — renders the Repo URL rollup as a link (slice 7)', () => {
     // Arrange — a row whose first task-level URL field rolled up to the repo column.
     const base = buildRequestListRow();

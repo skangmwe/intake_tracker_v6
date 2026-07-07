@@ -1,23 +1,58 @@
-// S35 Crossing map — the firm's PG→AI field mappings, read-only in R1 Phase 1 (BS §6.2; the
-// propose/confirm workflow is slice 24). A data-dense table (data-visualization.md): scoped headers,
-// 1px row rules, no vertical dividers, scrolls within its own shell. Renders the three non-data states
-// explicitly. The read-only status is stated inline so the surface never looks half-built.
+// S35 Crossing map — the firm's PG→AI field mappings with the propose / confirm workflow (slice 24,
+// BS §6.2). A data-dense table (data-visualization.md): scoped headers, 1px row rules, no vertical
+// dividers, scrolls within its own shell. Seeded rows are immutable 1:1 pairs; durable rows carry a
+// status (Proposed → Confirmed) and, when Proposed, a Confirm action. The propose form sits above the
+// table. Renders the three non-data states explicitly.
+
+import type { CrossingMapRowDto, CrossingMapStatus } from '@shared/types';
+
+import { Button } from '@/shared/components/Button';
+import { problemMessage } from '@/shared/http/problemMessage';
 
 import { PlatformGate } from './PlatformGate';
-import { useCrossingMap } from '../useCrossingMap';
+import { ProposeCrossingForm } from './ProposeCrossingForm';
+import { useConfirmCrossingMap, useCrossingMap } from '../useCrossingMap';
 import { usePlatformAdmin } from '../usePlatformAdmin';
 
 const EM_DASH = '—';
 
+const STATUS_LABEL: Record<CrossingMapStatus, string> = {
+  Seeded: 'Seeded',
+  Proposed: 'Proposed',
+  Confirmed: 'Confirmed',
+};
+
+const STATUS_CLASS: Record<CrossingMapStatus, string> = {
+  Seeded: 'cm-status--seeded',
+  Proposed: 'cm-status--proposed',
+  Confirmed: 'cm-status--confirmed',
+};
+
+function StatusBadge({ status }: { status: CrossingMapStatus }) {
+  return (
+    <span className={`cm-status ${STATUS_CLASS[status]}`} data-ds="badge">
+      {STATUS_LABEL[status]}
+    </span>
+  );
+}
+
 function CrossingMapSurface() {
   const { data, isLoading, isError } = useCrossingMap(true);
+  const confirm = useConfirmCrossingMap();
+
+  const onConfirm = (row: CrossingMapRowDto) => {
+    if (row.crossingMapId) confirm.mutate(row.crossingMapId);
+  };
 
   return (
     <>
-      <p className="mws-alert mws-alert--info platform-admin__note" role="note">
-        The crossing map is read-only in this release. New and changed mappings arrive with the
-        propose / confirm workflow.
-      </p>
+      <ProposeCrossingForm />
+
+      {confirm.isError && (
+        <p className="mws-alert mws-alert--error" role="alert">
+          {problemMessage(confirm.error)}
+        </p>
+      )}
 
       {isLoading && (
         <p className="caption" role="status">
@@ -43,22 +78,43 @@ function CrossingMapSurface() {
             <thead>
               <tr>
                 <th scope="col">PG / Dept field</th>
-                <th scope="col">Field key</th>
                 <th scope="col">Type</th>
                 <th scope="col">AI Solutions field</th>
-                <th scope="col">Field key</th>
                 <th scope="col">Type</th>
+                <th scope="col">Status</th>
+                <th scope="col">Action</th>
               </tr>
             </thead>
             <tbody>
               {data.map((row) => (
-                <tr key={`${row.sourceFieldKey}→${row.targetFieldKey}`}>
-                  <td>{row.sourceDisplayName || EM_DASH}</td>
-                  <td className="platform-table__key">{row.sourceFieldKey}</td>
+                <tr key={row.crossingMapId ?? `seeded:${row.sourceFieldKey}→${row.targetFieldKey}`}>
+                  <td>
+                    {row.sourceDisplayName || EM_DASH}
+                    <span className="platform-table__key">{row.sourceFieldKey}</span>
+                  </td>
                   <td>{row.sourceFieldType || EM_DASH}</td>
-                  <td>{row.targetDisplayName || EM_DASH}</td>
-                  <td className="platform-table__key">{row.targetFieldKey}</td>
+                  <td>
+                    {row.targetDisplayName || EM_DASH}
+                    <span className="platform-table__key">{row.targetFieldKey}</span>
+                  </td>
                   <td>{row.targetFieldType || EM_DASH}</td>
+                  <td>
+                    <StatusBadge status={row.status} />
+                  </td>
+                  <td>
+                    {row.status === 'Proposed' && row.crossingMapId ? (
+                      <Button
+                        variant="secondary"
+                        compact
+                        onClick={() => onConfirm(row)}
+                        disabled={confirm.isPending}
+                      >
+                        Confirm
+                      </Button>
+                    ) : (
+                      <span className="cm-noaction">{EM_DASH}</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -75,7 +131,7 @@ export function CrossingMapPage() {
   return (
     <PlatformGate
       title="Crossing map"
-      lead="How PG/Dept request fields map to AI Solutions fields when a request is escalated."
+      lead="How PG/Dept request fields map to AI Solutions fields when a request is escalated. Propose a new mapping, then confirm it to make it live."
     >
       {isPlatformAdmin && <CrossingMapSurface />}
     </PlatformGate>

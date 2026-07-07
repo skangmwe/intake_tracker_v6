@@ -140,6 +140,7 @@ AS
 BEGIN
     -- Arrange — two Published + one Draft; the maturity filter should return only the Published pair.
     EXEC tSQLt.FakeTable @TableName = 'dbo.Features';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Attachments';   -- the gallery thumbnail OUTER APPLY reads this
     INSERT INTO dbo.Features (RecordId, WorkspaceId, Name, Maturity, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'Pub one', N'Published', N'{"featureType":"functional"}', 0, N'seed', N'seed'),
            (N'AIS-00000002', '1A150000-0000-4000-8000-000000000001', N'Pub two', N'Published', N'{"featureType":"integration"}', 0, N'seed', N'seed'),
@@ -148,7 +149,7 @@ BEGIN
     -- Act — capture the first (page rows) result set.
     CREATE TABLE #Rows (RecordId NVARCHAR(20), Name NVARCHAR(400), Maturity NVARCHAR(16), OneLiner NVARCHAR(400),
         FeatureType NVARCHAR(32), OwnerUserId NVARCHAR(200), Origin NVARCHAR(200), FieldValues NVARCHAR(MAX),
-        UpdatedAt DATETIME2, RowVer VARBINARY(8));
+        UpdatedAt DATETIME2, RowVer VARBINARY(8), ThumbnailAttachmentId UNIQUEIDENTIFIER);
     -- usp_QueryFeatures returns two result sets (page rows + TotalCount); capture only the first.
     INSERT INTO #Rows
     EXEC tSQLt.ResultSetFilter 1, N'EXEC dbo.usp_QueryFeatures
@@ -160,6 +161,61 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = 2, @Actual = @Total;
     DECLARE @NonPub SQL_VARIANT = (SELECT COUNT(*) FROM #Rows WHERE Maturity <> N'Published');
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @NonPub;
+END;
+GO
+
+CREATE PROCEDURE FeatureCatalogTests.[test_QueryFeaturesReturnsFirstImageThumbnail]
+AS
+BEGIN
+    -- Arrange — one feature with an earlier PDF attachment and a later image attachment. The gallery
+    -- thumbnail must resolve to the first NATIVE IMAGE attachment (ignoring the PDF), not the earliest.
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Features';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Attachments';
+    INSERT INTO dbo.Features (RecordId, WorkspaceId, Name, Maturity, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'Feature one', N'Published', N'{}', 0, N'seed', N'seed');
+
+    DECLARE @ImageId UNIQUEIDENTIFIER = '2B000000-0000-4000-8000-000000000002';
+    INSERT INTO dbo.Attachments (AttachmentId, RecordId, ContentType, IsLink, IsDeleted, CreatedAt, CreatedBy, UpdatedBy)
+    VALUES ('2B000000-0000-4000-8000-000000000001', N'AIS-00000001', N'application/pdf', 0, 0, '2026-01-01', N'seed', N'seed'),
+           (@ImageId,                                N'AIS-00000001', N'image/png',        0, 0, '2026-02-01', N'seed', N'seed'),
+           ('2B000000-0000-4000-8000-000000000003', N'AIS-00000001', N'image/jpeg',       0, 1, '2026-03-01', N'seed', N'seed'); -- soft-deleted, ignored
+
+    -- Act — capture the first result set.
+    CREATE TABLE #Rows (RecordId NVARCHAR(20), Name NVARCHAR(400), Maturity NVARCHAR(16), OneLiner NVARCHAR(400),
+        FeatureType NVARCHAR(32), OwnerUserId NVARCHAR(200), Origin NVARCHAR(200), FieldValues NVARCHAR(MAX),
+        UpdatedAt DATETIME2, RowVer VARBINARY(8), ThumbnailAttachmentId UNIQUEIDENTIFIER);
+    INSERT INTO #Rows
+    EXEC tSQLt.ResultSetFilter 1, N'EXEC dbo.usp_QueryFeatures
+        @WorkspaceId = N''1A150000-0000-4000-8000-000000000001'', @Page = 1, @PageSize = 25';
+
+    -- Assert — the resolved thumbnail is the live image attachment.
+    DECLARE @Thumb SQL_VARIANT = (SELECT CONVERT(NVARCHAR(64), ThumbnailAttachmentId) FROM #Rows WHERE RecordId = N'AIS-00000001');
+    EXEC tSQLt.AssertEquals @Expected = N'2B000000-0000-4000-8000-000000000002', @Actual = @Thumb;
+END;
+GO
+
+CREATE PROCEDURE FeatureCatalogTests.[test_QueryFeaturesNullThumbnailWhenNoImage]
+AS
+BEGIN
+    -- Arrange — a feature whose only attachment is a non-image (PDF). Thumbnail must be NULL (placeholder).
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Features';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Attachments';
+    INSERT INTO dbo.Features (RecordId, WorkspaceId, Name, Maturity, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'Feature one', N'Published', N'{}', 0, N'seed', N'seed');
+    INSERT INTO dbo.Attachments (AttachmentId, RecordId, ContentType, IsLink, IsDeleted, CreatedAt, CreatedBy, UpdatedBy)
+    VALUES ('2B000000-0000-4000-8000-000000000001', N'AIS-00000001', N'application/pdf', 0, 0, '2026-01-01', N'seed', N'seed');
+
+    -- Act
+    CREATE TABLE #Rows (RecordId NVARCHAR(20), Name NVARCHAR(400), Maturity NVARCHAR(16), OneLiner NVARCHAR(400),
+        FeatureType NVARCHAR(32), OwnerUserId NVARCHAR(200), Origin NVARCHAR(200), FieldValues NVARCHAR(MAX),
+        UpdatedAt DATETIME2, RowVer VARBINARY(8), ThumbnailAttachmentId UNIQUEIDENTIFIER);
+    INSERT INTO #Rows
+    EXEC tSQLt.ResultSetFilter 1, N'EXEC dbo.usp_QueryFeatures
+        @WorkspaceId = N''1A150000-0000-4000-8000-000000000001'', @Page = 1, @PageSize = 25';
+
+    -- Assert — no image → NULL thumbnail.
+    DECLARE @NonNull SQL_VARIANT = (SELECT COUNT(*) FROM #Rows WHERE ThumbnailAttachmentId IS NOT NULL);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @NonNull;
 END;
 GO
 

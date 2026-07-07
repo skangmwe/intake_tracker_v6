@@ -3,6 +3,8 @@
 // Every endpoint is Platform-admin-gated server-side (403 for non-admins — the API is the boundary).
 
 import type {
+  CrossingCandidatesDto,
+  CrossingMapProposeRequest,
   CrossingMapRowDto,
   FirmWideAuditQuery,
   FirmWideAuditRowDto,
@@ -13,14 +15,31 @@ import type {
   RoleLabelDto,
   RoleLabelRenameRequest,
   UserId,
+  WorkspaceProvisionRequest,
+  WorkspaceProvisionResult,
 } from '@shared/types';
 
 import { apiFetch } from '@/shared/http/apiClient';
 
-/* ── S35 Crossing map (read-only) ─────────────────────────────────────────── */
+/* ── S35 Crossing map (propose / confirm) ─────────────────────────────────── */
 
 export function fetchCrossingMap(signal?: AbortSignal): Promise<CrossingMapRowDto[]> {
   return apiFetch<CrossingMapRowDto[]>('/v1/platform/crossing-map', signal ? { signal } : {});
+}
+
+export function fetchCrossingCandidates(signal?: AbortSignal): Promise<CrossingCandidatesDto> {
+  return apiFetch<CrossingCandidatesDto>(
+    '/v1/platform/crossing-map/candidates',
+    signal ? { signal } : {},
+  );
+}
+
+export function proposeCrossingMap(body: CrossingMapProposeRequest): Promise<CrossingMapRowDto> {
+  return apiFetch<CrossingMapRowDto>('/v1/platform/crossing-map', { method: 'POST', body });
+}
+
+export function confirmCrossingMap(crossingMapId: string): Promise<CrossingMapRowDto> {
+  return apiFetch<CrossingMapRowDto>(`/v1/platform/crossing-map/${crossingMapId}`, { method: 'PATCH' });
 }
 
 /* ── S37 Role-label catalog ───────────────────────────────────────────────── */
@@ -53,6 +72,12 @@ export function grantAccess(body: PlatformAdminGrantRequest): Promise<void> {
 
 export function revokeAccess(userId: UserId): Promise<void> {
   return apiFetch<void>(`/v1/platform/access/${userId}`, { method: 'DELETE' });
+}
+
+/* ── S38 Workspace provisioning ───────────────────────────────────────────── */
+
+export function provisionWorkspace(body: WorkspaceProvisionRequest): Promise<WorkspaceProvisionResult> {
+  return apiFetch<WorkspaceProvisionResult>('/v1/workspaces', { method: 'POST', body });
 }
 
 /* ── S39 Firm-wide audit ──────────────────────────────────────────────────── */
