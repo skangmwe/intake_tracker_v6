@@ -56,10 +56,11 @@ public sealed class WorkspaceProvisioningService : IWorkspaceProvisioningService
         {
             var rows = await _db.Set<WorkspaceProvisionRow>()
                 .FromSqlRaw(
-                    "EXEC dbo.usp_ProvisionWorkspace @Name, @Prefix, @InitialAdminUserId, @ActorUserId",
+                    "EXEC dbo.usp_ProvisionWorkspace @Name, @Prefix, @InitialAdminUserId, @InitialAdminEmail, @ActorUserId",
                     new SqlParameter("@Name", request.Name!),
                     new SqlParameter("@Prefix", request.Prefix!),
-                    new SqlParameter("@InitialAdminUserId", request.InitialAdminUserId),
+                    new SqlParameter("@InitialAdminUserId", (object?)request.InitialAdminUserId ?? DBNull.Value),
+                    new SqlParameter("@InitialAdminEmail", (object?)request.InitialAdminEmail ?? DBNull.Value),
                     new SqlParameter("@ActorUserId", actorUserId.ToString()))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);

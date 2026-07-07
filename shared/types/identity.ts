@@ -68,12 +68,20 @@ export interface WorkspaceDto extends WorkspaceListItem {
   retiredAt?: IsoDateTime;
 }
 
-/** Request body for POST /workspaces (Platform admin, R1 Phase 2 self-serve). */
+/**
+ * Request body for POST /workspaces (Platform admin, R1 Phase 2 self-serve). Exactly one of
+ * `initialAdminUserId` / `initialAdminEmail` identifies the first WorkspaceAdmin:
+ *  - `initialAdminUserId` — a known user id (ops tooling / slice-19 path).
+ *  - `initialAdminEmail` — resolve an active platform user server-side (unresolved / ambiguous → 400),
+ *    mirroring the S29 membership add and S36 grant. The S38 wizard uses this — R1 has no user-directory
+ *    endpoint, so a Platform admin types the admin's email rather than a raw id (slice 24 refinement).
+ */
 export interface WorkspaceProvisionRequest {
   name: string;
   /** Must be globally unique; validated against the platform PrefixRegistry. */
   prefix: string;
-  initialAdminUserId: UserId;
+  initialAdminUserId?: UserId;
+  initialAdminEmail?: string;
 }
 
 /**

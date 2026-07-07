@@ -79,3 +79,24 @@ BEGIN
     EXEC dbo.usp_RetireFieldDefinition @WorkspaceId = @Ws, @ObjectType = N'Request', @FieldKey = N'nope', @ActorUserId = N'test-actor';
 END;
 GO
+
+CREATE PROCEDURE RetireFieldDefinitionTests.[test_FieldInLiveCrossingMapping_Throws]
+AS
+BEGIN
+    -- Arrange — a field used by a live (confirmed) crossing mapping cannot be retired (slice 24 guard).
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldRuleDependency';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.CrossingMap';
+    DECLARE @Ws UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
+    DECLARE @FieldId UNIQUEIDENTIFIER = NEWID();
+
+    INSERT INTO dbo.FieldDefinition (FieldDefinitionId, WorkspaceId, ObjectType, FieldKey, DisplayName, FieldType, Category, SortOrder, IsRequired, IsReadOnly, IsPlatformDefined, AllowNewValues, IsRetired, IsDeleted)
+    VALUES (@FieldId, @Ws, N'Request', N'clientName', N'Client Name', N'ShortText', 0, 0, 0, 0, 0, 0, 0);
+    INSERT INTO dbo.CrossingMap (CrossingMapId, PgFieldDefinitionId, AiFieldDefinitionId, Status, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), @FieldId, NEWID(), N'Confirmed', 0, N'seed', N'seed');
+
+    -- Act + Assert
+    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%crossing-map mapping%';
+    EXEC dbo.usp_RetireFieldDefinition @WorkspaceId = @Ws, @ObjectType = N'Request', @FieldKey = N'clientName', @ActorUserId = N'test-actor';
+END;
+GO

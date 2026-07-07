@@ -23,8 +23,9 @@
 CREATE OR ALTER PROCEDURE dbo.usp_ProvisionWorkspace
     @Name               NVARCHAR(200),
     @Prefix             NVARCHAR(16),
-    @InitialAdminUserId UNIQUEIDENTIFIER,
-    @ActorUserId        NVARCHAR(256)
+    @InitialAdminUserId UNIQUEIDENTIFIER = NULL,
+    @InitialAdminEmail  NVARCHAR(320)    = NULL,   -- slice 24: the S38 wizard passes an email (R1 has no user-directory)
+    @ActorUserId        NVARCHAR(256)    = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -33,6 +34,7 @@ BEGIN
     DECLARE @NameLocal   NVARCHAR(200)    = LTRIM(RTRIM(@Name));
     DECLARE @PrefixLocal NVARCHAR(16)     = UPPER(LTRIM(RTRIM(@Prefix)));
     DECLARE @AdminUserId UNIQUEIDENTIFIER = @InitialAdminUserId;
+    DECLARE @EmailLocal  NVARCHAR(320)    = LTRIM(RTRIM(@InitialAdminEmail));
     DECLARE @Actor       NVARCHAR(256)    = @ActorUserId;
     DECLARE @Now         DATETIME2        = SYSUTCDATETIME();
 
@@ -40,6 +42,27 @@ BEGIN
         THROW 50070, 'A workspace name is required.', 1;
     IF @PrefixLocal IS NULL OR @PrefixLocal = N''
         THROW 50070, 'A workspace prefix is required.', 1;
+
+    -- Resolve the initial admin BEFORE opening a transaction (an unresolved/ambiguous guard THROW must
+    -- never issue a ROLLBACK — tSQLt-safe). Exactly one of id / email identifies the admin. Email
+    -- resolves to a single ACTIVE platform user by email or display name (mirrors usp_UpsertPlatformAdminGrant);
+    -- 0 or >1 matches -> 50073, which the service maps to "The initial admin must be an active user."
+    IF @AdminUserId IS NULL AND @EmailLocal IS NOT NULL AND @EmailLocal <> N''
+    BEGIN
+        DECLARE @MatchCount INT =
+            (SELECT COUNT(*) FROM dbo.Users
+             WHERE IsDeleted = 0 AND IsDisabled = 0
+               AND (Email = @EmailLocal OR DisplayName = @EmailLocal));
+
+        IF @MatchCount = 1
+            SET @AdminUserId =
+                (SELECT TOP (1) UserId FROM dbo.Users
+                 WHERE IsDeleted = 0 AND IsDisabled = 0
+                   AND (Email = @EmailLocal OR DisplayName = @EmailLocal));
+    END;
+
+    IF @AdminUserId IS NULL
+        THROW 50073, 'The initial admin must be an active user.', 1;
 
     -- Validate BEFORE opening a transaction so a guard THROW never issues a ROLLBACK (tSQLt-safe).
     -- The PrefixRegistry PK is the concurrency backstop on the prefix.

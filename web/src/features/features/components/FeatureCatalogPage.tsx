@@ -5,12 +5,18 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cards, GridFour, Plus } from '@phosphor-icons/react';
+import { Cards, Plus } from '@phosphor-icons/react';
 
 import type { FeatureListRow, FilterClause, PaginatedQuery, SavedViewDto } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { EmptyListFilteredToZero, EmptyListZeroData } from '@/shared/components/EdgeStates';
+import {
+  GalleryView,
+  ViewModeToggle,
+  type RecordViewItem,
+  type RecordViewKind,
+} from '@/shared/components/RecordViews';
 import {
   FilterFunnel,
   SavedViewPicker,
@@ -151,6 +157,28 @@ function MaturityBadge({ maturity }: { maturity: string }) {
   );
 }
 
+/** Layouts offered on the Feature catalog (Slice 24 — S9 table + S11 gallery). */
+const FEATURE_VIEW_KINDS: RecordViewKind[] = ['table', 'gallery'];
+
+function maturityBadges(maturity: string): RecordViewItem['badges'] {
+  if (maturity === 'Published') return [{ label: 'Published', tone: 'success' }];
+  if (maturity === 'Deprecated') return [{ label: 'Deprecated', tone: 'error' }];
+  return [{ label: maturity || 'Draft', tone: 'neutral' }];
+}
+
+/** Row → gallery item (Slice 24 — S11). Thumbnail is the first image attachment; placeholder when absent. */
+function toGalleryItem(row: FeatureListRow, onOpen: () => void): RecordViewItem {
+  return {
+    id: row.id,
+    title: cellText(row.name),
+    subtitle: row.oneLiner ? cellText(row.oneLiner) : undefined,
+    badges: maturityBadges(row.maturity),
+    tags: row.capabilityTags.slice(0, 4),
+    thumbnailUrl: row.thumbnailUrl,
+    onOpen,
+  };
+}
+
 type EditorState = {
   editingView: SavedViewDto | null;
   initialTab: 'filters' | 'fields' | 'sort';
@@ -174,6 +202,7 @@ export function FeatureCatalogPage() {
   const [filters, setFilters] = useState<Record<string, FilterClause>>(PUBLISHED_FILTERS);
   const [sort, setSort] = useState<SortState | undefined>({ column: 'updated', direction: 'desc' });
   const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState<RecordViewKind>('table');
   const [editor, setEditor] = useState<EditorState>(null);
 
   const query = useMemo<PaginatedQuery>(() => {
@@ -265,15 +294,13 @@ export function FeatureCatalogPage() {
           onSaveAsNew={() => openEditor('filters', null)}
         />
       }
-      exportSlot={
-        <Button
-          variant="secondary"
-          compact
-          disabled
-          title="Gallery view arrives in a later iteration"
-        >
-          <GridFour size={16} weight="regular" aria-hidden /> Gallery view
-        </Button>
+      layoutSlot={
+        <ViewModeToggle
+          available={FEATURE_VIEW_KINDS}
+          active={viewMode}
+          onChange={setViewMode}
+          label="Feature catalog layout"
+        />
       }
       filters={activePills}
       onClearAll={() => {
@@ -356,19 +383,28 @@ export function FeatureCatalogPage() {
           )
         ) : (
           <>
-            <TableShell
-              caption="Feature Catalog"
-              columns={COLUMNS}
-              rows={rows.map((row) =>
-                toTableRow(row, () => navigate(`/feature-catalog/${row.id}`)),
-              )}
-              sort={sort}
-              onSortChange={(next) => {
-                setSort(next);
-                setPage(1);
-              }}
-              renderFilter={renderFilter}
-            />
+            {viewMode === 'gallery' ? (
+              <GalleryView
+                items={rows.map((row) =>
+                  toGalleryItem(row, () => navigate(`/feature-catalog/${row.id}`)),
+                )}
+                caption="Feature gallery"
+              />
+            ) : (
+              <TableShell
+                caption="Feature Catalog"
+                columns={COLUMNS}
+                rows={rows.map((row) =>
+                  toTableRow(row, () => navigate(`/feature-catalog/${row.id}`)),
+                )}
+                sort={sort}
+                onSortChange={(next) => {
+                  setSort(next);
+                  setPage(1);
+                }}
+                renderFilter={renderFilter}
+              />
+            )}
             <div className="fc-pagination">
               <span className="fc-pagination__summary">
                 {total === 0 ? '0 features' : `Page ${page} of ${totalPages} · ${total} features`}

@@ -8,17 +8,46 @@ using System.ComponentModel.DataAnnotations;
 
 namespace McDermott.AiTracker.Api.Modules.PlatformAdmin;
 
-/* ── S35 Crossing map (read-only) ─────────────────────────────────────────── */
+/* ── S35 Crossing map (propose / confirm) ─────────────────────────────────── */
 
-/// <summary>One PG→AI crossing pair (mirrors CrossingMapRowDto). Read off FieldDefinition — no
-/// CrossingMap table in R1 Phase 1 (data-model.md; slice 24 owns the durable table).</summary>
+/// <summary>One crossing-map row (mirrors CrossingMapRowDto). A SEEDED row (Status='Seeded',
+/// CrossingMapId=null) is an immutable 1:1 pair read off FieldDefinition; a DURABLE row
+/// (Status='Proposed'|'Confirmed') comes from the CrossingMap table (slice 24).</summary>
 public sealed record CrossingMapRowResponse(
+    Guid? CrossingMapId,
     string SourceFieldKey,
     string SourceDisplayName,
     string SourceFieldType,
     string TargetFieldKey,
     string TargetDisplayName,
-    string TargetFieldType);
+    string TargetFieldType,
+    string Status,
+    string? OptionCorrespondenceJson,
+    string? ConfirmedByUserId,
+    DateTime? ConfirmedAt);
+
+/// <summary>Body for POST /platform/crossing-map — propose a PG→AI mapping. The proc validates
+/// existence, type-compatibility, direction, one-to-one, and the option map (mirrors
+/// CrossingMapProposeRequest).</summary>
+public sealed class CrossingMapProposeRequest
+{
+    public Guid PgFieldDefinitionId { get; set; }
+
+    public Guid AiFieldDefinitionId { get; set; }
+
+    /// <summary>Optional select-type option map, serialized JSON (PG option value → AI option value).</summary>
+    public string? OptionCorrespondenceJson { get; set; }
+}
+
+/// <summary>One mappable field for the S35 propose form (mirrors CrossingCandidateDto). Side is
+/// 'PG' or 'AI'.</summary>
+public sealed record CrossingCandidateResponse(
+    Guid FieldDefinitionId, string Side, string FieldKey, string DisplayName, string FieldType);
+
+/// <summary>Response for GET /platform/crossing-map/candidates (mirrors CrossingCandidatesDto).</summary>
+public sealed record CrossingCandidatesResponse(
+    IReadOnlyList<CrossingCandidateResponse> PgFields,
+    IReadOnlyList<CrossingCandidateResponse> AiFields);
 
 /* ── S37 Role-label catalog ───────────────────────────────────────────────── */
 

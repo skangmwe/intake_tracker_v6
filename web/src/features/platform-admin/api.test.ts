@@ -7,11 +7,15 @@ import type { UserId } from '@shared/types';
 import { apiFetch } from '@/shared/http/apiClient';
 
 import {
+  confirmCrossingMap,
   createRoleLabel,
   fetchAccessGrants,
+  fetchCrossingCandidates,
   fetchCrossingMap,
   fetchRoleLabels,
   grantAccess,
+  proposeCrossingMap,
+  provisionWorkspace,
   queryFirmWideAudit,
   renameRoleLabel,
   retireRoleLabel,
@@ -106,6 +110,37 @@ describe('platform-admin api', () => {
     const [path, opts] = mockedFetch.mock.calls[0];
     expect(path).toBe(`/v1/platform/access/${USER}`);
     expect(opts).toMatchObject({ method: 'DELETE' });
+  });
+
+  it('fetchCrossingCandidates — GETs the candidate fields', async () => {
+    mockedFetch.mockResolvedValue({ pgFields: [], aiFields: [] } as never);
+    await fetchCrossingCandidates();
+    const [path] = mockedFetch.mock.calls[0];
+    expect(path).toBe('/v1/platform/crossing-map/candidates');
+  });
+
+  it('proposeCrossingMap — POSTs the mapping to /v1/platform/crossing-map', async () => {
+    mockedFetch.mockResolvedValue({} as never);
+    await proposeCrossingMap({ pgFieldDefinitionId: 'pg-1', aiFieldDefinitionId: 'ai-1' });
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/platform/crossing-map', {
+      method: 'POST',
+      body: { pgFieldDefinitionId: 'pg-1', aiFieldDefinitionId: 'ai-1' },
+    });
+  });
+
+  it('confirmCrossingMap — PATCHes the mapping by id', async () => {
+    mockedFetch.mockResolvedValue({} as never);
+    await confirmCrossingMap('cm-9');
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/platform/crossing-map/cm-9', { method: 'PATCH' });
+  });
+
+  it('provisionWorkspace — POSTs the provision body to /v1/workspaces', async () => {
+    mockedFetch.mockResolvedValue({ id: 'ws-1', name: 'Litigation', kind: 'pg-dept', prefix: 'LIT' } as never);
+    await provisionWorkspace({ name: 'Litigation', prefix: 'LIT', initialAdminEmail: 'admin@mws.ai' });
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces', {
+      method: 'POST',
+      body: { name: 'Litigation', prefix: 'LIT', initialAdminEmail: 'admin@mws.ai' },
+    });
   });
 
   it('queryFirmWideAudit — POSTs the query body and passes the abort signal', async () => {

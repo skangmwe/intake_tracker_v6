@@ -7,6 +7,7 @@ import type { IconProps } from '@phosphor-icons/react';
 import {
   ArrowsDownUp,
   ArrowsLeftRight,
+  Buildings,
   ChartBar,
   ClipboardText,
   FlowArrow,
@@ -73,6 +74,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/platform/crossing-map', icon: ArrowsLeftRight, label: 'Crossing map' },
       { to: '/platform/access', icon: ShieldCheck, label: 'Access provisioning' },
       { to: '/platform/role-labels', icon: Tag, label: 'Role labels' },
+      { to: '/platform/workspaces', icon: Buildings, label: 'Workspaces' },
       { to: '/platform/audit', icon: ClipboardText, label: 'Firm-wide audit' },
     ],
   },

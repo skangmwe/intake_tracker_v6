@@ -588,6 +588,18 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
   `PinAsHomeButton`), `home.css`. `pages/HomePage` now mounts `HomeView` (replacing the slice-2 welcome).
   Reuses `resolveActiveWorkspaceId` (workspace scope) + `EdgeStates` conventions; no new shared util.
 
+## Slice 24 (Advanced views · provisioning · crossing map) — implemented
+
+- **`RecordViews` (new shared UI primitives)** — `web/src/shared/components/RecordViews/`:
+  `ViewModeToggle` (segmented control, `data-ds="segmented"`), `KanbanView`, `TimelineView`, `AgendaView`,
+  `GalleryView`, `AuthImage` (bearer-authenticated thumbnail via `apiFetchBlob` → object URL), and the pure
+  `groupByDate` helper — all over one normalised `RecordViewItem` shape. Consumers: S2 Requests list
+  (board/timeline/agenda) and S9 Feature catalog (gallery — S11). Barrel at `RecordViews/index.ts`.
+- **`ViewBar` gained a `layoutSlot`** (`web/src/shared/components/Table/ViewBar.tsx`) — the slot the
+  `ViewModeToggle` renders in on both list surfaces. Backward-compatible (optional).
+- **No new monorepo `/shared/types/` file** — extended `platform.ts` (crossing-map propose/confirm +
+  candidate types) and `identity.ts` (`WorkspaceProvisionRequest` email path).
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.
