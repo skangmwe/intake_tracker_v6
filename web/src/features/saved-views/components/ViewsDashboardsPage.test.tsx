@@ -1,7 +1,7 @@
 // Tests for ViewsDashboardsPage — the admin gate (non-admin warning vs admin content), the four
-// object-type sections, the deferred-dashboards note, and the no-workspace error. SavedViewsSection is
-// stubbed so the page is tested in isolation from the saved-view data hooks; useMe is mocked so the
-// gate is deterministic (a stale-query refetch can't flip it). jest-axe on each meaningful state.
+// object-type sections, the shared-dashboards management panel, and the no-workspace error.
+// SavedViewsSection and DashboardsManagementSection are stubbed so the page is tested in isolation from
+// their data hooks; useMe is mocked so the gate is deterministic. jest-axe on each meaningful state.
 
 import { axe } from 'jest-axe';
 import { screen } from '@testing-library/react';
@@ -18,6 +18,10 @@ jest.mock('./SavedViewsSection', () => ({
   SavedViewsSection: ({ objectType }: { objectType: string }) => (
     <div data-testid="views-section">{objectType}</div>
   ),
+}));
+// Stub the dashboards management panel — it owns its own data hooks; the page only composes it.
+jest.mock('@/features/dashboards', () => ({
+  DashboardsManagementSection: () => <div data-testid="dashboards-management" />,
 }));
 jest.mock('@/features/users/useMe');
 
@@ -58,7 +62,7 @@ it('ViewsDashboardsPage — admin — renders one section per object type', asyn
   expect(await axe(container)).toHaveNoViolations();
 });
 
-it('ViewsDashboardsPage — admin — surfaces the deferred-dashboards note', () => {
+it('ViewsDashboardsPage — admin — renders the shared-dashboards management panel', () => {
   // Arrange
   mockMe(ADMIN_ME);
 
@@ -66,7 +70,7 @@ it('ViewsDashboardsPage — admin — surfaces the deferred-dashboards note', ()
   renderWithProviders(<ViewsDashboardsPage />);
 
   // Assert
-  expect(screen.getByRole('note')).toHaveTextContent(/shared dashboard management arrives with dashboards/i);
+  expect(screen.getByTestId('dashboards-management')).toBeInTheDocument();
 });
 
 it('ViewsDashboardsPage — no workspace — shows an error alert', async () => {

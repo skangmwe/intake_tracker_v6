@@ -128,6 +128,23 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<HomeTriageRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<HomePinnedAnnouncementRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 23 (Seeded Dashboards) — keyless CRUD + metric-resolver projections read via stored
+        // procedures. The two records-grid procs return two result sets and are read via raw ADO.
+        modelBuilder.Entity<DashboardListRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardCategoryCountRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardEscalationQuarterRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardOriginCountRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardOutcomeCountRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardHeatmapCellRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardAnalystCountRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardScalarCountRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardMedianTriageRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardAgingBucketRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardTypeCountRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardTechCountRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<DashboardEscalationStatusRow>().HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

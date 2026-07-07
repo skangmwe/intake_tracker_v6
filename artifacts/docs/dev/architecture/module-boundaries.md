@@ -161,12 +161,12 @@ Owns: view definitions (columns, filters, sort), personal vs shared scope, defau
 
 ### 15. Dashboards
 
-Owns: dashboard definitions, the 8-widget palette, seeded fixed layouts (R1 Phase 2), drill-through.
+Owns: dashboard definitions, the 8-widget palette, seeded fixed layouts (R1 Phase 2), drill-through. **Built (slice 23).**
 
-- **Web exposes:** three seeded dashboards (S6, S14, S12) + PG starter dash (S15) + Dashboard viewer surface (S16) + Dashboards list (S17).
-- **API exposes:** `GET /dashboards`, `GET /dashboards/{id}` (returns widget query results resolved per viewer).
-- **Database owns:** `SavedDashboard` table.
-- **Depends on:** Saved Views (dashboards embed a records-grid saved view), all widget-source modules for metric queries.
+- **Web exposes:** three seeded dashboards (S6 prototyped, S14, S12) + PG starter dash (S15) + Dashboard viewer surface (S16) + Dashboards list (S17) + S32 shared-dashboards management (carried from slice 18). One generic `DashboardSurface`/`WidgetRenderer` powers all of them.
+- **API exposes:** `GET /workspaces/{id}/dashboards` (list), `GET /dashboards/{id}?drill=` (widgets resolved per viewer), `PATCH /dashboards/{id}` (S32 audience/retire, WorkspaceAdmin).
+- **Database owns:** `SavedDashboard` table. Layout is a `WidgetsJson` list on the row; the API resolves each widget via a **fixed metric-resolver map** keyed by `config.metric` (no generic query engine in R1). Access via workspace membership OR a bound `WorkspaceMembership.BoundDashboardId` (S16 Dashboard-viewer, drill suppressed). The provisioning clone (`usp_ProvisionWorkspace`) stamps template dashboards into new PG workspaces (§10.5 locality).
+- **Depends on:** Saved Views (dashboards embed a records-grid saved view), all widget-source modules for metric queries (Requests, Features, Approvals, Escalation crossing-snapshot, Audit).
 - **R1 constraint:** fixed layouts only. No-code builder is Release 2.
 
 ### 16. Notifications & Bell
