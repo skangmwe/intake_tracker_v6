@@ -16,7 +16,7 @@ interface SidebarProps {
   open: boolean;
   collapsed: boolean;
   memberships: WorkspaceMembershipDto[];
-  /** Holds the additive Platform-admin grant — gates the Platform nav section (S34–S39). */
+  /** Holds the additive Platform-admin grant — gates the Platform nav item (S34–S39). */
   isPlatformAdmin: boolean;
   onToggleCollapse: () => void;
   onNavigate: () => void;
@@ -26,8 +26,12 @@ export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
   { open, collapsed, memberships, isPlatformAdmin, onToggleCollapse, onNavigate },
   ref,
 ) {
-  // Platform-scoped sections show only to a Platform admin; the API is the boundary, this is a courtesy.
-  const sections = NAV_SECTIONS.filter((section) => !section.platformOnly || isPlatformAdmin);
+  // Platform-admin-only items (e.g. Platform) show only to a Platform admin; the API is the real
+  // boundary, this is a courtesy. A section left with no visible items is dropped.
+  const sections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => !item.platformOnly || isPlatformAdmin),
+  })).filter((section) => section.items.length > 0);
 
   return (
     <aside

@@ -4,7 +4,6 @@
 
 .import-export-page {
   max-width: min(100%, 1200px);
-  padding: var(--space-5);
 }
 
 .import-export-page__title {

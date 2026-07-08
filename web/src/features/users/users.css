@@ -4,7 +4,6 @@
 
 .users-access {
   max-width: min(100%, 1200px);
-  padding: var(--space-5);
 }
 
 .users-access__title {

@@ -60,3 +60,27 @@ the full stack runs end-to-end locally while production is pure SSO.
   (`app-shell.css`) sits alongside it. The design-conformance hook exempts `/mws/`, so token
   definitions (raw hex) and the sidebar-overlay rgba idiom are not flagged, while every app
   component style elsewhere stays token-only.
+
+---
+
+## ADR-0003 — `fix/platform-side-nav` shipped with the design-fidelity gate relaxed (2026-07-08)
+
+The Admin/Platform sidebar reorganisation (the six Platform items and the Admin
+surfaces collapsed into grouped settings-style side-list pages via a new shared
+`SideNavLayout`; the standalone Platform sidebar section removed and Platform folded
+under Admin as a platform-admin-gated item; nested-screen page gutters normalised so
+Workspace and Platform screens are inset consistently) is an **intentional, project-owner-approved
+departure from the original prototype's sidebar**. Because the built sidebar now differs
+from the prototype by design, the mandatory build-vs-prototype **design-fidelity render &
+compare** would flag every affected screen as drift.
+
+The project owner explicitly relaxed the design-fidelity gate for this change. The
+substantive gates were run and passed: full web unit suite (1098/1098), `tsc --noEmit`
+clean, token-conformance hook PASS (0 raw-colour / off-spec-radius violations), and code
+review + security review clean. The design-fidelity render/compare step was **not** run;
+`reviews/.last-clean-run.json` records `phases_run` **without** `design-fidelity-web` so the
+cache honestly reflects what executed rather than claiming a fidelity pass that did not happen.
+
+Follow-up: when the sidebar reorganisation is reconciled back into the design source
+(prototype/blueprint), re-run `/dev-review-and-remediate` with the design-fidelity step so a
+future ship of this surface is gated normally again.
