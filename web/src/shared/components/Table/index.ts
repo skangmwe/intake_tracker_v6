@@ -7,3 +7,4 @@ export { SavedViewPicker } from './SavedViewPicker';
 export type { SavedView } from './SavedViewPicker';
 export { FilterFunnel } from './FilterFunnel';
 export type { FilterType, FilterOption, FilterValue } from './FilterFunnel';
+export { TableFooter } from './TableFooter';

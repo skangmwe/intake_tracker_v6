@@ -1,0 +1,37 @@
+/* Shared list-surface footer. Attached to the bottom of the grid (no top border, bottom radius),
+   never shrinks, so the items count + page nav stay pinned above the fold. Tokens only. */
+
+.table-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-light);
+  border-top: none;
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  background: var(--bg-surface);
+}
+
+.table-footer__summary {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.table-footer__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.table-footer__page {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+}

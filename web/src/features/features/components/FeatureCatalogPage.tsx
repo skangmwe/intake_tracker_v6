@@ -20,6 +20,7 @@ import {
 import {
   FilterFunnel,
   SavedViewPicker,
+  TableFooter,
   TableShell,
   ViewBar,
   type ActiveFilterPill,
@@ -280,6 +281,8 @@ export function FeatureCatalogPage() {
   );
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const end = Math.min(page * PAGE_SIZE, total);
 
   const viewBar = (
     <ViewBar
@@ -317,7 +320,7 @@ export function FeatureCatalogPage() {
 
   if (isLoading) {
     return (
-      <main className="feature-catalog-page">
+      <main className="feature-catalog-page list-surface" data-layout="wide">
         <h1 className="h1 feature-catalog-page__title">Feature Catalog</h1>
         <p className="caption" role="status">
           Loading features…
@@ -328,7 +331,7 @@ export function FeatureCatalogPage() {
 
   if (isError) {
     return (
-      <main className="feature-catalog-page">
+      <main className="feature-catalog-page list-surface" data-layout="wide">
         <h1 className="h1 feature-catalog-page__title">Feature Catalog</h1>
         <p className="mws-alert mws-alert--error" role="alert">
           The catalog could not be loaded. Try again in a moment.
@@ -357,10 +360,10 @@ export function FeatureCatalogPage() {
   };
 
   return (
-    <main className="feature-catalog-page">
+    <main className="feature-catalog-page list-surface" data-layout="wide">
       <h1 className="h1 feature-catalog-page__title">Feature Catalog</h1>
       {viewBar}
-      <div className="feature-catalog-page__grid">
+      <div className="feature-catalog-page__grid list-surface__body">
         {rows.length === 0 ? (
           hasFilters ? (
             <EmptyListFilteredToZero
@@ -384,12 +387,14 @@ export function FeatureCatalogPage() {
         ) : (
           <>
             {viewMode === 'gallery' ? (
-              <GalleryView
-                items={rows.map((row) =>
-                  toGalleryItem(row, () => navigate(`/feature-catalog/${row.id}`)),
-                )}
-                caption="Feature gallery"
-              />
+              <div className="list-surface__scroll">
+                <GalleryView
+                  items={rows.map((row) =>
+                    toGalleryItem(row, () => navigate(`/feature-catalog/${row.id}`)),
+                  )}
+                  caption="Feature gallery"
+                />
+              </div>
             ) : (
               <TableShell
                 caption="Feature Catalog"
@@ -405,11 +410,16 @@ export function FeatureCatalogPage() {
                 renderFilter={renderFilter}
               />
             )}
-            <div className="fc-pagination">
-              <span className="fc-pagination__summary">
-                {total === 0 ? '0 features' : `Page ${page} of ${totalPages} · ${total} features`}
-              </span>
-            </div>
+            <TableFooter
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              start={start}
+              end={end}
+              noun="features"
+              onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
+              onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            />
           </>
         )}
       </div>

@@ -5,14 +5,15 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CaretLeft, CaretRight, DownloadSimple, FilePlus, LinkSimple } from '@phosphor-icons/react';
+import { DownloadSimple, FilePlus, LinkSimple } from '@phosphor-icons/react';
 
 import type { FilterClause, PaginatedQuery, RequestListRow, SavedViewDto, SlaStatus } from '@shared/types';
 
-import { Button, IconButton } from '@/shared/components/Button';
+import { Button } from '@/shared/components/Button';
 import {
   FilterFunnel,
   SavedViewPicker,
+  TableFooter,
   TableShell,
   ViewBar,
   type ActiveFilterPill,
@@ -314,43 +315,6 @@ function RepoCell({ value }: { value: unknown }) {
   );
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-interface RequestsPaginationProps {
-  page: number;
-  totalPages: number;
-  total: number;
-  start: number;
-  end: number;
-  onPrev: () => void;
-  onNext: () => void;
-}
-
-function RequestsPagination({
-  page,
-  totalPages,
-  total,
-  start,
-  end,
-  onPrev,
-  onNext,
-}: RequestsPaginationProps) {
-  return (
-    <div className="rl-pagination">
-      <span className="rl-pagination__summary">
-        {total === 0 ? '0 records' : `${start}–${end} of ${total} records`}
-      </span>
-      <div className="rl-pagination__nav">
-        <IconButton icon={CaretLeft} label="Previous page" bordered onClick={onPrev} />
-        <span className="rl-pagination__page">
-          Page {page} of {totalPages}
-        </span>
-        <IconButton icon={CaretRight} label="Next page" bordered onClick={onNext} />
-      </div>
-    </div>
-  );
-}
-
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export function RequestsListPage() {
@@ -513,7 +477,7 @@ export function RequestsListPage() {
 
   if (isMeLoading || isLoading) {
     return (
-      <main className="requests-list-page">
+      <main className="requests-list-page list-surface" data-layout="wide">
         <h1 className="h1 requests-list-page__title">Requests</h1>
         <p className="caption" role="status">
           Loading requests…
@@ -524,7 +488,7 @@ export function RequestsListPage() {
 
   if (isMeError || isError || !workspaceId) {
     return (
-      <main className="requests-list-page">
+      <main className="requests-list-page list-surface" data-layout="wide">
         <h1 className="h1 requests-list-page__title">Requests</h1>
         <p className="mws-alert mws-alert--error" role="alert">
           {problemMessage(error, 'Requests could not be loaded. Try again in a moment.')}
@@ -568,11 +532,11 @@ export function RequestsListPage() {
   };
 
   return (
-    <main className="requests-list-page">
+    <main className="requests-list-page list-surface" data-layout="wide">
       <h1 className="h1 requests-list-page__title">Requests</h1>
       {viewBar}
       {rows.length === 0 ? (
-        <div className="requests-list-page__grid">
+        <div className="requests-list-page__grid list-surface__body">
           {hasFilters ? (
             <EmptyListFilteredToZero onClearFilters={clearAllFilters} />
           ) : (
@@ -589,7 +553,7 @@ export function RequestsListPage() {
           )}
         </div>
       ) : (
-        <div className="requests-list-page__grid">
+        <div className="requests-list-page__grid list-surface__body">
           {viewMode === 'table' ? (
             <TableShell
               caption="Requests"
@@ -602,12 +566,13 @@ export function RequestsListPage() {
           ) : (
             renderAdvancedView()
           )}
-          <RequestsPagination
+          <TableFooter
             page={page}
             totalPages={totalPages}
             total={total}
             start={start}
             end={end}
+            noun="records"
             onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
             onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
           />
