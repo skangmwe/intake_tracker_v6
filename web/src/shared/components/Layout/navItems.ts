@@ -5,37 +5,26 @@
 import type { ComponentType } from 'react';
 import type { IconProps } from '@phosphor-icons/react';
 import {
-  ArrowsDownUp,
-  ArrowsLeftRight,
-  Buildings,
   ChartBar,
-  ClipboardText,
-  FlowArrow,
+  Gear,
   House,
-  ListDashes,
-  Megaphone,
-  Scroll,
   ShieldCheck,
   SquaresFour,
-  Stack,
-  Table,
-  Tag,
   Toolbox,
   Tray,
-  Users,
 } from '@phosphor-icons/react';
 
 export interface NavEntry {
   to: string;
   icon: ComponentType<IconProps>;
   label: string;
+  /** Item shown only to holders of the additive Platform-admin grant (S34–S39). */
+  platformOnly?: boolean;
 }
 
 export interface NavSection {
   label: string;
   items: NavEntry[];
-  /** Section shown only to holders of the additive Platform-admin grant (S34–S39). */
-  platformOnly?: boolean;
 }
 
 export const NAV_SECTIONS: NavSection[] = [
@@ -55,27 +44,13 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    // Workspace admin and the firm-wide platform surfaces — each grouped behind one entry that
+    // opens its own side list (SideNavLayout). The Platform entry is shown only to platform admins
+    // (item-level gate); the API is the real access boundary.
     label: 'Admin',
     items: [
-      { to: '/admin/users', icon: Users, label: 'Users & access' },
-      { to: '/admin/fields', icon: ListDashes, label: 'Fields & objects' },
-      { to: '/admin/views', icon: Stack, label: 'Views & dashboards' },
-      { to: '/admin/lifecycle', icon: FlowArrow, label: 'Lifecycle & gates' },
-      { to: '/admin/announcements', icon: Megaphone, label: 'Manage announcements' },
-      { to: '/admin/import-export', icon: ArrowsDownUp, label: 'Import & export' },
-      { to: '/admin/audit', icon: Scroll, label: 'Audit log' },
-    ],
-  },
-  {
-    label: 'Platform',
-    platformOnly: true,
-    items: [
-      { to: '/platform/fields', icon: Table, label: 'Field schema' },
-      { to: '/platform/crossing-map', icon: ArrowsLeftRight, label: 'Crossing map' },
-      { to: '/platform/access', icon: ShieldCheck, label: 'Access provisioning' },
-      { to: '/platform/role-labels', icon: Tag, label: 'Role labels' },
-      { to: '/platform/workspaces', icon: Buildings, label: 'Workspaces' },
-      { to: '/platform/audit', icon: ClipboardText, label: 'Firm-wide audit' },
+      { to: '/admin', icon: Gear, label: 'Workspace' },
+      { to: '/platform', icon: ShieldCheck, label: 'Platform', platformOnly: true },
     ],
   },
 ];

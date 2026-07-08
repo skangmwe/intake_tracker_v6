@@ -5,7 +5,6 @@
 
 .audit-page {
   max-width: none;
-  padding: var(--space-6);
   min-width: 0;
 }
 
@@ -118,8 +117,4 @@
   margin-top: var(--space-4);
 }
 
-@media (max-width: 640px) {
-  .audit-page {
-    padding: var(--space-4);
-  }
-}
+/* Mobile gutter for this surface now comes from the shared .side-nav-layout__content column. */

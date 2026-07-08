@@ -3,10 +3,12 @@
 // (mws/tokens.css), then the app-shell layer (mws/app-shell.css).
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { AuthProvider } from '@/shared/auth/AuthProvider';
 import { AppShell } from '@/shared/components/Layout/AppShell';
+import { SideNavLayout } from '@/shared/components/Layout/SideNavLayout';
+import { ADMIN_NAV } from '@/shared/components/Layout/adminNav';
 import { NAV_SECTIONS } from '@/shared/components/Layout/navItems';
 import { queryClient } from '@/shared/queryClient';
 import {
@@ -32,6 +34,7 @@ import {
   AccessPage,
   CrossingMapPage,
   FirmWideAuditPage,
+  PlatformLayout,
   RoleLabelsPage,
   WorkspaceProvisioningPage,
 } from '@/features/platform-admin';
@@ -55,22 +58,12 @@ import '@/features/import-export/importExport.css';
 import '@/features/users/users.css';
 import '@/features/audit/audit.css';
 import '@/features/platform-admin/platformAdmin.css';
+import '@/shared/components/Layout/sideNav.css';
 
 // Routes implemented by real feature surfaces; excluded from the placeholder fallback.
 const IMPLEMENTED_ROUTES = new Set([
-  '/admin/users',
-  '/admin/fields',
-  '/admin/lifecycle',
-  '/admin/announcements',
-  '/admin/import-export',
-  '/admin/views',
-  '/admin/audit',
-  '/platform/fields',
-  '/platform/crossing-map',
-  '/platform/access',
-  '/platform/role-labels',
-  '/platform/workspaces',
-  '/platform/audit',
+  '/admin',
+  '/platform',
   '/requests',
   '/feature-catalog',
   '/dashboards',
@@ -88,15 +81,28 @@ export function App() {
           <Routes>
             <Route element={<AppShell />}>
               <Route path="/" element={<HomePage />} />
-              <Route path="/admin/users" element={<UsersAccessPage />} />
-              <Route path="/admin/fields" element={<FieldsAdminPage />} />
-              <Route path="/admin/lifecycle" element={<LifecyclePage />} />
-              <Route path="/platform/fields" element={<PlatformFieldsPage />} />
-              <Route path="/platform/crossing-map" element={<CrossingMapPage />} />
-              <Route path="/platform/access" element={<AccessPage />} />
-              <Route path="/platform/role-labels" element={<RoleLabelsPage />} />
-              <Route path="/platform/workspaces" element={<WorkspaceProvisioningPage />} />
-              <Route path="/platform/audit" element={<FirmWideAuditPage />} />
+              <Route
+                path="/admin"
+                element={<SideNavLayout navLabel="Workspace settings" items={ADMIN_NAV} />}
+              >
+                <Route index element={<Navigate to="users" replace />} />
+                <Route path="users" element={<UsersAccessPage />} />
+                <Route path="fields" element={<FieldsAdminPage />} />
+                <Route path="views" element={<ViewsDashboardsPage />} />
+                <Route path="lifecycle" element={<LifecyclePage />} />
+                <Route path="announcements" element={<ManageAnnouncementsPage />} />
+                <Route path="import-export" element={<ImportExportPage />} />
+                <Route path="audit" element={<WorkspaceAuditPage />} />
+              </Route>
+              <Route path="/platform" element={<PlatformLayout />}>
+                <Route index element={<Navigate to="fields" replace />} />
+                <Route path="fields" element={<PlatformFieldsPage />} />
+                <Route path="crossing-map" element={<CrossingMapPage />} />
+                <Route path="access" element={<AccessPage />} />
+                <Route path="role-labels" element={<RoleLabelsPage />} />
+                <Route path="workspaces" element={<WorkspaceProvisioningPage />} />
+                <Route path="audit" element={<FirmWideAuditPage />} />
+              </Route>
               <Route path="/requests" element={<RequestsListPage />} />
               <Route path="/requests/new" element={<IntakeFormPage />} />
               <Route path="/requests/:recordId" element={<RecordDetailPage />} />
@@ -109,10 +115,6 @@ export function App() {
               <Route path="/search" element={<SearchResultsPage />} />
               <Route path="/announcements" element={<AnnouncementsListPage />} />
               <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
-              <Route path="/admin/announcements" element={<ManageAnnouncementsPage />} />
-              <Route path="/admin/import-export" element={<ImportExportPage />} />
-              <Route path="/admin/views" element={<ViewsDashboardsPage />} />
-              <Route path="/admin/audit" element={<WorkspaceAuditPage />} />
               {PLACEHOLDER_ROUTES.map((item) => (
                 <Route
                   key={item.to}

@@ -1,0 +1,91 @@
+/* Settings-style side-list layout (SideNavLayout) — a vertical surface list beside the content on
+   desktop, a horizontal scroll strip above it below 768px. Shared by the Platform and workspace
+   Admin areas. Design-system tokens only (no raw hex / off-spec radii). */
+
+.side-nav-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.side-nav-layout__content {
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+/* The frame owns the gutter for nested screens, so every surface is inset consistently. A page that
+   also set its own outer padding would double up. Platform surfaces share .platform-admin with
+   PlatformLayout's standalone gate states (loading / error / no-access) — those render outside this
+   column and must keep their padding, so reset it only here. Admin surfaces that self-padded have
+   had that padding removed in their own CSS. */
+.side-nav-layout__content .platform-admin {
+  padding: 0;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  min-width: 0;
+}
+
+.side-nav__link {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.side-nav__link:hover {
+  color: var(--accent-interactive);
+}
+
+.side-nav__link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.side-nav__link[aria-current='page'] {
+  color: var(--text-primary);
+  font-weight: 500;
+  border-bottom-color: var(--accent-interactive);
+}
+
+@media (min-width: 768px) {
+  .side-nav-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .side-nav {
+    flex-direction: column;
+    overflow-x: visible;
+    gap: var(--space-1);
+    padding: var(--space-5) var(--space-4);
+    border-bottom: none;
+    border-right: 1px solid var(--border-light);
+    position: sticky;
+    top: var(--space-8);
+    align-self: start;
+  }
+
+  .side-nav__link {
+    border-bottom: none;
+    border-left: 2px solid transparent;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+
+  .side-nav__link[aria-current='page'] {
+    border-left-color: var(--accent-interactive);
+  }
+
+  .side-nav-layout__content {
+    padding: var(--space-6);
+  }
+}

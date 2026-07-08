@@ -309,7 +309,6 @@
 
 .views-admin {
   max-width: min(100%, 1200px);
-  padding: var(--space-5);
 }
 
 .views-admin__title {
@@ -385,8 +384,4 @@
   margin-left: var(--space-2);
 }
 
-@media (max-width: 640px) {
-  .views-admin {
-    padding: var(--space-4);
-  }
-}
+/* Mobile gutter for this surface now comes from the shared .side-nav-layout__content column. */

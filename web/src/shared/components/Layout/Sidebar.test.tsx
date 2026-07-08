@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 
@@ -28,7 +28,7 @@ describe('Sidebar', () => {
     expect(screen.getByRole('navigation', { name: 'Workspace' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Admin' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Home' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Lifecycle & gates' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Workspace' })).toBeInTheDocument();
   });
 
   it('Sidebar — collapse control — calls onToggleCollapse', async () => {
@@ -50,16 +50,17 @@ describe('Sidebar', () => {
     expect(screen.getByRole('button', { name: 'Expand navigation' })).toBeInTheDocument();
   });
 
-  it('Sidebar — non-platform-admin — hides the Platform section', () => {
+  it('Sidebar — non-platform-admin — hides the Platform item but keeps the Admin section', () => {
     renderSidebar({ isPlatformAdmin: false });
-    expect(screen.queryByRole('navigation', { name: 'Platform' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Crossing map' })).not.toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Admin' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Platform' })).not.toBeInTheDocument();
   });
 
-  it('Sidebar — platform admin — shows the Platform section', () => {
+  it('Sidebar — platform admin — shows the Platform item under the Admin section', () => {
     renderSidebar({ isPlatformAdmin: true });
-    expect(screen.getByRole('navigation', { name: 'Platform' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Firm-wide audit' })).toBeInTheDocument();
+    const adminNav = screen.getByRole('navigation', { name: 'Admin' });
+    expect(within(adminNav).getByRole('link', { name: 'Workspace' })).toBeInTheDocument();
+    expect(within(adminNav).getByRole('link', { name: 'Platform' })).toBeInTheDocument();
   });
 
   it('Sidebar — open drawer — sets data-open on the aside', () => {
