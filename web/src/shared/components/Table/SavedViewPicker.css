@@ -19,12 +19,14 @@
 .ast-view-picker__trigger:hover { border-color: var(--accent-interactive); }
 .ast-view-picker__trigger:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
+/* Name + meta sit on one horizontal line inside the 36px trigger, matching the prototype — not
+   stacked. Stacking crammed two lines into the pill and read as compressed. */
 .ast-view-picker__names {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
-  line-height: 1.15;
 }
 .ast-view-picker__name {
   font-family: var(--font-sans);
@@ -33,14 +35,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 200px;
 }
 .ast-view-picker__meta {
-  font-size: 10px;
+  flex-shrink: 0;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .ast-view-menu {

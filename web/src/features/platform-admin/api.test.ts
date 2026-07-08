@@ -37,7 +37,7 @@ describe('platform-admin api', () => {
 
     await fetchCrossingMap(controller.signal);
 
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe('/v1/platform/crossing-map');
     expect((opts as { signal: AbortSignal }).signal).toBe(controller.signal);
   });
@@ -45,21 +45,21 @@ describe('platform-admin api', () => {
   it('fetchRoleLabels — GETs the role labels', async () => {
     mockedFetch.mockResolvedValue([] as never);
     await fetchRoleLabels();
-    const [path] = mockedFetch.mock.calls[0];
+    const [path] = mockedFetch.mock.calls[0]!;
     expect(path).toBe('/v1/platform/role-labels');
   });
 
   it('fetchCrossingMap — without a signal passes no options (signal is optional)', async () => {
     mockedFetch.mockResolvedValue([] as never);
     await fetchCrossingMap();
-    const [, opts] = mockedFetch.mock.calls[0];
+    const [, opts] = mockedFetch.mock.calls[0]!;
     expect(opts).toEqual({});
   });
 
   it('queryFirmWideAudit — without a signal still POSTs the body', async () => {
     mockedFetch.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 25 } as never);
     await queryFirmWideAudit({ page: 1, pageSize: 25 });
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe('/v1/platform/audit/query');
     expect(opts).toMatchObject({ method: 'POST' });
     expect((opts as { signal?: AbortSignal }).signal).toBeUndefined();
@@ -68,7 +68,7 @@ describe('platform-admin api', () => {
   it('createRoleLabel — POSTs the label body', async () => {
     mockedFetch.mockResolvedValue({} as never);
     await createRoleLabel({ label: 'GCO' });
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe('/v1/platform/role-labels');
     expect(opts).toMatchObject({ method: 'POST', body: { label: 'GCO' } });
   });
@@ -76,7 +76,7 @@ describe('platform-admin api', () => {
   it('renameRoleLabel — PATCHes the label by id', async () => {
     mockedFetch.mockResolvedValue({} as never);
     await renameRoleLabel(LABEL_ID, { label: 'New' });
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/platform/role-labels/${LABEL_ID}`);
     expect(opts).toMatchObject({ method: 'PATCH', body: { label: 'New' } });
   });
@@ -84,7 +84,7 @@ describe('platform-admin api', () => {
   it('retireRoleLabel — DELETEs the label by id', async () => {
     mockedFetch.mockResolvedValue(undefined as never);
     await retireRoleLabel(LABEL_ID);
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/platform/role-labels/${LABEL_ID}`);
     expect(opts).toMatchObject({ method: 'DELETE' });
   });
@@ -92,14 +92,14 @@ describe('platform-admin api', () => {
   it('fetchAccessGrants — GETs the privileged grants', async () => {
     mockedFetch.mockResolvedValue({ grants: [] } as never);
     await fetchAccessGrants();
-    const [path] = mockedFetch.mock.calls[0];
+    const [path] = mockedFetch.mock.calls[0]!;
     expect(path).toBe('/v1/platform/access');
   });
 
   it('grantAccess — POSTs the grant body', async () => {
     mockedFetch.mockResolvedValue(undefined as never);
     await grantAccess({ email: 'x@mws.ai' });
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe('/v1/platform/access');
     expect(opts).toMatchObject({ method: 'POST', body: { email: 'x@mws.ai' } });
   });
@@ -107,7 +107,7 @@ describe('platform-admin api', () => {
   it('revokeAccess — DELETEs the grant by user id', async () => {
     mockedFetch.mockResolvedValue(undefined as never);
     await revokeAccess(USER);
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/platform/access/${USER}`);
     expect(opts).toMatchObject({ method: 'DELETE' });
   });
@@ -115,7 +115,7 @@ describe('platform-admin api', () => {
   it('fetchCrossingCandidates — GETs the candidate fields', async () => {
     mockedFetch.mockResolvedValue({ pgFields: [], aiFields: [] } as never);
     await fetchCrossingCandidates();
-    const [path] = mockedFetch.mock.calls[0];
+    const [path] = mockedFetch.mock.calls[0]!;
     expect(path).toBe('/v1/platform/crossing-map/candidates');
   });
 
@@ -149,7 +149,7 @@ describe('platform-admin api', () => {
 
     await queryFirmWideAudit({ page: 1, pageSize: 25, eventType: 'request.created' as never }, controller.signal);
 
-    const [path, opts] = mockedFetch.mock.calls[0];
+    const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe('/v1/platform/audit/query');
     expect(opts).toMatchObject({ method: 'POST', body: { page: 1, pageSize: 25, eventType: 'request.created' } });
     expect((opts as { signal: AbortSignal }).signal).toBe(controller.signal);

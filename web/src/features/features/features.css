@@ -1,23 +1,22 @@
 /* Feature Catalog surfaces (S9 list, S10 detail, S13 form). Tokens only; navy + pale + accent. */
 
-.feature-catalog-page,
+/* Feature Catalog is a shared .list-surface (full-height, main gutter owns the padding); the detail
+   and add-to-catalog surfaces stay content-padded reading surfaces. */
 .feature-detail-page,
 .add-to-catalog-page {
   padding: var(--space-6) var(--space-7);
   min-width: 0;
 }
 
-.feature-catalog-page__title,
 .feature-detail-page .h1,
 .atc-title {
   margin: 0 0 var(--space-5);
 }
 
-.feature-catalog-page__grid {
-  margin-top: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+/* List-surface title: no bottom margin (the surface's flex gap spaces it) and never shrinks. */
+.feature-catalog-page__title {
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .fc-mono {
@@ -71,16 +70,7 @@
   color: var(--text-secondary);
 }
 
-.fc-pagination {
-  display: flex;
-  justify-content: flex-end;
-  padding: var(--space-2) 0;
-}
-
-.fc-pagination__summary {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
+/* Pagination footer is now the shared TableFooter component (shared/components/Table). */
 
 /* Empty states now use the shared EdgeStates components (S41/S42) —
    see web/src/shared/components/EdgeStates. */
@@ -242,7 +232,6 @@
 }
 
 @media (max-width: 768px) {
-  .feature-catalog-page,
   .feature-detail-page,
   .add-to-catalog-page {
     padding: var(--space-5) var(--space-4);
