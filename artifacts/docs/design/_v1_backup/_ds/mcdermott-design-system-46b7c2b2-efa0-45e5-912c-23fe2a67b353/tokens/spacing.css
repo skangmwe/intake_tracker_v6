@@ -1,0 +1,20 @@
+/* McDermott spacing — 4px base; every margin & padding references a token. */
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Layout */
+  --sidebar-w:           260px;
+  --sidebar-w-collapsed: 72px;
+  --topbar-h:            56px;
+  --control-h:           40px;
+  --control-h-compact:   32px;
+}
