@@ -6,10 +6,13 @@
 // derived-field configuration (Calculation or Derived-category). Platform-defined fields
 // (§4.3) render as a read-only band whose definition is central (S34) and presentation local.
 
-import type { FieldDefinitionId, IsoDateTime, UserId, WorkspaceId } from './common';
+import type { FieldDefinitionId, IsoDateTime, RelationshipId, UserId, WorkspaceId } from './common';
 
-/** The object a field belongs to. One metadata engine underlies all record types (§2.4/§2.5). */
-export type FieldObjectType = 'Request' | 'Task' | 'Feature';
+/**
+ * The object a field belongs to. One metadata engine underlies all record types (§2.4/§2.5).
+ * v2 (slice 29) adds `'ToolkitItem'` as a workspace-local reference object.
+ */
+export type FieldObjectType = 'Request' | 'Task' | 'Feature' | 'ToolkitItem';
 
 /**
  * The fixed field-type catalog (BS §2.3). Files are the Attachments object, never a field type.
@@ -119,6 +122,33 @@ export interface FieldDefinitionDto {
   isPlatformDefined: boolean;
   /** The platform field key when isPlatformDefined; the central definition wins. */
   platformFieldKey: string | null;
+  /**
+   * v2 (slice 25). True when this field is one of the five system-provisioned rows
+   * (Record ID / Name / Date created / Last updated / Created by). System-provisioned
+   * fields are read-only, uncreatable, and undeletable via the S30 editor.
+   */
+  isSystemProvisioned?: boolean;
+  /**
+   * v2 (slice 25). Present only for `fieldType='RecordReference'` (Link-to-record).
+   * The object the linked record belongs to.
+   */
+  targetObjectType?: FieldObjectType;
+  /**
+   * v2 (slice 25). Present only for `fieldType='RecordReference'`. When true, the field
+   * accepts multiple linked records; when false, exactly one.
+   */
+  allowMultiple?: boolean;
+  /**
+   * v2 (slice 25). Present only for `fieldType='RecordReference'`. Optional reverse-link
+   * label rendered on the target-object's detail (e.g. "Referenced by").
+   */
+  reverseLinkLabel?: string | null;
+  /**
+   * v2 (slice 25). Present only for auto-provisioned Link-to-record fields — the
+   * Relationship that owns this field's lifecycle. Null when the field was created
+   * manually via the S30 Fields editor.
+   */
+  relationshipId?: RelationshipId | null;
   /** Stage keys the field is visible on. `null` = all stages (§3.2). */
   visibleStages: string[] | null;
   /** The same-named AI-side target key for a Crossing ([S]) field's 1:1 seed map. */
@@ -156,6 +186,12 @@ export interface FieldDefinitionUpsertRequest {
   options?: Array<{ value: string; label: string; sortOrder: number }>;
   rules?: Array<Omit<FieldRuleDto, 'id'>>;
   derived?: DerivedFieldDto | null;
+  // v2 (slice 25) — Link-to-record configuration. Present only when fieldType='RecordReference'.
+  // Manually-created fields set these; auto-provisioned fields are created by the Relationships
+  // service and their config carries the relationshipId instead of a direct edit here.
+  targetObjectType?: FieldObjectType;
+  allowMultiple?: boolean;
+  reverseLinkLabel?: string | null;
 }
 
 /** Sparse edit of an existing field. Omitted properties are left unchanged. */

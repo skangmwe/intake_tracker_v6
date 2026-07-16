@@ -4,19 +4,19 @@
 
 ## Ceiling and target
 
-- **Target slice count:** 24 slices for R1 (Phase 1 = 20, Phase 2 = 4). The build spec ships ~17 top-level user capabilities across Phase 1 + Phase 2 (see requirements Section 5), so 24 sits at ~1.4× — well within the 1–3× guidance from `slicing.md`.
+- **Target slice count:** ~~24~~ **29 slices** for R1 (Phase 1 = 20, Phase 2 = 4, **v2 reconciliation = 5**). The build spec ships ~17 top-level user capabilities across Phase 1 + Phase 2 (see requirements Section 5); with the v2 codified concepts (object-level Relationships, Status/hold, multi-lifecycle, multi-dashboard composer, Toolkit) the target lands at ~1.7× — still within the 1–3× guidance from `slicing.md`. **Original target 24 raised to 29 per the [v2 reconciliation addendum](v2-reconciliation.md) — architecture-doc update accompanies this raise.**
 - **Reviewable LoC ceiling per slice: 6,000 lines.** Reasoning: this is a Tier 3 enterprise application (identity + multi-workspace + audit + escalation + gates). Security-critical concerns argue for lower; greenfield CRUD argues for higher. 6,000 balances the two. Foundation + admin + escalation slices are expected to run near the ceiling; edge-states + edge-admin slices sit around 1,500–2,500.
-- **Drift cap:** _slice count cannot grow by more than 25% during Step 3 without an architecture-doc update and a re-review._ 25% of 24 → 30 slices max under drift; anything above triggers a re-review.
+- **Drift cap:** _slice count cannot grow by more than 25% during Step 3 without an architecture-doc update and a re-review._ 25% of 29 → 36 slices max under drift; anything above triggers a re-review.
 
 ## Design-handoff coverage
 
-Every in-scope screen in [`full-design-blueprint.md`](../../design/full-design-blueprint.md) is reachable from a slice. Prototyped screens (S1, S2, S3, S4, S5, S6, S31) are tagged `[prototyped]`; deferred screens are tagged `[deferred]` and are built from the blueprint's per-screen spec.
+Every in-scope screen in [`full-design-blueprint.md`](../../design/full-design-blueprint.md) is reachable from a slice. **After the 2026-07-16 v2 reconciliation**, prototyped screens are **S1, S2, S3, S4, S5, S6, S9, S10, S11, S23, S28, S29, S30, S31, S32, S33, S34, S35, S36, S38, S39, S43** — tagged `[prototyped]`; deferred screens are tagged `[deferred]` and are built from the blueprint's per-screen spec. The **S43 Toolkit** (new object) is covered by Slice 29.
 
 No screen is silently dropped. Every out-of-scope screen is called out at the bottom.
 
 ## Slice-order dependencies
 
-Foundation (1) → Auth & shell (2) → Fields & objects + platform field schema (3) → Lifecycle & gates admin (4) → Requests core (5) → satellite record modules (6–15) → workspace admin (16–18) → platform admin (19) → edge states (20). Then Phase 2 additions (21–24).
+Foundation (1) → Auth & shell (2) → Fields & objects + platform field schema (3) → Lifecycle & gates admin (4) → Requests core (5) → satellite record modules (6–15) → workspace admin (16–18) → platform admin (19) → edge states (20). Then Phase 2 additions (21–24). Then **v2 reconciliation additions (25–29)** — Relationships + config-driven tabs (25) → Status/hold + Watchers preferences (26) → multi-lifecycle + intake picker (27) → multi-dashboard composer (28) → Toolkit (29). Slice 29 depends on 25 (Relationships schema engine); 26–28 are independent of each other and of 29.
 
 Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 
@@ -326,11 +326,97 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 
 ---
 
+## Release 1 · v2 reconciliation additions
+
+*Added 2026-07-16 per the [v2 reconciliation addendum](v2-reconciliation.md). The v2 prototype export codified concepts absent from the original 24-slice plan; these five slices land what's genuinely new. Toolkit and the no-code dashboard composer were pulled into R1 Phase 2 by the 2026-07-07 re-phasing (see build spec §15).*
+
+### Slice 25: Object-level Relationships + Link-to-record field type + config-driven detail tabs + system-provisioned fields
+- **Spec section:** blueprint §Fields, objects & relationships schema (S30/S34), §Record detail behaviors (config-driven tab bar), §Cross-cutting notes → Fields. Requirements §5 Expected Output (record detail row). [v2-reconciliation.md §Model deltas 1–2, §Module deltas Relationships, §API deltas Relationships].
+- **User capability:** "a workspace admin defines object-level Relationships (From/To object, cardinality, both side labels, optionally surface as a Request-detail tab); the schema engine auto-provisions the paired Link-to-record fields; the Fields tab shows system-provisioned fields as a locked band; the record detail renders a config-driven tab bar (Status / Intake / Activity / Watchers & alerts base + Tasks & gates / Attachments as relationship-driven tabs); users add a linked record from the Relationships side panel."
+- **Scope:**
+  - **DB:** `Relationships` table (§Model deltas 1); `FieldDefinition` columns `IsSystemProvisioned`, `TargetObjectType`, `AllowMultiple`, `ReverseLinkLabel`, `RelationshipId` (§Model deltas 2); seed rows for the five system-provisioned fields on Request / Task / Feature.
+  - **Procs:** `usp_UpsertRelationship` (auto-provisions Link-to-record fields in the same transaction), `usp_RetireRelationship`, `usp_ListRelationships`, `usp_UpsertRecordLink`, `usp_ListRecordLinks`. Guard: retiring a Relationship with existing links returns 409 with the link count; the S30 editor confirms then soft-retires.
+  - **API:** `/api/v1/workspaces/{id}/relationships` CRUD + `/api/v1/records/{recordId}/links` CRUD per [v2-reconciliation.md §API deltas Relationships]; extends `POST /workspaces/{id}/objects` (register `ToolkitItem` etc.) — actual Toolkit object lands in slice 29.
+  - **Web:** S30 Relationships tab; S4/S5 config-driven tab bar rewrite (base + relationship-driven tabs via `useRelationshipTabs`); `GenericRelatedRecordsTab` component; `RelationshipsSidePanel` component; Fields tab surfaces the locked system-provisioned band.
+- **Screens covered:** **S30 Fields & objects** `[prototyped]` (Relationships tab + system-provisioned marker); **S4** `[prototyped]` (config-driven tab bar); **S5** `[prototyped]` (same, with escalation additions preserved).
+- **Depends on:** 3, 5.
+- **Estimated LoC:** 6,000 (at the ceiling — model + procs + tSQLt + API + shared types + web).
+- **Locked-signature changes flagged:** `FieldDefinitionDto` extensions; new `RelationshipDto` + `RelationshipLinkDto`. Every existing consumer compiles unchanged (all new properties are optional or additive-union).
+- **Status:** pending.
+
+### Slice 26: Record Status/hold model + Status tab + per-record notification preferences
+- **Spec section:** blueprint §Record detail behaviors (Status tab, Watchers & alerts). [v2-reconciliation.md §Model deltas 3, §API deltas Request Status/hold + Watchers, §Slice amendments].
+- **User capability:** "a user sets the record's Status (In progress / On hold / Abandoned) from the Status tab; On hold pauses task completion and gate approvals; Abandoned marks the solution dropped and blocks all mutations. On the Watchers & alerts tab, the user configures per-record notification preferences (Gate decisions · Status changes · Task sign-offs · SLA & due-date reminders · Mentions & comments); the notification fan-out honors them."
+- **Scope:**
+  - **DB:** `Request.StatusHold` (tri-state) + `StatusHoldNote` — migration converts existing `Hold=1` rows to `StatusHold='OnHold'` and `Hold=0` rows to `StatusHold='InProgress'`; the binary `Hold` column is dropped in the same migration (or retained as a computed column for the compat window — decided at slice start). `WatcherNotificationPreference` table (§Model deltas 6).
+  - **Procs:** guards added to `usp_CompleteTask`, `usp_DecideApproval`, `usp_SetRequestStage` — return 409 `record-on-hold` when the parent record's `StatusHold ∈ {'OnHold', 'Abandoned'}`. New `usp_UpsertWatcherPreference` + `usp_ListWatcherPreferences`.
+  - **API:** extend `PATCH /requests/{id}` to accept `statusHold` + `statusHoldNote`; keep legacy `hold` shape for one release with server-side mapping. Extend `PATCH /records/{id}/watchers/me` for the five preference booleans. Task-complete / approval-decide / stage-transition endpoints return the new 409 code.
+  - **Web:** S4 Status tab (segmented control + note textarea + inline alert when non-active); Watchers & alerts tab UI (toggle + five checkboxes); `StatusHoldPill` component on S2 rows, S4/S5 header, Home cards; `useHoldGuard` hook wraps every touched button. NotificationDeliveryService reads preferences before enqueue.
+- **Screens covered:** **S4** `[prototyped]` (Status tab + Watchers & alerts tab).
+- **Depends on:** 5, 8, 12.
+- **Estimated LoC:** 3,500.
+- **Locked-signature changes flagged:** `RequestDto.statusHold` (additive; existing `hold` retained as derived read); `WatcherListItemDto` gains five booleans (additive).
+- **Status:** pending.
+
+### Slice 27: Multiple lifecycles + Lifecycle picker at intake
+- **Spec section:** blueprint §Approver teams & lifecycles (S31/S29). [v2-reconciliation.md §Model deltas 4, §API deltas Multi-lifecycle].
+- **User capability:** "a workspace admin defines multiple lifecycles per workspace via the S31 dropdown selector (one marked default); the S3 intake form shows a Lifecycle picker (hidden when only one lifecycle exists); a submitted request runs on the chosen lifecycle for its whole life (no mid-flight lifecycle change)."
+- **Scope:**
+  - **DB:** `Lifecycle.IsDefault` + unique-filtered index guaranteeing exactly one default per workspace; `Lifecycle.DisplayLabel` (label used in the picker + everywhere in the UI, replacing the separate "Request type"). Migration flips existing single-per-workspace lifecycles to `IsDefault=1`.
+  - **Procs:** `usp_SetDefaultLifecycle` (transactional — clears prior default, sets new). `usp_CreateLifecycle` (new). Existing `usp_UpsertLifecycle` accepts `DisplayLabel`.
+  - **API:** `GET /workspaces/{id}/lifecycles` (list all); `POST /workspaces/{id}/lifecycles`; `PATCH /lifecycles/{id}`; `POST /lifecycles/{id}/set-default`. Extend `POST /workspaces/{id}/requests` to accept optional `lifecycleId`; when omitted, workspace default is used.
+  - **Web:** S31 dropdown selector at the top of the lifecycle editor (list · New lifecycle · Set as default per row); S3 `LifecyclePicker` component (hidden when workspace has one lifecycle); intake form updated to write `lifecycleId` on create.
+- **Screens covered:** **S31 Lifecycle & gates** `[prototyped]` (dropdown selector); **S3 Intake form** `[prototyped]` (picker addition).
+- **Depends on:** 4, 5.
+- **Estimated LoC:** 3,000.
+- **Locked-signature changes flagged:** `LifecycleDto.isDefault` + `displayLabel` (additive). `RequestCreateRequest.lifecycleId` is already optional — no change.
+- **Status:** pending.
+
+### Slice 28: Multi-dashboard composer (S6 upgrade)
+- **Spec section:** blueprint §Dashboards (S6 multi-dashboard). [v2-reconciliation.md §Model deltas 7, §API deltas Multi-dashboard composer].
+- **User capability:** "a user opens the Dashboards surface and switches between Shared and Personal dashboards via a title dropdown; creates a new dashboard (name + visibility) via a side sheet; enters Edit layout mode to reorder / edit / remove widgets; adds a widget via a composer (type · metric or group-by · row limit · half/full width · dept + stage scope); the seeded AI Solutions default keeps its bespoke four-tile + heatmap + grid layout (not composable)."
+- **Scope:**
+  - **DB:** `SavedDashboard.IsSeeded`, `Visibility`, `LayoutMode` per §Model deltas 7. Migration marks the four Slice-23 seed rows `IsSeeded=1, LayoutMode='Fixed'`. Existing `WidgetLayoutJson` used as-is for the Composed mode.
+  - **Procs:** `usp_CreateDashboard` (composed), `usp_PatchDashboardWidgets`, `usp_UpsertWidget`, `usp_DeleteWidget`. Guard: PATCH against a seeded dashboard returns 403 `seeded-dashboard-read-only`.
+  - **API:** `POST /workspaces/{id}/dashboards` (composed create), `PATCH /dashboards/{id}`, widget CRUD per §API deltas. The metric-resolver engine from slice 23 handles Composed dashboards unchanged — the WidgetType palette + config schema is the shared contract.
+  - **Web:** `DashboardSwitcher` component (Shared/Personal + New dashboard) at the top of S6; Edit layout mode on `DashboardSurface`; `WidgetComposer` side sheet driven by `WidgetTypeCatalog`. S32 Views & dashboards' management panel picks up the visibility/audience patch surface for composed dashboards.
+- **Screens covered:** **S6 Dashboards** `[prototyped]` (multi-dashboard surface + composer).
+- **Depends on:** 23.
+- **Estimated LoC:** 5,500.
+- **Locked-signature changes flagged:** `SavedDashboardDto.visibility` + `layoutMode` + `isSeeded` (additive). Seeded-dashboard read-only guard is a new response code, not a breaking change.
+- **Status:** pending.
+
+### Slice 29: Toolkit object + S43 surface
+- **Spec section:** blueprint §At a glance (S43); §Save for /build (superseded — S43 is now prototyped); build spec §2.6 (Toolkit), §19 (Toolkit fields). [v2-reconciliation.md §Model deltas 5, §Module deltas Toolkit, §API deltas Toolkit].
+- **User capability:** "an analyst opens the Reference → Toolkit surface, browses items in gallery or list view, creates a new item (paste content or upload attachment), downloads an existing item's attachment, and edits an item's fields in place. Items are scoped to the workspace (Local Workspace object, not federated). Item kinds: Playbook / Plugin / Prompt."
+- **Scope:**
+  - **DB:** `ToolkitItem` table per §Model deltas 5. Seed the five system-provisioned fields for the new object. Register `'ToolkitItem'` as an object in the workspace object registry (`Show-in-left-sidebar=1, SidebarCategory='Reference'`).
+  - **Procs:** `usp_QueryToolkit`, `usp_UpsertToolkitItem`, `usp_RetireToolkitItem`, `usp_RestoreToolkitItem`. `usp_ProvisionWorkspace` extends to seed the Toolkit object for new workspaces (no seed items).
+  - **API:** `/api/v1/workspaces/{id}/toolkit` + `/api/v1/toolkit/{id}` per §API deltas Toolkit. Attachment download via existing Attachments module (module 11) — Toolkit items with an uploaded body route through the shared attachment blob path.
+  - **Web:** new `features/toolkit/` module; `ToolkitSurface` shell reusing the shared list-surface pattern; gallery/list toggle; New item side sheet (paste-or-upload); edit-in-place fields; sidebar Reference → Toolkit entry (already stubbed in slice 2's grouped nav).
+- **Screens covered:** **S43 Toolkit** `[prototyped]`.
+- **Depends on:** 3, 11, 25 (Relationships schema engine — Toolkit is registered as an object via the extended objects endpoint).
+- **Estimated LoC:** 4,500.
+- **Locked-signature changes flagged:** `FieldObjectType` gains `'ToolkitItem'` (additive union); new `ToolkitItemDto` (new file); new `ToolkitItemId` branded id (additive to `common.ts`).
+- **Status:** pending.
+
+### v2 amendments to existing slices (in-plan follow-ups)
+
+*Small polish tasks against surfaces slices already own. Recorded here for reviewer visibility; picked up either by whoever next touches the surface, or as small dedicated PRs against the impacted slice.*
+
+- **Slice 2 (Auth & app shell):** grouped Workspace/Platform settings IA. Sidebar Admin group replaces the flat six-item list with two grouped entries (Workspace with `gear`, Platform with `shield-check` — platform-admins only). `/settings/workspace/:page` + `/settings/platform/:page` router; platform routes guard on the platform-admin claim (returns S40 no-access if absent). Secondary side-nav in the settings body per blueprint §Cross-cutting → Settings surface.
+- **Slice 13 (Announcements):** `ScheduledPublishAt` + `AutoArchive` + `AutoArchiveAt` on `Announcement`; scheduler wired off the Phase 2 SLA/tick worker; S23 editor gains publish-date picker + auto-archive toggle + computed archive date preview.
+- **Slice 16 (CSV Import & Export):** Import wizard UI polish per blueprint S28 (target object · drop CSV/Excel · auto-map with per-column overrides · Skip · row count · Import rows). No API change.
+- **Slice 17 / 18 / 19 (admin surfaces):** router-path change from `/admin/:page` → `/settings/workspace/:page` (workspace pages) or `/settings/platform/:page` (platform pages) per Slice 2 v2 polish. Components unchanged; only URLs and sidebar entries move.
+- **Slice 18 / 19 (audit surfaces):** structured `Object` + `Record ID` columns on S33 workspace audit and S39 platform audit. Projection extends `usp_QueryWorkspaceAudit` + `usp_QueryFirmWideAudit` (map `EntityType` → object label; map `EntityId` → Record ID display for Request rows). `AuditLogRowDto` gains `objectLabel` + `recordDisplayId` (additive).
+
+---
+
 ## Screens explicitly out of scope for Release 1
 
-None. Every screen in the blueprint's 42-screen master table is covered by a Release 1 slice above.
+None. Every screen in the blueprint's 43-screen master table is covered by a Release 1 slice above (slices 1–29 + amendments).
 
-Release 2 introduces the Toolkit (§2.6 / §19), the no-code dashboard builder (§10.2 builder surface), request templates (§9.7 admin UI + full templating), email delivery + digests, time-based triggers (Benefit-review prompt, proactive SLA-breach alerts), the REST API + webhooks, the AI-assist layer, and the DMS / SharePoint connector. Those are new slices when Release 2 is planned — none of the above 24 slices ship them.
+Release 2 introduces email delivery + digests, time-based triggers (Benefit-review prompt, proactive SLA-breach alerts), the REST API + webhooks, the AI-assist layer, the DMS / SharePoint connector, and any full request-template automation not covered by the R1 admin surfaces. Those are new slices when Release 2 is planned — none of the above 29 R1 slices ship them. **Toolkit build + no-code dashboard composer moved into R1 Phase 2 via the 2026-07-07 re-phasing and land here as Slices 29 and 28 respectively.**
 
 ---
 
@@ -338,7 +424,7 @@ Release 2 introduces the Toolkit (§2.6 / §19), the no-code dashboard builder (
 
 > **slice count cannot grow by more than 25% during Step 3 without an architecture-doc update and a re-review.**
 
-25% of 24 → cap of 30 slices under drift. Any slice added mid-build must be traced back to a spec section not covered by an existing slice. If a candidate slice appears to duplicate an existing one, merge it in rather than adding a new one. When the drift cap is reached, we stop, update this doc, and re-review before continuing.
+25% of **29** → cap of **36** slices under drift (updated 2026-07-16 with the v2 reconciliation raise from 24 → 29 targets; original 24 → 30 drift cap superseded). Any slice added mid-build must be traced back to a spec section not covered by an existing slice. If a candidate slice appears to duplicate an existing one, merge it in rather than adding a new one. When the drift cap is reached, we stop, update this doc, and re-review before continuing.
 
 ---
 
@@ -359,8 +445,8 @@ Release 2 introduces the Toolkit (§2.6 / §19), the no-code dashboard builder (
 
 ## Cross-check against dependency graph
 
-Every module named in `module-boundaries.md` maps to at least one slice above. Verified:
+Every module named in `module-boundaries.md` (extended by the v2 addendum) maps to at least one slice above. Verified:
 
-- Platform & Shell → slice 1, 2. Fields & Objects → 3. Lifecycle & Gates → 4. Requests → 5. Tasks → 7. Approvals → 8. Escalation → 9. Feature Catalog → 14. Announcements → 13. Attachments → 11. Watchers → 12. Comments & Activity → 6. Typed Links → 10 (plus surfaces on many). Saved Views → 14. Dashboards → 23. Notifications & Bell → 12. Search → 15. Import/Export → 16. Audit → 1 (schema) + 18 (surface) + 19 (firm-wide). Event Spine → 1 (core) + every state-changing slice (emitters). Home Surface → 22. Platform Admin → 19 (+ 24 for editable crossing map). Workspace Admin (Users/Views/Audit) → 17, 18. Error/Empty UI → 20.
+- Platform & Shell → slice 1, 2 (+ v2 grouped-settings polish). Fields & Objects → 3 (+ v2 slice 25 extensions). Lifecycle & Gates → 4 (+ v2 slice 27 multi-lifecycle). Requests → 5 (+ v2 slice 26 status/hold). Tasks → 7 (+ v2 slice 26 hold-guard). Approvals → 8 (+ v2 slice 26 hold-guard). Escalation → 9. Feature Catalog → 14. Announcements → 13 (+ v2 scheduling polish). Attachments → 11. Watchers → 12 (+ v2 slice 26 preferences). Comments & Activity → 6. Typed Links → 10. Saved Views → 14. Dashboards → 23 (+ v2 slice 28 composer). Notifications & Bell → 12 (+ v2 slice 26 preference-aware fan-out). Search → 15. Import/Export → 16 (+ v2 wizard polish). Audit → 1 (schema) + 18 (surface) + 19 (firm-wide, + v2 structured columns). Event Spine → 1 (core) + every state-changing slice. Home Surface → 22. Platform Admin → 19 (+ 24 editable crossing map). Workspace Admin (Users/Views/Audit) → 17, 18. Error/Empty UI → 20. **Relationships (new v2 module)** → slice 25. **Toolkit (new v2 module)** → slice 29.
 
-No module is orphaned. No slice references a module not in the graph.
+No module is orphaned. No slice references a module not in the graph. Two new modules (Relationships, Toolkit) join the graph as leaves — see [v2-reconciliation.md §Dependency-graph deltas](v2-reconciliation.md).

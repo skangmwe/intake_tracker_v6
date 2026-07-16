@@ -104,11 +104,20 @@ export interface WatcherDto {
 /**
  * One watcher resolved for the record-detail Watchers card (slice 12). `displayName` is carried so
  * the avatar/initials render without a second directory fetch (mirrors slice 8's FrozenApproverSlot).
+ *
+ * v2 (slice 26): the caller's own row carries the five per-record preference booleans; other rows
+ * omit them (a watcher never sees another watcher's preferences).
  */
 export interface WatcherListItemDto {
   userId: UserId;
   displayName: string;
   subscribedAt: IsoDateTime;
+  // v2 (slice 26) — per-record notification preferences. Present only on the caller's own row.
+  notifyGateDecisions?: boolean;
+  notifyStatusChanges?: boolean;
+  notifyTaskSignoffs?: boolean;
+  notifySlaAndDueDateReminders?: boolean;
+  notifyMentionsAndComments?: boolean;
 }
 
 /** GET /records/{id}/watchers — the roster plus the caller's own subscription state (drives the toggle). */
@@ -116,6 +125,21 @@ export interface WatcherListDto {
   watchers: WatcherListItemDto[];
   /** Whether the caller is currently watching — sets the Watch / Watching toggle without a client scan. */
   isWatching: boolean;
+}
+
+/**
+ * v2 (slice 26). PATCH /records/{recordId}/watchers/me — sparse update. Set individual
+ * preference fields to toggle categorical delivery on/off; omit to leave unchanged.
+ * When `isWatching=false`, the record leaves the caller's Watching list; preferences persist
+ * so they're restored on re-subscribe.
+ */
+export interface WatcherPreferencesPatchRequest {
+  isWatching?: boolean;
+  notifyGateDecisions?: boolean;
+  notifyStatusChanges?: boolean;
+  notifyTaskSignoffs?: boolean;
+  notifySlaAndDueDateReminders?: boolean;
+  notifyMentionsAndComments?: boolean;
 }
 
 // ── Activity thread ─────────────────────────────────────────────────────

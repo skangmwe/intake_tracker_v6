@@ -39,6 +39,15 @@ export interface Outcome {
 /** SLA status — derived from Due Date vs the workspace's due-soon window (BS §17.2). */
 export type SlaStatus = 'OnTrack' | 'DueSoon' | 'Overdue';
 
+/**
+ * v2 (slice 26). Record Status/hold state — tri-state replacing the binary Hold.
+ *   - `InProgress` — the working state; tasks complete and gates advance normally.
+ *   - `OnHold`     — pauses task completion and gate approvals. Reactivating returns to InProgress.
+ *   - `Abandoned`  — the solution was dropped. Blocks all mutations except re-activation to InProgress.
+ * Set from the S4 Status tab; surfaced as a `StatusHoldPill` on S2 rows, S4/S5 header, and Home cards.
+ */
+export type RequestStatusHold = 'InProgress' | 'OnHold' | 'Abandoned';
+
 /** Time spent in the record's current stage (BS §10.6) — whole days since the stage was entered. */
 export interface TimeInStage {
   /** The stage the record is currently in (matches `RequestDto.stage`). */
@@ -74,6 +83,19 @@ export interface RequestDto {
   stages: RequestStageRef[];
   /** Current stage key (matches one of `stages[].key`). */
   stage?: string;
+  /**
+   * v2 (slice 26). The record's tri-state Status/hold. Prefer this over the legacy `hold`
+   * shape. Existing writers may still send `hold` for one release; the server maps it.
+   */
+  statusHold?: RequestStatusHold;
+  /** v2 (slice 26). Free-text note for OnHold or Abandoned; required by UI when non-active. */
+  statusHoldNote?: string | null;
+  /**
+   * Legacy binary hold state — retained as a derived read for backward compat with pre-v2
+   * consumers. The server computes it from `statusHold`: `held = statusHold==='OnHold'`.
+   * Writers should stop sending this; use `statusHold` on `RequestPatchRequest` instead.
+   * @deprecated Use `statusHold` (v2, slice 26).
+   */
   hold?: { held: boolean; reason?: string };
   outcome?: Outcome;
   displayStatus: string;
@@ -136,6 +158,17 @@ export interface RequestPatchRequest {
   name?: string;
   description?: string;
   fields?: Record<string, unknown>;
+  /**
+   * v2 (slice 26). Set the record's Status/hold. Preferred over the legacy `hold` field.
+   * `statusHold='OnHold'` blocks task completion and gate decisions server-side.
+   */
+  statusHold?: RequestStatusHold;
+  statusHoldNote?: string | null;
+  /**
+   * Legacy binary hold. The server accepts it for one release and maps it to `statusHold`:
+   * `hold.held=true` → `'OnHold'`, `hold.held=false` → `'InProgress'`.
+   * @deprecated Use `statusHold` (v2, slice 26).
+   */
   hold?: { held: boolean; reason?: string };
   /**
    * ETag from the last-loaded record. Server returns 409 stale-record if it
@@ -197,4 +230,6 @@ export interface RequestListRow {
   columns: Record<string, unknown>;
   /** SLA state — drives aging tint on rows. */
   slaStatus?: SlaStatus;
+  /** v2 (slice 26). The record's Status/hold — drives the row's StatusHoldPill on S2. */
+  statusHold?: RequestStatusHold;
 }

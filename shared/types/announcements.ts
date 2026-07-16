@@ -2,7 +2,17 @@
 
 import type { AnnouncementId, IsoDate, IsoDateTime, UserId, WorkspaceId } from './common';
 
-export type AnnouncementStatus = 'Draft' | 'Published' | 'Retired';
+/**
+ * v2 (slice 13 polish) adds `'Scheduled'` and `'Archived'`. A Scheduled announcement flips to
+ * Published when `scheduledPublishAt` is reached; a Published announcement flips to Archived
+ * when `autoArchiveAt` is reached (only when `autoArchive=true`).
+ */
+export type AnnouncementStatus =
+  | 'Draft'
+  | 'Scheduled'
+  | 'Published'
+  | 'Retired'
+  | 'Archived';
 
 export type AnnouncementAudienceKind = 'everyone' | 'role-scoped' | 'named-users';
 
@@ -27,6 +37,21 @@ export interface AnnouncementDto {
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
   publishedAt?: IsoDateTime;
+  /**
+   * v2 (slice 13 polish). When set and `status='Scheduled'`, the scheduler tick flips the row
+   * to Published at this time. Ignored on Draft/Published/Retired/Archived rows.
+   */
+  scheduledPublishAt?: IsoDateTime;
+  /**
+   * v2 (slice 13 polish). When true, the row auto-archives 30 days after publication.
+   * Defaults to true for new announcements.
+   */
+  autoArchive?: boolean;
+  /**
+   * v2 (slice 13 polish). Server-computed: `publishedAt + 30 days` when `autoArchive=true`,
+   * else null. The scheduler tick flips Published rows to Archived at this time.
+   */
+  autoArchiveAt?: IsoDateTime;
 }
 
 export interface AnnouncementCreateRequest {
@@ -35,6 +60,10 @@ export interface AnnouncementCreateRequest {
   audience: AnnouncementAudience;
   pinned?: boolean;
   expiresOn?: IsoDate;
+  /** v2 (slice 13 polish). When present, the row is created in Scheduled status. */
+  scheduledPublishAt?: IsoDateTime;
+  /** v2 (slice 13 polish). Defaults to true when omitted. */
+  autoArchive?: boolean;
 }
 
 /**
@@ -47,6 +76,10 @@ export interface AnnouncementPatchRequest {
   audience: AnnouncementAudience;
   pinned: boolean;
   expiresOn?: IsoDate;
+  /** v2 (slice 13 polish). */
+  scheduledPublishAt?: IsoDateTime;
+  /** v2 (slice 13 polish). */
+  autoArchive?: boolean;
 }
 
 export interface AnnouncementListRow {

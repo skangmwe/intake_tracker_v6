@@ -17,3 +17,6 @@ export * from './imports';
 export * from './audit';
 export * from './platform';
 export * from './home';
+// v2 additions (slice 25/29)
+export * from './relationships';
+export * from './toolkit';

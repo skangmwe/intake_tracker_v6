@@ -59,6 +59,15 @@ export type SavedViewId = string & { readonly __brand: 'SavedViewId' };
 /** SavedDashboard GUID. */
 export type SavedDashboardId = string & { readonly __brand: 'SavedDashboardId' };
 
+/** Widget GUID — a single widget row on a composed SavedDashboard (v2, slice 28). */
+export type WidgetId = string & { readonly __brand: 'WidgetId' };
+
+/** Relationship GUID — an object-level Relationship definition (v2, slice 25). */
+export type RelationshipId = string & { readonly __brand: 'RelationshipId' };
+
+/** ToolkitItem GUID — a playbook / plugin / prompt item (v2, slice 29). */
+export type ToolkitItemId = string & { readonly __brand: 'ToolkitItemId' };
+
 /** Import job GUID. */
 export type ImportId = string & { readonly __brand: 'ImportId' };
 
@@ -122,7 +131,13 @@ export type ErrorCode =
   | 'rejection-requires-comment'
   | 'access-denied'
   | 'platform-defined-field-locked'
-  | 'not-found';
+  | 'not-found'
+  // v2 additions (slice 25/26/28)
+  | 'record-on-hold'
+  | 'record-abandoned'
+  | 'seeded-dashboard-read-only'
+  | 'relationship-inconsistent-cardinality'
+  | 'relationship-retired-blocks-link';
 
 /** Access level per workspace. Platform admin is additive, not a level (see MeDto). */
 export type AccessLevel = 'Viewer' | 'Member' | 'WorkspaceAdmin';

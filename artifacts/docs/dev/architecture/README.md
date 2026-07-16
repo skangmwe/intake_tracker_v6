@@ -4,12 +4,13 @@
 |---|---|
 | [`data-model.md`](data-model.md) | Entities, relationships, PII/audit constraints, escalation-bridge DB view, index plan. |
 | [`api-contracts.md`](api-contracts.md) | Endpoints, DTOs, error contract (RFC 7807), pagination, firm error codes, R2 deferrals. |
-| [`module-boundaries.md`](module-boundaries.md) | 22 modules — what each owns, exposes, deliberately doesn't know. Layer rules (web → api → db). |
+| [`module-boundaries.md`](module-boundaries.md) | ~~22~~ **24** modules — what each owns, exposes, deliberately doesn't know. Layer rules (web → api → db). |
 | [`shared-types.md`](shared-types.md) | Index of the TypeScript vocabulary at `/shared/types/`. |
 | [`dependency-graph.md`](dependency-graph.md) | Module dependency graph. Topological ordering. Acyclicity check. |
 | [`shared-inventory.md`](shared-inventory.md) | Every cross-cutting utility, UI primitive, and infra helper. Location, consumers, scaffold status. |
-| [`slice-plan.md`](slice-plan.md) | The 24-slice Release 1 build plan. LoC ceiling, drift cap, screen coverage. |
+| [`slice-plan.md`](slice-plan.md) | The ~~24~~ **29-slice** Release 1 build plan. LoC ceiling, drift cap, screen coverage. |
 | [`scaffold-notes.md`](scaffold-notes.md) | Decisions and gaps recorded during scaffold. Reviewer checklist. |
+| [`v2-reconciliation.md`](v2-reconciliation.md) | **v2 addendum (2026-07-16)** — additive extensions to every artifact above driven by the v2 prototype reconciliation. Read alongside the core artifacts. Adds five slices (25–29) + in-plan follow-ups on slices 2/13/16/17/18/19. |
 
 ## Source-of-truth ordering
 
@@ -49,3 +50,8 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 22 | Home surface (S1 — per-user landing: Needs your decision · Your work today · Since you were last here · New to triage · pinned strip · Pin-as-home) | completed | [slice-plan.md §Slice 22](slice-plan.md) | [22-slice-home.md](22-slice-home.md) |
 | 23 | Seeded dashboards (S6 default · S14 Workload · S12 Feature Catalog · S17 list · S15 PG starter · S16 viewer · S32 mgmt) — widget-list-JSON + fixed metric resolvers | completed | [slice-plan.md §Slice 23](slice-plan.md) | [23-slice-dashboards.md](23-slice-dashboards.md) |
 | 24 | Advanced views (Kanban/timeline/agenda/gallery — S11) · S38 workspace-provisioning wizard · S35 admin-editable crossing map (propose/confirm) | completed | [slice-plan.md §Slice 24](slice-plan.md) | [24-slice-advanced-views-provisioning-crossing.md](24-slice-advanced-views-provisioning-crossing.md) |
+| 25 | Object-level Relationships + Link-to-record field type + config-driven detail tabs + system-provisioned fields (S30 v2 tab · S4/S5 tab-bar rewrite) | pending | [slice-plan.md §Slice 25](slice-plan.md) | — (to be authored at slice start) |
+| 26 | Record Status/hold model + Status tab + per-record notification preferences (S4 Status tab · Watchers & alerts tab) | pending | [slice-plan.md §Slice 26](slice-plan.md) | — |
+| 27 | Multiple lifecycles + Lifecycle picker at intake (S31 dropdown · S3 picker) | pending | [slice-plan.md §Slice 27](slice-plan.md) | — |
+| 28 | Multi-dashboard composer (S6 upgrade — switcher · New dashboard · Edit layout · Add widget) | pending | [slice-plan.md §Slice 28](slice-plan.md) | — |
+| 29 | Toolkit object + S43 surface (new object · Reference-local · New item / edit-in-place / gallery) | pending | [slice-plan.md §Slice 29](slice-plan.md) | — |

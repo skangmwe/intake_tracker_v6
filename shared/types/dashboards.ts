@@ -18,6 +18,7 @@ import type {
   IsoDateTime,
   SavedDashboardId,
   SavedViewId,
+  WidgetId,
   WorkspaceId,
 } from './common';
 
@@ -196,6 +197,24 @@ export interface SavedDashboardDto {
   /** False on the locked Dashboard-viewer surface (S16); true on the full S6 surface. */
   supportsDrillThrough: boolean;
   widgets: DashboardWidgetDto[];
+  /**
+   * v2 (slice 28). True on the four seeded dashboards (AI-default, Workload, Feature Catalog,
+   * PG-starter). Seeded dashboards keep their fixed layout and are read-only on the composer path:
+   * PATCH against a seeded dashboard returns 403 `seeded-dashboard-read-only`.
+   */
+  isSeeded?: boolean;
+  /**
+   * v2 (slice 28). `Shared` dashboards render on the Dashboards switcher for every member of the
+   * audience; `Personal` dashboards render only for their author. Defaults to `Shared` for
+   * backward compat with the seeded rows.
+   */
+  visibility?: 'Shared' | 'Personal';
+  /**
+   * v2 (slice 28). `Fixed` = the seeded four-tile / heatmap / grid layout (code-driven);
+   * `Composed` = user-authored via the widget composer. Composed dashboards render from
+   * `widgets` in order; Fixed dashboards ignore `widgets` order for layout (still resolve data).
+   */
+  layoutMode?: 'Fixed' | 'Composed';
 }
 
 /** One row of the Dashboards list (S17) — metadata only, no widget data. */
@@ -224,4 +243,43 @@ export interface DashboardPatchRequest {
   audience?: AnnouncementAudience;
   /** When true, soft-retire the dashboard (removes it from the list). */
   retire?: boolean;
+  /** v2 (slice 28). Toggle between Shared and Personal on a composed dashboard. */
+  visibility?: 'Shared' | 'Personal';
+}
+
+/**
+ * v2 (slice 28). POST /workspaces/{id}/dashboards — create a user-composed dashboard.
+ * Seeded dashboards cannot be created here (they exist only via workspace provisioning).
+ */
+export interface DashboardComposeRequest {
+  name: string;
+  description?: string;
+  audience: AnnouncementAudience;
+  visibility: 'Shared' | 'Personal';
+  objectType: DashboardObjectType;
+  /** Ordered initial widget list; may be empty (composer adds widgets one by one). */
+  widgets?: WidgetComposeRequest[];
+}
+
+/**
+ * v2 (slice 28). Body for POST/PATCH on a composed dashboard's widgets. The API layer
+ * validates each request against the WidgetTypeCatalog schema (widget type → required fields).
+ */
+export interface WidgetComposeRequest {
+  /** Present on PATCH; server-assigned on POST. */
+  id?: WidgetId;
+  type: WidgetType;
+  /** Present on kpi-tile / kpi-with-trend / timeseries-line. */
+  metric?: string;
+  /** Present on bar-breakdown / segmented-bar / heatmap-matrix / histogram. */
+  groupByDimension?: string;
+  /** Present on records-grid. */
+  rowLimit?: number;
+  /** Layout — half-width places two widgets in a row; full-width takes the full row. */
+  width: 'Half' | 'Full';
+  /** Optional scope filters. */
+  dept?: string | null;
+  stage?: string | null;
+  /** Insertion order within the dashboard. */
+  sortOrder: number;
 }
