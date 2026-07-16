@@ -26,6 +26,14 @@ export interface AuditLogRowDto {
   eventAt: IsoDateTime;
   /** Raw structured JSON payload (already sanitised at emit time). The UI shapes it per event type. */
   payload: string;
+  /**
+   * v2 (slice 18/19 polish). Structured display columns for the audit list surface. `objectLabel`
+   * is the display form of `objectType` ("Request", "Task", "Feature", "Configuration" for
+   * workspace-level events); `recordDisplayId` is the `PREFIX-NNNNNNNN` form when the event is
+   * scoped to a Request (else null). The S33/S39 UI renders these as dedicated columns.
+   */
+  objectLabel?: string;
+  recordDisplayId?: string | null;
 }
 
 /**

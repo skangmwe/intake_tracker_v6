@@ -21,7 +21,21 @@
 | [`imports.ts`](../../../../shared/types/imports.ts) | `ImportStatusDto`, `ImportFlaggedRow`, `ExportRequest`, `ImportStatus`. |
 | [`audit.ts`](../../../../shared/types/audit.ts) | Audit-log surfaces (S33 workspace audit, slice 18; S39 firm-wide, slice 19): `AuditLogRowDto`, `AuditLogQuery`. Read-only projection of the append-only `AuditEntry`; distinct from `collaboration.ts`'s per-record `AuditEventItem`. |
 | [`platform.ts`](../../../../shared/types/platform.ts) | Platform-admin surfaces (S35–S39, slice 19): `CrossingMapRowDto` (S35, read-only); `RoleLabelDto` + `RoleLabel{Create,Rename}Request` (S37); `PrivilegedGrantKind`/`PrivilegedGrantDto`/`PrivilegedGrantsListDto` + `PlatformAdminGrantRequest` (S36); `WorkspaceProvisionResult` (S38); `FirmWideAuditRowDto`/`FirmWideAuditQuery` (S39, extend the `audit.ts` shapes). |
+| [`relationships.ts`](../../../../shared/types/relationships.ts) | **v2 (slice 25)**. Object-level Relationships (S30 Relationships tab): `RelationshipDto`, `RelationshipCardinality`, `RelationshipCreateRequest`, `RelationshipPatchRequest`, `RelationshipLinkDto`, `RelationshipLinkCreateRequest`. |
+| [`toolkit.ts`](../../../../shared/types/toolkit.ts) | **v2 (slice 29)**. Toolkit reference object (S43): `ToolkitItemDto`, `ToolkitItemKind`, `ToolkitItemListRow`, `ToolkitItemCreateRequest`, `ToolkitItemPatchRequest`. |
 | [`index.ts`](../../../../shared/types/index.ts) | Barrel export. |
+
+## v2 extensions to existing files (additive)
+
+The [v2-reconciliation.md](v2-reconciliation.md) addendum introduces the following **additive** modifications. Every new property is optional or a new union member; existing consumers compile unchanged.
+
+- **`common.ts`** — new branded ids `RelationshipId`, `ToolkitItemId`, `WidgetId`; new error codes `record-on-hold`, `record-abandoned`, `seeded-dashboard-read-only`, `relationship-inconsistent-cardinality`, `relationship-retired-blocks-link`. `ObjectType` already lists `'Toolkit'`.
+- **`fields.ts`** — `FieldObjectType` gains `'ToolkitItem'` (new union member). `FieldDefinitionDto` gains `isSystemProvisioned`, `targetObjectType`, `allowMultiple`, `reverseLinkLabel`, `relationshipId` (all optional). `FieldDefinitionUpsertRequest` gains the Link-to-record config fields.
+- **`requests.ts`** — new `RequestStatusHold` type. `RequestDto` and `RequestPatchRequest` gain `statusHold` + `statusHoldNote`. Legacy `hold` retained as derived read; marked `@deprecated`.
+- **`collaboration.ts`** — `WatcherListItemDto` gains the five preference booleans (present only on the caller's own row). New `WatcherPreferencesPatchRequest`.
+- **`dashboards.ts`** — `SavedDashboardDto` gains `isSeeded`, `visibility`, `layoutMode`. New `DashboardComposeRequest`, `WidgetComposeRequest`. `DashboardPatchRequest.visibility` added.
+- **`announcements.ts`** — `AnnouncementStatus` gains `'Scheduled' | 'Archived'`. `AnnouncementDto` + create/patch requests gain `scheduledPublishAt`, `autoArchive`, `autoArchiveAt`.
+- **`audit.ts`** — `AuditLogRowDto` gains `objectLabel`, `recordDisplayId`.
 
 ## Conventions
 
