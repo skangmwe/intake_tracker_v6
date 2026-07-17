@@ -231,6 +231,13 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Workspaces.IWorkspace
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Home.IHomeService,
     McDermott.AiTracker.Api.Modules.Home.HomeService>();
 
+// ─── Relationships (slice 25) — object-level Relationship definitions and their per-record link
+//     instances. Powers the S30 Relationships tab (admin) and the S4/S5 config-driven tab bar +
+//     Relationships side panel. Auto-provisions paired Link-to-record FieldDefinition rows on
+//     upsert in the same transaction. ───
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Relationships.IRelationshipsService,
+    McDermott.AiTracker.Api.Modules.Relationships.RelationshipsService>();
+
 // Swagger is deferred to a later slice that adds Swashbuckle with the pinned
 // Microsoft.OpenApi override. Config flag remains so early consumers see the
 // intended contract (api-coding-standards.md — Swagger is gated by config, not

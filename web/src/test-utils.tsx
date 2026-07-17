@@ -16,6 +16,9 @@ import type {
   MeDto,
   PlatformFieldDto,
   RecordId,
+  RelationshipDto,
+  RelationshipId,
+  RelationshipLinkDto,
   RequestDto,
   RequestListRow,
   StageDefinitionId,
@@ -242,6 +245,50 @@ export function buildTypedLink(overrides: Partial<TypedLinkDto> = {}): TypedLink
     toName: 'Summariser',
     toStage: 'qa',
     createdAt: '2026-07-04T10:00:00Z',
+    ...overrides,
+  };
+}
+
+/**
+ * A Relationship definition — defaults to a workspace-authored (non-system) Request → Task
+ * OneToMany relationship that surfaces as a "Tasks" tab on the From side. Override any field
+ * for the retire / restore / system-lock / cardinality variants.
+ */
+export function buildRelationship(overrides: Partial<RelationshipDto> = {}): RelationshipDto {
+  return {
+    id: '00000000-0000-0000-0000-0000000000r1' as RelationshipId,
+    workspaceId: 'ws-1' as WorkspaceId,
+    name: 'Request has Tasks',
+    fromObjectType: 'Request',
+    toObjectType: 'Task',
+    cardinality: 'OneToMany',
+    fromSideLabel: 'Tasks',
+    toSideLabel: 'Request',
+    showOnFromAsTab: true,
+    tabLabel: 'Tasks',
+    sortOrder: 0,
+    isRetired: false,
+    isSystem: false,
+    createdAt: '2026-07-16T13:00:00Z',
+    updatedAt: '2026-07-16T13:00:00Z',
+    createdBy: '00000000-0000-0000-0000-000000000001' as UserId,
+    updatedBy: '00000000-0000-0000-0000-000000000001' as UserId,
+    ...overrides,
+  };
+}
+
+/** One relationship-driven link row (S4/S5 side panel + relationship-driven tab). */
+export function buildRelationshipLink(overrides: Partial<RelationshipLinkDto> = {}): RelationshipLinkDto {
+  return {
+    id: '00000000-0000-0000-0000-0000000000l1',
+    relationshipId: '00000000-0000-0000-0000-0000000000r1' as RelationshipId,
+    fromRecordId: 'AIS-00000001' as RecordId,
+    toRecordId: 'AIS-00000009' as RecordId,
+    toRecordDisplayName: 'Extraction task',
+    toRecordStage: 'build',
+    direction: 'Out',
+    createdAt: '2026-07-16T13:00:00Z',
+    createdBy: '00000000-0000-0000-0000-000000000001' as UserId,
     ...overrides,
   };
 }

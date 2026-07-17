@@ -600,6 +600,24 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 - **No new monorepo `/shared/types/` file** — extended `platform.ts` (crossing-map propose/confirm +
   candidate types) and `identity.ts` (`WorkspaceProvisionRequest` email path).
 
+## Slice 25 (Object-level Relationships + config-driven detail tabs + system-provisioned fields) — implemented
+
+- **Shared types `/shared/types/relationships.ts`** — `RelationshipDto` (+ `isSystem`), `RelationshipCreateRequest`, `RelationshipPatchRequest`, `RelationshipRetireResponse`, `RelationshipLinkDto` (+ `direction: 'Out'|'In'`), `RelationshipLinkCreateRequest`. Exported from `@shared/types`.
+- **Shared types `/shared/types/fields.ts` (extended)** — `FieldDefinitionDto` gains `isSystemProvisioned?`, `targetObjectType?`, `allowMultiple?`, `reverseLinkLabel?`, `relationshipId?` (all additive; existing consumers unchanged).
+- **Web `features/relationships/`** — new feature module exposing (via `@/features/relationships` barrel):
+  - `api.ts` — typed `apiFetch` wrappers over the six Relationships endpoints + three record-side link endpoints. **Path decision:** `/records/{id}/relationship-links` (not `/links` — Slice 10's TypedLinks owns `/links`).
+  - `useRelationshipTabs(workspaceId, fromObjectType)` — TanStack-Query-free hook that reads relationships + derives the config-driven tab set (filters to `showOnFromAsTab && !isRetired && fromObjectType matches`, sorts by `sortOrder`). Abort-on-unmount.
+  - `useRelationships.ts` — TanStack Query hooks: `useWorkspaceRelationships`, `useCreateRelationship`, `usePatchRelationship`, `useRetireRelationship`, `useRestoreRelationship`; all invalidate the `['relationships', workspaceId]` key on success.
+  - `RelationshipsSidePanel` — S4/S5 side-panel component (one section per relationship for the record's `FromObjectType`, per-row link count; loading/error/empty states explicit).
+  - `GenericRelatedRecordsTab` — shared renderer for a config-driven relationship-driven tab (title from `tabLabel ?? fromSideLabel`, direction-aware counterparty label, empty/loading/error).
+  - `RelationshipsAdminTab` — S30 admin surface. Table of Relationships (system-row lock + Retire/Restore actions on workspace-authored rows) + a `NewRelationshipModal` (cardinality picker, side labels, Show-as-tab toggle) + `RetireConfirmDialog` (409-with-count → force-confirm flow).
+- **Web `features/fields/components/SystemProvisionedFieldBand`** — S30 Fields tab locked band. Reads `FieldDefinition` rows with `isSystemProvisioned=true` and renders them alongside `PlatformFieldBand` (which continues to own the central `PlatformField` set). Wired into `FieldsAdminPage`, which also gained an outer S30 tab bar (Fields ↔ Relationships).
+- **Web `features/requests/components/RecordDetailPage` (refactored)** — the previously fixed 6-tab list is now `BASE_TABS` + relationship-driven tabs injected via `useRelationshipTabs`. System-seeded Relationships (Request → Task) are filtered out of the injection (they model existing base tabs — Tasks stays with the specialised `TasksTab`). Admin-authored Relationships with `showOnFromAsTab=1` surface as new tabs whose panel renders `GenericRelatedRecordsTab`.
+- **API `Modules/Relationships/`** — `RelationshipsService` (8 methods) + `RelationshipsController` (workspace + item routes) + `RecordLinksController` (record-side routes) + keyless projections `RelationshipRow` / `RecordLinkRow` (registered on `AppDbContext`). SqlException translation for `50060`–`50063`.
+- **Database `procedures/relationships/`** — `usp_UpsertRelationship`, `usp_RetireRelationship`, `usp_RestoreRelationship`, `usp_ListRelationships`, `usp_GetRelationshipById`, `usp_UpsertRecordLink`, `usp_DeleteRecordLink`, `usp_ListRecordLinks`. tSQLt in `tests/relationships/`. Migrations 055–059 (`Relationships` table, `FieldDefinition` link-config columns, `IsSystemProvisioned` mark, `Request → Task` system-seed, `RecordLinks` table).
+- **Test-utils `buildRelationship()` + `buildRelationshipLink()`** — added to `web/src/test-utils.tsx`; consumed by relationships + fields + requests tests.
+- **Reconciliation note:** the slice-25 side panel is NOT wired into `RecordDetailPage`'s layout as a visual sidebar (the current single-column layout doesn't ship one). The component is available for a future layout-shift; the tab-bar injection is where the user-facing value lives this slice.
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.

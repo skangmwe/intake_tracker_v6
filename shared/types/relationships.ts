@@ -55,10 +55,28 @@ export interface RelationshipDto {
   tabLabel?: string;
   sortOrder: number;
   isRetired: boolean;
+  /**
+   * v2 (slice 25). System-seeded relationships (Request → Task, seeded by migration
+   * 20260716_058) drive the config-driven tab bar's always-on relationship-driven tabs.
+   * The S30 admin surface blocks the edit and retire affordances on these rows.
+   */
+  isSystem: boolean;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
   createdBy: UserId;
   updatedBy: UserId;
+}
+
+/**
+ * POST /relationships/{id}/retire response. When `linkCount > 0` and `retired = false`,
+ * the server refused to soft-retire because live RecordLinks would be hidden — the
+ * caller (S30 admin editor) confirms via `?force=true`, which retries with force = 1
+ * and gets `retired = true`.
+ */
+export interface RelationshipRetireResponse {
+  relationshipId: RelationshipId;
+  linkCount: number;
+  retired: boolean;
 }
 
 /** POST /workspaces/{id}/relationships — server auto-provisions the paired Link-to-record fields. */
@@ -101,6 +119,13 @@ export interface RelationshipLinkDto {
   /** Display fields carried to avoid a second fetch per row. */
   toRecordDisplayName: string;
   toRecordStage?: string;
+  /**
+   * v2 (slice 25). `'Out'` when the viewed record is the FROM side (the counterparty is
+   * on `toRecordId`); `'In'` when the viewed record is the TO side (the counterparty is
+   * on `fromRecordId`). The web renders the appropriate side label from the
+   * Relationship (fromSideLabel vs toSideLabel) based on direction.
+   */
+  direction: 'Out' | 'In';
   createdAt: IsoDateTime;
   createdBy: UserId;
 }

@@ -314,6 +314,57 @@ Append-only, immutable (BS §12). Captured off the event spine.
 
 Configuration entity per workspace. Definitions are `versioned in place` — edits capture a new version row, previous versions retained for audit-trail resolution. Retirement is guarded (BS §6.2 retirement guard for crossing-map sources/targets).
 
+**v2 (slice 25) — Link-to-record + system-provisioned columns.** Five additive columns extend `FieldDefinition` per v2-reconciliation.md §Model deltas 2:
+
+| Column | Type | Notes |
+|---|---|---|
+| `IsSystemProvisioned` | `BIT` NOT NULL DEFAULT 0 | Migration 057 marks the per-workspace `name` field. Locked in the S30 editor; read-only band above the workspace-authored list. The other four "system fields" (Record ID / Created At / Updated At / AI Solutions Status) live centrally on `PlatformField` per Slice 3's decision. |
+| `TargetObjectType` | `NVARCHAR(50)` NULL | Present only on `fieldType='RecordReference'` rows. The linked object. |
+| `AllowMultiple` | `BIT` NULL | Present only on `fieldType='RecordReference'`. True → multi-link; false → single. |
+| `ReverseLinkLabel` | `NVARCHAR(200)` NULL | Optional reverse-link label rendered on the target-object's detail. |
+| `RelationshipId` | `UNIQUEIDENTIFIER` NULL FK → `Relationships` | Present only on auto-provisioned Link-to-record fields. Manually created RecordReference fields carry NULL. |
+
+Migration 056 also widens `CK_FieldDefinition_ObjectType` to include `'ToolkitItem'` — safe additive, unblocks slice 29.
+
+### Relationship (slice 25 — v2)
+
+Workspace-owned metadata that pairs two objects with a cardinality. Creating a Relationship auto-provisions the paired Link-to-record `FieldDefinition` rows in a single transaction (`usp_UpsertRelationship`) — `OneToOne` writes one field on the From side, `OneToMany` writes one on the To side, `ManyToMany` writes one on each side (`AllowMultiple=1`). A Relationship may surface as a config-driven tab on the From-side detail via `ShowOnFromAsTab`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `RelationshipId` | `UNIQUEIDENTIFIER` PK | |
+| `WorkspaceId` | FK → Workspace | Workspace-local — no cross-workspace relationships (escalation bridge owns cross-workspace linkage exclusively). |
+| `Name` | `NVARCHAR(200)` NOT NULL | |
+| `FromObjectType` | `NVARCHAR(50)` NOT NULL | Immutable after create. |
+| `ToObjectType` | `NVARCHAR(50)` NOT NULL | Immutable after create. |
+| `Cardinality` | `NVARCHAR(20)` NOT NULL | `'OneToOne' \| 'OneToMany' \| 'ManyToMany'`. Immutable. |
+| `FromSideLabel` | `NVARCHAR(200)` NOT NULL | |
+| `ToSideLabel` | `NVARCHAR(200)` NOT NULL | |
+| `ShowOnFromAsTab` | `BIT` NOT NULL DEFAULT 0 | |
+| `TabLabel` | `NVARCHAR(200)` NULL | Required when `ShowOnFromAsTab=1` (API validation). |
+| `SortOrder` | `INT` NOT NULL DEFAULT 0 | |
+| `IsRetired` | `BIT` NOT NULL DEFAULT 0 | Soft retire — historical `RecordLinks` preserved. |
+| `IsSystem` | `BIT` NOT NULL DEFAULT 0 | **Slice-25 addition beyond the addendum.** Marks seeded "always-on" Relationships (Request → Task, seeded by migration 058) — skips Link-to-record field auto-provisioning (the paired FK already exists on the target table); blocks retire/edit from the S30 admin surface. |
+
+Unique-filtered index on `(WorkspaceId, FromObjectType, ToObjectType, Name) WHERE IsDeleted = 0`. Migration 058 seeds one `IsSystem=1` `Request → Task` row per active workspace.
+
+### RecordLinks (slice 25 — v2)
+
+Instance table backing the record-side relationship-driven link endpoints. One row per `(FromRecordId, ToRecordId, RelationshipId)` triple; `usp_UpsertRecordLink` is idempotent on that tuple.
+
+| Column | Type | Notes |
+|---|---|---|
+| `RecordLinkId` | `UNIQUEIDENTIFIER` PK | |
+| `RelationshipId` | FK → Relationships | |
+| `WorkspaceId` | FK → Workspace | **Per-side.** An escalated record's two sides keep distinct link rosters — mirrors `Watcher` / `Comment` / `AuditEntry` per the escalation bridge's "each side owns its own visibility" rule (BS §6). |
+| `FromRecordId` | `NVARCHAR(20)` NOT NULL | The `RecordId` on the From side. |
+| `ToRecordId` | `NVARCHAR(20)` NOT NULL | The `RecordId` on the To side. |
+| `IsDeleted` | `BIT` | Soft delete via `usp_DeleteRecordLink`. |
+
+`usp_ListRecordLinks` returns bidirectional (`Direction = 'Out'` when the viewed record is the From side, `'In'` when it is the To side).
+
+**Error-number range 50060–50069** reserved for Relationships procs — see the slice doc for the mapping (50060 → 404, 50061 → 409 cardinality-immutable / OneToOne link violation, 50062 → 409 system-relationship block, 50063 → 409 retired-relationship blocks link).
+
 ### Lifecycle / StageDefinition / GateDefinition / GateApproverSlot (S31)
 
 The prototype's **Lifecycle & gates** surface (S31) is authoritative: a workspace owns **many lifecycles**, one per **request type** chosen at intake (BS §7.1 — "lifecycle as data"). Each lifecycle carries its own ordered stages and its own approval gates. Exactly one lifecycle per workspace is the **default** (picked when a request does not name a type). This supersedes the earlier flat single-stage-set model; **Slice 5's Stage field options are sourced from the record's lifecycle's `StageDefinition` rows**, not a workspace-wide set.
