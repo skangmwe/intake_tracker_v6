@@ -37,6 +37,19 @@ jest.mock('@/features/watchers/api', () => ({
   watchRecord: jest.fn(),
   unwatchRecord: jest.fn(),
 }));
+// The config-driven tab bar (slice 25) reads workspace Relationships via fetchRelationships.
+// Default to an empty list so the base tab bar shape stays unchanged for these tests.
+jest.mock('@/features/relationships/api', () => ({
+  fetchRelationships: jest.fn().mockResolvedValue([]),
+  fetchRelationship: jest.fn(),
+  createRelationship: jest.fn(),
+  patchRelationship: jest.fn(),
+  retireRelationship: jest.fn(),
+  restoreRelationship: jest.fn(),
+  fetchRelationshipLinks: jest.fn().mockResolvedValue([]),
+  createRelationshipLink: jest.fn(),
+  deleteRelationshipLink: jest.fn(),
+}));
 
 const patchMutate = jest.fn();
 const setHoldMutate = jest.fn();
@@ -401,5 +414,38 @@ describe('RecordDetailPage', () => {
 
     // Assert
     expect(screen.queryByRole('button', { name: 'Escalate to AI Solutions' })).not.toBeInTheDocument();
+  });
+
+  it('RecordDetailPage — admin-authored relationship injects a tab; system relationships do not', async () => {
+    // Arrange — one admin-authored + one system-seeded Relationship. Only the admin-authored one
+    // should surface as a new tab; system rows model existing base tabs and would duplicate them.
+    const { buildRelationship } = await import('@/test-utils');
+    const relationshipsApi = await import('@/features/relationships/api');
+    jest.mocked(relationshipsApi.fetchRelationships).mockResolvedValue([
+      buildRelationship({
+        id: 'sys-1' as ReturnType<typeof buildRelationship>['id'],
+        name: 'Request has Tasks (system)',
+        isSystem: true,
+        tabLabel: 'Tasks',
+      }),
+      buildRelationship({
+        id: 'user-1' as ReturnType<typeof buildRelationship>['id'],
+        name: 'Request has Deliverables',
+        toObjectType: 'Feature',
+        fromSideLabel: 'Deliverables',
+        tabLabel: 'Deliverables',
+        showOnFromAsTab: true,
+        sortOrder: 100,
+      }),
+    ]);
+
+    // Act
+    renderPage();
+
+    // Assert — the base six tabs plus one admin-authored relationship tab; system row is filtered out.
+    const tablist = await screen.findByRole('tablist', { name: 'Record sections' });
+    const tabs = await within(tablist).findAllByRole('tab');
+    expect(tabs).toHaveLength(7);
+    expect(within(tablist).getByRole('tab', { name: 'Deliverables' })).toBeInTheDocument();
   });
 });

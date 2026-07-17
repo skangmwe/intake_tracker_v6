@@ -146,6 +146,12 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<DashboardTechCountRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<DashboardEscalationStatusRow>().HasNoKey().ToView((string?)null);
 
+        // Slice 25 (Object-level Relationships) — keyless projections read via stored procedures.
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Relationships.RelationshipRow>()
+            .HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Relationships.RecordLinkRow>()
+            .HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

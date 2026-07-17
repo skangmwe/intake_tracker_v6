@@ -342,7 +342,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Depends on:** 3, 5.
 - **Estimated LoC:** 6,000 (at the ceiling — model + procs + tSQLt + API + shared types + web).
 - **Locked-signature changes flagged:** `FieldDefinitionDto` extensions; new `RelationshipDto` + `RelationshipLinkDto`. Every existing consumer compiles unchanged (all new properties are optional or additive-union).
-- **Status:** pending.
+- **Status: completed** — full scope landed across two sessions. Session 1: DB (migrations 055–059 + rollbacks), 8 procs + 2 tSQLt classes, shared types (`isSystem`, `direction`, `RelationshipRetireResponse`), full API module (service + `RelationshipsController` + `RecordLinksController` + DbContext / DI wiring), `useRelationshipTabs` + `RelationshipsSidePanel`. Session 2: web jest tests (4 test files, 25 cases), S30 `RelationshipsAdminTab` (+ tests), S30 `SystemProvisionedFieldBand` (+ tests) wired into `FieldsAdminPage` behind an outer Fields ↔ Relationships tab bar, `GenericRelatedRecordsTab` (+ tests), `RecordDetailPage` config-driven tab bar refactor with system-row-filtering (+ new test case), API `RelationshipsControllerTests` + `RecordLinksControllerTests` + `RelationshipsEndpointsTests` (31 tests total), and doc updates to `data-model.md` / `api-contracts.md` (§21 + two new error codes) / `module-boundaries.md` (§23) / `shared-inventory.md`. Nine decisions in [25-slice-relationships-schema.md](25-slice-relationships-schema.md) — the six session-1 decisions plus session-2 additions: (1) side panel exists but is NOT wired into the current single-column record detail layout; (2) the S30 outer tab bar landed inside `FieldsAdminPage` rather than a new wrapper page; (3) `IsSystem=1` seeded relationships are filtered *out* of the tab-bar injection because Request → Task models the existing base `TasksTab` (with typed fields + bundle templates that `GenericRelatedRecordsTab` doesn't carry).
+- **Started:** 2026-07-16T13:15:00-04:00
+- **Ended:** 2026-07-16T14:39:16-04:00
+- **Duration:** 01:24:16
 
 ### Slice 26: Record Status/hold model + Status tab + per-record notification preferences
 - **Spec section:** blueprint §Record detail behaviors (Status tab, Watchers & alerts). [v2-reconciliation.md §Model deltas 3, §API deltas Request Status/hold + Watchers, §Slice amendments].

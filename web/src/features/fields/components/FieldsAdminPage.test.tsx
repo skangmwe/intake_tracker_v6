@@ -6,11 +6,14 @@ import type { WorkspaceFieldSchemaDto, WorkspaceId } from '@shared/types';
 import { buildFieldDefinition, buildMe, buildMembership, renderWithProviders } from '@/test-utils';
 
 import * as api from '../api';
+import * as relationshipsApi from '@/features/relationships/api';
 import { FieldsAdminPage } from './FieldsAdminPage';
 
 jest.mock('../api');
+jest.mock('@/features/relationships/api');
 
 const mockedApi = api as jest.Mocked<typeof api>;
+const mockedRelationshipsApi = relationshipsApi as jest.Mocked<typeof relationshipsApi>;
 
 function schema(fieldCount: number): WorkspaceFieldSchemaDto {
   return {
@@ -27,6 +30,7 @@ describe('FieldsAdminPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedApi.fetchWorkspaceFields.mockResolvedValue(schema(1));
+    mockedRelationshipsApi.fetchRelationships.mockResolvedValue([]);
   });
 
   it('FieldsAdminPage — not a workspace admin — shows a no-access message', async () => {
@@ -121,6 +125,21 @@ describe('FieldsAdminPage', () => {
 
     // Assert
     expect(screen.getByRole('combobox', { name: /workspace/i })).toBeInTheDocument();
+  });
+
+  it('FieldsAdminPage — clicking the Relationships tab shows the relationships admin surface', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    renderWithProviders(<FieldsAdminPage />, { seedMe: adminMe });
+    await screen.findByRole('table');
+
+    // Act
+    await user.click(screen.getByRole('tab', { name: /relationships/i }));
+
+    // Assert — the "New relationship" button belongs to the RelationshipsAdminTab surface.
+    expect(await screen.findByRole('button', { name: /new relationship/i })).toBeInTheDocument();
+    // The Fields "Add field" primary button is hidden when the Relationships tab is active.
+    expect(screen.queryByRole('button', { name: /add field/i })).not.toBeInTheDocument();
   });
 
   it('FieldsAdminPage — save from the editor — calls the create endpoint', async () => {

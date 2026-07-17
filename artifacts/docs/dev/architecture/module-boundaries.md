@@ -228,6 +228,16 @@ Owns: firm-wide config surfaces — platform field schema, crossing map, access 
 - **API exposes:** `/platform/*` endpoints, gated on `IsPlatformAdmin`.
 - **Database owns:** `PlatformField`, `CrossingMap`, `RoleLabelCatalog`, `PlatformAdminGrant`. Reads across all workspaces.
 
+### 23. Relationships (slice 25 — v2)
+
+Owns: object-level Relationship definitions and their `RecordLinks` instances. Auto-provisions the paired Link-to-record `FieldDefinition` rows via the Fields & Objects schema engine (single transaction inside `usp_UpsertRelationship`). Powers the S30 Relationships admin tab, the S30 Fields tab's system-provisioned band, the config-driven relationship-driven tabs on S4/S5, the shared `RelationshipsSidePanel`, and the shared `GenericRelatedRecordsTab` renderer.
+
+- **Web exposes:** `RelationshipsAdminTab` (S30), `SystemProvisionedFieldBand` (S30 Fields tab), `useRelationshipTabs` hook, `RelationshipsSidePanel`, `GenericRelatedRecordsTab`, `useWorkspaceRelationships` / `useCreateRelationship` / `usePatchRelationship` / `useRetireRelationship` / `useRestoreRelationship` hooks.
+- **API exposes:** `/workspaces/{id}/relationships` CRUD, `/relationships/{id}` item routes (retire + restore), `/records/{recordId}/relationship-links` CRUD (per api-contracts §21).
+- **Database owns:** `Relationships` + `RecordLinks` tables, eight procs under `database/procedures/relationships/`, tSQLt cases under `database/tests/relationships/`, migrations 055–059.
+- **Consumes:** Fields & Objects (auto-provisioning target); Platform & Shell (`WorkspaceId` scoping).
+- **Does not own:** typed links (`related`/`duplicate-of`/`re-pursuit-of`/`sourced-from` — that's module 13, Typed Links, whose `POST /records/{recordId}/links` path is distinct — see the "path decision" in api-contracts §21).
+
 ### 22. Error / empty edge states (shared UI)
 
 Owns: no-access page (S40), empty list state (S41), filtered-to-zero state (S42).

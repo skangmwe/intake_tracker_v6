@@ -597,6 +597,49 @@ The **codes** the frontend consumes:
 - `gate-already-resolved` — 409 on a decision / re-request against a resolved gate.
 - `access-denied` — 403.
 - `platform-defined-field-locked` — 403 on any attempt to PATCH a platform-defined field (never possible for `AI Solutions Status`).
+- `relationship-inconsistent-cardinality` — 409 on a Relationship patch that would change `Cardinality`/`FromObjectType`/`ToObjectType`, OR on a RecordLink create that violates the OneToOne cardinality (slice 25).
+- `relationship-retired-blocks-link` — 409 on a RecordLink create against a retired Relationship (slice 25).
+
+## 21 · Relationships (slice 25 — v2)
+
+*See `.claude/rules/dev/document-pipeline` note is n/a — Relationships are pure metadata. Full DTOs in `shared/types/relationships.ts`.*
+
+**Definition endpoints.** All definition mutations require WorkspaceAdmin; list + get require Viewer+ on the workspace. Access violations → **403, never 404** (BS §22.6).
+
+### `GET /api/v1/workspaces/{id}/relationships`
+Viewer+. Returns `RelationshipDto[]` sorted by `SortOrder`.
+
+### `POST /api/v1/workspaces/{id}/relationships` — WorkspaceAdmin
+Body: `RelationshipCreateRequest`. Creates the row + auto-provisions the paired Link-to-record `FieldDefinition` rows in one transaction. Validation (400): `name`, `fromObjectType`, `toObjectType`, `cardinality ∈ {OneToOne, OneToMany, ManyToMany}`, `fromSideLabel`, `toSideLabel` required; `tabLabel` required when `showOnFromAsTab=true`. Returns 201 with `RelationshipDto`.
+
+### `GET /api/v1/relationships/{relationshipId}?workspaceId={id}` — Viewer+
+`workspaceId` is a required query parameter (no RecordId→Workspace resolver exists in R1). Returns `RelationshipDto`. 404 when absent.
+
+### `PATCH /api/v1/relationships/{relationshipId}?workspaceId={id}` — WorkspaceAdmin
+Sparse body: `RelationshipPatchRequest`. `cardinality`, `fromObjectType`, `toObjectType` immutable after create (server-side check → 409 `relationship-inconsistent-cardinality`). System rows → 409. Returns 200 with `RelationshipDto`.
+
+### `POST /api/v1/relationships/{relationshipId}/retire?workspaceId={id}&force={bool}` — WorkspaceAdmin
+Soft-retires the row + auto-provisioned fields. Default `force=false`: if live `RecordLinks` exist, the server responds **409 with `RelationshipRetireResponse { linkCount, retired: false }`** — the S30 admin editor surfaces a force-confirm dialog with the count, and retries with `force=true` for a 200. System rows → 409 with a plain-language detail. Successful retire → 200.
+
+### `POST /api/v1/relationships/{relationshipId}/restore?workspaceId={id}` — WorkspaceAdmin
+Restores a soft-retired row. System rows → 409. Returns 200 with `RelationshipDto`.
+
+**Record-side link endpoints.** Access model: workspace membership. GET/DELETE → Member+; POST → Member+ (creators can link).
+
+**Path decision:** the record-side routes are `/records/{recordId}/relationship-links` (not `/links`). Slice 10's `TypedLinksController` already owns `POST /records/{recordId}/links` for the four hardcoded kinds — the distinct path preserves both.
+
+### `GET /api/v1/records/{recordId}/relationship-links?workspaceId={id}&relationshipId={id?}` — Viewer+
+Returns `RelationshipLinkDto[]` in both directions (`direction: 'Out' | 'In'`). Optional `relationshipId` filter narrows to a single relationship.
+
+### `POST /api/v1/records/{recordId}/relationship-links?workspaceId={id}` — Member+
+Body: `RelationshipLinkCreateRequest`. Validation (400): `toRecordId` required and cannot equal `recordId`. Errors:
+- **404** — relationship not found (50060).
+- **409 `relationship-inconsistent-cardinality`** — OneToOne violation (50061).
+- **409 `relationship-retired-blocks-link`** — retired relationship (50063).
+Returns 201 with `RelationshipLinkDto`.
+
+### `DELETE /api/v1/records/{recordId}/relationship-links/{linkId}?workspaceId={id}` — Member+
+Soft delete. Returns 204.
 
 ## Deferred to Release 2
 

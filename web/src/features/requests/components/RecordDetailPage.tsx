@@ -34,6 +34,10 @@ import { CloseRecordModal } from '@/features/closure';
 import { RelationshipsCard } from '@/features/typed-links';
 import { AttachmentsCard } from '@/features/attachments';
 import { WatchersCard } from '@/features/watchers';
+import {
+  GenericRelatedRecordsTab,
+  useRelationshipTabs,
+} from '@/features/relationships';
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { useRequest, usePatchRequest, useSetHold, useSetStage } from '../useRequests';
@@ -51,7 +55,11 @@ export const SAVE_DEBOUNCE_MS = 600;
 
 type StatusKind = 'info' | 'success' | 'warning' | 'error' | 'neutral';
 
-const TABS: { id: string; label: string }[] = [
+// Base tabs — always present on every Request record detail. Order matches the current S4/S5
+// prototype. `tasks` is the system-seeded Request→Task relationship rendered by the specialised
+// `TasksTab` (typed fields + bundle templates), not the GenericRelatedRecordsTab renderer.
+// Non-system admin-authored relationships extend this list via useRelationshipTabs (Slice 25).
+const BASE_TABS: { id: string; label: string }[] = [
   { id: 'status', label: 'Status' },
   { id: 'intake', label: 'Intake' },
   { id: 'attachments', label: 'Attachments' },
@@ -448,6 +456,28 @@ export function RecordDetailPage() {
   const [savedVisible, setSavedVisible] = useState(false);
   const [escalateOpen, setEscalateOpen] = useState(false);
 
+  // v2 (slice 25). Relationship-driven tabs — filtered to non-system rows so system-seeded
+  // Relationships that model existing base tabs (Request → Task) don't duplicate the specialised
+  // renderers. Admin-authored Relationships with showOnFromAsTab=1 get injected between the base
+  // Watchers tab and the (future) Status tab. tabId prefix guarantees no collision with base ids.
+  const { tabs: relationshipTabs, relationships } = useRelationshipTabs(
+    (request?.workspaceId as WorkspaceId | undefined) ?? null,
+    'Request',
+  );
+  const relationshipTabItems = useMemo(
+    () =>
+      relationshipTabs
+        .filter((tab) => !tab.isSystem)
+        .map((tab) => ({ id: `rel:${tab.relationshipId}`, label: tab.tabLabel })),
+    [relationshipTabs],
+  );
+  const TABS = useMemo(() => [...BASE_TABS, ...relationshipTabItems], [relationshipTabItems]);
+  const activeRelationship = useMemo(() => {
+    if (!activeTab.startsWith('rel:')) return null;
+    const id = activeTab.slice(4);
+    return relationships.find((entry) => entry.id === id) ?? null;
+  }, [activeTab, relationships]);
+
   // Escalation is offered only on a not-yet-escalated record whose workspace is a PG workspace (the
   // API is the authority — this just hides an action the AI Solutions hub never needs). BS §6.
   const canEscalate = useMemo(() => {
@@ -562,6 +592,13 @@ export function RecordDetailPage() {
         )}
         {activeTab === 'activity' && <ActivityTab recordId={request.id as RecordId} />}
         {activeTab === 'watchers' && <WatchersCard recordId={request.id as RecordId} />}
+        {activeRelationship && (
+          <GenericRelatedRecordsTab
+            workspaceId={request.workspaceId as WorkspaceId}
+            recordId={request.id as RecordId}
+            relationship={activeRelationship}
+          />
+        )}
       </div>
 
       {escalateOpen && (
