@@ -2,19 +2,19 @@ import { axe } from 'jest-axe';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import type { FieldDefinitionDto, FieldRuleDto, SimilarRequestDto, WorkspaceFieldSchemaDto } from '@shared/types';
+import type { FieldDefinitionDto, FieldRuleDto, LifecycleId, LifecycleSummaryDto, SimilarRequestDto, WorkspaceFieldSchemaDto } from '@shared/types';
 
 import {
   renderWithProviders,
   buildMe,
   buildMembership,
   buildFieldDefinition,
-  buildLifecycleConfig,
+  buildLifecycleSummary,
   buildRequestDto,
 } from '@/test-utils';
 import { useMe } from '@/features/users/useMe';
 import { fetchWorkspaceFields } from '@/features/fields/api';
-import { useLifecycleConfig } from '@/features/lifecycle/useLifecycle';
+import { useWorkspaceLifecycles } from '@/features/lifecycle/useLifecycle';
 
 import { IntakeFormPage } from './IntakeFormPage';
 import { useCreateRequest, useSimilarRequests } from '../useRequests';
@@ -34,7 +34,7 @@ jest.mock('../useDrafts');
 
 const mockedUseMe = useMe as jest.MockedFunction<typeof useMe>;
 const mockedFetchFields = fetchWorkspaceFields as jest.MockedFunction<typeof fetchWorkspaceFields>;
-const mockedUseLifecycle = useLifecycleConfig as jest.MockedFunction<typeof useLifecycleConfig>;
+const mockedUseLifecycle = useWorkspaceLifecycles as jest.MockedFunction<typeof useWorkspaceLifecycles>;
 const mockedUseCreate = useCreateRequest as jest.MockedFunction<typeof useCreateRequest>;
 const mockedUseSaveDraft = useSaveDraft as jest.MockedFunction<typeof useSaveDraft>;
 const mockedUseSimilar = useSimilarRequests as jest.MockedFunction<typeof useSimilarRequests>;
@@ -84,7 +84,7 @@ const schema: WorkspaceFieldSchemaDto = {
 };
 
 function mockHooks(
-  overrides: { create?: jest.Mock; save?: jest.Mock; similar?: SimilarRequestDto[] } = {},
+  overrides: { create?: jest.Mock; save?: jest.Mock; similar?: SimilarRequestDto[]; lifecycles?: LifecycleSummaryDto[] } = {},
 ) {
   const createMutate = overrides.create ?? jest.fn().mockResolvedValue(buildRequestDto());
   const saveMutate = overrides.save ?? jest.fn().mockResolvedValue(undefined);
@@ -92,10 +92,10 @@ function mockHooks(
   mockedUseMe.mockReturnValue({ data: me, isLoading: false, isError: false } as ReturnType<typeof useMe>);
   mockedFetchFields.mockResolvedValue(schema);
   mockedUseLifecycle.mockReturnValue({
-    data: buildLifecycleConfig(),
+    data: overrides.lifecycles ?? [buildLifecycleSummary()],
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof useLifecycleConfig>);
+  } as ReturnType<typeof useWorkspaceLifecycles>);
   mockedUseCreate.mockReturnValue({ mutateAsync: createMutate, isPending: false, isError: false } as unknown as ReturnType<typeof useCreateRequest>);
   mockedUseSaveDraft.mockReturnValue({ mutateAsync: saveMutate, isPending: false, isError: false } as unknown as ReturnType<typeof useSaveDraft>);
   mockedUseSimilar.mockReturnValue({ data: overrides.similar ?? [] } as unknown as ReturnType<typeof useSimilarRequests>);
@@ -152,6 +152,44 @@ describe('IntakeFormPage', () => {
     );
     expect(mockNavigate).toHaveBeenCalledWith('/requests/AIS-00000001');
     expect(await axe(container)).toHaveNoViolations();
+  }, 15000);
+
+  it('IntakeFormPage — hides the Lifecycle picker when the workspace has a single lifecycle', async () => {
+    // Arrange — one lifecycle (the default): nothing to choose.
+    mockHooks();
+
+    // Act
+    renderWithProviders(<IntakeFormPage />, { route: '/requests/new' });
+    await screen.findByRole('heading', { name: 'Intake', level: 2 });
+
+    // Assert
+    expect(screen.queryByRole('combobox', { name: 'Lifecycle' })).not.toBeInTheDocument();
+  });
+
+  it('IntakeFormPage — shows the Lifecycle picker with names and submits the chosen lifecycleId', async () => {
+    // Arrange — two lifecycles: the picker appears, options are the lifecycle names (the single label).
+    const fastId = '00000000-0000-0000-0000-0000000002ff' as LifecycleId;
+    const { createMutate } = mockHooks({
+      lifecycles: [
+        buildLifecycleSummary(),
+        buildLifecycleSummary({ id: fastId, name: 'Fast track', isDefault: false }),
+      ],
+    });
+
+    // Act
+    renderWithProviders(<IntakeFormPage />, { route: '/requests/new' });
+    const picker = await screen.findByRole('combobox', { name: 'Lifecycle' });
+    expect(screen.getByRole('option', { name: 'Standard (default)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Fast track' })).toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'Deposition summarizer');
+    await userEvent.selectOptions(picker, fastId);
+    await userEvent.click(screen.getByRole('button', { name: 'Submit request' }));
+
+    // Assert — the record is created on the chosen lifecycle.
+    await waitFor(() =>
+      expect(createMutate).toHaveBeenCalledWith(expect.objectContaining({ lifecycleId: fastId })),
+    );
   }, 15000);
 
   it('IntakeFormPage — Save draft calls the draft mutation and navigates to the list', async () => {

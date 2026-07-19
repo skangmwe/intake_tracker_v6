@@ -84,6 +84,36 @@ public sealed class LifecycleControllerTests
     }
 
     [Fact]
+    public async Task GetLifecycles_ViewerCanRead_ReturnsOk()
+    {
+        // Arrange
+        var summaries = new[] { new LifecycleSummaryDto(Guid.NewGuid(), "Standard", true) };
+        var lifecycle = new Mock<ILifecycleService>();
+        lifecycle.Setup(service => service.GetSummariesAsync(WorkspaceId, It.IsAny<CancellationToken>())).ReturnsAsync(summaries);
+
+        // Act
+        var result = await Build(lifecycle).GetLifecycles(WorkspaceId, CancellationToken.None);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(summaries, ok.Value);
+    }
+
+    [Fact]
+    public async Task GetLifecycles_NoMembership_Returns403()
+    {
+        // Arrange
+        var lifecycle = new Mock<ILifecycleService>();
+
+        // Act
+        var result = await Build(lifecycle, isViewer: false).GetLifecycles(WorkspaceId, CancellationToken.None);
+
+        // Assert — ownership violation is 403, never 404 (api-error-handling.md).
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
+    [Fact]
     public async Task SaveLifecycle_Success_ReturnsOk()
     {
         // Arrange

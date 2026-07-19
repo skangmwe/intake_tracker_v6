@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { ApproverTeamMemberDto, UserId, WorkspaceId } from '@shared/types';
 
-import { buildLifecycleConfig } from '@/test-utils';
+import { buildLifecycleConfig, buildLifecycleSummary } from '@/test-utils';
 
 import * as api from './api';
 import {
@@ -15,6 +15,7 @@ import {
   useLifecycleConfig,
   useRemoveApproverMember,
   useSaveLifecycleConfig,
+  useWorkspaceLifecycles,
 } from './useLifecycle';
 
 jest.mock('./api');
@@ -48,6 +49,23 @@ describe('useLifecycle hooks', () => {
     const { result } = renderHook(() => useLifecycleConfig(undefined), { wrapper: Wrapper });
     expect(result.current.fetchStatus).toBe('idle');
     expect(mockedApi.fetchLifecycleConfig).not.toHaveBeenCalled();
+  });
+
+  it('useWorkspaceLifecycles — fetches the lightweight list for the workspace', async () => {
+    mockedApi.fetchWorkspaceLifecycles.mockResolvedValue([buildLifecycleSummary()]);
+    const { Wrapper } = makeWrapper();
+
+    const { result } = renderHook(() => useWorkspaceLifecycles(WS), { wrapper: Wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toHaveLength(1);
+  });
+
+  it('useWorkspaceLifecycles — disabled without a workspace id', () => {
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useWorkspaceLifecycles(undefined), { wrapper: Wrapper });
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(mockedApi.fetchWorkspaceLifecycles).not.toHaveBeenCalled();
   });
 
   it('useSaveLifecycleConfig — adopts the returned config as the cache baseline (no refetch)', async () => {

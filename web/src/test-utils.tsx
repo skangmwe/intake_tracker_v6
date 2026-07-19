@@ -13,6 +13,7 @@ import type {
   GateDefinitionId,
   LifecycleConfigDto,
   LifecycleId,
+  LifecycleSummaryDto,
   MeDto,
   PlatformFieldDto,
   RecordId,
@@ -153,6 +154,19 @@ export function buildLifecycleConfig(overrides: Partial<LifecycleConfigDto> = {}
       { roleLabel: 'InfoSec', members: [{ userId: '00000000-0000-0000-0000-0000000000a1' as UserId, displayName: 'N. Varga' }] },
       { roleLabel: 'AI Solutions Manager', members: [] },
     ],
+    ...overrides,
+  };
+}
+
+/**
+ * A lightweight lifecycle summary for the S3 intake picker + S31 dropdown (v2, slice 27).
+ * Defaults to the default "Standard" lifecycle; matches buildLifecycleConfig's default id.
+ */
+export function buildLifecycleSummary(overrides: Partial<LifecycleSummaryDto> = {}): LifecycleSummaryDto {
+  return {
+    id: '00000000-0000-0000-0000-00000000010c' as LifecycleId,
+    name: 'Standard',
+    isDefault: true,
     ...overrides,
   };
 }

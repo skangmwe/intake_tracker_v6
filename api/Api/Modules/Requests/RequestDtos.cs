@@ -118,6 +118,14 @@ public sealed class RequestCreateRequest
     /// <summary>Content-field values (open map — keys are field keys). Cross-field rules validated server-side.</summary>
     public Dictionary<string, JsonElement>? Fields { get; set; }
 
+    /// <summary>
+    /// v2 (slice 27). The lifecycle chosen at the S3 intake "Lifecycle" picker. When null, the
+    /// server uses the workspace default. Preferred over the legacy <c>fields.requestType</c>
+    /// string (still honoured as a fallback for CSV import). Must resolve to a lifecycle of this
+    /// workspace, else the resolver falls through to requestType / default.
+    /// </summary>
+    public Guid? LifecycleId { get; set; }
+
     /// <summary>Related-record ids queued during the intake similar-requests nudge — stamped as
     /// <c>related</c> typed links at submission (slice 10).</summary>
     public IReadOnlyList<string>? QueuedRelatedRecordIds { get; set; }

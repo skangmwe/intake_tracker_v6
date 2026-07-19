@@ -5,7 +5,13 @@ import type { UserId, WorkspaceId } from '@shared/types';
 
 import { apiFetch } from '@/shared/http/apiClient';
 
-import { addApproverMember, fetchLifecycleConfig, removeApproverMember, saveLifecycleConfig } from './api';
+import {
+  addApproverMember,
+  fetchLifecycleConfig,
+  fetchWorkspaceLifecycles,
+  removeApproverMember,
+  saveLifecycleConfig,
+} from './api';
 
 jest.mock('@/shared/http/apiClient');
 
@@ -27,6 +33,17 @@ describe('lifecycle api', () => {
     const controller = new AbortController();
     fetchLifecycleConfig(WS, controller.signal);
     expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/lifecycle', { signal: controller.signal });
+  });
+
+  it('fetchWorkspaceLifecycles — GETs the plural lifecycles list path', () => {
+    fetchWorkspaceLifecycles(WS);
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/lifecycles', {});
+  });
+
+  it('fetchWorkspaceLifecycles — passes the abort signal when provided', () => {
+    const controller = new AbortController();
+    fetchWorkspaceLifecycles(WS, controller.signal);
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/lifecycles', { signal: controller.signal });
   });
 
   it('saveLifecycleConfig — PATCHes the request body', () => {

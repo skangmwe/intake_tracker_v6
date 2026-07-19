@@ -57,7 +57,7 @@ export function LifecycleEditor({
         <div className="lifecycle-card__section">
           <h2 className="h3">{selected.name}</h2>
           <span className="caption">
-            Request type · {selected.requestType || '—'} — the process every request of this type moves through
+            The stages and approval gates every request on this lifecycle moves through
           </span>
         </div>
         <StagesEditor lifecycle={selected} dispatch={dispatch} />

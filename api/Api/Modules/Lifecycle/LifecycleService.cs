@@ -38,6 +38,9 @@ public interface ILifecycleService
 {
     Task<LifecycleConfigDto> GetConfigAsync(Guid workspaceId, CancellationToken cancellationToken);
 
+    /// <summary>The lightweight lifecycle list for the S3 intake picker and S31 dropdown (v2, slice 27).</summary>
+    Task<IReadOnlyList<LifecycleSummaryDto>> GetSummariesAsync(Guid workspaceId, CancellationToken cancellationToken);
+
     Task<LifecycleSaveResult> SaveConfigAsync(
         Guid workspaceId, LifecycleConfigUpdateRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 
@@ -96,6 +99,15 @@ public sealed class LifecycleService : ILifecycleService
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         return AssembleConfig(workspaceId, lifecycles, stages, gates, slots, roleLabels, members);
+    }
+
+    public async Task<IReadOnlyList<LifecycleSummaryDto>> GetSummariesAsync(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        var lifecycles = await _db.Set<LifecycleRow>()
+            .FromSqlRaw("EXEC dbo.usp_GetWorkspaceLifecycles @WorkspaceId", new SqlParameter("@WorkspaceId", workspaceId))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        return MapSummaries(lifecycles);
     }
 
     public async Task<IReadOnlyList<ApproverTeamDto>> GetApproverTeamsAsync(Guid workspaceId, CancellationToken cancellationToken)
@@ -192,6 +204,17 @@ public sealed class LifecycleService : ILifecycleService
     }
 
     // ─── Pure helpers (unit-tested without a database) ──────────────────────────
+
+    /// <summary>
+    /// Map the flat lifecycle read into the picker/dropdown summary list (v2, slice 27). Ordered by
+    /// sortOrder, then name — the same order usp_GetWorkspaceLifecycles returns, made explicit here.
+    /// </summary>
+    public static IReadOnlyList<LifecycleSummaryDto> MapSummaries(IReadOnlyList<LifecycleRow> lifecycles) =>
+        lifecycles
+            .OrderBy(lifecycle => lifecycle.SortOrder)
+            .ThenBy(lifecycle => lifecycle.Name, StringComparer.Ordinal)
+            .Select(lifecycle => new LifecycleSummaryDto(lifecycle.LifecycleId, lifecycle.Name, lifecycle.IsDefault))
+            .ToList();
 
     /// <summary>Serialize the update request into the JSON shape usp_SaveLifecycleConfig expects.</summary>
     public static string SerializeLifecycles(LifecycleConfigUpdateRequest request)

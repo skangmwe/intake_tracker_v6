@@ -202,4 +202,27 @@ public sealed class LifecycleServiceTests
         Assert.Equal("GCO", teams[1].RoleLabel);
         Assert.Single(teams[1].Members);
     }
+
+    [Fact]
+    public void MapSummaries_OrdersBySortOrderThenName_AndMapsFields()
+    {
+        // Arrange — deliberately out of order; MapSummaries makes the (sortOrder, name) order explicit
+        // and drops the stages/gates the picker doesn't need (v2, slice 27).
+        var defaultId = Guid.NewGuid();
+        var rows = new[]
+        {
+            new LifecycleRow { LifecycleId = Guid.NewGuid(), Name = "Zeta", RequestType = "Zeta", IsDefault = false, SortOrder = 2 },
+            new LifecycleRow { LifecycleId = defaultId, Name = "Standard", RequestType = "Standard", IsDefault = true, SortOrder = 0 },
+            new LifecycleRow { LifecycleId = Guid.NewGuid(), Name = "Alpha", RequestType = "Alpha", IsDefault = false, SortOrder = 2 },
+        };
+
+        // Act
+        var summaries = LifecycleService.MapSummaries(rows);
+
+        // Assert — sortOrder 0 first (the default), then the two sortOrder-2 rows tie-broken by name.
+        Assert.Equal(new[] { "Standard", "Alpha", "Zeta" }, summaries.Select(summary => summary.Name).ToArray());
+        Assert.Equal(defaultId, summaries[0].Id);
+        Assert.True(summaries[0].IsDefault);
+        Assert.False(summaries[1].IsDefault);
+    }
 }

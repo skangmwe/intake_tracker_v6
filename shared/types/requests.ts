@@ -142,6 +142,13 @@ export interface RequestCreateRequest {
   description: string;
   fields: Record<string, unknown>;
   /**
+   * v2 (slice 27). The lifecycle this request runs on — chosen from the S3 intake "Lifecycle"
+   * picker. When omitted, the server uses the workspace's default lifecycle. A request runs on
+   * the chosen lifecycle for its whole life (no mid-flight change). Preferred over the legacy
+   * `fields.requestType` string, which the server still honours as a fallback for CSV import.
+   */
+  lifecycleId?: LifecycleId;
+  /**
    * Typed links queued on the draft during the similar-requests nudge (BS §9.8).
    * Stamped as `related` links at submission (slice 10).
    */

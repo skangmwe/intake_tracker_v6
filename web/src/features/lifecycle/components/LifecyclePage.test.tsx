@@ -68,7 +68,8 @@ describe('LifecyclePage', () => {
 
   it('renders the seeded lifecycle with its stages, gates and teams', () => {
     render(<LifecyclePage />);
-    expect(screen.getByRole('button', { name: /standard.*default/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Select lifecycle' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /standard.*default/i })).toBeInTheDocument();
     expect(screen.getByLabelText('Stage 1 name')).toHaveValue('Build');
     expect(screen.getByDisplayValue('QA readiness gate')).toBeInTheDocument();
     // Approver teams roster surfaces every catalog role.
@@ -84,9 +85,11 @@ describe('LifecyclePage', () => {
     await user.click(screen.getByRole('button', { name: /new lifecycle/i }));
 
     // The new lifecycle is selected — its name shows in the editor's name input.
-    expect(screen.getByDisplayValue('New lifecycle')).toBeInTheDocument();
-    // Two lifecycle chips now exist (Standard + New lifecycle); chip names carry "Type ·".
-    expect(screen.getAllByRole('button', { name: /type ·/i }).length).toBe(2);
+    expect(screen.getByRole('textbox', { name: 'Lifecycle name' })).toHaveValue('New lifecycle');
+    // The dropdown now lists two lifecycles (Standard + New lifecycle).
+    const selector = screen.getByRole('combobox', { name: 'Select lifecycle' });
+    expect(within(selector).getAllByRole('option')).toHaveLength(2);
+    expect(within(selector).getByRole('option', { name: 'New lifecycle' })).toBeInTheDocument();
   });
 
   it('has no axe violations in the seeded state', async () => {

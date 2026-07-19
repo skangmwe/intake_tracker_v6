@@ -109,6 +109,10 @@ const LIFECYCLE_CONFIG = {
   approverTeams: [],
 };
 
+// v2 (slice 27): the intake "Lifecycle" picker reads the lightweight list. One lifecycle → the
+// picker is hidden and the create defaults to it.
+const LIFECYCLE_SUMMARIES = [{ id: LIFECYCLE_ID, name: 'Standard AI build', isDefault: true }];
+
 function record(overrides: Record<string, unknown> = {}) {
   return {
     id: NEW_ID,
@@ -143,6 +147,9 @@ test.beforeEach(async ({ page }) => {
   );
   await page.route('**/api/v1/workspaces/*/lifecycle', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(LIFECYCLE_CONFIG) }),
+  );
+  await page.route('**/api/v1/workspaces/*/lifecycles', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(LIFECYCLE_SUMMARIES) }),
   );
   await page.route('**/api/v1/workspaces/*/drafts', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }),

@@ -1,8 +1,9 @@
 // S3 Intake — create a Request. The form is data-driven from the workspace field schema, grouped
 // into the four numbered create sections (Intake · Value mapping · Solution details · Triage) with
 // the condition engine evaluated client-side so the Client-number reveal happens live. Special
-// controls override the generic field renderer: a Request-type select (picks the lifecycle), a
-// Priority-score widget (three sliders + live score), and the Client/Matter reveal. Renders explicit
+// controls override the generic field renderer: a Lifecycle picker (shown only when the workspace
+// has more than one lifecycle), a Priority-score widget (three sliders + live score), and the
+// Client/Matter reveal. Renders explicit
 // loading / error states; the similar-requests aside is a slice-6 stub. (web-component-architecture.md)
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
@@ -13,6 +14,7 @@ import { ArrowSquareOut, Link as LinkIcon, X } from '@phosphor-icons/react';
 import type {
   DraftId,
   FieldDefinitionDto,
+  LifecycleId,
   QueuedLink,
   RecordId,
   RequestCreateRequest,
@@ -24,7 +26,7 @@ import { RangeSlider, Select } from '@/shared/components/Form';
 import { SIMILAR_DEBOUNCE_MS } from '@/shared/constants';
 import { useMe } from '@/features/users/useMe';
 import { fetchWorkspaceFields } from '@/features/fields/api';
-import { useLifecycleConfig } from '@/features/lifecycle/useLifecycle';
+import { useWorkspaceLifecycles } from '@/features/lifecycle/useLifecycle';
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { fetchDraft } from '../api';
@@ -70,7 +72,7 @@ export function IntakeFormPage() {
     queryFn: ({ signal }) => fetchWorkspaceFields(workspaceId as WorkspaceId, 'Request', signal),
     enabled: Boolean(workspaceId),
   });
-  const lifecycleQuery = useLifecycleConfig(workspaceId ?? undefined);
+  const lifecycleQuery = useWorkspaceLifecycles(workspaceId ?? undefined);
   const draftQuery = useQuery({
     queryKey: ['draft', draftId],
     queryFn: ({ signal }) => fetchDraft(draftId as DraftId, signal),
@@ -92,6 +94,9 @@ export function IntakeFormPage() {
   const [queuedRelated, setQueuedRelated] = useState<RecordId[]>([]);
   // Kinded link-backs carried on the draft by Copy / Promote — stamped as typed links at submit.
   const [queuedLinks, setQueuedLinks] = useState<QueuedLink[]>([]);
+  // v2 (slice 27) — the lifecycle chosen at the Lifecycle picker. Empty means "not yet chosen";
+  // the render falls back to the workspace default so submit always resolves a lifecycle.
+  const [lifecycleId, setLifecycleId] = useState<LifecycleId | ''>('');
 
   const toggleRelated = (id: RecordId) =>
     setQueuedRelated((prev) => (prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id]));
@@ -162,24 +167,27 @@ export function IntakeFormPage() {
     conditions.hidden.has(field.fieldKey) ||
     (CLIENT_ONLY_KEYS.has(field.fieldKey) && values.deptPgClient !== 'Client');
 
-  const lifecycles = lifecycleQuery.data.lifecycles;
-  const defaultLifecycle = lifecycles.find((lifecycle) => lifecycle.isDefault);
-  const requestTypeOptions = [
-    { value: '', label: defaultLifecycle ? `Default — ${defaultLifecycle.requestType}` : 'Default' },
-    ...lifecycles.map((lifecycle) => ({
-      value: lifecycle.requestType,
-      label: lifecycle.isDefault ? `${lifecycle.requestType} (default)` : lifecycle.requestType,
-    })),
-  ];
-  const requestTypeSelect = (
-    <Select
-      label="Request type"
-      value={String(values.requestType ?? '')}
-      onChange={(value) => setField('requestType', value)}
-      options={requestTypeOptions}
-      hint="Sets the lifecycle — the stages and approval gates this request will follow."
-    />
-  );
+  // v2 (slice 27): a first-class Lifecycle picker. Options are lifecycle names (the single label —
+  // the separate "Request type" was dropped). The picker is hidden when the workspace has only one
+  // lifecycle (nothing to choose); the chosen lifecycleId is sent first-class on submit, and a
+  // request runs on that lifecycle for its whole life.
+  const lifecycles = lifecycleQuery.data;
+  const defaultLifecycle = lifecycles.find((lifecycle) => lifecycle.isDefault) ?? lifecycles[0];
+  const selectedLifecycleId = (lifecycleId || defaultLifecycle?.id || '') as LifecycleId | '';
+  const lifecycleOptions = lifecycles.map((lifecycle) => ({
+    value: lifecycle.id,
+    label: lifecycle.isDefault ? `${lifecycle.name} (default)` : lifecycle.name,
+  }));
+  const lifecyclePicker =
+    lifecycles.length > 1 ? (
+      <Select
+        label="Lifecycle"
+        value={selectedLifecycleId}
+        onChange={(value) => setLifecycleId(value as LifecycleId)}
+        options={lifecycleOptions}
+        hint="Sets the stages and approval gates this request will follow."
+      />
+    ) : undefined;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -192,6 +200,7 @@ export function IntakeFormPage() {
       name: String(values.name ?? ''),
       description: String(values.description ?? ''),
       fields: values,
+      ...(selectedLifecycleId ? { lifecycleId: selectedLifecycleId } : {}),
       ...(queuedRelated.length > 0 ? { queuedRelatedRecordIds: queuedRelated } : {}),
       ...(queuedLinks.length > 0 ? { queuedLinks } : {}),
     };
@@ -255,7 +264,7 @@ export function IntakeFormPage() {
                 skipKeys={skipKeys}
                 isHidden={isHidden}
                 onFieldChange={setField}
-                lead={isIntake ? requestTypeSelect : undefined}
+                lead={isIntake ? lifecyclePicker : undefined}
                 widget={isValueMapping ? <PriorityScoreWidget values={values} onChange={setField} /> : undefined}
               />
             );
