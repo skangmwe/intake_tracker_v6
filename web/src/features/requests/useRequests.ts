@@ -109,7 +109,7 @@ export function useSetStage(recordId: RecordId) {
   });
 }
 
-/** Set/clear the Hold flag (S4 Status tab). */
+/** Set/clear the Hold flag (S4 Status tab) — legacy binary shape, retained one release. */
 export function useSetHold(recordId: RecordId) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -117,6 +117,32 @@ export function useSetHold(recordId: RecordId) {
       setRequestHold(recordId, input.held, input.reason),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: requestKey(recordId) });
+      void queryClient.invalidateQueries({ queryKey: ['requests'] });
+    },
+  });
+}
+
+/**
+ * Slice 26 — set the tri-state Status/hold (In progress / On hold / Abandoned) via
+ * PATCH /requests/{id} with the current ETag. Adopts the fresh record on success so the header
+ * pill + hold-guard buttons update without an extra round-trip. Callers must pass the ETag from
+ * the currently rendered request; a stale ETag surfaces as an API error (409).
+ */
+export function useSetStatusHold(recordId: RecordId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      etag: string;
+      statusHold: 'InProgress' | 'OnHold' | 'Abandoned';
+      statusHoldNote?: string | null;
+    }) =>
+      patchRequest(recordId, {
+        ifMatch: input.etag,
+        statusHold: input.statusHold,
+        statusHoldNote: input.statusHoldNote ?? null,
+      }),
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(requestKey(recordId), fresh);
       void queryClient.invalidateQueries({ queryKey: ['requests'] });
     },
   });

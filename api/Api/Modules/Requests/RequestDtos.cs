@@ -16,8 +16,16 @@ namespace McDermott.AiTracker.Api.Modules.Requests;
 /// <summary>One stage on a record's lifecycle — the ordered set drives the record-detail stepper (S4).</summary>
 public sealed record RequestStageRef(string Key, string Label);
 
-/// <summary>Hold sub-block on a request.</summary>
+/// <summary>Hold sub-block on a request (legacy binary derived read — v2 slice 26).</summary>
 public sealed record HoldState(bool Held, string? Reason);
+
+/// <summary>Slice 26 — tri-state Status/hold values. Serializes as string via JsonStringEnumConverter.</summary>
+public enum RequestStatusHoldValue
+{
+    InProgress,
+    OnHold,
+    Abandoned,
+}
 
 /// <summary>Combined Outcome (delivery | local). Populated by close (later slice); null in slice 5.</summary>
 public sealed record OutcomeDto(string Kind, string Value, string Notes, string? DuplicateOfRecordId = null);
@@ -48,6 +56,10 @@ public sealed record RequestDto(
     Guid LifecycleId,
     IReadOnlyList<RequestStageRef> Stages,
     string? Stage,
+    // Slice 26 — tri-state Status/hold. Source of truth for the pill + guards.
+    RequestStatusHoldValue StatusHold,
+    // Slice 26 — free-text note; null on InProgress.
+    string? StatusHoldNote,
     HoldState? Hold,
     OutcomeDto? Outcome,
     string DisplayStatus,
@@ -64,7 +76,9 @@ public sealed record RequestListRow(
     string Id,
     string ETag,
     IReadOnlyDictionary<string, object?> Columns,
-    string? SlaStatus);
+    string? SlaStatus,
+    // Slice 26 — the S2 row pill (InProgress / OnHold / Abandoned).
+    RequestStatusHoldValue StatusHold);
 
 /// <summary>An intake similar-requests match (BS §9.8). Mirrors SimilarRequestDto in requests.ts.</summary>
 public sealed record SimilarRequestDto(
@@ -130,7 +144,21 @@ public sealed class RequestPatchRequest
 
     public Dictionary<string, JsonElement>? Fields { get; set; }
 
-    /// <summary>Hold has its own endpoint; carried for contract parity, not applied here.</summary>
+    /// <summary>
+    /// Slice 26 — set the record's tri-state Status/hold from the S4 Status tab. When present,
+    /// routes through <c>usp_UpsertRequestStatusHold</c> alongside any field patch. Preferred over
+    /// the legacy <c>hold</c> shape below.
+    /// </summary>
+    public RequestStatusHoldValue? StatusHold { get; set; }
+
+    /// <summary>Slice 26 — free-text note. Required client-side when <c>StatusHold != InProgress</c>.</summary>
+    [MaxLength(500)]
+    public string? StatusHoldNote { get; set; }
+
+    /// <summary>
+    /// Legacy binary hold — the API accepts it for one release and maps to statusHold:
+    /// <c>held=true → OnHold</c>, <c>held=false → InProgress</c>. Prefer <see cref="StatusHold"/>.
+    /// </summary>
     public HoldInput? Hold { get; set; }
 
     /// <summary>ETag from the last-loaded record (base64 RowVer). The If-Match header takes precedence.</summary>

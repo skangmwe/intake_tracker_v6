@@ -5,6 +5,8 @@ import { CaretRight } from '@phosphor-icons/react';
 import { Link } from 'react-router-dom';
 import type { HomeDecisionItem } from '@shared/types';
 
+import { StatusHoldPill } from '@/shared/components/Feedback';
+
 import { formatWaiting } from '../homeFormat';
 import { HomePanel } from './HomePanel';
 
@@ -27,7 +29,15 @@ export function DecisionsPanel({ items, count }: DecisionsPanelProps) {
             <Link className="home-row" to={`/requests/${item.recordId}`}>
               <span className="home-row__id">{item.recordId}</span>
               <span className="home-row__main">
-                <span className="home-row__name">{item.name}</span>
+                <span className="home-row__name">
+                  {item.name}
+                  {item.statusHold && item.statusHold !== 'InProgress' && (
+                    <>
+                      {' '}
+                      <StatusHoldPill statusHold={item.statusHold} />
+                    </>
+                  )}
+                </span>
                 <span className="home-row__meta">
                   Gate · {item.gateLabel} — your slot · {item.roleLabel}
                 </span>

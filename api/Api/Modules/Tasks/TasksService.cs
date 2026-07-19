@@ -10,6 +10,7 @@ using System.Data;
 using System.Globalization;
 using System.Text.Json;
 using McDermott.AiTracker.Api.Data;
+using McDermott.AiTracker.Api.Modules.Requests;
 using McDermott.AiTracker.Api.Modules.TypedLinks;
 using McDermott.AiTracker.Api.Shared.EventSpine;
 using McDermott.AiTracker.Api.Shared.Time;
@@ -44,6 +45,18 @@ public sealed record TaskCreateResult(
     IReadOnlyList<TaskDto> Tasks,
     IReadOnlyDictionary<string, string[]>? Errors);
 
+/// <summary>Outcome of a task patch — the controller maps it to 200 / 403 / 409.</summary>
+public enum TaskPatchOutcome
+{
+    Success,
+    /// <summary>Task not visible to the caller — 403, never disclose existence.</summary>
+    Denied,
+    /// <summary>Slice 26 — parent record is <c>OnHold</c> or <c>Abandoned</c>. 409 record-on-hold.</summary>
+    RecordOnHold,
+}
+
+public sealed record TaskPatchResult(TaskPatchOutcome Outcome, TaskDto? Task = null);
+
 public interface ITasksService
 {
     /// <summary>List a record's tasks. Returns null when the caller cannot see the record (→ 403).</summary>
@@ -53,8 +66,12 @@ public interface ITasksService
     Task<TaskCreateResult> CreateAsync(
         string recordId, TaskCreateRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 
-    /// <summary>Patch a task. Returns null when the caller cannot see the task's parent record (→ 403).</summary>
-    Task<TaskDto?> PatchAsync(
+    /// <summary>
+    /// Patch a task. Result outcomes: <c>Success</c> (200 with task), <c>Denied</c> (403 — invisible
+    /// or missing), <c>RecordOnHold</c> (slice 26 — parent record is OnHold/Abandoned and the change
+    /// would complete the task; 409 record-on-hold).
+    /// </summary>
+    Task<TaskPatchResult> PatchAsync(
         Guid taskId, TaskPatchRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 
     /// <summary>The workspace's bundle templates for the composer's "Add bundle" picker.</summary>
@@ -118,49 +135,58 @@ public sealed class TasksService : ITasksService
             : await CreateSingleAsync(record, request, actorUserId, operationId, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<TaskDto?> PatchAsync(
+    public async Task<TaskPatchResult> PatchAsync(
         Guid taskId, TaskPatchRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken)
     {
         var (valueParams, _) = ExtractFieldValue(request.TypedField?.Value);
         var setTypedFieldValue = request.TypedField is not null;
 
-        var rows = await _db.Set<TaskRow>()
-            .FromSqlRaw(
-                "EXEC dbo.usp_PatchTask @TaskId, @UserId, @SetTitle, @Title, @SetPhase, @Phase, " +
-                "@SetAssignee, @AssigneeUserId, @SetStatus, @Status, @SetNotes, @Notes, " +
-                "@SetTypedFieldValue, @FieldValueUrl, @FieldValueText, @FieldValueNumber, " +
-                "@FieldValueDate, @FieldValueSelect, @FieldValueBool",
-                new SqlParameter("@TaskId", taskId),
-                new SqlParameter("@UserId", actorUserId),
-                new SqlParameter("@SetTitle", request.Title is not null),
-                new SqlParameter("@Title", (object?)request.Title ?? DBNull.Value),
-                new SqlParameter("@SetPhase", request.Phase is not null),
-                new SqlParameter("@Phase", (object?)request.Phase ?? DBNull.Value),
-                new SqlParameter("@SetAssignee", request.Assignee is not null),
-                new SqlParameter("@AssigneeUserId", (object?)request.Assignee ?? DBNull.Value),
-                new SqlParameter("@SetStatus", request.Status is not null),
-                new SqlParameter("@Status", (object?)request.Status ?? DBNull.Value),
-                new SqlParameter("@SetNotes", request.Notes is not null),
-                new SqlParameter("@Notes", (object?)request.Notes ?? DBNull.Value),
-                new SqlParameter("@SetTypedFieldValue", setTypedFieldValue),
-                valueParams.Url,
-                valueParams.Text,
-                valueParams.Number,
-                valueParams.Date,
-                valueParams.Select,
-                valueParams.Bool)
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        List<TaskRow> rows;
+        try
+        {
+            rows = await _db.Set<TaskRow>()
+                .FromSqlRaw(
+                    "EXEC dbo.usp_PatchTask @TaskId, @UserId, @SetTitle, @Title, @SetPhase, @Phase, " +
+                    "@SetAssignee, @AssigneeUserId, @SetStatus, @Status, @SetNotes, @Notes, " +
+                    "@SetTypedFieldValue, @FieldValueUrl, @FieldValueText, @FieldValueNumber, " +
+                    "@FieldValueDate, @FieldValueSelect, @FieldValueBool",
+                    new SqlParameter("@TaskId", taskId),
+                    new SqlParameter("@UserId", actorUserId),
+                    new SqlParameter("@SetTitle", request.Title is not null),
+                    new SqlParameter("@Title", (object?)request.Title ?? DBNull.Value),
+                    new SqlParameter("@SetPhase", request.Phase is not null),
+                    new SqlParameter("@Phase", (object?)request.Phase ?? DBNull.Value),
+                    new SqlParameter("@SetAssignee", request.Assignee is not null),
+                    new SqlParameter("@AssigneeUserId", (object?)request.Assignee ?? DBNull.Value),
+                    new SqlParameter("@SetStatus", request.Status is not null),
+                    new SqlParameter("@Status", (object?)request.Status ?? DBNull.Value),
+                    new SqlParameter("@SetNotes", request.Notes is not null),
+                    new SqlParameter("@Notes", (object?)request.Notes ?? DBNull.Value),
+                    new SqlParameter("@SetTypedFieldValue", setTypedFieldValue),
+                    valueParams.Url,
+                    valueParams.Text,
+                    valueParams.Number,
+                    valueParams.Date,
+                    valueParams.Select,
+                    valueParams.Bool)
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (SqlException ex) when (ex.Number == RequestsService.RecordOnHoldError)
+        {
+            // Slice 26 — parent record is OnHold / Abandoned, task Status→Done blocked (D3 scope).
+            return new TaskPatchResult(TaskPatchOutcome.RecordOnHold);
+        }
 
         var row = rows.FirstOrDefault();
         if (row is null)
         {
-            return null;
+            return new TaskPatchResult(TaskPatchOutcome.Denied);
         }
 
         await EmitAsync("task.updated", row.WorkspaceId, row.RecordId, actorUserId,
             new { taskId = row.TaskId }, operationId, cancellationToken).ConfigureAwait(false);
 
-        return MapTask(row);
+        return new TaskPatchResult(TaskPatchOutcome.Success, MapTask(row));
     }
 
     public async Task<IReadOnlyList<TaskBundleTemplateDto>> GetBundlesAsync(

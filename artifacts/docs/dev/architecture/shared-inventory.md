@@ -236,8 +236,10 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 
 ### Feedback & state
 - `StatusPill`, `BadgeChip` (`data-ds="badge"`), `Stepper` (`data-ds="stepper"`) — the record's lifecycle stepper, `Tabs` (`data-ds="tab"`), `EmptyState`, `Skeleton`, `Spinner`, `AgingTint` (util for row background).
+- **Slice 26 additions:**
+  - `StatusHoldPill` (`data-ds="status-pill"`, `data-status-hold={InProgress|OnHold|Abandoned}`) — reuses the `mws-badge` chrome (pale fill + navy text, theme-stable). Renders `null` for InProgress by default (`alwaysRender` opts in), and `null` for null/undefined statusHold — safe placement anywhere. Consumers: S2 rows (Name cell), S4/S5 record header meta strip, Status tab inline alert, Home Work / Decisions / Triage cards.
 - **Location:** `web/src/shared/components/Feedback/`
-- **Consumers:** Record detail (S4/S5) stepper + status pills, list surfaces (aging tint, empty state, skeleton loading), gates on record (approve/reject buttons with status pills).
+- **Consumers:** Record detail (S4/S5) stepper + status pills, list surfaces (aging tint, empty state, skeleton loading), gates on record (approve/reject buttons with status pills), Home surface (Slice 26 pill).
 
 ### Edge states (S40 / S41 / S42) — built in slice 20
 - `NoAccessPage` — S40. Full-page pale surface, "Go to Home" CTA. Never reveals existence (no id/title/"not found"); rendered on any 403. Props: `resourceNoun` (default "record"), `homeTo`, `onGoHome`. `data-ds="no-access"`.
@@ -618,9 +620,27 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 - **Test-utils `buildRelationship()` + `buildRelationshipLink()`** — added to `web/src/test-utils.tsx`; consumed by relationships + fields + requests tests.
 - **Reconciliation note:** the slice-25 side panel is NOT wired into `RecordDetailPage`'s layout as a visual sidebar (the current single-column layout doesn't ship one). The component is available for a future layout-shift; the tab-bar injection is where the user-facing value lives this slice.
 
+## Slice 26 (Record Status/hold model + Status tab + per-record notification preferences) — implemented
+
+- **Shared type `/shared/types/requests.ts`** — `RequestStatusHold` tri-state (`InProgress | OnHold | Abandoned`) plus additive `statusHold` / `statusHoldNote` on `RequestDto`, `RequestPatchRequest`, and `RequestListRow`. Legacy `hold` (binary) retained as a derived read for one release.
+- **Shared type `/shared/types/collaboration.ts`** — `WatcherListItemDto` gains five optional booleans (`notifyGateDecisions`, `notifyStatusChanges`, `notifyTaskSignoffs`, `notifySlaAndDueDateReminders`, `notifyMentionsAndComments`); new `WatcherPreferencesPatchRequest` DTO with all six fields (the five booleans plus `isWatching`, all optional — sparse).
+- **Shared type `/shared/types/home.ts`** — `HomeWorkItem`, `HomeDecisionItem`, `HomeTriageItem` each gain an optional `statusHold?: RequestStatusHold`. Additive; the API projection is a follow-up (the UI reads defensively and renders no pill when undefined).
+- **Shared type `/shared/types/common.ts`** — `record-on-hold` added to the error-code union (409). Shared across Requests / Tasks / Approvals / Stage 409 responses.
+- **Web shared primitive `shared/components/Feedback/StatusHoldPill`** — new. See the "Feedback & state" section above for the full description. Consumed on S2 rows (Name cell), the S4/S5 record header meta strip, the Status tab inline alert, and the three Home panels.
+- **Web shared hook `shared/hooks/useHoldGuard`** — new. Reduces `RequestStatusHold | null | undefined` to `{ blocked, disable, reason, statusHold }`. Passive — never mutates or fetches. Consumers: `StatusTab` (Move stage button + reason caption), `TasksTab` (the `gateDisabled` flag composes it in via `paused`, which flows down to `GateBlock` and `TaskRow`).
+- **Web `features/requests/useRequests.useSetStatusHold`** — new mutation hook: takes `{ etag, statusHold, statusHoldNote }` and calls `PATCH /requests/{id}` via the existing `patchRequest` API. Adopts the fresh record into the cache on success; invalidates `['requests']` so lists refresh with the new pill state.
+- **Web `features/watchers/useWatchers.usePatchMyWatch`** — new mutation hook: takes a `WatcherPreferencesPatchRequest` and calls the new `PATCH /records/{id}/watchers/me` endpoint. Adopts the refreshed `WatcherListDto` into the cache on success (avoids a second GET).
+- **Web `features/watchers/api.patchMyWatch`** — new thin apiFetch wrapper over the PATCH route.
+- **API `Modules/Requests/RequestsService.ResolveStatusHold`** — pure static helper mapping the `{StatusHold?, Hold?}` patch shape to a `RequestStatusHoldValue?` (explicit wins over legacy; null when neither is present). Unit-testable.
+- **API `Modules/Watchers/WatchersService.HasPreferenceEdit`** — pure static helper returning true when any of the five preferences is set on the sparse patch. Unit-testable.
+- **API `Modules/Requests/RequestsService.RecordOnHoldError`** — `internal const int = 51201`. Single source of truth for the SQL THROW number that maps to `record-on-hold` (409) across Requests / Tasks / Approvals / Stage. `ApprovalsService.RecordOnHoldError` and `TasksService.RecordOnHoldError` are aliases pointing to this constant.
+- **API DTO** — `WatcherListDto` reused unchanged (`Watchers`, `IsWatching`). New `WatcherPreferencesPatchRequest` sparse-nullable DTO in the Watchers module.
+- **DB `WatcherNotificationPreference`** — new sparse per-side-per-user preference table (`(UserId, RecordId, WorkspaceId)` unique when live; six audit columns; five preference booleans defaulting to 1). Missing row means "all defaults apply" — no backfill migration needed. Never deleted on unsubscribe (preferences persist so they restore on re-subscribe, per D4).
+- **DB `Requests.StatusHold` / `StatusHoldNote`** — tri-state column (NVARCHAR(20), CHECK-constrained) + optional NVARCHAR(500) note. Filtered index on `(WorkspaceId, StatusHold) WHERE IsDeleted = 0 AND StatusHold <> 'InProgress'` (95%+ of rows are InProgress; the non-active queue is a small slice).
+
 ## What we're deliberately NOT sharing yet
 
 - **Rich-text editor** — used by comments and rich-text fields; not shared until we hit the second use. If only Comments uses it, it lives in the Comments module.
 - **Chart library wrapper** — dashboards use widget-type-specific components; we'll extract only the visual shell after the first three widgets exist.
 - **PDF preview / DMS integration** — Release 2.
-- **Notification-preference UI** — Release 2 (email + digests).
+- **Notification-preference UI** — Release 2 (email + digests). ~~*Note:* slice 26 adds an in-app, per-record preference UI on the Watchers & alerts tab. Firm-wide notification preferences remain Release 2.~~ Slice 26 landed the per-record preference UI (opt-out toggles on the Watchers & alerts tab). Firm-wide preferences (all-record-mute, email digest cadence) remain Release 2.

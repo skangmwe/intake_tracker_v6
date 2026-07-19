@@ -380,6 +380,10 @@ public sealed class RequestRow
     public DateTime? StageEnteredAt { get; set; }
     /// <summary>The record's workspace due-soon window (slice 21) — the SLA "Due soon" threshold in days.</summary>
     public int DueSoonWindowDays { get; set; }
+    /// <summary>Slice 26 — tri-state Status/hold ('InProgress' | 'OnHold' | 'Abandoned').</summary>
+    public string StatusHold { get; set; } = "InProgress";
+    /// <summary>Slice 26 — free-text note; null on InProgress.</summary>
+    public string? StatusHoldNote { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
@@ -623,13 +627,32 @@ public sealed class AttachmentDownloadRow
 // Slice 12 (Watchers + Notifications) — keyless proc projections.
 
 /// <summary>One live watcher from usp_GetWatchers — carries DisplayName so the card renders the
-/// avatar/initials without a directory fetch (slice 12).</summary>
+/// avatar/initials without a directory fetch (slice 12). Slice 26 adds the caller's own five
+/// preference booleans (null on rows for other watchers — a watcher never sees another's prefs).</summary>
 public sealed class WatcherListRow
 {
     public Guid UserId { get; set; }
     /// <summary>Display name — shown in the roster; never logged (api-logging.md).</summary>
     public string DisplayName { get; set; } = string.Empty;
     public DateTime SubscribedAt { get; set; }
+    // Slice 26 — sparse per-record preferences, only populated on the caller's own row.
+    public bool? NotifyGateDecisions { get; set; }
+    public bool? NotifyStatusChanges { get; set; }
+    public bool? NotifyTaskSignoffs { get; set; }
+    public bool? NotifySlaAndDueDateReminders { get; set; }
+    public bool? NotifyMentionsAndComments { get; set; }
+}
+
+/// <summary>The caller's own effective notification preferences for a record (usp_GetMyWatcherPreferences),
+/// returned independent of watch state so the always-visible toggles read/persist correctly (slice 26
+/// prototype reconciliation). Non-nullable — the proc ISNULLs a missing preference row to true.</summary>
+public sealed class MyWatcherPreferencesRow
+{
+    public bool NotifyGateDecisions { get; set; }
+    public bool NotifyStatusChanges { get; set; }
+    public bool NotifyTaskSignoffs { get; set; }
+    public bool NotifySlaAndDueDateReminders { get; set; }
+    public bool NotifyMentionsAndComments { get; set; }
 }
 
 /// <summary>One bell notification from usp_QueryNotifications. TotalCount is the windowed

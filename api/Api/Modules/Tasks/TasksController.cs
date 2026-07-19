@@ -63,13 +63,19 @@ public sealed class TasksController : ControllerBase
     [HttpPatch("tasks/{id:guid}")]
     [ProducesResponseType(typeof(TaskDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> PatchTask(
         [FromRoute] Guid id,
         [FromBody] TaskPatchRequest request,
         CancellationToken cancellationToken)
     {
-        var task = await _tasks.PatchAsync(id, request, _currentUser.UserId, OperationId(), cancellationToken);
-        return task is null ? AccessDenied() : Ok(task);
+        var result = await _tasks.PatchAsync(id, request, _currentUser.UserId, OperationId(), cancellationToken);
+        return result.Outcome switch
+        {
+            TaskPatchOutcome.Success => Ok(result.Task),
+            TaskPatchOutcome.RecordOnHold => RecordOnHoldConflict(),
+            _ => AccessDenied(),
+        };
     }
 
     /// <summary>Promote a task to its own Request — copy the parent to a draft + cancel the task (Member+, via the service).</summary>
@@ -136,6 +142,19 @@ public sealed class TasksController : ControllerBase
         })
         {
             StatusCode = StatusCodes.Status403Forbidden,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    private ObjectResult RecordOnHoldConflict() =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/record-on-hold",
+            Title = "This record is on hold.",
+            Status = StatusCodes.Status409Conflict,
+            Detail = "Reactivate the record from its Status tab before completing this task.",
+        })
+        {
+            StatusCode = StatusCodes.Status409Conflict,
             ContentTypes = { "application/problem+json" },
         };
 }

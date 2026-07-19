@@ -44,6 +44,22 @@ public sealed class WatchersController : ControllerBase
         return outcome == WatcherOutcome.Forbidden ? AccessDenied() : NoContent();
     }
 
+    /// <summary>
+    /// Slice 26 — sparse patch of the caller's own state for this record (subscribe toggle plus the
+    /// five per-record notification preferences). Returns the refreshed list on success.
+    /// </summary>
+    [HttpPatch("records/{recordId}/watchers/me")]
+    [ProducesResponseType(typeof(WatcherListDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> PatchMyWatch(
+        [FromRoute] string recordId,
+        [FromBody] WatcherPreferencesPatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        var (outcome, list) = await _watchers.PatchMineAsync(recordId, request, _currentUser.UserId, cancellationToken);
+        return outcome == WatcherOutcome.Forbidden ? AccessDenied() : Ok(list);
+    }
+
     /// <summary>Unsubscribe a user. The caller may remove themselves; a WorkspaceAdmin may remove anyone.</summary>
     [HttpDelete("records/{recordId}/watchers/{userId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

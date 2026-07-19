@@ -97,6 +97,7 @@ public sealed class AppDbContext : DbContext
 
         // Slice 12 (Watchers + Notifications) — keyless projections read via stored procedures.
         modelBuilder.Entity<WatcherListRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<MyWatcherPreferencesRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<NotificationRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<UnreadCountRow>().HasNoKey().ToView((string?)null);
 

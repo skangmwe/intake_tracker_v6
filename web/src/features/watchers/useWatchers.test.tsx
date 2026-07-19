@@ -9,7 +9,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { RecordId, UserId } from '@shared/types';
 
 import * as api from './api';
-import { useRecordWatchers, useWatchToggle } from './useWatchers';
+import { usePatchMyWatch, useRecordWatchers, useWatchToggle } from './useWatchers';
 
 jest.mock('./api');
 const mockedApi = api as jest.Mocked<typeof api>;
@@ -35,7 +35,7 @@ describe('useRecordWatchers', () => {
 
   it('useRecordWatchers — fetches the roster for a real record id', async () => {
     // Arrange
-    mockedApi.fetchWatchers.mockResolvedValue({ watchers: [], isWatching: false });
+    mockedApi.fetchWatchers.mockResolvedValue({ watchers: [], isWatching: false, myPreferences: { notifyGateDecisions: true, notifyStatusChanges: true, notifyTaskSignoffs: true, notifySlaAndDueDateReminders: true, notifyMentionsAndComments: true } });
 
     // Act
     const { result } = renderHook(() => useRecordWatchers(RECORD), { wrapper });
@@ -73,5 +73,32 @@ describe('useWatchToggle', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockedApi.unwatchRecord).toHaveBeenCalledWith(RECORD, USER);
     expect(mockedApi.watchRecord).not.toHaveBeenCalled();
+  });
+});
+
+describe('usePatchMyWatch', () => {
+  it('usePatchMyWatch — forwards the sparse patch body verbatim to patchMyWatch', async () => {
+    // Arrange
+    mockedApi.patchMyWatch.mockResolvedValue({ isWatching: true, watchers: [], myPreferences: { notifyGateDecisions: true, notifyStatusChanges: true, notifyTaskSignoffs: true, notifySlaAndDueDateReminders: true, notifyMentionsAndComments: true } });
+    const { result } = renderHook(() => usePatchMyWatch(RECORD), { wrapper });
+
+    // Act — a flipped Gate decisions pref; other fields absent.
+    result.current.mutate({ notifyGateDecisions: false });
+
+    // Assert
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockedApi.patchMyWatch).toHaveBeenCalledWith(RECORD, { notifyGateDecisions: false });
+  });
+
+  it('usePatchMyWatch — surfaces the mutation error when the API rejects', async () => {
+    // Arrange
+    mockedApi.patchMyWatch.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => usePatchMyWatch(RECORD), { wrapper });
+
+    // Act
+    result.current.mutate({ notifyMentionsAndComments: false });
+
+    // Assert
+    await waitFor(() => expect(result.current.isError).toBe(true));
   });
 });

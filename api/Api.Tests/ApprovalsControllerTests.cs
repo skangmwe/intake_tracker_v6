@@ -102,6 +102,7 @@ public sealed class ApprovalsControllerTests
     [InlineData(ApprovalDecisionOutcome.Invalid, StatusCodes.Status400BadRequest)]
     [InlineData(ApprovalDecisionOutcome.AlreadyResolved, StatusCodes.Status409Conflict)]
     [InlineData(ApprovalDecisionOutcome.Forbidden, StatusCodes.Status403Forbidden)]
+    [InlineData(ApprovalDecisionOutcome.RecordOnHold, StatusCodes.Status409Conflict)]
     public async Task SubmitDecision_MapsOutcomeToStatus(ApprovalDecisionOutcome outcome, int expectedStatus)
     {
         // Arrange

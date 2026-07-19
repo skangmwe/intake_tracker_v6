@@ -67,6 +67,8 @@ public sealed partial class RequestsService
             // Field-as-column rollup (slice 7): the first task-level URL field value, surfaced as the
             // Repo URL list column. NULL when the record has no URL-type task field yet.
             var repoIndex = reader.GetOrdinal("RepoUrl");
+            // Slice 26 — StatusHold column drives the S2 row pill without a per-row detail fetch.
+            var statusHoldIndex = reader.GetOrdinal("StatusHold");
             // The workspace's due-soon window (slice 21) — constant across the page; drives SLA Status.
             var dueSoonWindowIndex = reader.GetOrdinal("DueSoonWindowDays");
 
@@ -76,6 +78,8 @@ public sealed partial class RequestsService
                 var eTag = Convert.ToBase64String((byte[])reader.GetValue(rowVerIndex));
                 DateOnly? due = reader.IsDBNull(dueIndex) ? null : DateOnly.FromDateTime(reader.GetDateTime(dueIndex));
                 var dueSoonWindow = reader.GetInt32(dueSoonWindowIndex);
+
+                var statusHold = reader.IsDBNull(statusHoldIndex) ? "InProgress" : reader.GetString(statusHoldIndex);
 
                 var columns = new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
@@ -90,7 +94,7 @@ public sealed partial class RequestsService
                     ["due"] = due?.ToString("yyyy-MM-dd"),
                 };
 
-                rows.Add(new RequestListRow(recordId, eTag, columns, ComputeSla(due, today, dueSoonWindow)));
+                rows.Add(new RequestListRow(recordId, eTag, columns, ComputeSla(due, today, dueSoonWindow), ParseStatusHold(statusHold)));
             }
 
             if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false)
@@ -193,8 +197,12 @@ public sealed partial class RequestsService
     private static RequestDto MapRow(RequestRow row, IReadOnlyList<RequestStageRef> stages, DateOnly today)
     {
         var fields = ParseFields(row.FieldValues);
-        var held = string.Equals(GetString(fields, "holdBlocked"), "true", StringComparison.OrdinalIgnoreCase);
-        var reason = GetString(fields, "holdReason");
+        // Slice 26: StatusHold is the source of truth; the legacy `hold` block is now a derived read
+        // computed from StatusHold ('OnHold' → held; 'Abandoned' also blocks but the pre-v2 field only
+        // knew binary, so we surface Abandoned as held=true too — the UI shows the correct pill).
+        var statusHold = ParseStatusHold(row.StatusHold);
+        var held = statusHold == RequestStatusHoldValue.OnHold || statusHold == RequestStatusHoldValue.Abandoned;
+        var reason = statusHold == RequestStatusHoldValue.InProgress ? null : row.StatusHoldNote;
 
         return new RequestDto(
             Id: row.RecordId,
@@ -208,6 +216,8 @@ public sealed partial class RequestsService
             LifecycleId: row.LifecycleId,
             Stages: stages,
             Stage: string.IsNullOrEmpty(row.Stage) ? null : row.Stage,
+            StatusHold: statusHold,
+            StatusHoldNote: reason,
             Hold: new HoldState(held, held ? reason : null),
             Outcome: MapOutcome(fields),
             DisplayStatus: DeriveDisplayStatus(fields, row.Stage, stages),
@@ -219,6 +229,14 @@ public sealed partial class RequestsService
             Bridge: null,
             ETag: Convert.ToBase64String(row.RowVer));
     }
+
+    /// <summary>Parse the DB StatusHold string into the enum. Defaults to <c>InProgress</c> on unknown values (defensive).</summary>
+    public static RequestStatusHoldValue ParseStatusHold(string? statusHold) => statusHold switch
+    {
+        "OnHold" => RequestStatusHoldValue.OnHold,
+        "Abandoned" => RequestStatusHoldValue.Abandoned,
+        _ => RequestStatusHoldValue.InProgress,
+    };
 
     // ─── Escalation bridge composition (slice 9) ──────────────────────────────
 

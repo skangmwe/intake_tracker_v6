@@ -60,3 +60,6 @@ artifacts/docs/design/*.zip
 
 # Local slice-completion gate cache (per-machine, 60-min TTL) — never committed.
 reviews/.last-clean-run.json
+
+# Local-testing tooling (dev-only; never committed) — see reviews/FINISH-design-fidelity-runbook.md
+.local-testing/

@@ -189,6 +189,11 @@ BEGIN
     EXEC dbo.usp_GetBridgeForRecord @RecordId = N'LIT-00000001', @UserId = '00000000-0000-4000-8000-0000000000aa';
 
     -- Assert — no bridge block for a non-escalated record.
+    -- NOTE (result-set SHAPE contract): the proc must return the #Bridge column shape with ZERO rows
+    -- here, NOT an early RETURN. `INSERT ... EXEC` tolerates a no-result-set proc (inserts nothing, so
+    -- this count-0 assert passes either way), but the API reads via EF `FromSqlRaw<BridgeRow>`, which
+    -- REQUIRES the column metadata to be present — an early RETURN makes GetById 500 ("required column
+    -- 'AiFieldValues' not present") for every non-escalated record. Keep the final SELECT + WHERE guard.
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #Bridge);
 END;
 GO

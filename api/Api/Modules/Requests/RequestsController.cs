@@ -152,6 +152,7 @@ public sealed class RequestsController : ControllerBase
             StageMoveOutcome.GateOpened => Ok(result.Result),
             StageMoveOutcome.InvalidStage => BadRequestProblem("That stage is not part of this record's lifecycle."),
             StageMoveOutcome.GateAlreadyOpen => GateAlreadyOpenConflict(),
+            StageMoveOutcome.RecordOnHold => RecordOnHoldConflict(),
             _ => AccessDenied(),
         };
     }
@@ -219,6 +220,19 @@ public sealed class RequestsController : ControllerBase
             Title = "The record changed.",
             Status = StatusCodes.Status409Conflict,
             Detail = "This request was changed by someone else since you loaded it. Refresh and reapply your edits.",
+        })
+        {
+            StatusCode = StatusCodes.Status409Conflict,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    private ObjectResult RecordOnHoldConflict() =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/record-on-hold",
+            Title = "This record is on hold.",
+            Status = StatusCodes.Status409Conflict,
+            Detail = "Reactivate the record from its Status tab before continuing.",
         })
         {
             StatusCode = StatusCodes.Status409Conflict,

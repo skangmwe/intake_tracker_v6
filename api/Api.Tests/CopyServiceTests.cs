@@ -52,6 +52,8 @@ public sealed class CopyServiceTests
             LifecycleId: Guid.NewGuid(),
             Stages: Array.Empty<RequestStageRef>(),
             Stage: "build",
+            StatusHold: RequestStatusHoldValue.InProgress,
+            StatusHoldNote: null,
             Hold: new HoldState(false, null),
             Outcome: null,
             DisplayStatus: "Build",

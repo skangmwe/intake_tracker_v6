@@ -42,6 +42,45 @@ export const DS_TYPE_BY_ROOT_CLASS = {
   sidebar: 'sidebar',
   nav: 'nav',
   menu: 'menu',
+
+  // ── Claude Design (MWS) prototype roots ──────────────────────────────────
+  // The Claude Design export marks design-system components with `mws-<type>`
+  // BEM ROOT classes; the built app stamps `data-ds="<type>"`. These entries
+  // let the SAME enumerator classify the prototype side, mapped to the SAME
+  // canonical type strings the build emits (so prototype↔build match by
+  // (type, ordinal)). ROOT tokens only — sub-elements (`mws-card__body`) and
+  // modifiers (`mws-btn--primary`) are intentionally absent, exactly like the
+  // unprefixed set above. Where the two taxonomies diverge (build app-composite
+  // types vs prototype primitives) the mismatch surfaces as a real finding, not
+  // a silent hide.
+  'mws-btn': 'btn',
+  'mws-iconbtn': 'icon-btn',
+  'mws-card': 'card',
+  'mws-badge': 'badge',
+  'mws-status': 'status-pill',
+  'mws-chip': 'chip',
+  'mws-prompt-chip': 'chip',
+  'mws-alert': 'alert',
+  'mws-stepper': 'stepper',
+  'mws-tabs': 'tabs',
+  'mws-tab': 'tab',
+  'mws-modal': 'modal',
+  'mws-sheet': 'sheet',
+  'mws-popover': 'popover',
+  'mws-skel': 'skeleton',
+  'mws-field': 'field',
+  'mws-input': 'input',
+  'mws-select': 'select',
+  'mws-textarea': 'input',
+  'mws-switch': 'toggle',
+  'mws-check': 'checkbox',
+  'mws-radio': 'radio',
+  'mws-table': 'table',
+  'mws-sidebar': 'sidebar',
+  'mws-nav-item': 'nav-item',
+  'mws-topbar': 'topbar',
+  'mws-lockup': 'lockup',
+  'mws-menu': 'menu',
 };
 
 // Elements that LOOK interactive. Any of these that classifies to no known

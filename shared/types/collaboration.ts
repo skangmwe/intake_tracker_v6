@@ -120,11 +120,26 @@ export interface WatcherListItemDto {
   notifyMentionsAndComments?: boolean;
 }
 
+/**
+ * The caller's own effective notification preferences for the record. v2 (slice 26 prototype
+ * reconciliation) — always present (defaults all-true), independent of watch state, so the
+ * preference toggles render always and persist even before the caller subscribes.
+ */
+export interface WatcherPreferences {
+  notifyGateDecisions: boolean;
+  notifyStatusChanges: boolean;
+  notifyTaskSignoffs: boolean;
+  notifySlaAndDueDateReminders: boolean;
+  notifyMentionsAndComments: boolean;
+}
+
 /** GET /records/{id}/watchers — the roster plus the caller's own subscription state (drives the toggle). */
 export interface WatcherListDto {
   watchers: WatcherListItemDto[];
   /** Whether the caller is currently watching — sets the Watch / Watching toggle without a client scan. */
   isWatching: boolean;
+  /** The caller's own notification preferences — always present; drives the always-visible toggles. */
+  myPreferences: WatcherPreferences;
 }
 
 /**

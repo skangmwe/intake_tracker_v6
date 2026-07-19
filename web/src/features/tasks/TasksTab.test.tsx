@@ -323,8 +323,8 @@ describe('TasksTab', () => {
     // Act
     const { container } = render(true);
 
-    // Assert
-    expect(screen.getByText('This solution is on hold')).toBeInTheDocument();
+    // Assert — Slice 26 revised copy: the banner references the tri-state and points to the Status tab.
+    expect(screen.getByText('This record is not in progress')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mark Scope done' })).toBeDisabled();
     expect(await axe(container)).toHaveNoViolations();
   });

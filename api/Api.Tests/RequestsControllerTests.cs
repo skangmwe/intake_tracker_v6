@@ -46,7 +46,9 @@ public sealed class RequestsControllerTests
         RecordId, WorkspaceId, "AI Solutions", DateTime.UtcNow, DateTime.UtcNow, UserId.ToString(), UserId.ToString(),
         LegacyId: null, LifecycleId: Guid.NewGuid(),
         Stages: new[] { new RequestStageRef("intake", "Intake") },
-        Stage: "intake", Hold: new HoldState(false, null), Outcome: null, DisplayStatus: "Intake", SlaStatus: null, TimeInStage: null,
+        Stage: "intake",
+        StatusHold: RequestStatusHoldValue.InProgress, StatusHoldNote: null,
+        Hold: new HoldState(false, null), Outcome: null, DisplayStatus: "Intake", SlaStatus: null, TimeInStage: null,
         Name: "Doc extraction", Description: "Pull fields", Fields: new Dictionary<string, JsonElement>(),
         Bridge: null, ETag: "AAAAAAAAB9E=");
 
@@ -269,6 +271,55 @@ public sealed class RequestsControllerTests
         // Assert
         var problem = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task MoveStage_RecordOnHold_Returns409()
+    {
+        // Slice 26 — the parent record is OnHold or Abandoned; the stage advance is blocked.
+        // Arrange
+        var requests = new Mock<IRequestsService>();
+        requests.Setup(service => service.SetStageAsync(RecordId, "build", UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StageMoveResult(StageMoveOutcome.RecordOnHold));
+
+        // Act
+        var result = await Build(requests).MoveStage(RecordId, new StageTransitionRequest { ToStage = "build" }, CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
+        Assert.Equal("https://mws.ai/errors/record-on-hold", Assert.IsType<ProblemDetails>(problem.Value).Type);
+    }
+
+    [Fact]
+    public async Task UpdateRequest_WithStatusHold_PassesPatchToService()
+    {
+        // Slice 26 — an UpdateRequest carrying StatusHold flows through PatchAsync unchanged.
+        // The service is responsible for routing status-hold vs content-field writes; the controller
+        // just delegates and maps the outcome.
+        // Arrange
+        var dto = SampleRequestDto();
+        var requests = new Mock<IRequestsService>();
+        RequestPatchRequest? captured = null;
+        requests
+            .Setup(service => service.PatchAsync(RecordId, It.IsAny<RequestPatchRequest>(), "AAAAAAAAB9E=", UserId, "op-123", It.IsAny<CancellationToken>()))
+            .Callback<string, RequestPatchRequest, string?, Guid, string, CancellationToken>((_, request, _, _, _, _) => captured = request)
+            .ReturnsAsync(new RequestPatchResult(RequestWriteOutcome.Success, dto));
+
+        // Act
+        var body = new RequestPatchRequest
+        {
+            IfMatch = "AAAAAAAAB9E=",
+            StatusHold = RequestStatusHoldValue.OnHold,
+            StatusHoldNote = "Waiting on client",
+        };
+        var result = await Build(requests).UpdateRequest(RecordId, body, CancellationToken.None);
+
+        // Assert
+        Assert.Same(dto, Assert.IsType<OkObjectResult>(result).Value);
+        Assert.NotNull(captured);
+        Assert.Equal(RequestStatusHoldValue.OnHold, captured!.StatusHold);
+        Assert.Equal("Waiting on client", captured.StatusHoldNote);
     }
 
     [Fact]

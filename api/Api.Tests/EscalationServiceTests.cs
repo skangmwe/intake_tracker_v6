@@ -63,6 +63,8 @@ public sealed class EscalationServiceTests
             LifecycleId: Guid.NewGuid(),
             Stages: Array.Empty<RequestStageRef>(),
             Stage: "intake",
+            StatusHold: RequestStatusHoldValue.InProgress,
+            StatusHoldNote: null,
             Hold: new HoldState(false, null),
             Outcome: null,
             DisplayStatus: "Intake",

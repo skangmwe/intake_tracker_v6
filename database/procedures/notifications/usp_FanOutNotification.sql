@@ -1,6 +1,8 @@
 -- =============================================
--- Author:      /dev-build-application (Slice 12 — Notifications fan-out; extended slice 13 — Announcements)
+-- Author:      /dev-build-application (Slice 12 — Notifications fan-out; extended slice 13 —
+--                                     Announcements; extended slice 26 — preference filtering)
 -- Create Date: 2026-07-05
+-- Last update: 2026-07-17 (Slice 26 — filter targets by per-record WatcherNotificationPreference)
 -- Description: Materialises per-user bell notifications from one event-spine event
 --              (module-boundaries §16/§20). Called IN-PROCESS by NotificationFanoutConsumer right
 --              after the audit row is written, on the caller's transaction — so the notification
@@ -23,6 +25,22 @@
 --              Summary is built from RecordId + category only — never raw PII (api-pii-handling.md);
 --              the announcement-posted line carries the announcement Title, which is broadcast notice
 --              text (Audience Level B/C, §2.7) authored for the audience's bell — not matter content.
+--
+--              Slice 26 preference filter (v2-reconciliation.md §Model deltas 6). Each target is
+--              looked up against dbo.WatcherNotificationPreference (LEFT JOIN — missing row → all
+--              defaults 1). Category → preference column map:
+--                gate-decided        → NotifyGateDecisions
+--                hold-changed        → NotifyStatusChanges
+--                closed              → NotifyStatusChanges
+--                mentioned           → NotifyMentionsAndComments
+--                sign-off-requested  → NotifyGateDecisions       (best-effort — approvers may not
+--                                                                 watch the record; missing pref
+--                                                                 row = defaults = notify)
+--                escalation-received → not filtered (AI-Intake routing is a firm-signal, not a
+--                                                    per-record preference)
+--                announcement-posted → not filtered (announcement audiences are not per-record)
+--              Preferences are per-side (UserId, RecordId, WorkspaceId): a bridged user watching
+--              both sides holds distinct prefs for each side.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_FanOutNotification
     @EventId      UNIQUEIDENTIFIER,
@@ -174,6 +192,24 @@ BEGIN
     FROM @Targets AS t
     INNER JOIN dbo.Users AS u ON u.UserId = t.UserId
     WHERE u.IsDisabled = 1 OR u.IsDeleted = 1;
+
+    -- Slice 26: filter by per-record preference for categories that map to a preference column.
+    -- LEFT JOIN so a missing pref row keeps the target (defaults are all 1). Filter suppresses
+    -- targets whose pref for the category is explicitly 0. Escalation + announcement categories
+    -- are not preference-filtered — they route to non-watcher audiences by design.
+    IF @Category IN (N'gate-decided', N'hold-changed', N'closed', N'mentioned', N'sign-off-requested')
+    BEGIN
+        DELETE t
+        FROM @Targets AS t
+        LEFT JOIN dbo.WatcherNotificationPreference AS p
+            ON p.UserId = t.UserId AND p.RecordId = @Record AND p.WorkspaceId = @Ws AND p.IsDeleted = 0
+        WHERE
+            (@Category = N'gate-decided'       AND ISNULL(p.NotifyGateDecisions,       CAST(1 AS BIT)) = 0)
+         OR (@Category = N'hold-changed'       AND ISNULL(p.NotifyStatusChanges,       CAST(1 AS BIT)) = 0)
+         OR (@Category = N'closed'             AND ISNULL(p.NotifyStatusChanges,       CAST(1 AS BIT)) = 0)
+         OR (@Category = N'mentioned'          AND ISNULL(p.NotifyMentionsAndComments, CAST(1 AS BIT)) = 0)
+         OR (@Category = N'sign-off-requested' AND ISNULL(p.NotifyGateDecisions,       CAST(1 AS BIT)) = 0);
+    END;
 
     -- The bell line — RecordId + category only (announcement-posted carries the notice Title).
     DECLARE @Summary NVARCHAR(400) =

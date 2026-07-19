@@ -3,7 +3,7 @@
 // workspace (the panels are workspace-specific and the app resolves an active workspace everywhere).
 // Slice 22.
 
-import type { SlaStatus } from './requests';
+import type { RequestStatusHold, SlaStatus } from './requests';
 
 /** "Needs your decision" — an open gate where the caller is an eligible, not-yet-signed slot member. */
 export interface HomeDecisionItem {
@@ -15,6 +15,9 @@ export interface HomeDecisionItem {
   roleLabel: string;
   /** When the gate opened — the client renders "Waiting N days/hours". ISO 8601 UTC. */
   openedAt: string;
+  /** v2 (slice 26). The record's Status/hold. Drives the StatusHoldPill on the card. Optional so
+   * the API can add the projection incrementally without a wire break. */
+  statusHold?: RequestStatusHold;
 }
 
 /** "Your work today" — a record the caller owns (created), urgency-ordered. */
@@ -29,6 +32,8 @@ export interface HomeWorkItem {
   dueDate: string | null;
   /** SLA state driving the due-badge tint; null when there is no due date. */
   slaStatus: SlaStatus | null;
+  /** v2 (slice 26). The record's Status/hold. Optional so the API can add the projection incrementally. */
+  statusHold?: RequestStatusHold;
 }
 
 /** "Since you were last here" — an audit event on a visible record since the caller's prior Home visit. */
@@ -51,6 +56,8 @@ export interface HomeTriageItem {
   origin: string;
   /** When the record was created / received. ISO 8601 UTC. */
   receivedAt: string;
+  /** v2 (slice 26). The record's Status/hold. Optional so the API can add the projection incrementally. */
+  statusHold?: RequestStatusHold;
 }
 
 /** A pinned, published announcement surfaced in the Home slim strip. */

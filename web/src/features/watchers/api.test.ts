@@ -6,7 +6,7 @@ import type { RecordId, UserId } from '@shared/types';
 
 import { apiFetch } from '@/shared/http/apiClient';
 
-import { fetchWatchers, unwatchRecord, watchRecord } from './api';
+import { fetchWatchers, patchMyWatch, unwatchRecord, watchRecord } from './api';
 
 jest.mock('@/shared/http/apiClient');
 const mockedFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
@@ -19,7 +19,7 @@ beforeEach(() => jest.clearAllMocks());
 describe('watchers api', () => {
   it('fetchWatchers — GETs the roster and passes the abort signal', async () => {
     // Arrange
-    mockedFetch.mockResolvedValue({ watchers: [], isWatching: false });
+    mockedFetch.mockResolvedValue({ watchers: [], isWatching: false, myPreferences: { notifyGateDecisions: true, notifyStatusChanges: true, notifyTaskSignoffs: true, notifySlaAndDueDateReminders: true, notifyMentionsAndComments: true } });
     const controller = new AbortController();
 
     // Act
@@ -31,7 +31,7 @@ describe('watchers api', () => {
 
   it('fetchWatchers — omits the signal option when none is given', async () => {
     // Arrange
-    mockedFetch.mockResolvedValue({ watchers: [], isWatching: false });
+    mockedFetch.mockResolvedValue({ watchers: [], isWatching: false, myPreferences: { notifyGateDecisions: true, notifyStatusChanges: true, notifyTaskSignoffs: true, notifySlaAndDueDateReminders: true, notifyMentionsAndComments: true } });
 
     // Act
     await fetchWatchers(RECORD);
@@ -60,5 +60,19 @@ describe('watchers api', () => {
 
     // Assert
     expect(mockedFetch).toHaveBeenCalledWith(`/v1/records/${RECORD}/watchers/${USER}`, { method: 'DELETE' });
+  });
+
+  it('patchMyWatch — PATCHes /watchers/me with the sparse preference body', async () => {
+    // Arrange — Slice 26 — only the flipped field is on the wire (opt-out model).
+    mockedFetch.mockResolvedValue({ isWatching: true, watchers: [], myPreferences: { notifyGateDecisions: true, notifyStatusChanges: true, notifyTaskSignoffs: true, notifySlaAndDueDateReminders: true, notifyMentionsAndComments: true } });
+
+    // Act
+    await patchMyWatch(RECORD, { notifyGateDecisions: false });
+
+    // Assert
+    expect(mockedFetch).toHaveBeenCalledWith(`/v1/records/${RECORD}/watchers/me`, {
+      method: 'PATCH',
+      body: { notifyGateDecisions: false },
+    });
   });
 });
