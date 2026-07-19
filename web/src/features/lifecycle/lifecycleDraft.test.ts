@@ -52,6 +52,19 @@ describe('draftFromConfig / draftToRequest', () => {
     expect(request.lifecycles[0]).not.toHaveProperty('id');
   });
 
+  it('draftToRequest — mirrors requestType from the lifecycle name (v2: the name is the single label)', () => {
+    // Arrange — rename the seeded lifecycle; the dropped "Request type" now tracks the name.
+    const drafts = seed();
+    const next = lifecycleDraftReducer(drafts, { type: 'LIFECYCLE_UPDATE', uid: drafts[0]!.uid, patch: { name: 'Renamed flow' } });
+
+    // Act
+    const request = draftToRequest(next);
+
+    // Assert — the server's NOT NULL RequestType column stays populated, mirroring the label.
+    expect(request.lifecycles[0]!.name).toBe('Renamed flow');
+    expect(request.lifecycles[0]!.requestType).toBe('Renamed flow');
+  });
+
   it('draftToRequest — omits id for newly added stages and gates but keeps seeded ids', () => {
     // Arrange — add a fresh (id-less) stage and gate to a seeded lifecycle
     const state = seed();
@@ -102,7 +115,7 @@ describe('lifecycleDraftReducer', () => {
     expect(next.at(-1)).toBe(added);
   });
 
-  it('LIFECYCLE_UPDATE — patches name and request type', () => {
+  it('LIFECYCLE_UPDATE — patches the name (the single label)', () => {
     const state = seed();
     const next = lifecycleDraftReducer(state, { type: 'LIFECYCLE_UPDATE', uid: state[0]!.uid, patch: { name: 'Renamed' } });
     expect(next[0]!.name).toBe('Renamed');

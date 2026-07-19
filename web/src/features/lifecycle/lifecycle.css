@@ -87,50 +87,9 @@
   flex-wrap: wrap;
 }
 
-.lifecycle-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.lifecycle-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: var(--space-2) var(--space-4);
-  min-width: 150px;
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-family: var(--font-sans);
-  text-align: left;
-}
-
-.lifecycle-chip:hover,
-.lifecycle-chip:focus-visible {
-  border-color: var(--accent-interactive);
-}
-
-.lifecycle-chip[aria-pressed='true'] {
-  border-color: var(--accent-interactive);
-  background: var(--color-pale-blue);
-  color: var(--color-navy);
-}
-
-.lifecycle-chip__name {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.lifecycle-chip__meta {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.lifecycle-editrow {
+/* Lifecycle selector row: a dropdown to pick the lifecycle to edit, its name input, the
+   default indicator / make-default action, and (when >1 and not default) remove. */
+.lifecycle-selectrow {
   display: flex;
   align-items: flex-end;
   gap: var(--space-3);
@@ -139,7 +98,12 @@
   padding-top: var(--space-4);
 }
 
-.lifecycle-editrow .mws-field {
+.lifecycle-selectrow .lifecycle-select {
+  flex: 0 1 260px;
+  min-width: 200px;
+}
+
+.lifecycle-selectrow .lifecycle-name {
   flex: 1;
   min-width: 200px;
 }
@@ -364,7 +328,7 @@
   }
 
   .lifecycle-gate__head .mws-field,
-  .lifecycle-editrow .mws-field {
+  .lifecycle-selectrow .mws-field {
     min-width: 0;
     flex-basis: 100%;
   }

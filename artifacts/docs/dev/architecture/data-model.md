@@ -402,10 +402,12 @@ The prototype's **Lifecycle & gates** surface (S31) is authoritative: a workspac
 | `LifecycleId` | `UNIQUEIDENTIFIER` PK | |
 | `WorkspaceId` | FK → Workspace | |
 | `Name` | `NVARCHAR(200)` NOT NULL | e.g. "Standard AI build". |
-| `RequestType` | `NVARCHAR(120)` NOT NULL | The type a request picks at intake to select this lifecycle. |
-| `IsDefault` | `BIT` NOT NULL DEFAULT 0 | Exactly one per workspace — filtered unique index `WHERE IsDefault = 1 AND IsDeleted = 0`. |
+| `RequestType` | `NVARCHAR(120)` NOT NULL | **v2 (slice 27): deprecated as a user concept.** The separate "Request type" was dropped from the UI; the lifecycle `Name` is now the single user-facing label everywhere (S31 dropdown + S3 intake picker). The column is retained (NOT NULL, no migration) and the S31 editor **mirrors it from `Name`** on save, so the legacy CSV-import request-type match still resolves by the label. No `DisplayLabel` column was added (the v2 reconciliation addendum's DDL was superseded — `Name` serves that role; analyst-approved, see `27-slice-multi-lifecycle.md`). |
+| `IsDefault` | `BIT` NOT NULL DEFAULT 0 | Exactly one per workspace — filtered unique index `WHERE IsDefault = 1 AND IsDeleted = 0` (created slice 4; the v2 multi-lifecycle picker relies on it — no migration in slice 27). |
 | `SortOrder` | `INT` NOT NULL DEFAULT 0 | |
 | audit cols | | |
+
+**Multi-lifecycle at intake (v2, slice 27):** a request's chosen lifecycle is stamped on `Requests.LifecycleId` at create (from the S3 **Lifecycle** picker, else the workspace default) and is **immutable for the record's life** — no mutation path changes it, and `usp_SetRequestStage` reads it off the record to scope valid stages. Slice 27 added **no migration**: the table was already multi-lifecycle-ready from slice 4/5.
 
 #### StageDefinition (lifecycle-scoped)
 

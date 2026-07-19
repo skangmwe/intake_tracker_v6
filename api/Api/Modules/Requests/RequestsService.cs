@@ -118,7 +118,10 @@ public sealed partial class RequestsService : IRequestsService
             return new RequestCreateResult(RequestWriteOutcome.ValidationFailed, Errors: errors);
         }
 
-        // Resolve the lifecycle: match the chosen request type, else the workspace default, else first.
+        // Resolve the lifecycle (v2, slice 27): the explicit picker choice wins when it resolves to a
+        // lifecycle of this workspace, else the legacy request-type string (CSV import), else the
+        // workspace default, else the first. Every branch is workspace-scoped — an id from another
+        // workspace simply won't match and falls through, so a request can never bind cross-workspace.
         var lifecycles = await ReadLifecyclesAsync(workspaceId, cancellationToken).ConfigureAwait(false);
         if (lifecycles.Count == 0)
         {
@@ -126,12 +129,7 @@ public sealed partial class RequestsService : IRequestsService
         }
 
         var requestType = GetString(request.Fields, "requestType");
-        var chosen =
-            (requestType is not null
-                ? lifecycles.FirstOrDefault(lifecycle => string.Equals(lifecycle.RequestType, requestType, StringComparison.OrdinalIgnoreCase))
-                : null)
-            ?? lifecycles.FirstOrDefault(lifecycle => lifecycle.IsDefault)
-            ?? lifecycles[0];
+        var chosen = ResolveLifecycle(lifecycles, request.LifecycleId, requestType);
 
         var stages = (await ReadStagesAsync(workspaceId, cancellationToken).ConfigureAwait(false))
             .Where(stage => stage.LifecycleId == chosen.LifecycleId)
@@ -291,6 +289,23 @@ public sealed partial class RequestsService : IRequestsService
 
         return null;
     }
+
+    /// <summary>
+    /// v2 (slice 27). Pick the lifecycle a new request runs on: the explicit picker choice wins when it
+    /// resolves within the workspace list, else the legacy request-type string (CSV import), else the
+    /// workspace default, else the first. Caller guarantees <paramref name="lifecycles"/> is non-empty
+    /// and workspace-scoped, so an id from another workspace simply falls through — never binds cross-workspace.
+    /// </summary>
+    public static LifecycleRow ResolveLifecycle(
+        IReadOnlyList<LifecycleRow> lifecycles, Guid? explicitLifecycleId, string? requestType) =>
+        (explicitLifecycleId is { } id
+            ? lifecycles.FirstOrDefault(lifecycle => lifecycle.LifecycleId == id)
+            : null)
+        ?? (requestType is not null
+            ? lifecycles.FirstOrDefault(lifecycle => string.Equals(lifecycle.RequestType, requestType, StringComparison.OrdinalIgnoreCase))
+            : null)
+        ?? lifecycles.FirstOrDefault(lifecycle => lifecycle.IsDefault)
+        ?? lifecycles[0];
 
     public async Task<StageMoveResult> SetStageAsync(
         string recordId, string toStage, Guid actorUserId, string operationId, CancellationToken cancellationToken)

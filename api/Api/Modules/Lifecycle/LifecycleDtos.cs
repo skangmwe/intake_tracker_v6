@@ -15,6 +15,13 @@ public sealed record LifecycleConfigDto(
     IReadOnlyList<string> RoleLabels,
     IReadOnlyList<ApproverTeamDto> ApproverTeams);
 
+/// <summary>
+/// GET /workspaces/{id}/lifecycles (v2, slice 27) — the lightweight list for the S3 intake
+/// "Lifecycle" picker and the S31 dropdown. The <c>Name</c> is the single user-facing label
+/// (the separate "Request type" was dropped in v2). Mirrors LifecycleSummaryDto in gates.ts.
+/// </summary>
+public sealed record LifecycleSummaryDto(Guid Id, string Name, bool IsDefault);
+
 public sealed record LifecycleDto(
     Guid Id,
     string Name,

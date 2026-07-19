@@ -122,6 +122,17 @@ export interface StageDefinitionDto {
   sortOrder: number;
 }
 
+/**
+ * v2 (slice 27). A lightweight lifecycle summary for the S3 intake "Lifecycle" picker and the
+ * S31 dropdown selector — GET /workspaces/{id}/lifecycles. The lifecycle `name` is the single
+ * user-facing label (the separate "Request type" was dropped in v2). Ordered by sortOrder, then name.
+ */
+export interface LifecycleSummaryDto {
+  id: LifecycleId;
+  name: string;
+  isDefault: boolean;
+}
+
 /** A workspace lifecycle — one per request type, exactly one default. */
 export interface LifecycleDto {
   id: LifecycleId;

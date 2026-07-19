@@ -41,8 +41,8 @@ export interface StageDraft {
 export interface LifecycleDraft {
   uid: string;
   id?: LifecycleId;
+  /** v2 (slice 27): the single user-facing label — the separate "Request type" was dropped. */
   name: string;
-  requestType: string;
   isDefault: boolean;
   stages: StageDraft[];
   gates: GateDraft[];
@@ -66,7 +66,7 @@ export function newSlot(roleLabel: string): SlotDraft {
 }
 
 export function newLifecycle(): LifecycleDraft {
-  return { uid: uid(), name: 'New lifecycle', requestType: '', isDefault: false, stages: [], gates: [] };
+  return { uid: uid(), name: 'New lifecycle', isDefault: false, stages: [], gates: [] };
 }
 
 /** Seed the editable draft from the server config. */
@@ -77,7 +77,6 @@ export function draftFromConfig(config: LifecycleConfigDto): LifecycleDraft[] {
       uid: lifecycle.id,
       id: lifecycle.id,
       name: lifecycle.name,
-      requestType: lifecycle.requestType,
       isDefault: lifecycle.isDefault,
       stages: lifecycle.stages.map((stage) => ({
         uid: stage.id,
@@ -105,7 +104,10 @@ export function draftToRequest(drafts: LifecycleDraft[]): LifecycleConfigUpdateR
     lifecycles: drafts.map((lifecycle, lifecycleIndex) => ({
       ...(lifecycle.id ? { id: lifecycle.id } : {}),
       name: lifecycle.name,
-      requestType: lifecycle.requestType,
+      // v2 (slice 27): the lifecycle name is the single label — the separate "Request type" was
+      // dropped from the UI. We mirror requestType from the name so the server's NOT NULL column
+      // stays populated (and legacy CSV-import request-type matching keeps resolving by the label).
+      requestType: lifecycle.name,
       isDefault: lifecycle.isDefault,
       sortOrder: lifecycleIndex,
       stages: lifecycle.stages.map((stage, stageIndex) => ({
@@ -130,7 +132,7 @@ export function draftToRequest(drafts: LifecycleDraft[]): LifecycleConfigUpdateR
 export type LifecycleDraftAction =
   | { type: 'REPLACE'; drafts: LifecycleDraft[] }
   | { type: 'LIFECYCLE_ADD'; lifecycle: LifecycleDraft }
-  | { type: 'LIFECYCLE_UPDATE'; uid: string; patch: Partial<Pick<LifecycleDraft, 'name' | 'requestType'>> }
+  | { type: 'LIFECYCLE_UPDATE'; uid: string; patch: Partial<Pick<LifecycleDraft, 'name'>> }
   | { type: 'LIFECYCLE_REMOVE'; uid: string }
   | { type: 'LIFECYCLE_SET_DEFAULT'; uid: string }
   | { type: 'STAGE_ADD'; lifecycleUid: string }

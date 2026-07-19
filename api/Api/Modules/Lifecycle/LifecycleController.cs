@@ -40,6 +40,24 @@ public sealed class LifecycleController : ControllerBase
         return Ok(config);
     }
 
+    /// <summary>
+    /// The lightweight lifecycle list for the S3 intake "Lifecycle" picker and the S31 dropdown
+    /// (v2, slice 27) — id, name, and default marker only. Viewer+.
+    /// </summary>
+    [HttpGet("lifecycles")]
+    [ProducesResponseType(typeof(IReadOnlyList<LifecycleSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetLifecycles([FromRoute] Guid workspaceId, CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.Viewer, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var lifecycles = await _lifecycle.GetSummariesAsync(workspaceId, cancellationToken);
+        return Ok(lifecycles);
+    }
+
     /// <summary>Reconcile the whole lifecycle/stage/gate structure (WorkspaceAdmin).</summary>
     [HttpPatch("lifecycle")]
     [ProducesResponseType(typeof(LifecycleConfigDto), StatusCodes.Status200OK)]

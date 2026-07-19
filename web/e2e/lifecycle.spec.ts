@@ -95,8 +95,9 @@ test('a workspace admin sees the seeded lifecycle, its stages, gate and roster',
   await expect(page).toHaveURL(/\/admin\/lifecycle$/);
 
   await expect(page.getByRole('heading', { name: 'Lifecycle & gates', level: 1 })).toBeVisible();
-  // The lifecycle chip and its stage track render.
-  await expect(page.getByRole('button', { name: /standard ai build.*default/i })).toBeVisible();
+  // The lifecycle dropdown selector (v2, slice 27) and its stage track render.
+  await expect(page.getByRole('combobox', { name: 'Select lifecycle' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Lifecycle name' })).toHaveValue('Standard AI build');
   await expect(page.getByLabel('Stage 1 name')).toHaveValue('Build');
   await expect(page.getByRole('textbox', { name: 'Gate name' })).toHaveValue('QA readiness gate');
   // The InfoSec roster shows the seeded member.

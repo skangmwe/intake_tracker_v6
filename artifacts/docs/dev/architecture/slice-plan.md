@@ -376,7 +376,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Depends on:** 4, 5.
 - **Estimated LoC:** 3,000.
 - **Locked-signature changes flagged:** `LifecycleDto.isDefault` + `displayLabel` (additive). `RequestCreateRequest.lifecycleId` is already optional — no change.
-- **Status:** pending.
+- **Status: completed** — landed almost entirely as reconciliation: slice 4/5 had already shipped the multi-lifecycle DB (IsDefault + filtered unique index + `Requests.LifecycleId` FK), the defaulting create service, and a working S31 + intake picker, so slice 27 added **no migration**. What's new: (1) `RequestCreateRequest.lifecycleId` first-class + `RequestsService.ResolveLifecycle` precedence (explicit → legacy requestType → default → first); (2) a thin `GET /workspaces/{id}/lifecycles` list (reusing `usp_GetWorkspaceLifecycles`) + `LifecycleSummaryDto` + `useWorkspaceLifecycles`; (3) S31 chip-bar → prototype **dropdown** selector; (4) S3 "Request type" → **"Lifecycle"** picker (names, hidden when 1 lifecycle, writes `lifecycleId`). Four analyst decisions (D1 use `Name` not a new `DisplayLabel` column — `RequestType` retained + mirrored from `Name`; D2 skip the granular POST/PATCH/set-default endpoints — the full-config reconcile covers them; D3 `lifecycleId` first-class with `requestType` fallback; D4 defer PG-template lifecycle seed). No-mid-flight-change already enforced (`usp_SetRequestStage` reads `LifecycleId` off the record — verified, not rebuilt). API + Api.Tests build 0/0; web tsc/jest/Playwright deferred to the ship gate (no local `node_modules` — slices 15/16/21/23 precedent). See [27-slice-multi-lifecycle.md](27-slice-multi-lifecycle.md).
+- **Started:** 2026-07-18T23:40:24-04:00
+- **Ended:** 2026-07-19T00:04:41-04:00
+- **Duration:** 00:24:17
 
 ### Slice 28: Multi-dashboard composer (S6 upgrade)
 - **Spec section:** blueprint §Dashboards (S6 multi-dashboard). [v2-reconciliation.md §Model deltas 7, §API deltas Multi-dashboard composer].

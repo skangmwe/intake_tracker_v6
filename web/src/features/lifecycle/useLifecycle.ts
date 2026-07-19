@@ -10,17 +10,38 @@ import type {
   ApproverTeamRemoveRequest,
   LifecycleConfigDto,
   LifecycleConfigUpdateRequest,
+  LifecycleSummaryDto,
   WorkspaceId,
 } from '@shared/types';
 
-import { addApproverMember, fetchLifecycleConfig, removeApproverMember, saveLifecycleConfig } from './api';
+import {
+  addApproverMember,
+  fetchLifecycleConfig,
+  fetchWorkspaceLifecycles,
+  removeApproverMember,
+  saveLifecycleConfig,
+} from './api';
 
 export const lifecycleConfigQueryKey = (workspaceId: WorkspaceId) => ['lifecycle', workspaceId] as const;
+
+export const workspaceLifecyclesQueryKey = (workspaceId: WorkspaceId) => ['lifecycles', workspaceId] as const;
 
 export function useLifecycleConfig(workspaceId: WorkspaceId | undefined) {
   return useQuery<LifecycleConfigDto>({
     queryKey: lifecycleConfigQueryKey(workspaceId ?? ('' as WorkspaceId)),
     queryFn: ({ signal }) => fetchLifecycleConfig(workspaceId as WorkspaceId, signal),
+    enabled: Boolean(workspaceId),
+  });
+}
+
+/**
+ * v2 (slice 27) — the lightweight lifecycle list for the S3 intake picker. A separate cache key
+ * from the full config so the picker doesn't pull stages/gates/approver-teams it doesn't need.
+ */
+export function useWorkspaceLifecycles(workspaceId: WorkspaceId | undefined) {
+  return useQuery<LifecycleSummaryDto[]>({
+    queryKey: workspaceLifecyclesQueryKey(workspaceId ?? ('' as WorkspaceId)),
+    queryFn: ({ signal }) => fetchWorkspaceLifecycles(workspaceId as WorkspaceId, signal),
     enabled: Boolean(workspaceId),
   });
 }

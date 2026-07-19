@@ -92,7 +92,7 @@ Deactivate. Sets `Users.IsDisabled = 1` (BS §6.8 — "the account is disabled i
 ### `POST /api/v1/workspaces/{id}/requests`
 Create a new Request in a workspace. Mints an ID from that workspace's prefix + sequence atomically.
 
-- **Body:** `RequestCreateRequest` — content-field values per BS §17 [S] set + optional queued typed links from the intake similar-requests nudge (BS §9.8).
+- **Body:** `RequestCreateRequest` — content-field values per BS §17 [S] set + optional `lifecycleId` (v2, slice 27 — the chosen lifecycle from the S3 **Lifecycle** picker; when omitted the workspace default is used) + optional queued typed links from the intake similar-requests nudge (BS §9.8). Resolution order server-side: explicit `lifecycleId` (must be a lifecycle of this workspace) → legacy `fields.requestType` string (CSV import) → workspace default → first.
 - **Response:** `201 → RequestDto`. `Location: /api/v1/requests/{id}`.
 - **Errors:**
   - `400` — validation. Client number required when Dept/PG/Client = Client (BS §3.5). Business Value / Efficiency Gain / Level of Effort must be 1–5 integers.
@@ -559,6 +559,13 @@ WorkspaceAdmin only (403, never 404). The append-only audit trail for one worksp
 The full S31 config. Any workspace member (Viewer+) may read — records and forms render from it.
 
 - **Response:** `LifecycleConfigDto` — `{ workspaceId, lifecycles: LifecycleDto[], roleLabels: string[], approverTeams: ApproverTeamDto[] }`. Each `LifecycleDto` carries its ordered `stages` (with `statusCategory`) and its `gates` (each with `fromStageId`/`toStageId`, `joinKind: 'and'`, and `slots` of `{ roleLabel, eligibleCount }` where `eligibleCount` is computed live from `ApproverTeamMembership`). `roleLabels` folds in the `RoleLabelCatalog` read (full catalog CRUD stays S37/slice 19).
+
+### `GET /api/v1/workspaces/{id}/lifecycles` (v2, slice 27)
+The lightweight lifecycle list for the S3 intake **Lifecycle** picker and the S31 dropdown selector. Any workspace member (Viewer+) may read. Backed by the existing `usp_GetWorkspaceLifecycles` (no new proc).
+
+- **Response:** `LifecycleSummaryDto[]` — `{ id, name, isDefault }`, ordered by sortOrder then name. The lifecycle `name` is the single user-facing label (the separate "Request type" was dropped in v2).
+
+> **Multi-lifecycle admin reuses the existing full-config reconcile — no granular endpoints.** The v2 reconciliation addendum sketched `POST /workspaces/{id}/lifecycles`, `PATCH /lifecycles/{id}`, and `POST /lifecycles/{id}/set-default`. These were **not built** in slice 27: `PATCH /workspaces/{id}/lifecycle` (below) already performs create / rename / set-default / remove atomically, and the S31 dropdown reuses it. Only the read-side list endpoint above was added (analyst-approved — see `27-slice-multi-lifecycle.md`).
 
 ### `PATCH /api/v1/workspaces/{id}/lifecycle`
 WorkspaceAdmin only. Reconciles the whole lifecycle/stage/gate structure in one transaction (`usp_SaveLifecycleConfig`, `OPENJSON`): lifecycles/stages/gates absent from the body are retired, present ones upserted. Exactly one lifecycle must be `isDefault`. Gate `from`/`to` must reference stages in the same lifecycle. Emits `lifecycle.updated` on the event spine.

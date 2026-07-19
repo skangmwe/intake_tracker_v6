@@ -93,14 +93,16 @@ Existing `hold: { held: boolean; reason?: string }` on `RequestDto` remains as a
 
 ### 4. `Lifecycle` — multi-per-workspace
 
-The existing `Lifecycle` table already supports multi-per-workspace (`WorkspaceId` FK). The v2 delta is:
+The existing `Lifecycle` table already supports multi-per-workspace (`WorkspaceId` FK). The v2 delta was originally sketched as:
 
 ```
 IsDefault       bit           not null default 0     -- exactly one row per workspace marked default; enforced by unique-filtered index (WorkspaceId) WHERE IsDefault = 1 AND IsDeleted = 0
 DisplayLabel    nvarchar(80)  not null               -- the single label used on the S3 intake picker AND everywhere in the UI (replaces the separate "Request type")
 ```
 
-Intake writes `lifecycleId` (already on `Request`) at create time; if the request body omits it, the workspace default is used. **Backward compat:** the existing scaffold seeded one lifecycle per workspace; a migration adds `IsDefault=1` to each existing seed row.
+Intake writes `lifecycleId` (already on `Request`) at create time; if the request body omits it, the workspace default is used.
+
+> **As built (slice 27, 2026-07-19) — no migration.** Slice 4 had *already* shipped `IsDefault` + the filtered unique index, and slice 5 seeded `IsDefault=1` on the AI Solutions lifecycle. `DisplayLabel` was **not** added: the prototype (authoritative for S31/S3) uses only the lifecycle **`Name`** as the single label, so `Name` serves that role and the deprecated `RequestType` column is retained-but-mirrored-from-`Name` on save (keeps its NOT NULL + legacy CSV-import match). Analyst-approved. The PG/Dept template still seeds no lifecycle (out of scope — PG records arrive via escalation/Copy). See `27-slice-multi-lifecycle.md`.
 
 ### 5. Toolkit object (new)
 
@@ -240,13 +242,15 @@ Body: {
 ### Multi-lifecycle (extends `/workspaces/{id}/lifecycles`)
 
 ```
-GET    /api/v1/workspaces/{id}/lifecycles
-POST   /api/v1/workspaces/{id}/lifecycles          -- create a new lifecycle
-PATCH  /api/v1/lifecycles/{lifecycleId}            -- edit stages/gates on an in-flight lifecycle affects only next firing (frozen approver snapshot rule stands)
-POST   /api/v1/lifecycles/{lifecycleId}/set-default  -- exactly one default per workspace; server clears the prior default in the same tx
+GET    /api/v1/workspaces/{id}/lifecycles          -- BUILT (slice 27): the picker/dropdown list → LifecycleSummaryDto[]
+POST   /api/v1/workspaces/{id}/lifecycles          -- NOT built — superseded by the full-config reconcile
+PATCH  /api/v1/lifecycles/{lifecycleId}            -- NOT built — superseded by the full-config reconcile
+POST   /api/v1/lifecycles/{lifecycleId}/set-default  -- NOT built — superseded by the full-config reconcile
 ```
 
-**Intake picker.** `POST /api/v1/workspaces/{id}/requests` accepts an optional `lifecycleId` — if omitted, the workspace's default is used. The S3 intake form fetches `/workspaces/{id}/lifecycles` to populate the picker; a single-lifecycle workspace hides the picker entirely.
+> **As built (slice 27): only the `GET .../lifecycles` list endpoint.** The three granular mutation endpoints were **not built** — slice 4's `PATCH /workspaces/{id}/lifecycle` full-config reconcile already performs create / rename / set-default / remove atomically, and the S31 dropdown reuses it, so building granular duplicates would violate the no-redundant-machinery rule. Analyst-approved.
+
+**Intake picker.** `POST /api/v1/workspaces/{id}/requests` accepts an optional `lifecycleId` — if omitted, the workspace's default is used (resolution order: explicit id → legacy `fields.requestType` → default → first). The S3 intake form fetches `/workspaces/{id}/lifecycles` to populate the picker; a single-lifecycle workspace hides the picker entirely.
 
 ### Multi-dashboard composer (extends `/dashboards`)
 
