@@ -4,7 +4,7 @@
 
 import { segmentColor } from './colors';
 import { WidgetEyebrow } from './WidgetEyebrow';
-import { METRIC_ICONS } from './metricIcons';
+import { metricIcon } from './metricIcons';
 import { widgetData } from '../../format';
 import type { WidgetProps } from './types';
 import type { SegmentedBarData } from '@shared/types';
@@ -16,7 +16,7 @@ export function SegmentedBarWidget({ widget, onDrill }: WidgetProps) {
 
   return (
     <section className="mws-card dash-tile" data-ds="card">
-      <WidgetEyebrow title={widget.title} icon={METRIC_ICONS[widget.config.metric]} />
+      <WidgetEyebrow title={widget.title} icon={metricIcon(widget.config.metric)} />
 
       <div className="dash-seg" role="presentation">
         {segments.map((segment, index) => {

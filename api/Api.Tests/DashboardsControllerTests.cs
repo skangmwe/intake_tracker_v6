@@ -30,7 +30,16 @@ public sealed class DashboardsControllerTests
 
     private static SavedDashboardResponse Sample() => new(
         DashboardId, WorkspaceId, "ai-default", "Dashboard", null, Everyone(), true, "Request", true,
-        Array.Empty<DashboardWidgetResponse>());
+        Array.Empty<DashboardWidgetResponse>(), IsSeeded: true, Visibility: "Shared", LayoutMode: "Fixed");
+
+    private static WidgetComposeRequest ValidKpiWidget() => new()
+    {
+        Type = "kpi-tile",
+        Title = "Open requests",
+        Metric = "count",
+        Width = "Half",
+        SortOrder = 0,
+    };
 
     private static DashboardsController Build(Mock<IDashboardsService> service, Mock<IAccessGuard>? guard = null)
     {
@@ -181,6 +190,146 @@ public sealed class DashboardsControllerTests
 
         // Act
         var result = await Build(service).UpdateDashboard(DashboardId, new DashboardPatchRequest(), CancellationToken.None);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status404NotFound, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateDashboard_SeededReadOnly_Returns403()
+    {
+        // Arrange — a composer-path edit (visibility/widgets) on a seeded dashboard.
+        var service = new Mock<IDashboardsService>();
+        service.Setup(svc => svc.UpdateAsync(DashboardId, It.IsAny<DashboardPatchRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardReadResult(DashboardOutcome.SeededReadOnly));
+
+        // Act
+        var result = await Build(service).UpdateDashboard(DashboardId, new DashboardPatchRequest { Visibility = "Personal" }, CancellationToken.None);
+
+        // Assert — 403 with the seeded-dashboard-read-only problem type.
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        Assert.Equal("https://mws.ai/errors/seeded-dashboard-read-only", Assert.IsType<ProblemDetails>(problem.Value).Type);
+    }
+
+    [Fact]
+    public async Task CreateDashboard_Valid_Returns201()
+    {
+        // Arrange
+        var service = new Mock<IDashboardsService>();
+        service.Setup(svc => svc.CreateAsync(WorkspaceId, It.IsAny<DashboardComposeRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardReadResult(DashboardOutcome.Success, Sample()));
+
+        // Act
+        var request = new DashboardComposeRequest { Name = "Tax delivery", Visibility = "Personal", ObjectType = "Request" };
+        var result = await Build(service).CreateDashboard(WorkspaceId, request, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status201Created, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateDashboard_MissingName_Returns400AndDoesNotCallService()
+    {
+        // Arrange
+        var service = new Mock<IDashboardsService>();
+
+        // Act — no name.
+        var result = await Build(service).CreateDashboard(WorkspaceId, new DashboardComposeRequest { Visibility = "Shared" }, CancellationToken.None);
+
+        // Assert — boundary validation blocks it before the service (ValidationProblem → 400).
+        Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
+        service.Verify(svc => svc.CreateAsync(It.IsAny<Guid>(), It.IsAny<DashboardComposeRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateDashboard_SharedByNonAdmin_Returns403()
+    {
+        // Arrange — service enforces WorkspaceAdmin for Shared and returns Denied.
+        var service = new Mock<IDashboardsService>();
+        service.Setup(svc => svc.CreateAsync(WorkspaceId, It.IsAny<DashboardComposeRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardReadResult(DashboardOutcome.Denied));
+
+        // Act
+        var request = new DashboardComposeRequest { Name = "Shared board", Visibility = "Shared" };
+        var result = await Build(service).CreateDashboard(WorkspaceId, request, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task AddWidget_Valid_ReturnsOk()
+    {
+        // Arrange
+        var service = new Mock<IDashboardsService>();
+        service.Setup(svc => svc.AddWidgetAsync(DashboardId, It.IsAny<WidgetComposeRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardReadResult(DashboardOutcome.Success, Sample()));
+
+        // Act
+        var result = await Build(service).AddWidget(DashboardId, ValidKpiWidget(), CancellationToken.None);
+
+        // Assert
+        Assert.IsType<OkObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task AddWidget_InvalidType_Returns400AndDoesNotCallService()
+    {
+        // Arrange
+        var service = new Mock<IDashboardsService>();
+        var bad = new WidgetComposeRequest { Type = "pie-chart", Title = "Bad", Width = "Half", SortOrder = 0 };
+
+        // Act
+        var result = await Build(service).AddWidget(DashboardId, bad, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
+        service.Verify(svc => svc.AddWidgetAsync(It.IsAny<Guid>(), It.IsAny<WidgetComposeRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AddWidget_KpiWithoutMetric_Returns400()
+    {
+        // Arrange — a KPI widget must name a metric.
+        var service = new Mock<IDashboardsService>();
+        var widget = new WidgetComposeRequest { Type = "kpi-tile", Title = "No metric", Width = "Half", SortOrder = 0 };
+
+        // Act
+        var result = await Build(service).AddWidget(DashboardId, widget, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task AddWidget_Seeded_Returns403SeededReadOnly()
+    {
+        // Arrange — the service blocks widget edits on a seeded dashboard.
+        var service = new Mock<IDashboardsService>();
+        service.Setup(svc => svc.AddWidgetAsync(DashboardId, It.IsAny<WidgetComposeRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardReadResult(DashboardOutcome.SeededReadOnly));
+
+        // Act
+        var result = await Build(service).AddWidget(DashboardId, ValidKpiWidget(), CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        Assert.Equal("https://mws.ai/errors/seeded-dashboard-read-only", Assert.IsType<ProblemDetails>(problem.Value).Type);
+    }
+
+    [Fact]
+    public async Task DeleteWidget_NotFound_Returns404()
+    {
+        // Arrange — unknown widget id.
+        var service = new Mock<IDashboardsService>();
+        var widgetId = Guid.NewGuid();
+        service.Setup(svc => svc.DeleteWidgetAsync(DashboardId, widgetId, UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardReadResult(DashboardOutcome.NotFound));
+
+        // Act
+        var result = await Build(service).DeleteWidget(DashboardId, widgetId, CancellationToken.None);
 
         // Assert
         Assert.Equal(StatusCodes.Status404NotFound, Assert.IsType<ObjectResult>(result).StatusCode);

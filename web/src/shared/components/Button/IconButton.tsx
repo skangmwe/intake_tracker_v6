@@ -12,6 +12,7 @@ interface IconButtonProps {
   bordered?: boolean;
   size?: number;
   title?: string;
+  disabled?: boolean;
   ariaHasPopup?: 'menu' | 'dialog' | 'listbox' | 'true';
   ariaExpanded?: boolean;
 }
@@ -23,6 +24,7 @@ export function IconButton({
   bordered = false,
   size = 20,
   title,
+  disabled = false,
   ariaHasPopup,
   ariaExpanded,
 }: IconButtonProps) {
@@ -33,6 +35,7 @@ export function IconButton({
       aria-label={label}
       title={title ?? label}
       onClick={onClick}
+      disabled={disabled}
       aria-haspopup={ariaHasPopup}
       aria-expanded={ariaExpanded}
       data-ds="icon-btn"

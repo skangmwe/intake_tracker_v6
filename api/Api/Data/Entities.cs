@@ -860,7 +860,8 @@ public sealed class DashboardListRow
 {
     public Guid SavedDashboardId { get; set; }
     public Guid WorkspaceId { get; set; }
-    public string Slug { get; set; } = string.Empty;
+    // v2 (slice 28): NULL on user-composed dashboards (only the four seeded starters carry a slug).
+    public string? Slug { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string AudienceJson { get; set; } = "{}";
@@ -868,6 +869,10 @@ public sealed class DashboardListRow
     public string ObjectType { get; set; } = string.Empty;
     public int WidgetCount { get; set; }
     public DateTime UpdatedAt { get; set; }
+    // v2 (slice 28) — composer columns.
+    public bool IsSeeded { get; set; }
+    public string Visibility { get; set; } = "Shared";
+    public string LayoutMode { get; set; } = "Fixed";
 }
 
 /// <summary>The single dashboard row from usp_GetDashboardById (carries the WidgetsJson to compose).</summary>
@@ -875,7 +880,8 @@ public sealed class DashboardRow
 {
     public Guid SavedDashboardId { get; set; }
     public Guid WorkspaceId { get; set; }
-    public string Slug { get; set; } = string.Empty;
+    // v2 (slice 28): NULL on user-composed dashboards.
+    public string? Slug { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string AudienceJson { get; set; } = "{}";
@@ -883,6 +889,24 @@ public sealed class DashboardRow
     public string ObjectType { get; set; } = string.Empty;
     public bool SupportsDrillThrough { get; set; }
     public string WidgetsJson { get; set; } = "[]";
+    // v2 (slice 28) — composer columns.
+    public bool IsSeeded { get; set; }
+    public string Visibility { get; set; } = "Shared";
+    public string LayoutMode { get; set; } = "Fixed";
+    public string CreatedBy { get; set; } = string.Empty;
+}
+
+/// <summary>usp_GetDashboardComposedBreakdown — one open-record count per group-by label (slice 28).</summary>
+public sealed class DashboardComposedBreakdownRow
+{
+    public string Label { get; set; } = string.Empty;
+    public int Cnt { get; set; }
+}
+
+/// <summary>usp_CreateDashboard — the new composed dashboard's id (slice 28).</summary>
+public sealed class CreatedDashboardIdRow
+{
+    public Guid SavedDashboardId { get; set; }
 }
 
 /// <summary>pipeline-by-category — one open-record count per status category.</summary>

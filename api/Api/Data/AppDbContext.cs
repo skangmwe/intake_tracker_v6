@@ -146,6 +146,9 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<DashboardTypeCountRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<DashboardTechCountRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<DashboardEscalationStatusRow>().HasNoKey().ToView((string?)null);
+        // Slice 28 (Multi-dashboard composer) — the composed group-by breakdown resolver + create id.
+        modelBuilder.Entity<DashboardComposedBreakdownRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<CreatedDashboardIdRow>().HasNoKey().ToView((string?)null);
 
         // Slice 25 (Object-level Relationships) — keyless projections read via stored procedures.
         modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Relationships.RelationshipRow>()

@@ -161,6 +161,8 @@ LayoutMode       nvarchar(20) not null default 'Fixed'    -- 'Fixed' (seeded) | 
 
 Seeded dashboards keep `LayoutMode='Fixed'` — their four-tile / heatmap / grid layout is code, not config. Composed dashboards render from `WidgetLayoutJson` (an ordered list of widget positions + widths). See slice 28.
 
+> **As built (slice 28, 2026-07-19).** Migration **063** adds `IsSeeded` / `Visibility` / `LayoutMode` and relaxes `Slug` to NULLable (composed dashboards carry no slug); migration **064** marks the four seed rows `IsSeeded=1`. The composed widget config on `WidgetsJson` is `{ id, type, title, config:{ composedMetric?, groupByDimension?, rowLimit?, width, sortOrder, depts[], stages[] } }` — a **superset** of the fixed shape (`metric` + `objectType?` + `savedViewId?`), selected by `LayoutMode`. The composer's metric/dimension vocabulary is **not** in slice-23's fixed resolver set, so a **generic composed resolver** (`ResolveComposedAsync` over `usp_GetDashboardComposedKpi` / `…Breakdown` / `…Grid`) was added alongside — the addendum's "engine handles composed unchanged" was optimistic. Scope is `depts[]` (DeptPgClient labels) + `stages[]` (stage keys), multi-select — the staged `WidgetComposeRequest.dept?`/`stage?` were refined to `depts?`/`stages?` arrays. Personal dashboards are author-only (list-filtered + service-gated on `CreatedBy`). See `28-slice-multi-dashboard-composer.md`.
+
 ### 8. Announcement — scheduling extensions
 
 New columns on the existing `Announcement`:
@@ -277,6 +279,8 @@ Widget composer request body:
 ```
 
 Seeded dashboards (AI-default, Workload, Feature Catalog, PG-starter, Dashboard-viewer surface) remain read-only on the composer path — `PATCH /dashboards/{seededId}` returns **403 seeded-dashboard-read-only**.
+
+> **As built (slice 28).** All five endpoints built. The seeded read-only guard is **composer-path-only**: `PATCH /dashboards/{id}` returns 403 only when it carries `visibility` or `widgets` (or on any widget CRUD) — `name`/`audience`/`retire` (S32) stay editable on seeded dashboards by a WorkspaceAdmin. Widget add/edit/delete are implemented as C# manipulation of `WidgetsJson` persisted via `usp_UpdateDashboard`; reorder is `PATCH /dashboards/{id}` with the full ordered `widgets` list. Create access: Shared → WorkspaceAdmin, Personal → Member+. The widget body carries `depts?: string[]` / `stages?: string[]` (multi-select) rather than the sketch's singular `dept?`/`stage?`.
 
 ### Toolkit (new)
 

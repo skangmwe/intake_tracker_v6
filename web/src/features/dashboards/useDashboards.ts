@@ -6,15 +6,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
+  DashboardComposeRequest,
   DashboardDrillFilter,
   DashboardPatchRequest,
   DashboardListDto,
   SavedDashboardDto,
   SavedDashboardId,
+  WidgetComposeRequest,
+  WidgetId,
   WorkspaceId,
 } from '@shared/types';
 
-import { fetchDashboard, fetchDashboardList, patchDashboard } from './api';
+import type { QueryClient } from '@tanstack/react-query';
+
+import {
+  addWidget,
+  createDashboard,
+  deleteWidget,
+  fetchDashboard,
+  fetchDashboardList,
+  patchDashboard,
+  updateWidget,
+} from './api';
 
 export const dashboardListKey = (workspaceId: WorkspaceId | null) =>
   ['dashboards', 'list', workspaceId] as const;
@@ -34,10 +47,7 @@ export function useDashboardList(workspaceId: WorkspaceId | null) {
 }
 
 /** One dashboard resolved to the caller, optionally re-scoped by a drill filter (S6/S14/S12/S15/S16). */
-export function useDashboard(
-  dashboardId: SavedDashboardId | null,
-  drill?: DashboardDrillFilter,
-) {
+export function useDashboard(dashboardId: SavedDashboardId | null, drill?: DashboardDrillFilter) {
   return useQuery<SavedDashboardDto>({
     queryKey: dashboardKey(dashboardId, drill),
     queryFn: ({ signal }) => fetchDashboard(dashboardId as SavedDashboardId, drill, signal),
@@ -57,5 +67,65 @@ export function usePatchDashboard(workspaceId: WorkspaceId | null) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dashboardListKey(workspaceId) });
     },
+  });
+}
+
+// After any composer write the API returns the recomposed dashboard: seed the detail cache for
+// instant feedback (drill-off key — composed dashboards never drill) and refresh the switcher list.
+function adoptComposed(
+  queryClient: QueryClient,
+  workspaceId: WorkspaceId | null,
+  dashboard: SavedDashboardDto,
+): void {
+  queryClient.setQueryData(dashboardKey(dashboard.id, undefined), dashboard);
+  void queryClient.invalidateQueries({ queryKey: dashboardListKey(workspaceId) });
+}
+
+/** Create a user-composed dashboard (S6 "New dashboard", slice 28). */
+export function useCreateDashboard(workspaceId: WorkspaceId | null) {
+  const queryClient = useQueryClient();
+  return useMutation<SavedDashboardDto, Error, DashboardComposeRequest>({
+    mutationFn: (request) => createDashboard(workspaceId as WorkspaceId, request),
+    onSuccess: (dashboard) => adoptComposed(queryClient, workspaceId, dashboard),
+  });
+}
+
+/** Append a widget to a composed dashboard (slice 28). */
+export function useAddWidget(dashboardId: SavedDashboardId, workspaceId: WorkspaceId | null) {
+  const queryClient = useQueryClient();
+  return useMutation<SavedDashboardDto, Error, WidgetComposeRequest>({
+    mutationFn: (request) => addWidget(dashboardId, request),
+    onSuccess: (dashboard) => adoptComposed(queryClient, workspaceId, dashboard),
+  });
+}
+
+/** Update one widget on a composed dashboard (slice 28). */
+export function useUpdateWidget(dashboardId: SavedDashboardId, workspaceId: WorkspaceId | null) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    SavedDashboardDto,
+    Error,
+    { widgetId: WidgetId; request: WidgetComposeRequest }
+  >({
+    mutationFn: (input) => updateWidget(dashboardId, input.widgetId, input.request),
+    onSuccess: (dashboard) => adoptComposed(queryClient, workspaceId, dashboard),
+  });
+}
+
+/** Remove one widget from a composed dashboard (slice 28). */
+export function useDeleteWidget(dashboardId: SavedDashboardId, workspaceId: WorkspaceId | null) {
+  const queryClient = useQueryClient();
+  return useMutation<SavedDashboardDto, Error, WidgetId>({
+    mutationFn: (widgetId) => deleteWidget(dashboardId, widgetId),
+    onSuccess: (dashboard) => adoptComposed(queryClient, workspaceId, dashboard),
+  });
+}
+
+/** Replace a composed dashboard's ordered widget list (reorder, slice 28). */
+export function useReorderWidgets(dashboardId: SavedDashboardId, workspaceId: WorkspaceId | null) {
+  const queryClient = useQueryClient();
+  return useMutation<SavedDashboardDto, Error, WidgetComposeRequest[]>({
+    mutationFn: (widgets) => patchDashboard(dashboardId, { widgets }),
+    onSuccess: (dashboard) => adoptComposed(queryClient, workspaceId, dashboard),
   });
 }

@@ -498,8 +498,16 @@ Dashboards visible to the caller (audience two-layer). **Viewer+** of the worksp
 ### `GET /api/v1/dashboards/{id}?drill={urlEncodedJson}`  *(slice 23)*
 Full dashboard with **every widget resolved to the caller's entitlements** → `SavedDashboardDto`. Each widget's `data` is narrowed by `type` (KpiTileData / SegmentedBarData / HeatmapMatrixData / RecordsGridData / …); the API walks the row's `widgets` list and runs the fixed metric resolver named by `config.metric` (unknown metric → empty widget, never a failure). **Access:** Viewer+ on the dashboard's workspace **OR** the caller's `WorkspaceMembership.BoundDashboardId == id` (bound Dashboard-viewer, S16 — forces `supportsDrillThrough=false` and ignores `drill`). Existence checked before access: unknown id → `404`, inaccessible → `403` (never disclosing). `drill` (S6 only) filters the embedded records-grid widget server-side — shapes: `{type:'origin'|'category'|'outcome',value}` · `{type:'cell',origin,category}` · `{type:'closedCell',origin,outcome}` · `{type:'unassigned'}`.
 
-### `PATCH /api/v1/dashboards/{id}`  *(slice 23 — S32 shared-dashboards management)*
-Edit a dashboard's `name` / `audience`, or `retire` it (soft-delete). **WorkspaceAdmin** of the dashboard's workspace → `200 SavedDashboardDto`; unknown id → `404`; not admin → `403`. Body `DashboardPatchRequest` (`{ name?, audience?, retire? }`). Promote-from-personal is N/A in R1 (no personal dashboards — fixed layouts only).
+### `PATCH /api/v1/dashboards/{id}`  *(slice 23 — S32 shared-dashboards management; extended slice 28)*
+Edit a dashboard's `name` / `audience`, `retire` it (soft-delete), and — slice 28 — toggle `visibility` or replace the composed `widgets` list (reorder / bulk layout). Editor gate: **WorkspaceAdmin** for a Shared/seeded dashboard, the **author** for a Personal one → `200 SavedDashboardDto`; unknown id → `404`; not editor → `403`. Body `DashboardPatchRequest` (`{ name?, audience?, retire?, visibility?, widgets? }`). **`visibility` / `widgets` on a seeded dashboard → `403 seeded-dashboard-read-only`** (name/audience/retire on seeded still allowed).
+
+### Multi-dashboard composer  *(slice 28 — S6 composer)*
+- **`POST /api/v1/workspaces/{id}/dashboards`** — create a user-composed dashboard. Body `DashboardComposeRequest` (`{ name, description?, visibility, objectType, widgets? }`). Shared → **WorkspaceAdmin**, Personal → **Member+**. `201 SavedDashboardDto`. Boundary-validates name + each widget (type/metric/dimension/width). Composed dashboards carry no slug, `LayoutMode='Composed'`, `SupportsDrillThrough=false`.
+- **`POST /api/v1/dashboards/{id}/widgets`** — append a widget. Body `WidgetComposeRequest` (`{ type, title, metric?|groupByDimension?|rowLimit?, width, depts?, stages?, sortOrder }`). `200 SavedDashboardDto`; seeded → `403 seeded-dashboard-read-only`.
+- **`PATCH /api/v1/dashboards/{id}/widgets/{widgetId}`** — update one widget. `200`; unknown widget → `404`; seeded → `403`.
+- **`DELETE /api/v1/dashboards/{id}/widgets/{widgetId}`** — remove one widget. `200`; unknown widget → `404`; seeded → `403`.
+
+Composed widget config vocabulary: KPI metric ∈ `count|unassigned|overdue|high-priority`; group-by dimension ∈ `origin|stage|analyst|priority`; scope `depts[]` (DeptPgClient labels) + `stages[]` (stage keys); `width ∈ Half|Full`. Resolved live by the composed resolver (open records, dept+stage scoped), never a fixed metric.
 
 ---
 

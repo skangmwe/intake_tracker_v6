@@ -33,3 +33,11 @@ export const METRIC_ICONS: Partial<Record<DashboardMetric, ComponentType<IconPro
   'requests-by-origin': ChartBarHorizontal,
   'escalation-status': Swap,
 };
+
+// Null-safe lookup — composed widgets (slice 28) carry no fixed `metric`, so an undefined key must
+// resolve to no icon rather than an index error.
+export function metricIcon(
+  metric: DashboardMetric | undefined,
+): ComponentType<IconProps> | undefined {
+  return metric ? METRIC_ICONS[metric] : undefined;
+}

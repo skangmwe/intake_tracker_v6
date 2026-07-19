@@ -6,15 +6,17 @@
 import { outcomeColor } from './colors';
 import { widgetData } from '../../format';
 import { WidgetEyebrow } from './WidgetEyebrow';
-import { METRIC_ICONS } from './metricIcons';
+import { metricIcon } from './metricIcons';
 import type { WidgetProps } from './types';
 import type { BarBreakdownData, DashboardDrillFilter, DashboardMetric } from '@shared/types';
 
-function barColor(metric: DashboardMetric, label: string): string {
+// `metric` is optional — composed bar-breakdown widgets (slice 28) carry no fixed metric, so these
+// fall through to the single-accent, non-drillable defaults.
+function barColor(metric: DashboardMetric | undefined, label: string): string {
   return metric === 'closures-by-outcome' ? outcomeColor(label) : 'var(--accent-interactive)';
 }
 
-function drillFor(metric: DashboardMetric, label: string): DashboardDrillFilter | null {
+function drillFor(metric: DashboardMetric | undefined, label: string): DashboardDrillFilter | null {
   if (metric === 'closures-by-outcome') return { type: 'outcome', value: label };
   if (metric === 'requests-by-origin') return { type: 'origin', value: label };
   return null;
@@ -27,7 +29,7 @@ export function BarBreakdownWidget({ widget, onDrill }: WidgetProps) {
 
   return (
     <section className="mws-card dash-tile" data-ds="card">
-      <WidgetEyebrow title={widget.title} icon={METRIC_ICONS[metric]} />
+      <WidgetEyebrow title={widget.title} icon={metricIcon(metric)} />
 
       <div className="dash-bars">
         {bars.map((bar) => {
