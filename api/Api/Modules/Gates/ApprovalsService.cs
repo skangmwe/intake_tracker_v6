@@ -36,6 +36,8 @@ public enum ApprovalDecisionOutcome
     UnknownSlot,
     AlreadyResolved,
     Invalid,
+    /// <summary>Slice 26 — parent record is <c>OnHold</c> or <c>Abandoned</c>; approval blocked (409 record-on-hold).</summary>
+    RecordOnHold,
 }
 
 public sealed record ApprovalDecisionResult(ApprovalDecisionOutcome Outcome, ApprovalRequestDto? Request = null);
@@ -72,6 +74,8 @@ public sealed class ApprovalsService : IApprovalsService
     private const int UnknownSlotError = 50056;             // → 400.
     private const int IneligibleSignerError = 50057;        // → 400.
     private const int BadDecisionError = 50058;             // → 400 (defence in depth; API validates first).
+    // Slice 26: raised by usp_SubmitDecision when the parent record is OnHold / Abandoned.
+    private const int RecordOnHoldError = Requests.RequestsService.RecordOnHoldError;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -216,6 +220,10 @@ public sealed class ApprovalsService : IApprovalsService
         catch (SqlException ex) when (ex.Number == GateAlreadyResolvedError)
         {
             return new ApprovalDecisionResult(ApprovalDecisionOutcome.AlreadyResolved);
+        }
+        catch (SqlException ex) when (ex.Number == RecordOnHoldError)
+        {
+            return new ApprovalDecisionResult(ApprovalDecisionOutcome.RecordOnHold);
         }
         catch (SqlException ex) when (ex.Number == BadDecisionError)
         {

@@ -93,6 +93,8 @@ public sealed class ApprovalsController : ControllerBase
             "invalid-decision", "A decision must be either an approval or a rejection."),
         ApprovalDecisionOutcome.AlreadyResolved => Conflict(
             "gate-already-resolved", "This gate has already been resolved."),
+        ApprovalDecisionOutcome.RecordOnHold => Conflict(
+            "record-on-hold", "Reactivate the record from its Status tab before deciding this gate."),
         _ => AccessDenied(),
     };
 

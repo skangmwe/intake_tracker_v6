@@ -1,6 +1,7 @@
 -- =============================================
--- Author:      /dev-build-application (Slice 8 — Gates on records + Approvals)
+-- Author:      /dev-build-application (Slice 8 — Gates on records + Approvals; Slice 26 — hold guard)
 -- Create Date: 2026-07-04
+-- Last update: 2026-07-17 (Slice 26 — hold guard: parent record's StatusHold blocks any decision)
 -- Description: Records an Approve/Reject decision on one frozen slot (BS §7.2 / §7.3). The signer
 --              (@DecidedByUserId — the name the acting member picked) must be in the slot's frozen
 --              eligible set AND currently a member of the slot's team, UNLESS @IsProxy = 1 (an
@@ -54,6 +55,15 @@ BEGIN
 
     IF @WsId IS NULL
         RETURN;
+
+    -- Slice 26 hold guard: any decision (Approve or Reject) on a held record is blocked.
+    -- The addendum's "On hold pauses gate approvals" wording covers both directions; the guard
+    -- fires before the state / eligibility checks so the caller sees the hold immediately.
+    IF EXISTS (
+        SELECT 1 FROM dbo.Requests
+        WHERE RecordId = @Record AND WorkspaceId = @WsId AND IsDeleted = 0
+          AND StatusHold IN (N'OnHold', N'Abandoned'))
+        THROW 51201, N'usp_SubmitDecision: this record is on hold. Reactivate it before deciding.', 1;
 
     IF @State = N'Resolved'
         THROW 50055, N'usp_SubmitDecision: this gate is already resolved.', 1;

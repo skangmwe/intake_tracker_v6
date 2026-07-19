@@ -123,10 +123,10 @@ Return the full record from **the workspace the caller has access to** (PG side 
   - `403` — caller cannot see this record on their side.
 
 ### `PATCH /api/v1/requests/{recordId}`
-Partial update of editable content fields. Every edit produces an AuditEntry.
+Partial update of editable content fields **and** the tri-state Status/hold (Slice 26). A single PATCH may combine content edits with a status change; content and status writes run sequentially inside the endpoint.
 
-- **Body:** `RequestPatchRequest` — sparse map of field values.
-- **Response:** `200 → RequestDto` (fresh state).
+- **Body:** `RequestPatchRequest` — sparse map of field values plus optional `statusHold` (`'InProgress' | 'OnHold' | 'Abandoned'`) and `statusHoldNote`. The legacy `hold: { held, reason }` shape is accepted for one release and mapped server-side (`held=true → OnHold`, `held=false → InProgress`); `statusHold` wins when both are present.
+- **Response:** `200 → RequestDto` (fresh state — includes updated `statusHold` + `statusHoldNote` and the derived legacy `hold` block).
 - **Errors:**
   - `403` — insufficient level, or the field is locked (PG-side crossing field on an escalated record; the platform-defined `AI Solutions Status` at any access level).
   - `409` — optimistic concurrency: If-Match ETag mismatch. Client refetches and reapplies per `web-state-management.md`.
@@ -138,10 +138,11 @@ Advance stage. Fires any configured gate; opens an ApprovalRequest if approvals 
 - **Response:** `200 → StageTransitionResult` — either `{ advanced: true, newStage }` or `{ advanced: false, gateOpened: ApprovalRequestDto }`.
 - **Errors:**
   - `403` — level.
-  - `409` — a gate is already open on this record.
+  - `409 gate-already-open` — a gate is already open on this record.
+  - `409 record-on-hold` — the record's `statusHold` is `OnHold` or `Abandoned` (Slice 26). The UI reactivates via PATCH `statusHold: 'InProgress'` before retrying.
 
-### `POST /api/v1/requests/{recordId}/hold`
-Set/clear the Hold flag.
+### `POST /api/v1/requests/{recordId}/hold` — **deprecated (Slice 26)**
+Legacy binary hold — accepted for one release; superseded by `PATCH /requests/{id}` with `statusHold`. The endpoint now translates `held: true` → `statusHold: 'OnHold'` and `held: false` → `statusHold: 'InProgress'` and writes through `usp_UpsertRequestStatusHold` so column + JSON mirror stay consistent.
 
 - **Body:** `{ held: boolean, reason?: string }`.
 - **Response:** `204`.
@@ -219,6 +220,8 @@ off (`status: 'Done'`) stamps `completedAt`; reopening clears it.
 
 - **Body:** `TaskPatchRequest` — sparse fields.
 - **Response:** `200 → TaskDto`. `403` when the caller can't see the parent.
+- **Errors:**
+  - `409 record-on-hold` — Slice 26. Raised only when the patch sets `status: 'Done'` and the parent record's `statusHold` is `OnHold` or `Abandoned`. Other edits (notes, phases, assignments, typed-field values) remain allowed while a record is held (D3 scope).
 
 > **`POST /api/v1/tasks/{id}/promote-to-request` moved to slice 10.** Promote runs Copy
 > (`POST /records/{id}/copy`) and stamps a typed `related` link back — both land in slice 10.
@@ -251,6 +254,8 @@ Submit an approve or reject decision on a slot.
 
 - **Body:** `ApprovalDecisionRequest` — `{ slotIndex: number, decidedByUserId: string, decision: 'Approved' | 'Rejected', comment?: string }`. `decidedByUserId` is the name the acting team member picked from the "Select your name" dropdown. `comment` is **required when Rejected** (blueprint / changelog rule); returns `400` if missing.
 - **Response:** `200 → ApprovalRequestDto` (with updated slot decisions + `state`).
+- **Errors:**
+  - `409 record-on-hold` — Slice 26. Approvals are blocked while the parent record's `statusHold` is `OnHold` or `Abandoned` (the addendum's "pauses gate approvals" rule is unambiguous, no per-decision carve-out).
 - **Business rules:**
   - `decidedByUserId` must be a current member of the slot's team AND in the frozen eligibility set (BS §7.2 — frozen slot targets, live team eligibility).
   - Rejection sets the slot to Rejected but does not un-approve other slots (partial-reject preserves standing approvals — BS §7.2).
@@ -341,12 +346,20 @@ Copy the record into a new draft in a target workspace. Returns the draft ID.
 List the record's live watchers + the caller's own subscription state. Access-gated on the caller's membership of the record's workspace — a forbidden/non-existent record is `403`, never `404` (BS §22.6).
 
 - **Response:** `WatcherListDto` — `{ watchers: WatcherListItemDto[], isWatching }`. `displayName` is carried so the card renders avatars without a directory fetch.
+- **Slice 26:** the caller's own `WatcherListItemDto` carries five per-record notification preference booleans (`notifyGateDecisions`, `notifyStatusChanges`, `notifyTaskSignoffs`, `notifySlaAndDueDateReminders`, `notifyMentionsAndComments`). Rows for other watchers omit these fields entirely (privacy floor — a watcher never sees another watcher's preferences). A missing `WatcherNotificationPreference` row defaults every preference to `true`.
 
 ### `POST /api/v1/records/{recordId}/watchers`
 Subscribe the caller (or another user, if admin) to the record. Idempotent — re-subscribing is a no-op.
 
 - **Body:** `{ userId?: string }` (defaults to caller).
 - **Response:** `204`.
+
+### `PATCH /api/v1/records/{recordId}/watchers/me`  *(slice 26)*
+Sparse patch of the caller's own record-scoped state: subscribe toggle plus the five per-record notification preferences. Preferences persist across subscribe/unsubscribe so they are restored on re-subscribe (D4). Only the caller's own state is ever mutated — no admin escalation path.
+
+- **Body:** `WatcherPreferencesPatchRequest` — `{ isWatching?, notifyGateDecisions?, notifyStatusChanges?, notifyTaskSignoffs?, notifySlaAndDueDateReminders?, notifyMentionsAndComments? }`. Omitting a field leaves that setting unchanged.
+- **Response:** `200 → WatcherListDto` — refreshed roster including the caller's own five booleans.
+- **Errors:** `403` — caller cannot see the record.
 
 ### `DELETE /api/v1/records/{recordId}/watchers/{userId}`
 Unsubscribe. Caller may remove their own subscription; a WorkspaceAdmin may remove anyone's. `403` otherwise.

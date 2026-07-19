@@ -29,6 +29,8 @@ public enum RequestWriteOutcome
     /// <summary>The patch targets a locked field — a PG-side crossing field on an escalated record, or a
     /// platform-defined field (AI Solutions Status / system fields). 403 (BS §6.2/§6.4).</summary>
     Locked,
+    /// <summary>Slice 26 — the record is <c>OnHold</c> or <c>Abandoned</c> and this mutation is blocked (409 record-on-hold).</summary>
+    RecordOnHold,
 }
 
 /// <summary>Outcome of a stage move.</summary>
@@ -41,6 +43,8 @@ public enum StageMoveOutcome
     GateOpened,
     /// <summary>A gate is already open on this record — 409 gate-already-open.</summary>
     GateAlreadyOpen,
+    /// <summary>Slice 26 — the record is <c>OnHold</c> or <c>Abandoned</c> and stage advance is blocked (409 record-on-hold).</summary>
+    RecordOnHold,
 }
 
 public sealed record RequestCreateResult(
@@ -82,6 +86,9 @@ public sealed partial class RequestsService : IRequestsService
     private const int StaleRecordError = 50040;   // usp_PatchRequest — If-Match mismatch → 409.
     private const int InvalidStageError = 50041;   // usp_SetRequestStage — stage not on lifecycle → 400.
     private const int NotFoundError = 50043;       // request row not found → 403 (never disclose).
+    // Slice 26: raised by usp_PatchTask / usp_SubmitDecision / usp_SetRequestStage when the record is
+    // OnHold or Abandoned. Both states share this code — the UI distinguishes via the DTO's statusHold.
+    internal const int RecordOnHoldError = 51201;
 
     private readonly AppDbContext _db;
     private readonly IAccessGuard _accessGuard;
@@ -195,25 +202,57 @@ public sealed partial class RequestsService : IRequestsService
             return new RequestPatchResult(RequestWriteOutcome.Stale);
         }
 
+        // Slice 26 — statusHold routes through its own proc (JSON mirror + column update). Legacy
+        // `hold` maps: held=true → OnHold, held=false → InProgress. When both are present, statusHold
+        // wins (writers upgrading from the legacy shape may temporarily send both). Content-field
+        // patches remain served by usp_PatchRequest; the two writes are sequential — status/hold first
+        // so a same-request Abandoned+field-edit is safely blocked by the next mutation attempt.
+        var resolvedStatusHold = ResolveStatusHold(request);
         var mergedFields = MergeFields(ParseFields(row.FieldValues), request.Fields);
+        var hasFieldPatch = request.Name is not null
+                           || request.Description is not null
+                           || request.Fields is { Count: > 0 };
         var name = request.Name ?? row.Name;
         var description = request.Description ?? row.Description;
 
         try
         {
-            await _db.Database.ExecuteSqlRawAsync(
-                "EXEC dbo.usp_PatchRequest @RecordId, @WorkspaceId, @Name, @Description, @FieldValuesJson, @IfMatchRowVer, @ActorUserId",
-                new[]
-                {
-                    new SqlParameter("@RecordId", recordId),
-                    new SqlParameter("@WorkspaceId", row.WorkspaceId),
-                    new SqlParameter("@Name", name),
-                    new SqlParameter("@Description", (object?)description ?? string.Empty),
-                    new SqlParameter("@FieldValuesJson", SerializeFieldsDictionary(mergedFields)),
-                    new SqlParameter("@IfMatchRowVer", System.Data.SqlDbType.VarBinary, 8) { Value = rowVer },
-                    new SqlParameter("@ActorUserId", actorUserId.ToString()),
-                },
-                cancellationToken).ConfigureAwait(false);
+            if (resolvedStatusHold is { } statusHoldValue)
+            {
+                await _db.Database.ExecuteSqlRawAsync(
+                    "EXEC dbo.usp_UpsertRequestStatusHold @RecordId, @WorkspaceId, @StatusHold, @Note, @ActorUserId",
+                    new[]
+                    {
+                        new SqlParameter("@RecordId", recordId),
+                        new SqlParameter("@WorkspaceId", row.WorkspaceId),
+                        new SqlParameter("@StatusHold", statusHoldValue.ToString()),
+                        new SqlParameter("@Note", (object?)request.StatusHoldNote ?? DBNull.Value),
+                        new SqlParameter("@ActorUserId", actorUserId.ToString()),
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                await EmitAsync(
+                    "request.status-hold-changed", row.WorkspaceId, recordId, actorUserId,
+                    new { statusHold = statusHoldValue.ToString() }, operationId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (hasFieldPatch)
+            {
+                await _db.Database.ExecuteSqlRawAsync(
+                    "EXEC dbo.usp_PatchRequest @RecordId, @WorkspaceId, @Name, @Description, @FieldValuesJson, @IfMatchRowVer, @ActorUserId",
+                    new[]
+                    {
+                        new SqlParameter("@RecordId", recordId),
+                        new SqlParameter("@WorkspaceId", row.WorkspaceId),
+                        new SqlParameter("@Name", name),
+                        new SqlParameter("@Description", (object?)description ?? string.Empty),
+                        new SqlParameter("@FieldValuesJson", SerializeFieldsDictionary(mergedFields)),
+                        new SqlParameter("@IfMatchRowVer", System.Data.SqlDbType.VarBinary, 8) { Value = rowVer },
+                        new SqlParameter("@ActorUserId", actorUserId.ToString()),
+                    },
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (SqlException ex) when (ex.Number == StaleRecordError)
         {
@@ -224,9 +263,33 @@ public sealed partial class RequestsService : IRequestsService
             return new RequestPatchResult(RequestWriteOutcome.Denied);
         }
 
-        await EmitAsync("request.updated", row.WorkspaceId, recordId, actorUserId, new { }, operationId, cancellationToken).ConfigureAwait(false);
+        if (hasFieldPatch)
+        {
+            await EmitAsync("request.updated", row.WorkspaceId, recordId, actorUserId, new { }, operationId, cancellationToken).ConfigureAwait(false);
+        }
         var dto = await ReadAndMapAsync(recordId, actorUserId, cancellationToken).ConfigureAwait(false);
         return new RequestPatchResult(RequestWriteOutcome.Success, dto);
+    }
+
+    /// <summary>
+    /// Slice 26 — resolve the desired statusHold from the sparse patch. Preference order: explicit
+    /// <c>StatusHold</c> wins; otherwise the legacy <c>Hold</c> shape is mapped
+    /// (<c>held=true → OnHold</c>, <c>held=false → InProgress</c>); otherwise null (no change).
+    /// Pure — unit-testable.
+    /// </summary>
+    public static RequestStatusHoldValue? ResolveStatusHold(RequestPatchRequest request)
+    {
+        if (request.StatusHold is { } explicitValue)
+        {
+            return explicitValue;
+        }
+
+        if (request.Hold is { } legacy)
+        {
+            return legacy.Held ? RequestStatusHoldValue.OnHold : RequestStatusHoldValue.InProgress;
+        }
+
+        return null;
     }
 
     public async Task<StageMoveResult> SetStageAsync(
@@ -272,6 +335,10 @@ public sealed partial class RequestsService : IRequestsService
         {
             return new StageMoveResult(StageMoveOutcome.InvalidStage);
         }
+        catch (SqlException ex) when (ex.Number == RecordOnHoldError)
+        {
+            return new StageMoveResult(StageMoveOutcome.RecordOnHold);
+        }
         catch (SqlException ex) when (ex.Number == NotFoundError)
         {
             return new StageMoveResult(StageMoveOutcome.Denied);
@@ -284,22 +351,26 @@ public sealed partial class RequestsService : IRequestsService
     public async Task<RequestWriteOutcome> SetHoldAsync(
         string recordId, bool held, string? reason, Guid actorUserId, string operationId, CancellationToken cancellationToken)
     {
+        // Slice 26 — legacy binary hold endpoint. Routes to usp_UpsertRequestStatusHold so column
+        // + JSON mirror stay consistent. Preserved so pre-v2 clients keep working for one release.
         var row = await ReadRowAsync(recordId, actorUserId, cancellationToken).ConfigureAwait(false);
         if (row is null || !await _accessGuard.HasWorkspaceLevelAsync(actorUserId, row.WorkspaceId, WorkspaceLevel.Member, cancellationToken).ConfigureAwait(false))
         {
             return RequestWriteOutcome.Denied;
         }
 
+        var target = held ? RequestStatusHoldValue.OnHold : RequestStatusHoldValue.InProgress;
+
         try
         {
             await _db.Database.ExecuteSqlRawAsync(
-                "EXEC dbo.usp_SetRequestHold @RecordId, @WorkspaceId, @Held, @Reason, @ActorUserId",
+                "EXEC dbo.usp_UpsertRequestStatusHold @RecordId, @WorkspaceId, @StatusHold, @Note, @ActorUserId",
                 new[]
                 {
                     new SqlParameter("@RecordId", recordId),
                     new SqlParameter("@WorkspaceId", row.WorkspaceId),
-                    new SqlParameter("@Held", held),
-                    new SqlParameter("@Reason", (object?)reason ?? DBNull.Value),
+                    new SqlParameter("@StatusHold", target.ToString()),
+                    new SqlParameter("@Note", (object?)reason ?? DBNull.Value),
                     new SqlParameter("@ActorUserId", actorUserId.ToString()),
                 },
                 cancellationToken).ConfigureAwait(false);
@@ -309,7 +380,9 @@ public sealed partial class RequestsService : IRequestsService
             return RequestWriteOutcome.Denied;
         }
 
-        await EmitAsync("request.hold-changed", row.WorkspaceId, recordId, actorUserId, new { held }, operationId, cancellationToken).ConfigureAwait(false);
+        await EmitAsync(
+            "request.status-hold-changed", row.WorkspaceId, recordId, actorUserId,
+            new { statusHold = target.ToString() }, operationId, cancellationToken).ConfigureAwait(false);
         return RequestWriteOutcome.Success;
     }
 

@@ -65,6 +65,7 @@ BEGIN
     ;WITH Matched AS (
         SELECT r.RecordId, r.Name, r.Description, r.Stage, r.Origin, r.DeptPgClient,
                r.AssignedAnalyst, r.DueDate, r.PriorityScore, r.Submitted, r.UpdatedAt, r.RowVer,
+               r.StatusHold,   -- Slice 26 — drives the pill on each S2 row.
                -- Field-as-column rollup (slice 7): the first task-level URL field captured on this
                -- record surfaces as the Repo URL list column (blueprint). NULL when the record has
                -- no URL-type task field yet.
@@ -94,6 +95,7 @@ BEGIN
     SELECT
         m.RecordId, m.Name, m.Description, m.Stage, m.Origin, m.DeptPgClient,
         m.AssignedAnalyst, m.DueDate, m.PriorityScore, m.Submitted, m.UpdatedAt, m.RowVer, m.RepoUrl,
+        m.StatusHold,   -- Slice 26 — the tri-state pill for the S2 row.
         @DueSoonWindow AS DueSoonWindowDays
     FROM Matched AS m
     ORDER BY

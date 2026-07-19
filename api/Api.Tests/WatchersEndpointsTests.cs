@@ -63,4 +63,14 @@ public sealed class WatchersEndpointsTests : IClassFixture<WebApplicationFactory
         var response = await client.DeleteAsync($"/api/v1/records/{RecordId}/watchers/{TargetUserId}");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task PatchMyWatch_WithoutToken_Returns401()
+    {
+        // Slice 26 — PATCH /records/{recordId}/watchers/me must be gated by the fallback auth policy.
+        var client = _factory.CreateClient();
+        var body = new StringContent("{\"notifyGateDecisions\":false}", Encoding.UTF8, "application/json");
+        var response = await client.PatchAsync($"/api/v1/records/{RecordId}/watchers/me", body);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }

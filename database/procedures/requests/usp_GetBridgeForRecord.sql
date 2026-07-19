@@ -39,9 +39,6 @@ BEGIN
             ON m.WorkspaceId = r.WorkspaceId AND m.UserId = @User AND m.IsDeleted = 0
         WHERE r.RecordId = @Rec AND r.IsDeleted = 0);
 
-    IF @CallerWs IS NULL
-        RETURN;
-
     -- The AI-side row (system read — the mirror is system-computed, BS §6.4).
     DECLARE @AiWs        UNIQUEIDENTIFIER;
     DECLARE @AiStage     NVARCHAR(64);
@@ -53,9 +50,11 @@ BEGIN
     INNER JOIN dbo.Workspaces AS w ON w.WorkspaceId = r.WorkspaceId
     WHERE r.RecordId = @Rec AND r.IsDeleted = 0 AND w.Kind = N'ai-solutions';
 
-    -- No AI-side row → the record is not escalated → no bridge block.
-    IF @AiWs IS NULL
-        RETURN;
+    -- "No bridge" cases (no caller membership → @CallerWs NULL; not escalated → @AiWs NULL) must
+    -- still emit the same result-set SHAPE so the API's FromSql<BridgeRow> read binds consistently:
+    -- an early RETURN yields no result set and EF throws "required column 'AiFieldValues' not present"
+    -- (500) for every non-escalated record. The final SELECT's WHERE returns ZERO rows in those cases
+    -- instead — the caller sees no bridge block, and membership/escalation gating is unchanged.
 
     -- The PG-side row (the originating workspace). Origin is the same on both sides.
     DECLARE @PgWs   UNIQUEIDENTIFIER;
@@ -84,6 +83,9 @@ BEGIN
         @AiFields                   AS AiFieldValues,
         @CallerWs                   AS CallerWorkspaceId,
         CAST(CASE WHEN @CallerWs = @AiWs THEN 1 ELSE 0 END AS BIT) AS CallerOnAiSide,
-        ISNULL(@LockedJson, N'[]')  AS LockedFieldKeysJson;
+        ISNULL(@LockedJson, N'[]')  AS LockedFieldKeysJson
+    -- Zero rows (but the full column shape) when the caller is not a member of any side, or the
+    -- record is not escalated — replaces the two early RETURNs above (see the note there).
+    WHERE @CallerWs IS NOT NULL AND @AiWs IS NOT NULL;
 END;
 GO

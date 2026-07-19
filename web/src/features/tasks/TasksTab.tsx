@@ -134,7 +134,9 @@ export function TasksTab({ recordId, workspaceId, paused }: TasksTabProps) {
   const reRequestSlot = (approvalRequestId: string, slotIndex: number) =>
     reRequest.mutate({ approvalRequestId, slotIndex });
 
-  const gateDisabled = submitDecision.isPending || reRequest.isPending;
+  // Slice 26 — the hold guard also disables gate Approve/Reject/Re-request. Server-side, the same
+  // three transitions THROW 51201 (409 record-on-hold); this keeps the UI honest before the click.
+  const gateDisabled = paused || submitDecision.isPending || reRequest.isPending;
 
   return (
     <section className="tasks" aria-label="Tasks and gates">
@@ -142,8 +144,11 @@ export function TasksTab({ recordId, workspaceId, paused }: TasksTabProps) {
         <div className="tasks-paused" role="status">
           <PauseCircle size={20} aria-hidden />
           <span>
-            <span className="tasks-paused__title">This solution is on hold</span>
-            <span className="tasks-paused__note">Task completion is paused until the status returns to Active.</span>
+            <span className="tasks-paused__title">This record is not in progress</span>
+            <span className="tasks-paused__note">
+              Task completion and gate approvals are paused. Set the status back to <strong>In progress</strong>
+              {' '}from the Status tab to continue.
+            </span>
           </span>
         </div>
       )}

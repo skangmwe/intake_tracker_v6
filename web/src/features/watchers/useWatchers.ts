@@ -4,9 +4,14 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { RecordId, UserId, WatcherListDto } from '@shared/types';
+import type {
+  RecordId,
+  UserId,
+  WatcherListDto,
+  WatcherPreferencesPatchRequest,
+} from '@shared/types';
 
-import { fetchWatchers, unwatchRecord, watchRecord } from './api';
+import { fetchWatchers, patchMyWatch, unwatchRecord, watchRecord } from './api';
 
 export const recordWatchersKey = (recordId: RecordId) => ['record-watchers', recordId] as const;
 
@@ -32,6 +37,20 @@ export function useWatchToggle(recordId: RecordId) {
     mutationFn: ({ watch, userId }) => (watch ? watchRecord(recordId) : unwatchRecord(recordId, userId)),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: recordWatchersKey(recordId) });
+    },
+  });
+}
+
+/**
+ * Slice 26 — sparse patch of the caller's own state (subscribe toggle + five per-record preferences).
+ * Adopts the refreshed roster into the cache so the card renders with the new state immediately.
+ */
+export function usePatchMyWatch(recordId: RecordId) {
+  const queryClient = useQueryClient();
+  return useMutation<WatcherListDto, unknown, WatcherPreferencesPatchRequest>({
+    mutationFn: (request) => patchMyWatch(recordId, request),
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(recordWatchersKey(recordId), fresh);
     },
   });
 }

@@ -101,7 +101,7 @@ public sealed class ExportServiceTests
         AllowMembership();
         var rows = new List<RequestListRow>
         {
-            new("AIS-00000001", "e1", new Dictionary<string, object?> { ["id"] = "AIS-00000001", ["name"] = "Helper" }, null),
+            new("AIS-00000001", "e1", new Dictionary<string, object?> { ["id"] = "AIS-00000001", ["name"] = "Helper" }, null, RequestStatusHoldValue.InProgress),
         };
         _requests
             .Setup(service => service.QueryAsync(WorkspaceId, It.IsAny<PaginatedQuery>(), It.IsAny<CancellationToken>()))

@@ -1,12 +1,16 @@
 -- =============================================
--- Author:      /dev-build-application (Slice 5 — Requests core)
+-- Author:      /dev-build-application (Slice 5 — Requests core; Slice 26 — hold guard)
 -- Create Date: 2026-07-04
+-- Last update: 2026-07-17 (Slice 26 — hold guard: StatusHold ∈ {OnHold, Abandoned} blocks advance)
 -- Description: Advances (or moves) a Request to a target lifecycle stage. Validates that
 --              @ToStage is a real StageKey on the record's OWN lifecycle (THROW 50041 otherwise),
 --              then sets Stage and mirrors it into the field map (so Display/Mirror Status derive
 --              correctly). Slice 5 does NOT wire gates — gate firing on a gated transition is
 --              added in slice 8; here every transition simply applies. No result set — the caller
 --              re-reads. Workspace level is checked API-side before this runs.
+--
+--              Slice 26 (D3): a held record cannot advance stages. The guard fires after
+--              existence lookup so we do not disclose a non-existent record via 51201 vs 50043.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_SetRequestStage
     @RecordId    NVARCHAR(20),
@@ -23,16 +27,22 @@ BEGIN
     DECLARE @ToStageLocal  NVARCHAR(64)     = @ToStage;
     DECLARE @Actor         NVARCHAR(256)    = @ActorUserId;
     DECLARE @LifecycleId   UNIQUEIDENTIFIER;
+    DECLARE @StatusHoldNow NVARCHAR(20);
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        SELECT @LifecycleId = LifecycleId
+        SELECT @LifecycleId  = LifecycleId,
+               @StatusHoldNow = StatusHold
         FROM dbo.Requests WITH (UPDLOCK, ROWLOCK)
         WHERE RecordId = @RecordIdLocal AND WorkspaceId = @Ws AND IsDeleted = 0;
 
         IF @LifecycleId IS NULL
             THROW 50043, N'usp_SetRequestStage: request not found.', 1;
+
+        -- Slice 26 hold guard: held records cannot advance stages.
+        IF @StatusHoldNow IN (N'OnHold', N'Abandoned')
+            THROW 51201, N'usp_SetRequestStage: this record is on hold. Reactivate it before advancing.', 1;
 
         IF NOT EXISTS (
             SELECT 1 FROM dbo.StageDefinition

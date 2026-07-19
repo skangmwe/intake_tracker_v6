@@ -33,7 +33,17 @@ jest.mock('@/features/typed-links/api', () => ({
 // The Watchers & alerts tab hosts the Watchers card (slice 12), which fetches the record's watchers.
 // Mock the boundary so these tests stay network-free and the card renders its empty state.
 jest.mock('@/features/watchers/api', () => ({
-  fetchWatchers: jest.fn().mockResolvedValue({ watchers: [], isWatching: false }),
+  fetchWatchers: jest.fn().mockResolvedValue({
+    watchers: [],
+    isWatching: false,
+    myPreferences: {
+      notifyGateDecisions: true,
+      notifyStatusChanges: true,
+      notifyTaskSignoffs: true,
+      notifySlaAndDueDateReminders: true,
+      notifyMentionsAndComments: true,
+    },
+  }),
   watchRecord: jest.fn(),
   unwatchRecord: jest.fn(),
 }));
@@ -52,8 +62,8 @@ jest.mock('@/features/relationships/api', () => ({
 }));
 
 const patchMutate = jest.fn();
-const setHoldMutate = jest.fn();
 const setStageMutate = jest.fn();
+const setStatusHoldMutate = jest.fn();
 
 const SCHEMA: WorkspaceFieldSchemaDto = {
   workspaceId: 'ws-1' as WorkspaceId,
@@ -95,8 +105,10 @@ function seedDefaults() {
     .mocked(useRequests.usePatchRequest)
     .mockReturnValue(asMutation(patchMutate) as unknown as ReturnType<typeof useRequests.usePatchRequest>);
   jest
-    .mocked(useRequests.useSetHold)
-    .mockReturnValue(asMutation(setHoldMutate) as unknown as ReturnType<typeof useRequests.useSetHold>);
+    .mocked(useRequests.useSetStatusHold)
+    .mockReturnValue(
+      asMutation(setStatusHoldMutate) as unknown as ReturnType<typeof useRequests.useSetStatusHold>,
+    );
   jest
     .mocked(useRequests.useSetStage)
     .mockReturnValue(asMutation(setStageMutate) as unknown as ReturnType<typeof useRequests.useSetStage>);
@@ -245,19 +257,27 @@ describe('RecordDetailPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('RecordDetailPage — Status tab: choosing On hold and updating calls setHold', async () => {
+  it('RecordDetailPage — Status tab: choosing On hold and updating calls setStatusHold with the tri-state + note + ETag', async () => {
+    // Slice 26 — the tri-state PATCH carries statusHold + note + the record's current ETag.
     // Arrange
     const user = userEvent.setup();
     const { container } = renderPage();
 
     // Act
     await user.click(await screen.findByRole('tab', { name: 'Status' }));
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Status override' }), 'On hold');
-    await user.type(screen.getByLabelText('Reason'), 'Waiting on client');
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Status override' }),
+      'OnHold',
+    );
+    await user.type(screen.getByLabelText('Note'), 'Waiting on client');
     await user.click(screen.getByRole('button', { name: 'Update status' }));
 
     // Assert
-    expect(setHoldMutate).toHaveBeenCalledWith({ held: true, reason: 'Waiting on client' });
+    expect(setStatusHoldMutate).toHaveBeenCalledWith({
+      etag: expect.any(String),
+      statusHold: 'OnHold',
+      statusHoldNote: 'Waiting on client',
+    });
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -308,8 +328,10 @@ describe('RecordDetailPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('RecordDetailPage — Status tab: keeping Active clears the hold (held=false)', async () => {
-    // Arrange — the record starts not held, so the default status choice is Active.
+  it('RecordDetailPage — Status tab: keeping In progress calls setStatusHold with a null note', async () => {
+    // Slice 26 — the tri-state default lands on InProgress; the button always fires (no dirty check),
+    // so the mutation is called with `statusHold: 'InProgress'` and no note.
+    // Arrange
     const user = userEvent.setup();
     renderPage();
 
@@ -317,8 +339,12 @@ describe('RecordDetailPage', () => {
     await user.click(await screen.findByRole('tab', { name: 'Status' }));
     await user.click(screen.getByRole('button', { name: 'Update status' }));
 
-    // Assert — no reason text, so setHold is called with just { held: false }.
-    expect(setHoldMutate).toHaveBeenCalledWith({ held: false });
+    // Assert
+    expect(setStatusHoldMutate).toHaveBeenCalledWith({
+      etag: expect.any(String),
+      statusHold: 'InProgress',
+      statusHoldNote: null,
+    });
   });
 
   it('RecordDetailPage — the Watchers & alerts tab renders the live watchers card', async () => {
@@ -329,9 +355,10 @@ describe('RecordDetailPage', () => {
     // Act
     await user.click(await screen.findByRole('tab', { name: 'Watchers & alerts' }));
 
-    // Assert — the card renders its empty state + the firm-default notification rules.
+    // Assert — the card renders its empty state + the always-visible notification rules + Active alerts.
     expect(await screen.findByText('No one is watching this record yet.')).toBeInTheDocument();
     expect(screen.getByText('Notify watchers about')).toBeInTheDocument();
+    expect(screen.getByText('Active alerts')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

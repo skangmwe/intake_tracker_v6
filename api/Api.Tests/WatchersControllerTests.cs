@@ -31,7 +31,10 @@ public sealed class WatchersControllerTests
     public async Task GetWatchers_Accessible_ReturnsOk()
     {
         // Arrange
-        var dto = new WatcherListDto(new[] { new WatcherListItemDto(UserId, "Ana", DateTime.UtcNow) }, IsWatching: true);
+        var dto = new WatcherListDto(
+            new[] { new WatcherListItemDto(UserId, "Ana", DateTime.UtcNow) },
+            IsWatching: true,
+            MyPreferences: new WatcherPreferencesDto(true, true, true, true, true));
         var watchers = new Mock<IWatchersService>();
         watchers.Setup(service => service.GetAsync(RecordId, UserId, It.IsAny<CancellationToken>())).ReturnsAsync(dto);
 
@@ -146,5 +149,91 @@ public sealed class WatchersControllerTests
         // Act + Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             Build(watchers).AddWatcher(RecordId, new AddWatcherRequest(), cts.Token));
+    }
+
+    [Fact]
+    public async Task PatchMyWatch_Success_ReturnsRefreshedList()
+    {
+        // Slice 26 — the refreshed list is the wire response; the controller just delegates.
+        // Arrange
+        var refreshed = new WatcherListDto(
+            new[] { new WatcherListItemDto(UserId, "Ana", DateTime.UtcNow, NotifyGateDecisions: false) },
+            IsWatching: true,
+            MyPreferences: new WatcherPreferencesDto(false, true, true, true, true));
+        var watchers = new Mock<IWatchersService>();
+        watchers.Setup(service => service.PatchMineAsync(RecordId, It.IsAny<WatcherPreferencesPatchRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((WatcherOutcome.Ok, refreshed));
+
+        // Act
+        var body = new WatcherPreferencesPatchRequest { IsWatching = true, NotifyGateDecisions = false };
+        var result = await Build(watchers).PatchMyWatch(RecordId, body, CancellationToken.None);
+
+        // Assert
+        Assert.Same(refreshed, Assert.IsType<OkObjectResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task PatchMyWatch_Forbidden_Returns403()
+    {
+        // Arrange — cannot see the record → 403 (never 404, per BS §22.6).
+        var watchers = new Mock<IWatchersService>();
+        watchers.Setup(service => service.PatchMineAsync(RecordId, It.IsAny<WatcherPreferencesPatchRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((WatcherOutcome.Forbidden, (WatcherListDto?)null));
+
+        // Act
+        var result = await Build(watchers).PatchMyWatch(RecordId, new WatcherPreferencesPatchRequest { NotifyStatusChanges = false }, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task PatchMyWatch_PassesEveryPreferenceThrough()
+    {
+        // Slice 26 — the controller must not filter, reorder, or drop any of the five booleans.
+        // Arrange
+        WatcherPreferencesPatchRequest? captured = null;
+        var watchers = new Mock<IWatchersService>();
+        watchers
+            .Setup(service => service.PatchMineAsync(RecordId, It.IsAny<WatcherPreferencesPatchRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .Callback<string, WatcherPreferencesPatchRequest, Guid, CancellationToken>((_, request, _, _) => captured = request)
+            .ReturnsAsync((WatcherOutcome.Ok, new WatcherListDto(
+                Array.Empty<WatcherListItemDto>(),
+                IsWatching: true,
+                MyPreferences: new WatcherPreferencesDto(true, true, true, true, true))));
+
+        // Act
+        var body = new WatcherPreferencesPatchRequest
+        {
+            NotifyGateDecisions = false,
+            NotifyStatusChanges = true,
+            NotifyTaskSignoffs = false,
+            NotifySlaAndDueDateReminders = true,
+            NotifyMentionsAndComments = false,
+        };
+        _ = await Build(watchers).PatchMyWatch(RecordId, body, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(captured);
+        Assert.Equal(false, captured!.NotifyGateDecisions);
+        Assert.Equal(true,  captured.NotifyStatusChanges);
+        Assert.Equal(false, captured.NotifyTaskSignoffs);
+        Assert.Equal(true,  captured.NotifySlaAndDueDateReminders);
+        Assert.Equal(false, captured.NotifyMentionsAndComments);
+    }
+
+    [Fact]
+    public async Task PatchMyWatch_CancellationPropagates()
+    {
+        // Arrange
+        var watchers = new Mock<IWatchersService>();
+        watchers.Setup(service => service.PatchMineAsync(RecordId, It.IsAny<WatcherPreferencesPatchRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act + Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            Build(watchers).PatchMyWatch(RecordId, new WatcherPreferencesPatchRequest(), cts.Token));
     }
 }

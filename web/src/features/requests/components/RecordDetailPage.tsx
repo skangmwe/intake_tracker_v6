@@ -21,8 +21,9 @@ import type {
 
 import { Button } from '@/shared/components/Button';
 import { Select, TextArea } from '@/shared/components/Form';
-import { Stepper, StatusPill, Tabs } from '@/shared/components/Feedback';
+import { Stepper, StatusPill, StatusHoldPill, Tabs } from '@/shared/components/Feedback';
 import { NoAccessPage } from '@/shared/components/EdgeStates';
+import { useHoldGuard } from '@/shared/hooks/useHoldGuard';
 import { ApiError } from '@/shared/http/apiClient';
 import { fetchWorkspaceFields } from '@/features/fields/api';
 import { ActivityTab } from '@/features/comments';
@@ -40,7 +41,12 @@ import {
 } from '@/features/relationships';
 
 import { RequestFieldControl } from './RequestFieldControl';
-import { useRequest, usePatchRequest, useSetHold, useSetStage } from '../useRequests';
+import {
+  useRequest,
+  usePatchRequest,
+  useSetStage,
+  useSetStatusHold,
+} from '../useRequests';
 import {
   computePriorityScore,
   evaluateFieldConditions,
@@ -68,9 +74,14 @@ const BASE_TABS: { id: string; label: string }[] = [
   { id: 'watchers', label: 'Watchers & alerts' },
 ];
 
-const STATUS_OPTIONS = [
-  { value: 'Active', label: 'Active' },
-  { value: 'On hold', label: 'On hold' },
+// Slice 26 — tri-state Status/hold segmented control. Values are the wire strings the API accepts.
+const STATUS_HOLD_OPTIONS: {
+  value: 'InProgress' | 'OnHold' | 'Abandoned';
+  label: string;
+}[] = [
+  { value: 'InProgress', label: 'In progress' },
+  { value: 'OnHold',     label: 'On hold' },
+  { value: 'Abandoned',  label: 'Abandoned' },
 ];
 
 function displayStatusKind(status: string): StatusKind {
@@ -140,6 +151,12 @@ function RecordMetaStrip({ request }: { request: RequestDto }) {
             status={displayStatusKind(request.displayStatus)}
             label={request.displayStatus}
           />
+          {request.statusHold && request.statusHold !== 'InProgress' && (
+            <>
+              {' '}
+              <StatusHoldPill statusHold={request.statusHold} />
+            </>
+          )}
         </dd>
       </div>
       <div className="record-meta__item">
@@ -317,50 +334,68 @@ function IntakeTab({
 
 interface StatusTabProps {
   request: RequestDto;
-  setHold: ReturnType<typeof useSetHold>;
+  setStatusHold: ReturnType<typeof useSetStatusHold>;
   setStage: ReturnType<typeof useSetStage>;
   canEscalate: boolean;
   onEscalate: () => void;
 }
 
-function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: StatusTabProps) {
-  const [statusChoice, setStatusChoice] = useState(request.hold?.held ? 'On hold' : 'Active');
-  const [reason, setReason] = useState(request.hold?.reason ?? '');
+function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }: StatusTabProps) {
+  const currentStatusHold = request.statusHold ?? 'InProgress';
+  const [statusChoice, setStatusChoice] = useState<'InProgress' | 'OnHold' | 'Abandoned'>(currentStatusHold);
+  const [note, setNote] = useState(request.statusHoldNote ?? '');
   const [toStage, setToStage] = useState(request.stage ?? request.stages[0]?.key ?? '');
   const [closeOpen, setCloseOpen] = useState(false);
 
-  const reasonRequired = statusChoice === 'On hold';
-  const reasonMissing = reasonRequired && reason.trim() === '';
+  const noteRequired = statusChoice !== 'InProgress';
+  const noteMissing = noteRequired && note.trim() === '';
   const stageOptions = request.stages.map((s) => ({ value: s.key, label: s.label }));
   const closed = request.outcome ?? null;
+  const stageGuard = useHoldGuard(request.statusHold);
 
   const updateStatus = () => {
-    const held = statusChoice === 'On hold';
-    const trimmed = reason.trim();
-    setHold.mutate(trimmed ? { held, reason: trimmed } : { held });
+    const trimmed = note.trim();
+    setStatusHold.mutate({
+      etag: request.eTag,
+      statusHold: statusChoice,
+      statusHoldNote: statusChoice === 'InProgress' ? null : trimmed,
+    });
   };
 
   return (
     <div className="record-status">
-      <section className="record-card" aria-label="Status override">
+      <section className="record-card" aria-label="Record status">
         <Select
           label="Status override"
           value={statusChoice}
-          onChange={setStatusChoice}
-          options={STATUS_OPTIONS}
+          onChange={(value) => setStatusChoice(value as 'InProgress' | 'OnHold' | 'Abandoned')}
+          options={STATUS_HOLD_OPTIONS}
         />
-        {reasonRequired && (
+        {noteRequired && (
           <TextArea
-            label="Reason"
-            value={reason}
-            onChange={setReason}
-            error={reasonMissing ? 'Add a reason for the hold.' : undefined}
+            label="Note"
+            value={note}
+            onChange={setNote}
+            error={
+              noteMissing
+                ? statusChoice === 'OnHold'
+                  ? 'Add a reason for placing this record on hold.'
+                  : 'Add a note explaining why this record is being abandoned.'
+                : undefined
+            }
           />
+        )}
+        {currentStatusHold !== 'InProgress' && (
+          <p className="mws-alert mws-alert--pending" role="status">
+            <StatusHoldPill statusHold={currentStatusHold} /> Task completion and gate approvals are
+            paused while this record is {currentStatusHold === 'OnHold' ? 'on hold' : 'abandoned'}.
+            Set it back to <strong>In progress</strong> to continue.
+          </p>
         )}
         <Button
           variant="secondary"
           onClick={updateStatus}
-          disabled={setHold.isPending || reasonMissing}
+          disabled={setStatusHold.isPending || noteMissing}
         >
           Update status
         </Button>
@@ -371,10 +406,14 @@ function StatusTab({ request, setHold, setStage, canEscalate, onEscalate }: Stat
         <Button
           variant="secondary"
           onClick={() => setStage.mutate(toStage)}
-          disabled={setStage.isPending}
+          disabled={setStage.isPending || stageGuard.disable}
+          title={stageGuard.reason ?? undefined}
         >
           Move stage
         </Button>
+        {stageGuard.blocked && (
+          <p className="caption" role="status">{stageGuard.reason}</p>
+        )}
         {setStage.data && !setStage.data.advanced && (
           <p className="mws-alert mws-alert--info" role="status">
             {setStage.data.gateOpened.gateName} opened — approve it on the Tasks &amp; gates tab to
@@ -449,7 +488,7 @@ export function RecordDetailPage() {
   const fallbackId = (recordIdTyped ?? '') as RecordId;
   const patch = usePatchRequest(fallbackId);
   const setStage = useSetStage(fallbackId);
-  const setHold = useSetHold(fallbackId);
+  const setStatusHold = useSetStatusHold(fallbackId);
   const { data: me } = useMe();
 
   const [activeTab, setActiveTab] = useState('intake');
@@ -576,7 +615,7 @@ export function RecordDetailPage() {
         {activeTab === 'status' && (
           <StatusTab
             request={request}
-            setHold={setHold}
+            setStatusHold={setStatusHold}
             setStage={setStage}
             canEscalate={canEscalate}
             onEscalate={() => setEscalateOpen(true)}
@@ -587,7 +626,7 @@ export function RecordDetailPage() {
           <TasksTab
             recordId={request.id as RecordId}
             workspaceId={request.workspaceId as WorkspaceId}
-            paused={request.hold?.held ?? false}
+            paused={(request.statusHold ?? 'InProgress') !== 'InProgress'}
           />
         )}
         {activeTab === 'activity' && <ActivityTab recordId={request.id as RecordId} />}

@@ -52,6 +52,10 @@ const args = parseArgs(process.argv.slice(2));
 const URL_ = args.url;
 const WIDTH = Number(args.width || 1280);
 const HEIGHT = Number(args.height || 800);
+// Optional: click a nav element whose visible text matches --nav before enumerating.
+// Single-file prototypes (e.g. Claude Design DCLogic) switch screens by click, not by URL;
+// this drives the runtime to the target screen so non-home screens are reachable.
+const NAV = typeof args.nav === 'string' ? args.nav : null;
 
 function fail(reason) {
   process.stderr.write(`COMPONENTS: ERROR ${reason}\n`);
@@ -122,6 +126,20 @@ function buildPageScript() {
   })()`;
 }
 
+// Click a nav element by visible text (exact match preferred, else substring). Dispatches a real
+// click so a single-file runtime's document-level click delegate handles the screen switch.
+function buildNavScript(navText) {
+  return `(() => {
+    const want = ${JSON.stringify(navText)}.trim().toLowerCase();
+    const candidates = [...document.querySelectorAll('.mws-nav-item, a, button, [role="tab"], [role="menuitem"], [data-screen-nav]')];
+    const norm = (e) => (e.textContent || '').trim().toLowerCase();
+    const el = candidates.find((e) => norm(e) === want) || candidates.find((e) => norm(e).includes(want));
+    if (!el) return { clicked: false, reason: 'no clickable element with text "' + want + '"' };
+    el.click();
+    return { clicked: true, tag: el.tagName.toLowerCase(), text: (el.textContent || '').trim().slice(0, 40) };
+  })()`;
+}
+
 async function main() {
   const watchdog = setTimeout(() => fail('enumeration timed out (no response within 45s)'), 45000);
   if (typeof WebSocket === 'undefined') {
@@ -161,6 +179,16 @@ async function main() {
     await send('Page.navigate', { url: URL_ }, sessionId);
     await loaded;
     await sleep(600); // settle: fonts, async render
+
+    // Optional click-navigation for single-file (URL-static) prototypes.
+    if (NAV) {
+      const navEval = await send('Runtime.evaluate',
+        { expression: buildNavScript(NAV), returnByValue: true }, sessionId);
+      if (navEval.exceptionDetails) fail(`nav evaluation failed: ${navEval.exceptionDetails.text || 'unknown'}`);
+      const nav = navEval.result.value;
+      if (!nav || !nav.clicked) fail(`nav click failed: ${(nav && nav.reason) || 'unknown'}`);
+      await sleep(900); // settle the re-render after the screen switch
+    }
 
     const evalResult = await send('Runtime.evaluate',
       { expression: buildPageScript(), returnByValue: true, awaitPromise: false }, sessionId);

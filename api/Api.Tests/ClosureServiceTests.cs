@@ -48,6 +48,7 @@ public sealed class ClosureServiceTests
             Id: RecordId, WorkspaceId: WorkspaceId, Origin: "AI Solutions",
             CreatedAt: DateTime.UtcNow, UpdatedAt: DateTime.UtcNow, CreatedBy: "seed", UpdatedBy: "seed",
             LegacyId: null, LifecycleId: Guid.NewGuid(), Stages: Array.Empty<RequestStageRef>(), Stage: "build",
+            StatusHold: RequestStatusHoldValue.InProgress, StatusHoldNote: null,
             Hold: new HoldState(false, null), Outcome: null, DisplayStatus: "Build", SlaStatus: null, TimeInStage: null,
             Name: "Extractor", Description: "desc", Fields: new Dictionary<string, JsonElement>(StringComparer.Ordinal),
             Bridge: null, ETag: "AAAAAAAAAGQ=");

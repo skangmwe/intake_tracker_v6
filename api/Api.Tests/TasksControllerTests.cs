@@ -145,7 +145,7 @@ public sealed class TasksControllerTests
         var taskId = Guid.NewGuid();
         var tasks = new Mock<ITasksService>();
         tasks.Setup(service => service.PatchAsync(taskId, It.IsAny<TaskPatchRequest>(), UserId, "op-1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(task);
+            .ReturnsAsync(new TaskPatchResult(TaskPatchOutcome.Success, task));
 
         // Act
         var result = await Build(tasks).PatchTask(taskId, new TaskPatchRequest { Status = "Done" }, CancellationToken.None);
@@ -161,13 +161,30 @@ public sealed class TasksControllerTests
         var taskId = Guid.NewGuid();
         var tasks = new Mock<ITasksService>();
         tasks.Setup(service => service.PatchAsync(taskId, It.IsAny<TaskPatchRequest>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((TaskDto?)null);
+            .ReturnsAsync(new TaskPatchResult(TaskPatchOutcome.Denied));
 
         // Act
         var result = await Build(tasks).PatchTask(taskId, new TaskPatchRequest { Status = "Done" }, CancellationToken.None);
 
         // Assert
         Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task PatchTask_RecordOnHold_Returns409()
+    {
+        // Slice 26 — parent record is OnHold / Abandoned; task Status→Done is blocked.
+        // Arrange
+        var taskId = Guid.NewGuid();
+        var tasks = new Mock<ITasksService>();
+        tasks.Setup(service => service.PatchAsync(taskId, It.IsAny<TaskPatchRequest>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TaskPatchResult(TaskPatchOutcome.RecordOnHold));
+
+        // Act
+        var result = await Build(tasks).PatchTask(taskId, new TaskPatchRequest { Status = "Done" }, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status409Conflict, Assert.IsType<ObjectResult>(result).StatusCode);
     }
 
     [Fact]

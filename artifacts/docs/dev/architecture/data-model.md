@@ -118,6 +118,13 @@ The primary object. Field set = BS §17 (already the source of truth). Highlight
 > **Slice 5 physical storage.** Content-field values live in a single `FieldValues` **JSON** column (the field schema is workspace-configurable, so per-field columns would fight the data-driven design). `Name`, `Description`, `Stage` are also authoritative real columns (hot on lists + covering index) and are mirrored into the JSON so the condition engine derives Display/Mirror Status. List-critical values are **persisted computed columns** projected from the JSON — `DeptPgClient`, `AssignedAnalyst`, `DueDate`, `PriorityScore`. Hold lives in the JSON (`holdBlocked`/`holdReason`). Optimistic concurrency via a `ROWVERSION` (`RowVer`) surfaced as a base64 ETag. **PK is composite `(WorkspaceId, RecordId)`** so escalation's two-row shared-ID model holds.
 >
 > **Slice 21 addition.** `StageEnteredAt DATETIME2 NULL` (migration 048) records when the current stage began — stamped on create and reset on a real stage change (never on a no-op same-stage set). It drives **time-in-stage** (§10.6). SLA Status (§17.2) and time-in-stage are **not** stored — both depend on current-date (non-deterministic, so un-persistable like `DueDate`) and are derived at read time in the API service from `DueDate`, `StageEnteredAt`, and the workspace's `DueSoonWindowDays`.
+>
+> **Slice 26 addition — Record Status/hold (`v2-reconciliation.md §Model deltas 3`).** Migration 060 adds two authoritative columns on `Requests`:
+>
+> - `StatusHold NVARCHAR(20) NOT NULL DEFAULT 'InProgress'` — tri-state `'InProgress' | 'OnHold' | 'Abandoned'` (CHECK constraint enforces the set).
+> - `StatusHoldNote NVARCHAR(500) NULL` — free-text note; the UI validates a note on non-active transitions.
+>
+> Migration 061 backfills from the JSON keys `$.holdBlocked` / `$.holdReason` (Slice 5's `Hold=1` binary rows become `StatusHold='OnHold'`; `Hold=0` becomes `'InProgress'`). Filtered index `IX_Requests_Workspace_StatusHold` on `(WorkspaceId, StatusHold) WHERE IsDeleted = 0 AND StatusHold <> 'InProgress'` keeps held-record queries fast without inflating the InProgress index (95%+ of rows expected to be InProgress). The JSON keys are **left in place** and mirrored on every StatusHold write so the condition engine's Display/Mirror Status derivation (BS §3.4) continues to see consistent values — same mirror-on-write pattern `usp_SetRequestStage` uses for `$.stage` (D1). Guards on `usp_PatchTask` (Status→Done only — D3), `usp_SubmitDecision`, and `usp_SetRequestStage` `THROW 51201 'record-on-hold'` when the parent record's `StatusHold` is `OnHold` or `Abandoned`; the API maps the code to `409 record-on-hold` ProblemDetails.
 
 ### Task
 
@@ -220,6 +227,25 @@ Per-record subscription (BS §17.3, §11.2). Never a crossing field — kept liv
 | `UnsubscribedAt` | `DATETIME2` NULL | Soft-cleared subscription. |
 
 UNIQUE `(RecordId, WorkspaceId, UserId)` filtered where `UnsubscribedAt IS NULL`.
+
+### WatcherNotificationPreference (slice 26 — v2)
+
+Per-record, per-user categorical delivery preferences (`v2-reconciliation.md §Model deltas 6`). Sparse — a missing row implies **defaults-all-true** (D4). Migration 062 adds the table; there is no backfill (a sparse defaults-all-true table needs none). The `Watchers` table remains the presence source of truth; this table is a **preference layer** with no `IsWatching` column. On unsubscribe the preference row is preserved so preferences are restored on re-subscribe.
+
+| Column | Type | Notes |
+|---|---|---|
+| `PreferenceId` | `UNIQUEIDENTIFIER` PK | |
+| `UserId` | FK → User NOT NULL | The caller. Preferences are per-user, never shared. |
+| `RecordId` | `NVARCHAR(20)` NOT NULL | |
+| `WorkspaceId` | FK → Workspace NOT NULL | Per-side (like `Watcher` / `Comment` / `AuditEntry`). |
+| `NotifyGateDecisions` | `BIT` NOT NULL DEFAULT `1` | Suppresses `sign-off-requested` and `gate-decided` when `0`. |
+| `NotifyStatusChanges` | `BIT` NOT NULL DEFAULT `1` | Suppresses `hold-changed` and `closed` when `0`. |
+| `NotifyTaskSignoffs` | `BIT` NOT NULL DEFAULT `1` | Suppresses `assigned-to-you` and downstream task-signoff events when `0`. |
+| `NotifySlaAndDueDateReminders` | `BIT` NOT NULL DEFAULT `1` | Suppresses SLA reminder deliveries when `0` (Phase 2 tick worker honours this). |
+| `NotifyMentionsAndComments` | `BIT` NOT NULL DEFAULT `1` | Suppresses `mentioned` deliveries when `0`. |
+| audit cols | | Standard six audit columns + soft delete. |
+
+UNIQUE `(UserId, RecordId, WorkspaceId)` filtered where `IsDeleted = 0`. `usp_UpsertWatcherPreference` is a sparse upsert — the caller's own row inserts on first divergent write (initial values apply the same `@Set*` mask on top of the all-1 defaults) and updates in place thereafter. `usp_GetWatchers` projects the five booleans on the **caller's own row only** — CASE WHEN `w.UserId = @User` guards the projection so no other watcher's preferences leak. `usp_FanOutNotification` filters per-category via a `LEFT JOIN` on this table, treating a missing row as all-true.
 
 ### Notification (slice 12)
 

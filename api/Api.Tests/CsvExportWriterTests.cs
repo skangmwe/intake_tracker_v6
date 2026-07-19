@@ -12,7 +12,7 @@ namespace McDermott.AiTracker.Api.Tests;
 public sealed class CsvExportWriterTests
 {
     private static RequestListRow Row(Dictionary<string, object?> columns) =>
-        new("AIS-00000001", "AAAAAAAAAGQ=", columns, null);
+        new("AIS-00000001", "AAAAAAAAAGQ=", columns, null, RequestStatusHoldValue.InProgress);
 
     [Fact]
     public void Write_RendersLabelledHeaderAndRow()
