@@ -55,10 +55,26 @@ const DASHBOARD = {
       config: { metric: 'records-grid', objectType: 'Request' },
       data: {
         objectType: 'Request',
-        columns: ['ID', 'Name', 'Stage', 'Dept/PG/Client', 'Assigned analyst', 'Priority', 'Due date'],
+        columns: [
+          'ID',
+          'Name',
+          'Stage',
+          'Dept/PG/Client',
+          'Assigned analyst',
+          'Priority',
+          'Due date',
+        ],
         count: 1,
         rows: [
-          { id: 'REQ-1', name: 'Alpha', stage: 'Intake', origin: 'Tax', analyst: 'M. Chen', priority: 5, due: '2026-07-01' },
+          {
+            id: 'REQ-1',
+            name: 'Alpha',
+            stage: 'Intake',
+            origin: 'Tax',
+            analyst: 'M. Chen',
+            priority: 5,
+            due: '2026-07-01',
+          },
         ],
       },
     },
@@ -95,9 +111,29 @@ test('home shell has no accessibility violations (dark theme)', async ({ page })
 test('AI default dashboard (S6) has no accessibility violations', async ({ page }) => {
   await page.route('**/api/v1/users/me', (route) => route.fulfill(dashJson(DASH_ME)));
   await page.route('**/api/v1/dashboards/*', (route) => route.fulfill(dashJson(DASHBOARD)));
+  // The switcher list + composer scope hooks fire once the dashboard resolves (slice 28).
+  await page.route('**/api/v1/workspaces/*/dashboards', (route) =>
+    route.fulfill(dashJson({ workspaceId: WORKSPACE_ID, items: [] })),
+  );
+  await page.route('**/api/v1/workspaces/*/fields*', (route) =>
+    route.fulfill(
+      dashJson({
+        workspaceId: WORKSPACE_ID,
+        objectType: 'Request',
+        fields: [],
+        platformFields: [],
+      }),
+    ),
+  );
+  await page.route('**/api/v1/workspaces/*/lifecycle', (route) =>
+    route.fulfill(
+      dashJson({ workspaceId: WORKSPACE_ID, lifecycles: [], roleLabels: [], approverTeams: [] }),
+    ),
+  );
 
   await page.goto(`/dashboards/${DASHBOARD_ID}`);
-  await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+  // The switcher title carries the dashboard name (slice 28 — the old h1 heading is gone).
+  await expect(page.getByRole('button', { name: /AI Solutions default dashboard/ })).toBeVisible();
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);

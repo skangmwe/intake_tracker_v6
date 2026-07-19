@@ -27,7 +27,11 @@ BEGIN
         sd.IsDefault,
         sd.ObjectType,
         sd.SupportsDrillThrough,
-        sd.WidgetsJson
+        sd.WidgetsJson,
+        sd.IsSeeded,      -- v2 (slice 28) — seeded starters are read-only on the composer path
+        sd.Visibility,    -- v2 (slice 28) — 'Shared' | 'Personal'
+        sd.LayoutMode,    -- v2 (slice 28) — 'Fixed' (seeded) | 'Composed' (user-authored)
+        sd.CreatedBy      -- v2 (slice 28) — author id string; gates Personal read/edit access
     FROM dbo.SavedDashboard AS sd
     WHERE sd.SavedDashboardId = @IdLocal
       AND sd.IsDeleted = 0;

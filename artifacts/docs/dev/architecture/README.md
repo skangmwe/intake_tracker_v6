@@ -53,5 +53,5 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 25 | Object-level Relationships + Link-to-record field type + config-driven detail tabs + system-provisioned fields (S30 v2 tab · S4/S5 tab-bar rewrite) | completed | [slice-plan.md §Slice 25](slice-plan.md) | [25-slice-relationships-schema.md](25-slice-relationships-schema.md) |
 | 26 | Record Status/hold model + Status tab + per-record notification preferences (S4 Status tab · Watchers & alerts tab) | completed | [slice-plan.md §Slice 26](slice-plan.md) | [26-slice-status-hold.md](26-slice-status-hold.md) |
 | 27 | Multiple lifecycles + Lifecycle picker at intake (S31 dropdown · S3 picker) | completed | [slice-plan.md §Slice 27](slice-plan.md) | [27-slice-multi-lifecycle.md](27-slice-multi-lifecycle.md) |
-| 28 | Multi-dashboard composer (S6 upgrade — switcher · New dashboard · Edit layout · Add widget) | pending | [slice-plan.md §Slice 28](slice-plan.md) | — |
+| 28 | Multi-dashboard composer (S6 upgrade — switcher · New dashboard · Edit layout · Add widget) | completed | [slice-plan.md §Slice 28](slice-plan.md) | [28-slice-multi-dashboard-composer.md](28-slice-multi-dashboard-composer.md) |
 | 29 | Toolkit object + S43 surface (new object · Reference-local · New item / edit-in-place / gallery) | pending | [slice-plan.md §Slice 29](slice-plan.md) | — |

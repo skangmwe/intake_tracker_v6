@@ -13,11 +13,21 @@ namespace McDermott.AiTracker.Api.Modules.Dashboards;
 
 // ── Widget config + widget envelope ────────────────────────────────────────
 
-/// <summary>The stored/echoed widget config (mirrors DashboardWidgetConfig).</summary>
+/// <summary>The stored/echoed widget config (mirrors DashboardWidgetConfig). Fixed (seeded) widgets
+/// carry <c>Metric</c> (+ <c>ObjectType</c>/<c>SavedViewId</c>); composed widgets carry the composed
+/// vocabulary (<c>ComposedMetric</c>/<c>GroupByDimension</c>/<c>RowLimit</c>/scope/<c>Width</c>/
+/// <c>SortOrder</c>). Null fields are omitted on the wire (WhenWritingNull) so each shape stays clean.</summary>
 public sealed record DashboardWidgetConfigResponse(
-    string Metric,
-    string? ObjectType,
-    Guid? SavedViewId);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Metric,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ObjectType,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? SavedViewId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ComposedMetric = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? GroupByDimension = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RowLimit = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Width = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? SortOrder = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Depts = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Stages = null);
 
 /// <summary>One resolved widget (mirrors DashboardWidgetDto). <c>Data</c> is narrowed by <c>Type</c>.</summary>
 public sealed record DashboardWidgetResponse(
@@ -31,34 +41,42 @@ public sealed record DashboardWidgetResponse(
 public sealed record SavedDashboardResponse(
     Guid Id,
     Guid WorkspaceId,
-    string Slug,
+    string? Slug,
     string Name,
     string? Description,
     JsonElement Audience,
     bool IsDefault,
     string ObjectType,
     bool SupportsDrillThrough,
-    IReadOnlyList<DashboardWidgetResponse> Widgets);
+    IReadOnlyList<DashboardWidgetResponse> Widgets,
+    bool IsSeeded,
+    string Visibility,
+    string LayoutMode);
 
 /// <summary>One row of the Dashboards list (mirrors DashboardListItemDto) — metadata only, no widget data.</summary>
 public sealed record DashboardListItemResponse(
     Guid Id,
     Guid WorkspaceId,
-    string Slug,
+    string? Slug,
     string Name,
     string? Description,
     JsonElement Audience,
     bool IsDefault,
     string ObjectType,
     int WidgetCount,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    bool IsSeeded,
+    string Visibility,
+    string LayoutMode);
 
 /// <summary>GET /workspaces/{id}/dashboards (mirrors DashboardListDto).</summary>
 public sealed record DashboardListResponse(
     Guid WorkspaceId,
     IReadOnlyList<DashboardListItemResponse> Items);
 
-/// <summary>PATCH /dashboards/{id} — audience edit / rename / retire (S32, WorkspaceAdmin). Mirrors DashboardPatchRequest.</summary>
+/// <summary>PATCH /dashboards/{id} — audience/name edit + retire (S32, WorkspaceAdmin) plus the
+/// composer's visibility/layout edits (slice 28). Mirrors DashboardPatchRequest. <c>Visibility</c>
+/// and <c>Widgets</c> are composer-path fields — rejected on a seeded dashboard (403).</summary>
 public sealed class DashboardPatchRequest
 {
     /// <summary>New name (optional; unchanged when null).</summary>
@@ -69,6 +87,50 @@ public sealed class DashboardPatchRequest
 
     /// <summary>When true, soft-retire the dashboard (removes it from the list).</summary>
     public bool? Retire { get; set; }
+
+    /// <summary>v2 (slice 28). Toggle Shared/Personal on a composed dashboard (composer path).</summary>
+    public string? Visibility { get; set; }
+
+    /// <summary>v2 (slice 28). Replace the composed dashboard's ordered widget list (reorder / bulk).</summary>
+    public IReadOnlyList<WidgetComposeRequest>? Widgets { get; set; }
+}
+
+/// <summary>POST /workspaces/{id}/dashboards — create a user-composed dashboard (slice 28). Mirrors
+/// DashboardComposeRequest.</summary>
+public sealed class DashboardComposeRequest
+{
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    /// <summary>'Shared' | 'Personal'.</summary>
+    public string? Visibility { get; set; }
+    /// <summary>'Request' | 'Feature' (R1 composer is Request-scoped; defaults to Request).</summary>
+    public string? ObjectType { get; set; }
+    /// <summary>Optional initial widget list (the composer usually adds widgets afterwards).</summary>
+    public IReadOnlyList<WidgetComposeRequest>? Widgets { get; set; }
+}
+
+/// <summary>One composed widget (slice 28). Mirrors WidgetComposeRequest. Validated against the
+/// composer's type → required-field schema in the service before persist.</summary>
+public sealed class WidgetComposeRequest
+{
+    /// <summary>Present on a full-list replace; server-assigns on a bare POST.</summary>
+    public string? Id { get; set; }
+    public string? Type { get; set; }
+    public string? Title { get; set; }
+    /// <summary>kpi-tile — 'count' | 'unassigned' | 'overdue' | 'high-priority'.</summary>
+    public string? Metric { get; set; }
+    /// <summary>bar-breakdown / segmented-bar — 'origin' | 'stage' | 'analyst' | 'priority'.</summary>
+    public string? GroupByDimension { get; set; }
+    /// <summary>records-grid — max rows shown.</summary>
+    public int? RowLimit { get; set; }
+    /// <summary>'Half' | 'Full'.</summary>
+    public string? Width { get; set; }
+    /// <summary>Scope filter — dept/PG/client labels; empty = every department.</summary>
+    public IReadOnlyList<string>? Depts { get; set; }
+    /// <summary>Scope filter — stage keys; empty = every stage.</summary>
+    public IReadOnlyList<string>? Stages { get; set; }
+    /// <summary>Insertion order within the dashboard.</summary>
+    public int SortOrder { get; set; }
 }
 
 // ── Widget result shapes (the `data` union, mirroring the TS shapes exactly) ─

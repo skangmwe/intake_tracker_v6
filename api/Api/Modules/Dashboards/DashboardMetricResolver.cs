@@ -9,6 +9,7 @@
 
 using System.Data;
 using System.Data.Common;
+using System.Text.Json;
 using McDermott.AiTracker.Api.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,132 @@ public sealed class DashboardMetricResolver
             "records-grid" => await RecordsGridAsync(workspaceId, config, drillJson, cancellationToken).ConfigureAwait(false),
             _ => EmptyForUnknownMetric(),
         };
+    }
+
+    // ── Composed-dashboard resolution (slice 28) ───────────────────────────
+    // User-composed dashboards do NOT use the fixed named metrics above. Each widget dispatches on
+    // its widget TYPE and carries the composed vocabulary (composedMetric / groupByDimension /
+    // rowLimit / dept + stage scope). One generic resolver per widget shape, over the scoped OPEN
+    // records. An unknown/unsupported type resolves to an empty tile rather than failing the board.
+
+    private const int ComposedGridDefaultTop = 6;
+
+    /// <summary>Resolve one composed widget's <c>data</c> object by its widget type + composed config.</summary>
+    public async Task<object> ResolveComposedAsync(
+        Guid workspaceId,
+        string widgetType,
+        DashboardWidgetConfigResponse config,
+        CancellationToken cancellationToken)
+    {
+        return widgetType switch
+        {
+            "kpi-tile" => await ComposedKpiAsync(workspaceId, config, cancellationToken).ConfigureAwait(false),
+            "bar-breakdown" => await ComposedBreakdownAsync(workspaceId, config, segmented: false, cancellationToken).ConfigureAwait(false),
+            "segmented-bar" => await ComposedBreakdownAsync(workspaceId, config, segmented: true, cancellationToken).ConfigureAwait(false),
+            "records-grid" => await ComposedGridAsync(workspaceId, config, cancellationToken).ConfigureAwait(false),
+            _ => EmptyForUnknownMetric(),
+        };
+    }
+
+    private async Task<object> ComposedKpiAsync(
+        Guid workspaceId, DashboardWidgetConfigResponse config, CancellationToken cancellationToken)
+    {
+        var rows = await _db.Set<DashboardScalarCountRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_GetDashboardComposedKpi @WorkspaceId, @Metric, @DeptsJson, @StagesJson, @Today",
+                WorkspaceParam(workspaceId),
+                new SqlParameter("@Metric", (object?)(config.ComposedMetric ?? "count")),
+                ScopeParam("@DeptsJson", config.Depts),
+                ScopeParam("@StagesJson", config.Stages),
+                new SqlParameter("@Today", DBNull.Value))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        var value = rows.FirstOrDefault()?.Cnt ?? 0;
+        return new KpiTileData(value, Caption: null, Breakdown: null);
+    }
+
+    private async Task<object> ComposedBreakdownAsync(
+        Guid workspaceId, DashboardWidgetConfigResponse config, bool segmented, CancellationToken cancellationToken)
+    {
+        var rows = await _db.Set<DashboardComposedBreakdownRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_GetDashboardComposedBreakdown @WorkspaceId, @GroupBy, @DeptsJson, @StagesJson",
+                WorkspaceParam(workspaceId),
+                new SqlParameter("@GroupBy", (object?)(config.GroupByDimension ?? "origin")),
+                ScopeParam("@DeptsJson", config.Depts),
+                ScopeParam("@StagesJson", config.Stages))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        if (segmented)
+        {
+            var total = rows.Sum(row => row.Cnt);
+            var segments = rows
+                .Select(row => new WidgetSegment(row.Label, row.Cnt, PercentOfTotal(row.Cnt, total)))
+                .ToList();
+            return new SegmentedBarData(total, segments);
+        }
+
+        var max = rows.Select(row => row.Cnt).DefaultIfEmpty(0).Max();
+        var bars = rows
+            .Select(row => new WidgetSegment(row.Label, row.Cnt, PercentOfMax(row.Cnt, max)))
+            .ToList();
+        return new BarBreakdownData(bars);
+    }
+
+    private async Task<object> ComposedGridAsync(
+        Guid workspaceId, DashboardWidgetConfigResponse config, CancellationToken cancellationToken)
+    {
+        var top = config.RowLimit is > 0 and <= 100 ? config.RowLimit.Value : ComposedGridDefaultTop;
+        var rows = new List<DashboardGridRow>();
+        var total = 0;
+
+        await ReadTwoResultSetsAsync(
+            "EXEC dbo.usp_GetDashboardComposedGrid @WorkspaceId, @DeptsJson, @StagesJson, @Top",
+            new[]
+            {
+                WorkspaceParam(workspaceId),
+                ScopeParam("@DeptsJson", config.Depts),
+                ScopeParam("@StagesJson", config.Stages),
+                new SqlParameter("@Top", top),
+            },
+            reader =>
+            {
+                var idIndex = reader.GetOrdinal("Id");
+                var nameIndex = reader.GetOrdinal("Name");
+                var stageIndex = reader.GetOrdinal("Stage");
+                var originIndex = reader.GetOrdinal("Origin");
+                var analystIndex = reader.GetOrdinal("Analyst");
+                var priorityIndex = reader.GetOrdinal("Priority");
+                var dueIndex = reader.GetOrdinal("Due");
+                var categoryIndex = reader.GetOrdinal("StatusCategory");
+
+                rows.Add(new DashboardGridRow(
+                    Id: GetStringOrEmpty(reader, idIndex),
+                    Name: GetStringOrEmpty(reader, nameIndex),
+                    Stage: GetStringOrEmpty(reader, stageIndex),
+                    Origin: OriginOrUnset(GetStringOrNull(reader, originIndex)),
+                    Analyst: GetStringOrEmpty(reader, analystIndex),
+                    Priority: reader.IsDBNull(priorityIndex) ? 0 : reader.GetInt32(priorityIndex),
+                    Due: GetDateOrNull(reader, dueIndex),
+                    StatusCategory: GetStringOrNull(reader, categoryIndex),
+                    Closed: false));
+            },
+            reader => total = reader.GetInt32(0),
+            cancellationToken).ConfigureAwait(false);
+
+        return new RecordsGridData(
+            ObjectType: "Request",
+            SavedViewId: null,
+            Columns: new[] { "Name", "Stage", "Origin", "Analyst", "Priority", "Due" },
+            Count: total,
+            Rows: rows);
+    }
+
+    // Serialize a scope list to a JSON array parameter; null/empty → SQL NULL (= "no filter").
+    private static SqlParameter ScopeParam(string name, IReadOnlyList<string>? values)
+    {
+        var hasValues = values is { Count: > 0 };
+        return new SqlParameter(name, hasValues ? JsonSerializer.Serialize(values) : (object)DBNull.Value);
     }
 
     // ── Segmented / bar / histogram metrics ────────────────────────────────

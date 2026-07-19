@@ -58,13 +58,48 @@ export type DashboardMetric =
 
 export type DashboardObjectType = 'Request' | 'Feature';
 
-/** Widget config stored on the row (JSON) and echoed on read. Type-aware but wire-open. */
+// ── Composed-widget vocabulary (v2, slice 28 — the S6 composer) ─────────────
+// Composed dashboards do NOT use the fixed `DashboardMetric` resolvers above — they carry a small
+// generic aggregate/group-by vocabulary the composer offers (prototype S6). The API resolves these
+// live over the scoped open records; empty scope arrays mean "all".
+
+/** KPI composed widgets — the aggregate over the scoped open records. */
+export type ComposedWidgetMetric = 'count' | 'unassigned' | 'overdue' | 'high-priority';
+
+/** Breakdown / pipeline composed widgets — the dimension to group by. */
+export type ComposedWidgetDimension = 'origin' | 'stage' | 'analyst' | 'priority';
+
+/** Composed layout width — half places two widgets per row; full spans the row. */
+export type WidgetWidth = 'Half' | 'Full';
+
+/**
+ * Widget config stored on the row (JSON) and echoed on read. Type-aware but wire-open. Fixed
+ * (seeded) widgets carry `metric` (+ optional `objectType` / `savedViewId`). Composed widgets carry
+ * the composed vocabulary (`composedMetric` / `groupByDimension` / `rowLimit` / scope / `width` /
+ * `sortOrder`). A widget never carries both halves; the dashboard's `layoutMode` selects which the
+ * resolver reads.
+ */
 export interface DashboardWidgetConfig {
-  metric: DashboardMetric;
+  /** Fixed (seeded) dashboards — the named resolver this widget points at. Absent on composed widgets. */
+  metric?: DashboardMetric;
   /** Object the widget reads (records-grid + feature metrics). Defaults to the dashboard's objectType. */
   objectType?: DashboardObjectType;
   /** For a records-grid widget — the saved view whose columns/sort drive the grid. */
   savedViewId?: SavedViewId;
+  /** Composed KPI widgets — the aggregate to compute. */
+  composedMetric?: ComposedWidgetMetric;
+  /** Composed breakdown / pipeline widgets — the group-by dimension. */
+  groupByDimension?: ComposedWidgetDimension;
+  /** Composed records-table widgets — max rows shown. */
+  rowLimit?: number;
+  /** Composed layout — half-width places two widgets in a row; full-width takes the row. */
+  width?: WidgetWidth;
+  /** Composed insertion order within the dashboard. */
+  sortOrder?: number;
+  /** Composed scope filter — dept/PG/client labels; empty (or absent) = every department. */
+  depts?: string[];
+  /** Composed scope filter — stage keys; empty (or absent) = every stage. */
+  stages?: string[];
 }
 
 // ── Drill-through (S6 only; suppressed on the S16 viewer) ───────────────────
@@ -188,7 +223,8 @@ export interface DashboardWidgetDto {
 export interface SavedDashboardDto {
   id: SavedDashboardId;
   workspaceId: WorkspaceId;
-  slug: DashboardSlug;
+  /** Null on user-composed dashboards (only the four seeded starters carry a slug). */
+  slug: DashboardSlug | null;
   name: string;
   description?: string;
   audience: AnnouncementAudience;
@@ -217,11 +253,12 @@ export interface SavedDashboardDto {
   layoutMode?: 'Fixed' | 'Composed';
 }
 
-/** One row of the Dashboards list (S17) — metadata only, no widget data. */
+/** One row of the Dashboards list (S17 + S6 switcher) — metadata only, no widget data. */
 export interface DashboardListItemDto {
   id: SavedDashboardId;
+  /** Null on user-composed dashboards (only the four seeded starters carry a slug). */
+  slug: DashboardSlug | null;
   workspaceId: WorkspaceId;
-  slug: DashboardSlug;
   name: string;
   description?: string;
   audience: AnnouncementAudience;
@@ -229,6 +266,15 @@ export interface DashboardListItemDto {
   objectType: DashboardObjectType;
   widgetCount: number;
   updatedAt: IsoDateTime;
+  /**
+   * v2 (slice 28). Groups the S6 switcher into Shared vs Personal. Optional for backward compat
+   * with pre-v2 fixtures (the API always populates it); a missing value is treated as Shared.
+   */
+  visibility?: 'Shared' | 'Personal';
+  /** v2 (slice 28). `Fixed` seeded starters vs `Composed` user dashboards. */
+  layoutMode?: 'Fixed' | 'Composed';
+  /** v2 (slice 28). True on the four seeded starters (read-only on the composer path). */
+  isSeeded?: boolean;
 }
 
 /** GET /workspaces/{id}/dashboards (S17 + S32 management list). */
@@ -237,14 +283,21 @@ export interface DashboardListDto {
   items: DashboardListItemDto[];
 }
 
-/** PATCH /dashboards/{id} — audience edit / retire (S32 shared-dashboards management, WorkspaceAdmin). */
+/**
+ * PATCH /dashboards/{id} — audience/name edit + retire (S32 management, WorkspaceAdmin), plus the
+ * composer's layout/visibility edits (slice 28). `name` / `audience` / `retire` are allowed on any
+ * dashboard including seeded ones (S32); `visibility` and `widgets` are composer-path fields and are
+ * rejected on a seeded dashboard with 403 `seeded-dashboard-read-only`.
+ */
 export interface DashboardPatchRequest {
   name?: string;
   audience?: AnnouncementAudience;
   /** When true, soft-retire the dashboard (removes it from the list). */
   retire?: boolean;
-  /** v2 (slice 28). Toggle between Shared and Personal on a composed dashboard. */
+  /** v2 (slice 28). Toggle between Shared and Personal on a composed dashboard (composer path). */
   visibility?: 'Shared' | 'Personal';
+  /** v2 (slice 28). Replace the composed dashboard's ordered widget list (reorder / bulk layout). */
+  widgets?: WidgetComposeRequest[];
 }
 
 /**
@@ -254,7 +307,11 @@ export interface DashboardPatchRequest {
 export interface DashboardComposeRequest {
   name: string;
   description?: string;
-  audience: AnnouncementAudience;
+  /**
+   * Optional — composed dashboards are created `everyone`-audience server-side; `visibility` governs
+   * list membership. Kept for forward compat; the create endpoint does not read it.
+   */
+  audience?: AnnouncementAudience;
   visibility: 'Shared' | 'Personal';
   objectType: DashboardObjectType;
   /** Ordered initial widget list; may be empty (composer adds widgets one by one). */
@@ -262,24 +319,30 @@ export interface DashboardComposeRequest {
 }
 
 /**
- * v2 (slice 28). Body for POST/PATCH on a composed dashboard's widgets. The API layer
- * validates each request against the WidgetTypeCatalog schema (widget type → required fields).
+ * v2 (slice 28). Body for POST/PATCH on a composed dashboard's widgets, and each entry of a
+ * `DashboardComposeRequest.widgets` / `DashboardPatchRequest.widgets` list. The API validates each
+ * request against the composer's type → required-field schema (see the WidgetTypeCatalog):
+ * `kpi-tile` needs `metric`; `bar-breakdown` / `segmented-bar` need `groupByDimension`;
+ * `records-grid` uses `rowLimit`.
  */
 export interface WidgetComposeRequest {
-  /** Present on PATCH; server-assigned on POST. */
+  /** Present on PATCH / a full-list replace; server-assigns on a bare POST. */
   id?: WidgetId;
   type: WidgetType;
-  /** Present on kpi-tile / kpi-with-trend / timeseries-line. */
-  metric?: string;
-  /** Present on bar-breakdown / segmented-bar / heatmap-matrix / histogram. */
-  groupByDimension?: string;
+  /** Display title of the widget. */
+  title: string;
+  /** Present on kpi-tile. */
+  metric?: ComposedWidgetMetric;
+  /** Present on bar-breakdown / segmented-bar. */
+  groupByDimension?: ComposedWidgetDimension;
   /** Present on records-grid. */
   rowLimit?: number;
   /** Layout — half-width places two widgets in a row; full-width takes the full row. */
-  width: 'Half' | 'Full';
-  /** Optional scope filters. */
-  dept?: string | null;
-  stage?: string | null;
+  width: WidgetWidth;
+  /** Scope filter — dept/PG/client labels; empty = every department. */
+  depts?: string[];
+  /** Scope filter — stage keys; empty = every stage. */
+  stages?: string[];
   /** Insertion order within the dashboard. */
   sortOrder: number;
 }

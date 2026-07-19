@@ -4,7 +4,7 @@
 
 import { widgetData } from '../../format';
 import { WidgetEyebrow } from './WidgetEyebrow';
-import { METRIC_ICONS } from './metricIcons';
+import { metricIcon } from './metricIcons';
 import type { WidgetProps } from './types';
 import type { HistogramData } from '@shared/types';
 
@@ -14,7 +14,7 @@ export function HistogramWidget({ widget }: WidgetProps) {
 
   return (
     <section className="mws-card dash-tile" data-ds="card">
-      <WidgetEyebrow title={widget.title} icon={METRIC_ICONS[widget.config.metric]} />
+      <WidgetEyebrow title={widget.title} icon={metricIcon(widget.config.metric)} />
 
       <div className="dash-histogram" role="img" aria-label={widget.title}>
         {buckets.map((bucket) => (

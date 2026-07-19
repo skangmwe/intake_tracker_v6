@@ -167,7 +167,8 @@ Owns: dashboard definitions, the 8-widget palette, seeded fixed layouts (R1 Phas
 - **API exposes:** `GET /workspaces/{id}/dashboards` (list), `GET /dashboards/{id}?drill=` (widgets resolved per viewer), `PATCH /dashboards/{id}` (S32 audience/retire, WorkspaceAdmin).
 - **Database owns:** `SavedDashboard` table. Layout is a `WidgetsJson` list on the row; the API resolves each widget via a **fixed metric-resolver map** keyed by `config.metric` (no generic query engine in R1). Access via workspace membership OR a bound `WorkspaceMembership.BoundDashboardId` (S16 Dashboard-viewer, drill suppressed). The provisioning clone (`usp_ProvisionWorkspace`) stamps template dashboards into new PG workspaces (§10.5 locality).
 - **Depends on:** Saved Views (dashboards embed a records-grid saved view), all widget-source modules for metric queries (Requests, Features, Approvals, Escalation crossing-snapshot, Audit).
-- **R1 constraint:** fixed layouts only. No-code builder is Release 2.
+- **~~R1 constraint: fixed layouts only. No-code builder is Release 2.~~** Superseded by the 2026-07-07 re-phasing.
+- **Multi-dashboard composer (slice 28).** Adds `Composed` layout mode + composer endpoints (`POST /workspaces/{id}/dashboards`, `POST|PATCH|DELETE /dashboards/{id}/widgets`, `PATCH /dashboards/{id}` visibility/widgets). A **generic composed resolver** (open records, dept+stage scoped) serves composed dashboards — the seeded fixed resolvers are untouched. Seeded dashboards are read-only on the composer path (`403 seeded-dashboard-read-only`); Personal dashboards are author-only. Web adds the `DashboardSwitcher`, `WidgetComposerSheet`, `NewDashboardSheet`, and `ComposedDashboardSurface` around the existing `DashboardSurface`/`WidgetRenderer`.
 
 ### 16. Notifications & Bell
 

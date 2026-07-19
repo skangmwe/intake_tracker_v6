@@ -393,7 +393,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Depends on:** 23.
 - **Estimated LoC:** 5,500.
 - **Locked-signature changes flagged:** `SavedDashboardDto.visibility` + `layoutMode` + `isSeeded` (additive). Seeded-dashboard read-only guard is a new response code, not a breaking change.
-- **Status:** pending.
+- **Status: completed** — built in three checkpointed sub-cuts (A DB+API composed engine, B web composer UI, C S32 wiring + e2e + docs). Ten decisions in [28-slice-multi-dashboard-composer.md](28-slice-multi-dashboard-composer.md). Load-bearing call: the composer's metric/dimension vocabulary doesn't exist in slice-23's fixed resolver set, so a **generic composed resolver** (`ResolveComposedAsync` over `usp_GetDashboardComposedKpi`/`…Breakdown`/`…Grid`) was added alongside — seeded dashboards untouched. Migrations 063 (composer columns + nullable slug) / 064 (mark seeds). Seeded-guard is composer-path-only (visibility/widgets → 403 `seeded-dashboard-read-only`; S32 name/audience/retire still work). Scope is multi-select arrays sourced from the deptPgClient field + default lifecycle (both Viewer-gated). `config.metric` became optional → null-safe `metricIcon()` across the 5 seeded widgets; `IconButton` gained `disabled`. API + Api.Tests build 0/0, 595 API tests green; web tsc/jest/Playwright + tSQLt deferred to the ship gate (no local node_modules / SQL Server — slices 15/16/21/23 precedent).
+- **Started:** 2026-07-19T09:41:57-04:00
+- **Ended:** 2026-07-19T12:17:17-04:00
+- **Duration:** 02:35:20
 
 ### Slice 29: Toolkit object + S43 surface
 - **Spec section:** blueprint §At a glance (S43); §Save for /build (superseded — S43 is now prototyped); build spec §2.6 (Toolkit), §19 (Toolkit fields). [v2-reconciliation.md §Model deltas 5, §Module deltas Toolkit, §API deltas Toolkit].

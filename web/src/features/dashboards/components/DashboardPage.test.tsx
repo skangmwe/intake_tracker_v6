@@ -1,13 +1,19 @@
-// Tests for the full dashboard route (S6). The api boundary is mocked; the page is rendered inside a
-// matching route so useParams resolves the id. Covers loading, data (ai-default heading + pin), a live
-// drill-through refetch, and the 403 no-access surface.
+// Tests for the full dashboard route (S6 multi-dashboard, slice 28). The api boundary is mocked; the
+// composer scope hook is stubbed (it reads other features' endpoints). Covers loading, the switcher
+// header on a seeded fixed dashboard, a live drill-through refetch, the New-dashboard sheet, and the
+// 403 no-access surface.
 
 import { Route, Routes } from 'react-router-dom';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
-import type { SavedDashboardDto, SavedDashboardId, WorkspaceId } from '@shared/types';
+import type {
+  DashboardListDto,
+  SavedDashboardDto,
+  SavedDashboardId,
+  WorkspaceId,
+} from '@shared/types';
 
 import { ApiError } from '@/shared/http/apiClient';
 import { renderWithProviders } from '@/test-utils';
@@ -17,6 +23,17 @@ import { DashboardPage } from './DashboardPage';
 
 expect.extend(toHaveNoViolations);
 jest.mock('../api');
+// The composer's scope hook reads the fields + lifecycle endpoints; stub it so the page test stays
+// scoped to the dashboard api boundary.
+jest.mock('../useComposerScopeOptions', () => ({
+  useComposerScopeOptions: () => ({
+    deptOptions: [],
+    stageOptions: [],
+    stageLabels: {},
+    isLoading: false,
+  }),
+}));
+
 const mockedApi = api as jest.Mocked<typeof api>;
 
 function aiDefault(): SavedDashboardDto {
@@ -38,8 +55,13 @@ function aiDefault(): SavedDashboardDto {
         data: { total: 1, segments: [{ label: 'Intake', count: 1, percent: 100 }] },
       },
     ],
+    isSeeded: true,
+    visibility: 'Shared',
+    layoutMode: 'Fixed',
   };
 }
+
+const EMPTY_LIST: DashboardListDto = { workspaceId: 'ws-1' as WorkspaceId, items: [] };
 
 function renderPage() {
   return renderWithProviders(
@@ -50,7 +72,10 @@ function renderPage() {
   );
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockedApi.fetchDashboardList.mockResolvedValue(EMPTY_LIST);
+});
 
 it('DashboardPage — loading — shows the loading status', () => {
   // Arrange
@@ -63,18 +88,19 @@ it('DashboardPage — loading — shows the loading status', () => {
   expect(screen.getByRole('status')).toHaveTextContent('Loading dashboard…');
 });
 
-it('DashboardPage — ai-default — renders the prototype heading + pin, accessibly', async () => {
+it('DashboardPage — seeded fixed dashboard — renders the switcher title + pin, accessibly', async () => {
   // Arrange
   mockedApi.fetchDashboard.mockResolvedValue(aiDefault());
 
   // Act
   const { container } = renderPage();
 
-  // Assert — the subtitle appears only once the data has loaded (the 'Dashboard' heading also
-  // renders during loading, so await a loaded-only element before the synchronous checks).
-  expect(await screen.findByText('AI Solutions workspace · seeded default')).toBeInTheDocument();
-  expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+  // Assert — the switcher title carries the dashboard name; the pin is present; no Edit-layout (fixed).
+  expect(
+    await screen.findByRole('button', { name: /AI Solutions default dashboard/ }),
+  ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /default landing surface/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Edit layout' })).not.toBeInTheDocument();
   expect(await axe(container)).toHaveNoViolations();
 });
 
@@ -94,6 +120,18 @@ it('DashboardPage — segment click — refetches with the drill filter', async 
       ),
     ).toBe(true),
   );
+});
+
+it('DashboardPage — New dashboard — opens the compose sheet', async () => {
+  // Arrange
+  mockedApi.fetchDashboard.mockResolvedValue(aiDefault());
+  renderPage();
+
+  // Act
+  await userEvent.click(await screen.findByRole('button', { name: /New dashboard/ }));
+
+  // Assert
+  expect(screen.getByRole('dialog', { name: 'New dashboard' })).toBeInTheDocument();
 });
 
 it('DashboardPage — 403 — renders the no-access surface', async () => {

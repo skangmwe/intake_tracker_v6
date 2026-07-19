@@ -5,7 +5,7 @@
 
 import { widgetData } from '../../format';
 import { WidgetEyebrow } from './WidgetEyebrow';
-import { METRIC_ICONS } from './metricIcons';
+import { metricIcon } from './metricIcons';
 import type { WidgetProps } from './types';
 import type { KpiTileData } from '@shared/types';
 
@@ -18,7 +18,7 @@ export function KpiTileWidget({ widget, onDrill }: WidgetProps) {
 
   return (
     <section className="mws-card dash-tile" data-ds="card">
-      <WidgetEyebrow title={widget.title} icon={METRIC_ICONS[widget.config.metric]} />
+      <WidgetEyebrow title={widget.title} icon={metricIcon(widget.config.metric)} />
 
       {drillable ? (
         <button

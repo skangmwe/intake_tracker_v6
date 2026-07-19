@@ -10,7 +10,6 @@ import type { DashboardListItemDto, DashboardPatchRequest, WorkspaceId } from '@
 
 import { Button } from '@/shared/components/Button';
 import { StatusPill } from '@/shared/components/Feedback';
-import { problemMessage } from '@/shared/http/problemMessage';
 
 import { useDashboardList, usePatchDashboard } from '../useDashboards';
 import { summarizeAudience } from '../dashboardsAdminModel';
@@ -40,7 +39,10 @@ export function DashboardsManagementSection({ workspaceId }: DashboardsManagemen
     );
   };
 
-  const items = list.data?.items ?? [];
+  // S32 manages *shared* dashboards only. Since slice 28 the list also carries the caller's own
+  // Personal composed dashboards (the S6 switcher needs them) — exclude those here; a Personal
+  // dashboard is managed by its author from the composer, not from the workspace admin surface.
+  const items = (list.data?.items ?? []).filter((item) => item.visibility !== 'Personal');
 
   return (
     <section className="views-admin__section" aria-labelledby="dashboards-management">
@@ -66,7 +68,12 @@ export function DashboardsManagementSection({ workspaceId }: DashboardsManagemen
 
       {items.length > 0 && (
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a horizontally-scrollable region must be keyboard-focusable so keyboard users can scroll it (axe scrollable-region-focusable).
-        <div className="dash-admin__table-shell" tabIndex={0} role="region" aria-label="Shared dashboards table">
+        <div
+          className="dash-admin__table-shell"
+          tabIndex={0}
+          role="region"
+          aria-label="Shared dashboards table"
+        >
           <table className="dash-admin__table">
             <thead>
               <tr>

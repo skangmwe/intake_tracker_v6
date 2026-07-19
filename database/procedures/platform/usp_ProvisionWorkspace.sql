@@ -153,11 +153,16 @@ BEGIN
         -- fresh id; WidgetsJson is copied verbatim (the template's records-grid widgets carry no
         -- savedViewId, so nothing to remap). The new workspace is freshly minted above, so the
         -- NOT EXISTS guard is belt-and-braces idempotency within this transaction.
+        -- v2 (slice 28): the composer columns (IsSeeded / Visibility / LayoutMode) are carried
+        -- from the template so the cloned pg-starter stays a Fixed, Shared, seeded (read-only on
+        -- the composer path) starter — not a user-composed dashboard.
         INSERT INTO dbo.SavedDashboard
             (SavedDashboardId, WorkspaceId, Slug, Name, Description, ObjectType, AudienceJson,
-             IsDefault, SupportsDrillThrough, WidgetsJson, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
+             IsDefault, SupportsDrillThrough, WidgetsJson, IsSeeded, Visibility, LayoutMode,
+             CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
         SELECT NEWID(), @NewWorkspaceId, tmpl.Slug, tmpl.Name, tmpl.Description, tmpl.ObjectType,
                tmpl.AudienceJson, tmpl.IsDefault, tmpl.SupportsDrillThrough, tmpl.WidgetsJson,
+               tmpl.IsSeeded, tmpl.Visibility, tmpl.LayoutMode,
                @Actor, @Actor, @Now, @Now
         FROM dbo.SavedDashboard AS tmpl
         WHERE tmpl.WorkspaceId = @TemplateId

@@ -24,8 +24,9 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @Ws   UNIQUEIDENTIFIER = @WorkspaceId;
-    DECLARE @User UNIQUEIDENTIFIER = @UserId;
+    DECLARE @Ws      UNIQUEIDENTIFIER = @WorkspaceId;
+    DECLARE @User    UNIQUEIDENTIFIER = @UserId;
+    DECLARE @UserStr NVARCHAR(256)    = CAST(@UserId AS NVARCHAR(256));
 
     SELECT
         sd.SavedDashboardId,
@@ -37,10 +38,17 @@ BEGIN
         sd.IsDefault,
         sd.ObjectType,
         (SELECT COUNT(*) FROM OPENJSON(sd.WidgetsJson)) AS WidgetCount,
-        sd.UpdatedAt
+        sd.UpdatedAt,
+        sd.IsSeeded,      -- v2 (slice 28)
+        sd.Visibility,    -- v2 (slice 28) — groups the S6 switcher into Shared vs Personal
+        sd.LayoutMode     -- v2 (slice 28)
     FROM dbo.SavedDashboard AS sd
     WHERE sd.WorkspaceId = @Ws
       AND sd.IsDeleted = 0
+      -- v2 (slice 28): a Personal dashboard is visible only to its author; Shared follows the
+      -- existing audience/membership predicate. CreatedBy holds the author's user-id string
+      -- (case-insensitive compare — collation handles the GUID-casing difference).
+      AND (sd.Visibility = N'Shared' OR sd.CreatedBy = @UserStr)
       AND (
             JSON_VALUE(sd.AudienceJson, N'$.kind') = N'everyone'
             OR EXISTS (

@@ -4,11 +4,14 @@
 // apiFetch. Drill-through is passed as a URL-encoded JSON blob on the by-id read.
 
 import type {
+  DashboardComposeRequest,
   DashboardDrillFilter,
   DashboardListDto,
   DashboardPatchRequest,
   SavedDashboardDto,
   SavedDashboardId,
+  WidgetComposeRequest,
+  WidgetId,
   WorkspaceId,
 } from '@shared/types';
 
@@ -41,7 +44,7 @@ export function fetchDashboard(
   return apiFetch<SavedDashboardDto>(path, signal ? { signal } : {});
 }
 
-/** PATCH /dashboards/{id} — audience edit / retire (S32 shared-dashboards management, WorkspaceAdmin). */
+/** PATCH /dashboards/{id} — audience/name/retire (S32) + composer visibility/layout (slice 28). */
 export function patchDashboard(
   dashboardId: SavedDashboardId,
   request: DashboardPatchRequest,
@@ -49,5 +52,49 @@ export function patchDashboard(
   return apiFetch<SavedDashboardDto>(`/v1/dashboards/${dashboardId}`, {
     method: 'PATCH',
     body: request,
+  });
+}
+
+/** POST /workspaces/{id}/dashboards — create a user-composed dashboard (S6 "New dashboard", slice 28). */
+export function createDashboard(
+  workspaceId: WorkspaceId,
+  request: DashboardComposeRequest,
+): Promise<SavedDashboardDto> {
+  return apiFetch<SavedDashboardDto>(`/v1/workspaces/${workspaceId}/dashboards`, {
+    method: 'POST',
+    body: request,
+  });
+}
+
+/** POST /dashboards/{id}/widgets — append a widget to a composed dashboard (slice 28). */
+export function addWidget(
+  dashboardId: SavedDashboardId,
+  request: WidgetComposeRequest,
+): Promise<SavedDashboardDto> {
+  return apiFetch<SavedDashboardDto>(`/v1/dashboards/${dashboardId}/widgets`, {
+    method: 'POST',
+    body: request,
+  });
+}
+
+/** PATCH /dashboards/{id}/widgets/{widgetId} — update one composed widget (slice 28). */
+export function updateWidget(
+  dashboardId: SavedDashboardId,
+  widgetId: WidgetId,
+  request: WidgetComposeRequest,
+): Promise<SavedDashboardDto> {
+  return apiFetch<SavedDashboardDto>(`/v1/dashboards/${dashboardId}/widgets/${widgetId}`, {
+    method: 'PATCH',
+    body: request,
+  });
+}
+
+/** DELETE /dashboards/{id}/widgets/{widgetId} — remove one composed widget (slice 28). */
+export function deleteWidget(
+  dashboardId: SavedDashboardId,
+  widgetId: WidgetId,
+): Promise<SavedDashboardDto> {
+  return apiFetch<SavedDashboardDto>(`/v1/dashboards/${dashboardId}/widgets/${widgetId}`, {
+    method: 'DELETE',
   });
 }
