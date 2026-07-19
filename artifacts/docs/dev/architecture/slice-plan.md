@@ -410,7 +410,10 @@ Slices with a strict predecessor are marked with `Depends on: <slice #>`.
 - **Depends on:** 3, 11, 25 (Relationships schema engine — Toolkit is registered as an object via the extended objects endpoint).
 - **Estimated LoC:** 4,500.
 - **Locked-signature changes flagged:** `FieldObjectType` gains `'ToolkitItem'` (additive union); new `ToolkitItemDto` (new file); new `ToolkitItemId` branded id (additive to `common.ts`).
-- **Status:** pending.
+- **Status: completed** — DB `ToolkitItem` table (migration 065) + 6 procs + tSQLt; `Modules/Toolkit` (controller/service/DTOs/`ToolkitOptions`) + DI + DbContext keyless rows (API + Api.Tests build 0/0, 29 controller tests green); `web/src/features/toolkit/` surface (gallery/list + detail & editor side sheets, hooks, api, css, `/toolkit` route) + a new shared `SideSheet` primitive; jest+jest-axe (8 files) + Playwright e2e. Ten decisions recorded in [29-slice-toolkit.md](29-slice-toolkit.md) — headline calls: **field set = the prototype's** (D1, dropped the §19 tags/tech/urls/related the prototype omits); **Record ID mints from the workspace prefix** `AIS-…` (D2, prototype's `TOOL-` is mock); **Status = Active/Draft/Archived** distinct from retire soft-delete (D3); **Maintainer is free text** (D4); **"Times used" hidden** in R1 (D5, no usage instrumentation until R2 — the one visible divergence, analyst-chosen); **attachment is a row-level blob** streamed via `IBlobStreamer`, multipart create/patch (D6); **migration 066 system-field seed dropped** (D7 — Toolkit is a real-column object with no live object-registry consumer; reduces the declared scope, surfaced explicitly); **list is `POST …/toolkit/query`** (D8); **retire/restore self-gate on Member+** and have no S43 UI (D9); **new `SideSheet` shared primitive** (D10). Web tsc/jest/Playwright + tSQLt deferred to the `/dev-ship` gate (no local node_modules / SQL Server — slices 15/16/21/23/27/28 precedent).
+- **Started:** 2026-07-19T13:32:03-04:00
+- **Ended:** 2026-07-19T14:21:32-04:00
+- **Duration:** 00:49:29
 
 ### v2 amendments to existing slices (in-plan follow-ups)
 

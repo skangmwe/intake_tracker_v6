@@ -54,4 +54,4 @@ Implemented slices, in order. Links the `slice-plan.md` row and any slice doc.
 | 26 | Record Status/hold model + Status tab + per-record notification preferences (S4 Status tab · Watchers & alerts tab) | completed | [slice-plan.md §Slice 26](slice-plan.md) | [26-slice-status-hold.md](26-slice-status-hold.md) |
 | 27 | Multiple lifecycles + Lifecycle picker at intake (S31 dropdown · S3 picker) | completed | [slice-plan.md §Slice 27](slice-plan.md) | [27-slice-multi-lifecycle.md](27-slice-multi-lifecycle.md) |
 | 28 | Multi-dashboard composer (S6 upgrade — switcher · New dashboard · Edit layout · Add widget) | completed | [slice-plan.md §Slice 28](slice-plan.md) | [28-slice-multi-dashboard-composer.md](28-slice-multi-dashboard-composer.md) |
-| 29 | Toolkit object + S43 surface (new object · Reference-local · New item / edit-in-place / gallery) | pending | [slice-plan.md §Slice 29](slice-plan.md) | — |
+| 29 | Toolkit object + S43 surface (new object · Reference-local · gallery/list · paste-or-upload · detail & editor side sheets) | completed | [slice-plan.md §Slice 29](slice-plan.md) | [29-slice-toolkit.md](29-slice-toolkit.md) |

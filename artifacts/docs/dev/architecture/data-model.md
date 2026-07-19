@@ -25,7 +25,7 @@ Workspace 1─┬─* Request (PK = PREFIX-NNNNNNNN, per §17 field schema)
             │
             ├─* Feature (AI Solutions workspace only — §2.5 / §18)
             ├─* Announcement (portable — §2.7 / §20)
-            ├─* Toolkit entry (Release 2 — §2.6 / §19; reserved, not built)
+            ├─* ToolkitItem (portable, workspace-local — §2.6 / §19; slice 29 — real-column object)
             ├─* SavedView
             ├─* SavedDashboard
             ├─* FieldDefinition (workspace-local; platform-defined subset referenced)
@@ -539,6 +539,30 @@ The API resolves each widget's data via a **fixed metric-resolver map** keyed by
 > **Slice 28 (multi-dashboard composer).** Migration **063** adds `IsSeeded BIT NOT NULL DEFAULT 0`, `Visibility NVARCHAR(20) NOT NULL DEFAULT 'Shared'` (CK Shared|Personal), `LayoutMode NVARCHAR(20) NOT NULL DEFAULT 'Fixed'` (CK Fixed|Composed), and relaxes `Slug` to NULLable (composed dashboards carry no slug — the `CK_Slug` check now allows NULL). Migration **064** flips the four seed rows to `IsSeeded=1`. Composed widgets store the composer config on the same `WidgetsJson` (a superset of the fixed shape); the R1 fixed resolvers are unchanged and a separate composed resolver serves `LayoutMode='Composed'`. Personal dashboards are author-only (list-filtered on `CreatedBy`); seeded dashboards are read-only on the composer path (visibility/widgets → 403).
 
 **Metric-source notes (Phase-1 approximations, forced by the real schema):** `escalation-status` = `RequestCrossingSnapshot` presence (the AI Solutions Status field has no PG-side write path — slice 9 derives its mirror at read time; the *stored* field remains a future concern); `closures-by-outcome` closure-time = `UpdatedAt` (no `ClosedAt`; Outcome is `FieldValues.$.outcome`); `median-time-to-triage` ≈ `CreatedAt → StageEnteredAt` (no first-assignment timestamp). Status category comes from `StageDefinition.StatusCategory` joined on `(LifecycleId, StageKey)`.
+
+### ToolkitItem (slice 29 — BS §2.6 / §19)
+
+The reference-local Toolkit object — playbooks / plugins / prompts. A **real-column** object (not the
+FieldValues engine): the field set matches the S43 prototype (Type/Status/Maintainer/One-liner/
+Description/How-to-use/Body + one uploaded file), so it has **no `FieldDefinition` rows** (the v2 model
+delta's system-field seed was dropped — slice-29 decision D7). Portable/workspace-local; never crosses
+the bridge, so no shared-key concern. The minted `RecordId` doubles as the API id and the displayed
+Record ID (decision D2 — the prototype's `TOOL-` prefix is mock; `AIS-…` is the real workspace prefix).
+
+| Column | Type | Notes |
+|---|---|---|
+| `RecordId` | `NVARCHAR(20)` | Minted via `usp_MintRecordId` (workspace prefix). |
+| `WorkspaceId` | FK → Workspace | The item's home workspace (seeded in AI Solutions first, portable). |
+| `Origin` | `NVARCHAR(200) NULL` | Minting workspace name at mint (BS §17.1). |
+| `Kind` | `NVARCHAR(20)` | `Playbook` \| `Plugin` \| `Prompt` (CHECK). |
+| `Status` | `NVARCHAR(20)` DEFAULT `'Draft'` | `Active` \| `Draft` \| `Archived` (CHECK) — display state, distinct from retire soft-delete. |
+| `Name` | `NVARCHAR(200)` | |
+| `OneLiner` / `Description` / `Maintainer` / `HowTo` | `NVARCHAR(300/2000/200/2000) NULL` | Maintainer is free text (no user directory in R1 — D4). |
+| `BodyMarkdown` | `NVARCHAR(MAX) NULL` | Pasted asset content. |
+| `AttachmentBlobPath` / `AttachmentFileName` / `AttachmentContentType` / `AttachmentSizeBytes` | `NVARCHAR(400/400/200) NULL` / `BIGINT NULL` | One uploaded file — a **row-level** blob pointer (D6), streamed via `IBlobStreamer`; not the Attachments table. |
+| `RowVer` | `ROWVERSION` | PATCH ETag. |
+
+Composite PK `(WorkspaceId, RecordId)` (mirrors Features). Indexes: `IX_ToolkitItem_RecordId (RecordId) WHERE IsDeleted=0`; `IX_ToolkitItem_List (WorkspaceId, IsDeleted) INCLUDE (Kind, Status, Name, OneLiner, Maintainer, AttachmentBlobPath, UpdatedBy, UpdatedAt)`; unique-filtered `UX_ToolkitItem_Workspace_Name (WorkspaceId, Name) WHERE IsDeleted=0`. Migration **065**. Access: Viewer+ read (baked into `usp_GetToolkitItemForUser` / `usp_QueryToolkit`), Member+ write; retire/restore self-gate on Member+ inside the proc (D9). Soft-deleted; "Times used" is not stored (R1 has no usage instrumentation — D5).
 
 ## The escalation bridge (data-model view)
 
