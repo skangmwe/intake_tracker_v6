@@ -19,6 +19,7 @@ import {
 import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
 import { DashboardPage, DashboardsListPage } from '@/features/dashboards';
 import { AddToCatalogPage, FeatureCatalogPage, FeatureDetailPage } from '@/features/features';
+import { ToolkitSurface } from '@/features/toolkit';
 import { ImportExportPage } from '@/features/import-export';
 import { LifecyclePage } from '@/features/lifecycle';
 import {
@@ -51,6 +52,7 @@ import '@/features/fields/fields.css';
 import '@/features/lifecycle/lifecycle.css';
 import '@/features/requests/requests.css';
 import '@/features/features/features.css';
+import '@/features/toolkit/toolkit.css';
 import '@/features/dashboards/dashboards.css';
 import '@/features/saved-views/savedViews.css';
 import '@/features/search/search.css';
@@ -67,6 +69,7 @@ const IMPLEMENTED_ROUTES = new Set([
   '/requests',
   '/feature-catalog',
   '/dashboards',
+  '/toolkit',
 ]);
 
 const PLACEHOLDER_ROUTES = NAV_SECTIONS.flatMap((section) => section.items).filter(
@@ -112,6 +115,7 @@ export function App() {
               <Route path="/feature-catalog" element={<FeatureCatalogPage />} />
               <Route path="/feature-catalog/new" element={<AddToCatalogPage />} />
               <Route path="/feature-catalog/:recordId" element={<FeatureDetailPage />} />
+              <Route path="/toolkit" element={<ToolkitSurface />} />
               <Route path="/search" element={<SearchResultsPage />} />
               <Route path="/announcements" element={<AnnouncementsListPage />} />
               <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />

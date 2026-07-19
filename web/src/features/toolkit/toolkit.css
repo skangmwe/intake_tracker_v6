@@ -1,0 +1,582 @@
+/* S43 Toolkit surface, gallery, list, detail + editor sheets. Tokens only (design-conformance):
+   navy text on pale/alert fills (theme-stable), 1px --border-light, radius 2px / pill. */
+
+.toolkit-surface {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-height: 0;
+}
+
+.toolkit-surface__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.toolkit-surface__lede {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.toolkit-surface__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.toolkit-surface__spacer {
+  flex: 1;
+}
+
+.toolkit-surface__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Search ─────────────────────────────────────────────────────────── */
+.tk-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tk-search__icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.tk-search__input {
+  height: 36px;
+  width: min(280px, 44vw);
+  padding: 0 var(--space-3) 0 34px;
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.tk-search__input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── View toggle ────────────────────────────────────────────────────── */
+.tk-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.tk-view-toggle__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--bg-surface);
+  color: var(--icon-default);
+  cursor: pointer;
+}
+
+.tk-view-toggle__btn + .tk-view-toggle__btn {
+  border-left: 1px solid var(--border-button);
+}
+
+.tk-view-toggle__btn:hover {
+  color: var(--accent-interactive);
+}
+
+.tk-view-toggle__btn[aria-pressed='true'] {
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+}
+
+.tk-view-toggle__btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.tk-count {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ── Type pill + status badge ───────────────────────────────────────── */
+.tk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  color: var(--color-navy);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tk-pill--playbook {
+  background: var(--color-pale-blue);
+}
+
+.tk-pill--plugin {
+  background: var(--color-pale-gold);
+}
+
+.tk-pill--prompt {
+  background: var(--color-pale-success);
+}
+
+.tk-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-navy);
+  white-space: nowrap;
+}
+
+.tk-badge--live {
+  background: var(--color-pale-success);
+}
+
+.tk-badge--pending {
+  background: var(--color-pale-gold);
+}
+
+.tk-badge--archived {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+
+.tk-mono {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ── Gallery ────────────────────────────────────────────────────────── */
+.tk-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tk-gallery__item {
+  display: flex;
+  min-width: 0;
+}
+
+.tk-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  text-align: left;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  cursor: pointer;
+  min-width: 0;
+  transition:
+    transform var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.tk-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.tk-card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.tk-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.tk-card__name {
+  font-family: var(--font-mix);
+  font-size: 18px;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.tk-card__desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.tk-card__foot {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-light);
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── List cells ─────────────────────────────────────────────────────── */
+.tk-list-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--icon-default);
+}
+
+.tk-list-name__text {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-oneliner-cell {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Detail sheet ───────────────────────────────────────────────────── */
+.tk-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.tk-detail__toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tk-detail__meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.tk-oneliner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tk-detail__desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.tk-detail__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.tk-detail__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tk-detail__label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.tk-detail__value {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+}
+
+.tk-detail__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tk-detail__howto {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* ── Use-this-asset card ────────────────────────────────────────────── */
+.tk-asset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.tk-asset__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tk-asset__pre {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: var(--space-3);
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tk-asset__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* ── Editor form ────────────────────────────────────────────────────── */
+.tk-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.tk-form__intro {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.tk-form__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-top: var(--space-2);
+}
+
+.tk-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tk-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.tk-field__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.tk-field__optional {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tk-field__hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tk-field__error {
+  font-size: 12px;
+  color: var(--color-navy);
+  background: var(--color-pale-orange);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius);
+  align-self: flex-start;
+}
+
+.tk-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: var(--control-h, 40px);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+}
+
+.tk-input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.tk-input[aria-invalid='true'] {
+  border-color: var(--color-error);
+}
+
+.tk-textarea {
+  height: auto;
+  padding: var(--space-3);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.tk-textarea--mono {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+}
+
+.tk-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tk-upload:hover {
+  border-color: var(--accent-interactive);
+  color: var(--accent-interactive);
+}
+
+.tk-upload:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.tk-upload__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tk-file-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-pale-success);
+  color: var(--color-navy);
+  font-size: 13px;
+}
+
+.tk-file-chip__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-file-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-navy);
+  cursor: pointer;
+}
+
+.tk-file-chip__remove:hover {
+  background: color-mix(in srgb, var(--color-navy) 12%, transparent);
+}
+
+@media (max-width: 640px) {
+  .tk-field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tk-detail__grid {
+    grid-template-columns: 1fr;
+  }
+}

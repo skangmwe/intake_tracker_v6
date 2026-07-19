@@ -1,0 +1,91 @@
+/* Shared side-sheet primitive — disclosure-surfaces.md. Right-anchored, slides in over content.
+   Tokens only (design-conformance). */
+
+.mws-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
+}
+
+.mws-sheet {
+  width: min(92vw, 460px);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-light);
+  box-shadow: var(--shadow-lg);
+  animation: mws-sheet-in var(--duration-slow) var(--ease-emphasis);
+}
+
+@keyframes mws-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.mws-sheet__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.mws-sheet__title {
+  margin: 0;
+  font-family: var(--font-mix);
+  font-size: 24px;
+  line-height: 1.2;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.mws-sheet__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--icon-default);
+  cursor: pointer;
+}
+
+.mws-sheet__close:hover {
+  color: var(--accent-interactive);
+}
+
+.mws-sheet__close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.mws-sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mws-sheet {
+    animation-duration: 1ms;
+  }
+}

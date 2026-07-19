@@ -64,6 +64,8 @@ builder.Services.Configure<McDermott.AiTracker.Api.Modules.Attachments.Attachmen
     builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.Attachments.AttachmentsOptions.SectionName));
 builder.Services.Configure<McDermott.AiTracker.Api.Modules.ImportExport.ImportExportOptions>(
     builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.ImportExport.ImportExportOptions.SectionName));
+builder.Services.Configure<McDermott.AiTracker.Api.Modules.Toolkit.ToolkitOptions>(
+    builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.Toolkit.ToolkitOptions.SectionName));
 
 // ─── Shared services (shared-inventory.md) ─────────────────────────────────
 builder.Services.AddSingleton<IClock, SystemClock>();
@@ -174,6 +176,12 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Features.IFeaturesSer
     McDermott.AiTracker.Api.Modules.Features.FeaturesService>();
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.SavedViews.ISavedViewsService,
     McDermott.AiTracker.Api.Modules.SavedViews.SavedViewsService>();
+
+// ─── Toolkit (slice 29) — the S43 reference-local Toolkit object (playbooks / plugins / prompts).
+//     Reads gate inside usp_GetToolkitItemForUser (403-not-404); writes need Member+; a single
+//     uploaded file streams to Blob via IBlobStreamer (shared with Attachments) ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Toolkit.IToolkitService,
+    McDermott.AiTracker.Api.Modules.Toolkit.ToolkitService>();
 
 // ─── Seeded Dashboards (slice 23) — the S6/S14/S12/S15 fixed-layout dashboards. The service composes a
 //     dashboard's widgets, resolving each metric to the caller's entitlements via DashboardMetricResolver

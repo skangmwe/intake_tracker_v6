@@ -465,6 +465,9 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 - **`Modal`** (`data-ds="modal"`) — the shared modal primitive (scrim + focus trap + Escape + scrim-click
   + focus restore), extracted once close / link / copy joined escalate as consumers. Escalate keeps its
   own inline modal (surgical scope).
+- **`SideSheet`** (`data-ds="sheet"`) — the shared side-sheet primitive (right-anchored slide-in, scrim,
+  Escape / scrim-click / close-button dismiss, focus-in + focus-restore), added in slice 29 for the S43
+  Toolkit detail + editor sheets. Consumers: slice 29 (`ToolkitDetailSheet`, `ToolkitEditorSheet`).
 
 ### Web features — `web/src/features/closure/` + `web/src/features/typed-links/`
 - `closure`: `api.ts`, `useClose.ts` (`useCloseRecord`), `CloseRecordModal` (public export). `typed-links`:
@@ -659,6 +662,25 @@ Every design-system component sets `data-ds="<type>"` on its root element per `w
 - **Cross-feature barrel exports** — `features/fields` now exports `useWorkspaceFields`; `features/lifecycle` now exports `useLifecycleConfig` (both Viewer-gated) for the composer scope hook.
 - **Shared component change** — `IconButton` gained an optional `disabled` prop (used by the composed-surface reorder controls); additive, no existing consumer affected.
 - **Widget-component change** — `metricIcon(metric?)` helper (null-safe) replaces the direct `METRIC_ICONS[config.metric]` index in the 5 seeded widgets, now that `config.metric` is optional (composed widgets carry no fixed metric).
+
+## Slice 29 (Toolkit object + S43 surface) — implemented
+
+- **DB:** `dbo.ToolkitItem` (migration 065) — a real-column reference object (no FieldDefinition rows).
+  6 procs under `database/procedures/toolkit/`: `usp_CreateToolkitItem` (mint + insert),
+  `usp_GetToolkitItemForUser` (access-gated read), `usp_QueryToolkit` (paged/filtered/sorted, 2 result
+  sets), `usp_PatchToolkitItem` (ETag), `usp_RetireToolkitItem` / `usp_RestoreToolkitItem` (self-gating
+  on Member+). tSQLt: `database/tests/toolkit/test_Toolkit.sql` (8 cases).
+- **API — new Toolkit module (`api/Api/Modules/Toolkit/`):** `ToolkitController` (query/get/create/patch/
+  retire/restore/attachment — multipart create+patch, 403-not-404), `ToolkitService` (`IToolkitService`;
+  blob via shared `IBlobStreamer`, api-blob-attachments error chain), `ToolkitDtos` (+ keyless
+  `ToolkitItemRow` / `ToolkitWorkspaceRow`), `ToolkitOptions` (extension allowlist + max size). DI +
+  DbContext keyless rows registered. Reuses `PaginatedResponse`/`PaginatedQuery`/`SortSpec` (Requests),
+  `IAccessGuard`, `IEventSpine`, `IClock`.
+- **Web — `web/src/features/toolkit/`:** `api.ts`, `useToolkit.ts` (`useToolkitList`/`useToolkitItem`/
+  `useCreateToolkitItem`/`useUpdateToolkitItem`), `toolkitFormat.tsx` (kind/status maps), and components
+  `ToolkitSurface` (public export — the `/toolkit` route), `ToolkitGallery`, `ToolkitList`,
+  `ToolkitDetailSheet`, `ToolkitEditorSheet`. Reuses shared `TableShell`/`FilterFunnel`/`TableFooter`,
+  `EdgeStates`, `Button`, the new `SideSheet`, `useDebouncedValue`, `saveBlob`, `resolveActiveWorkspaceId`.
 
 ## What we're deliberately NOT sharing yet
 

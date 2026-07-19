@@ -669,13 +669,39 @@ Returns 201 with `RelationshipLinkDto`.
 ### `DELETE /api/v1/records/{recordId}/relationship-links/{linkId}?workspaceId={id}` — Member+
 Soft delete. Returns 204.
 
+## 22 · Toolkit (slice 29 — v2)
+
+*The reference-local Toolkit object (S43). Full DTOs in `shared/types/toolkit.ts`. Access violations → **403, never 404** (BS §22.6).*
+
+**Endpoints.** Reads require Viewer+ on the item's workspace; writes require Member+. Create/patch are **multipart/form-data** — a JSON `payload` part (the create/patch request body) plus an optional `file` part.
+
+### `POST /api/v1/workspaces/{id}/toolkit/query` — Viewer+
+Body: `PaginatedQuery` (`ToolkitQuery`). Filters: `kind`/`status`/`maintainer` (select, ANY-of), `name` (text→contains), `search` (text→contains across Name/One-liner/Description/Maintainer). Sort ∈ `{id,name,kind,status,maintainer,lastModifiedAt}`. Returns `PaginatedResponse<ToolkitItemListRow>`. (POST-with-body, not the sketch's `GET …/toolkit`, per api/CLAUDE.md + the Features `/query` precedent — decision D8.)
+
+### `POST /api/v1/workspaces/{id}/toolkit` — Member+ (multipart)
+`payload` = `ToolkitItemCreateRequest` (`kind` + `name` required; `status` defaults `Draft`). Optional `file` part (extension allowlist `.md/.markdown/.txt/.docx/.pdf` + max size from `Toolkit` config, enforced before streaming). Streams the file to Blob (`IBlobStreamer`) then mints the row (`AIS-…` prefix). Error chain: blob-fail → no row → **502**; SQL-fail-after-blob → delete blob → **500**; disallowed type → **400**; oversize → **413**. Returns 201 with `ToolkitItemDto`.
+
+### `GET /api/v1/toolkit/{itemId}` — Viewer+
+Returns `ToolkitItemDto` (access baked into `usp_GetToolkitItemForUser` — no row → 403).
+
+### `PATCH /api/v1/toolkit/{itemId}` — Member+ (multipart)
+`payload` = `ToolkitItemPatchRequest` (sparse). A `file` part replaces the attachment; `removeAttachment=true` clears it (ignored when a file is sent). ETag via `If-Match` header (or body `ifMatch`) → **409 stale-record** on mismatch. Returns 200 with `ToolkitItemDto`.
+
+### `POST /api/v1/toolkit/{itemId}/retire` — Member+
+Soft-delete. Idempotent (already-retired → 403). Returns 204.
+
+### `POST /api/v1/toolkit/{itemId}/restore` — Member+
+Restores a retired item. Idempotent (already-live → 403). Returns 204. (Retire/restore self-gate on Member+ inside the proc — decision D9; no S43 UI surfaces them.)
+
+### `GET /api/v1/toolkit/{itemId}/attachment` — Viewer+
+Streams the item's uploaded file (`Cache-Control: private, no-store`). No attachment on an accessible item → **404**; inaccessible item → **403**.
+
 ## Deferred to Release 2
 
 - REST API + webhooks for external integrations (BS §13).
 - Email delivery / per-user notification preferences / digests (BS §15 Phase 3).
 - No-code dashboard builder (BS §15 Phase 3).
 - Request templates admin UI (BS §15 Phase 3).
-- Toolkit object (BS §2.6 / §19).
 - AI-assist layer (BS §14 / §15 Phase 4).
 - DMS / SharePoint connector.
 
