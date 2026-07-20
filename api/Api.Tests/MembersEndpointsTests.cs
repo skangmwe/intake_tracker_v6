@@ -77,4 +77,14 @@ public sealed class MembersEndpointsTests : IClassFixture<WebApplicationFactory<
         var response = await client.DeleteAsync($"/api/v1/workspaces/{WorkspaceId}/invitations/{InvitationId}");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task SetSuspension_WithoutToken_Returns401()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.PostAsync(
+            $"/api/v1/workspaces/{WorkspaceId}/members/{TargetUserId}/suspension",
+            Json("""{ "suspended": true }"""));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }

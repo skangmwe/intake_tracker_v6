@@ -19,7 +19,9 @@ interface SideNavLayoutProps {
 
 export function SideNavLayout({ navLabel, items }: SideNavLayoutProps) {
   return (
-    <div className="side-nav-layout">
+    // data-layout="wide" opts this settings frame out of the app-shell's 1200px reading cap so its
+    // data-dense subsections (members, fields, views, audit) use the full canvas (app-shell-and-headers.md).
+    <div className="side-nav-layout" data-layout="wide">
       <nav className="side-nav" aria-label={navLabel}>
         {items.map((item) => (
           <NavLink key={item.to} to={item.to} className="side-nav__link" data-ds="nav-item">

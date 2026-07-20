@@ -3,7 +3,9 @@
    Reading-width surface (single-column admin form + table). */
 
 .users-access {
-  max-width: min(100%, 1200px);
+  /* Data-dense surface — full-width within the settings content column (app-shell-and-headers.md),
+     not capped to reading width, so the members table uses the whole canvas. */
+  min-width: 0;
 }
 
 .users-access__title {
@@ -53,63 +55,9 @@
   margin-top: var(--space-4);
 }
 
-/* Members table (semantic <table>, data-visualization.md) */
-.users-access__table-shell {
-  overflow-x: auto;
-  max-width: 100%;
-}
-
-.users-access__table {
-  width: 100%;
-  min-width: 720px;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.users-access__caption {
-  text-align: left;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  padding-bottom: var(--space-3);
-}
-
-.users-access__table th {
-  text-align: left;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-light);
-  white-space: nowrap;
-}
-
-.users-access__table td {
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border-light);
-  color: var(--text-primary);
-  vertical-align: middle;
-}
-
+/* Members list — the shared TableShell carries the grid chrome; these style only the cell content. */
 .users-access__name {
-  display: block;
   font-weight: 500;
-}
-
-.users-access__email {
-  display: block;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.users-access__level {
-  width: auto;
-  min-width: 150px;
-  height: var(--control-h-compact);
 }
 
 .users-access__email-cell,
@@ -120,9 +68,102 @@
   white-space: nowrap;
 }
 
-.users-access__col-action {
-  text-align: right;
+/* Actions column — a 1px divider separates the fixed kebab column from the data columns (header +
+   every body row), matching the prototype. Scoped to this surface so other tables keep the
+   no-vertical-rules default. */
+.users-access .ast-grid__head .ast-grid__th:last-child,
+.users-access .ast-grid__row .ast-grid__cell:last-child {
+  border-left: 1px solid var(--border-light);
+}
+
+/* The kebab column needs no visible header; keep the label for screen readers only. */
+.users-access .ast-grid__head .ast-grid__th:last-child .ast-grid__th-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
+  border: 0;
+}
+
+/* Kebab row-action trigger — a quiet icon button; hover flips to the interactive accent. */
+.users-access__kebab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--icon-default);
+  cursor: pointer;
+}
+
+.users-access__kebab:hover,
+.users-access__kebab:focus-visible {
+  color: var(--accent-interactive);
+}
+
+/* Row-action menu surface — portaled to <body> and fixed-positioned (JS sets top/left) so it
+   escapes the grid cell's overflow:hidden and the grid body's overflow:auto. */
+.users-access__row-menu {
+  position: fixed;
+  z-index: 60;
+  width: 220px;
+  max-width: calc(100vw - var(--space-5) * 2);
+  padding: var(--space-2) 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+/* Row-action menu extras layered on the shared .ast-menu popover. */
+.users-access__menu-group {
+  display: block;
+  padding: var(--space-2) var(--space-4);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.users-access__menu-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  color: var(--accent-interactive);
+}
+
+.users-access__menu-sep {
+  display: block;
+  height: 1px;
+  margin: var(--space-2) 0;
+  background: var(--border-light);
+}
+
+/* Filtered-to-zero — bordered surface, not a pale fill (loading-empty-and-error-states.md). */
+.users-access__no-matches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.users-access__no-matches-title {
+  margin: 0;
+  color: var(--text-primary);
 }
 
 /* Approver teams roster (read-only) */
@@ -195,6 +236,19 @@
 
 .users-access__dialog-error {
   margin-top: var(--space-4);
+}
+
+/* Edit-member dialog — read-only identity above the access-level select. */
+.users-access__edit-identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.users-access__edit-email {
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
 @media (max-width: 640px) {

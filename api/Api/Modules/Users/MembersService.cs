@@ -39,6 +39,15 @@ public enum DeactivateMemberOutcome
 
 public sealed record DeactivateMemberResult(DeactivateMemberOutcome Outcome);
 
+public enum SetSuspensionOutcome
+{
+    Success,
+    /// <summary>Suspending a user who is the named individual on a pending sign-off — mapped to 409.</summary>
+    Blocked,
+}
+
+public sealed record SetSuspensionResult(SetSuspensionOutcome Outcome);
+
 public enum CancelInvitationOutcome
 {
     Cancelled,
@@ -57,6 +66,9 @@ public interface IMembersService
 
     Task<DeactivateMemberResult> DeactivateAsync(
         Guid workspaceId, Guid targetUserId, Guid actorUserId, string operationId, CancellationToken cancellationToken);
+
+    Task<SetSuspensionResult> SetSuspensionAsync(
+        Guid workspaceId, Guid targetUserId, bool suspended, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 
     Task<CancelInvitationResult> CancelInvitationAsync(
         Guid workspaceId, Guid invitationId, Guid actorUserId, string operationId, CancellationToken cancellationToken);
@@ -185,6 +197,38 @@ public sealed class MembersService : IMembersService
             cancellationToken).ConfigureAwait(false);
 
         return new DeactivateMemberResult(DeactivateMemberOutcome.Success);
+    }
+
+    public async Task<SetSuspensionResult> SetSuspensionAsync(
+        Guid workspaceId, Guid targetUserId, bool suspended, Guid actorUserId, string operationId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _db.Database.ExecuteSqlRawAsync(
+                "EXEC dbo.usp_SetMemberSuspension @WorkspaceId, @TargetUserId, @Suspended, @ActorUserId",
+                new[]
+                {
+                    new SqlParameter("@WorkspaceId", workspaceId),
+                    new SqlParameter("@TargetUserId", targetUserId),
+                    new SqlParameter("@Suspended", suspended),
+                    new SqlParameter("@ActorUserId", actorUserId.ToString()),
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (SqlException ex) when (ex.Number == PendingSignoffError)
+        {
+            return new SetSuspensionResult(SetSuspensionOutcome.Blocked);
+        }
+
+        await EmitAsync(
+            workspaceId,
+            suspended ? "member.suspended" : "member.reactivated",
+            new { UserId = targetUserId },
+            actorUserId,
+            operationId,
+            cancellationToken).ConfigureAwait(false);
+
+        return new SetSuspensionResult(SetSuspensionOutcome.Success);
     }
 
     public async Task<CancelInvitationResult> CancelInvitationAsync(

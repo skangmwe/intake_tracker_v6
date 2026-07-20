@@ -62,3 +62,13 @@ public sealed class MembershipUpsertRequest : IValidatableObject
         }
     }
 }
+
+/// <summary>
+/// Body for POST /api/v1/workspaces/{id}/members/{userId}/suspension. <see cref="Suspended"/> true
+/// disables the account (Status → Suspended, membership kept); false reactivates it (Status → Active).
+/// </summary>
+public sealed class MemberSuspensionRequest
+{
+    [Required]
+    public bool? Suspended { get; set; }
+}

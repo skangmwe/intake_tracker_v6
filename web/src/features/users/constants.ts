@@ -10,6 +10,16 @@ export const LEVEL_OPTIONS: SelectOption[] = [
   { value: 'WorkspaceAdmin', label: 'Workspace admin' },
 ];
 
+/** Members list page size — the members list surface paginates like the other list screens. */
+export const MEMBERS_PAGE_SIZE = 25;
+
+/** The three member statuses, as funnel-filter options for the Status column. */
+export const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'Active', label: 'Active' },
+  { value: 'Suspended', label: 'Suspended' },
+  { value: 'Invited', label: 'Invited' },
+];
+
 /** The two panels of the S29 Users & access surface (Members list + Approver-teams roster). */
 export type UsersAccessTab = 'members' | 'teams';
 

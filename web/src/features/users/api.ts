@@ -48,6 +48,18 @@ export function deactivateMember(workspaceId: WorkspaceId, userId: UserId): Prom
   return apiFetch<void>(`/v1/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' });
 }
 
+/** Suspend (disable but keep in workspace) or reactivate a member. */
+export function setMemberSuspension(
+  workspaceId: WorkspaceId,
+  userId: UserId,
+  suspended: boolean,
+): Promise<void> {
+  return apiFetch<void>(`/v1/workspaces/${workspaceId}/members/${userId}/suspension`, {
+    method: 'POST',
+    body: { suspended },
+  });
+}
+
 /** Cancel a pending invitation (removes the Invited row from the list). */
 export function cancelInvitation(workspaceId: WorkspaceId, invitationId: string): Promise<void> {
   return apiFetch<void>(`/v1/workspaces/${workspaceId}/invitations/${invitationId}`, {

@@ -25,8 +25,8 @@ describe('DeactivateMemberDialog', () => {
     );
 
     // Assert
-    expect(screen.getByRole('button', { name: 'Deactivate Ada Byron' })).toBeInTheDocument();
-    expect(screen.getByRole('dialog')).toHaveTextContent(/removes them from this workspace/i);
+    expect(screen.getByRole('button', { name: 'Remove Ada Byron' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveTextContent(/from this workspace and disables/i);
   });
 
   it('calls onConfirm and onCancel from the action buttons', async () => {
@@ -40,21 +40,21 @@ describe('DeactivateMemberDialog', () => {
 
     // Act
     await user.click(screen.getByRole('button', { name: /^cancel$/i }));
-    await user.click(screen.getByRole('button', { name: 'Deactivate Ada Byron' }));
+    await user.click(screen.getByRole('button', { name: 'Remove Ada Byron' }));
 
     // Assert
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a pending label and disables the actions while deactivating', () => {
+  it('shows a pending label and disables the actions while removing', () => {
     // Act
     render(
       <DeactivateMemberDialog member={member} onConfirm={jest.fn()} onCancel={jest.fn()} isPending error={null} />,
     );
 
     // Assert
-    const confirm = screen.getByRole('button', { name: /deactivating…/i });
+    const confirm = screen.getByRole('button', { name: /removing…/i });
     expect(confirm).toBeDisabled();
     expect(screen.getByRole('button', { name: /^cancel$/i })).toBeDisabled();
   });

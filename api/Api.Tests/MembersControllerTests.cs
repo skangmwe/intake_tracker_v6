@@ -239,6 +239,53 @@ public sealed class MembersControllerTests
         Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SetSuspension_Success_Returns204(bool suspended)
+    {
+        // Arrange
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.SetSuspensionAsync(WorkspaceId, TargetId, suspended, ActorId, "op-123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SetSuspensionResult(SetSuspensionOutcome.Success));
+
+        // Act
+        var result = await Build(members).SetSuspension(
+            WorkspaceId, TargetId, new MemberSuspensionRequest { Suspended = suspended }, CancellationToken.None);
+
+        // Assert
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task SetSuspension_Blocked_Returns409()
+    {
+        // Arrange — suspending a user with a pending named-individual sign-off is blocked (BS §6.8).
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.SetSuspensionAsync(WorkspaceId, TargetId, true, ActorId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SetSuspensionResult(SetSuspensionOutcome.Blocked));
+
+        // Act
+        var result = await Build(members).SetSuspension(
+            WorkspaceId, TargetId, new MemberSuspensionRequest { Suspended = true }, CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetSuspension_NotAdmin_Returns403()
+    {
+        var members = new Mock<IMembersService>();
+        var result = await Build(members, isAdmin: false).SetSuspension(
+            WorkspaceId, TargetId, new MemberSuspensionRequest { Suspended = true }, CancellationToken.None);
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
     [Fact]
     public async Task UpsertMember_CancellationPropagates()
     {
