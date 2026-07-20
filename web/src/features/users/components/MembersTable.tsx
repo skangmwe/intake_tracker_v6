@@ -35,10 +35,11 @@ export function MembersTable({ members, onChangeLevel, onDeactivate, pendingLeve
         <caption className="users-access__caption">Members of this workspace</caption>
         <thead>
           <tr>
-            <th scope="col">Member</th>
-            <th scope="col">Level</th>
-            <th scope="col">Last active</th>
+            <th scope="col">Name</th>
+            <th scope="col">Email</th>
+            <th scope="col">Access level</th>
             <th scope="col">Status</th>
+            <th scope="col">Last active</th>
             <th scope="col" className="users-access__col-action">
               <span className="mws-sr-only">Actions</span>
             </th>
@@ -49,12 +50,12 @@ export function MembersTable({ members, onChangeLevel, onDeactivate, pendingLeve
             <tr key={member.userId}>
               <td>
                 <span className="users-access__name">{member.displayName}</span>
-                <span className="users-access__email">{member.email}</span>
               </td>
+              <td className="users-access__email-cell">{member.email}</td>
               <td>
                 <select
                   className="mws-select users-access__level"
-                  aria-label={`Level for ${member.displayName}`}
+                  aria-label={`Access level for ${member.displayName}`}
                   value={member.level}
                   disabled={pendingLevelUserId === member.userId}
                   onChange={(event) => onChangeLevel(member.userId, event.target.value as AccessLevel)}
@@ -66,12 +67,20 @@ export function MembersTable({ members, onChangeLevel, onDeactivate, pendingLeve
                   ))}
                 </select>
               </td>
-              <td>{formatLastActive(member.lastActiveAt)}</td>
-              <td>{member.isDisabled ? <StatusPill status="warning" label="Disabled" /> : EM_DASH}</td>
+              <td>
+                {member.isDisabled ? (
+                  <StatusPill status="error" label="Suspended" />
+                ) : (
+                  <StatusPill status="success" label="Active" />
+                )}
+              </td>
+              <td className="users-access__last-active">{formatLastActive(member.lastActiveAt)}</td>
               <td className="users-access__col-action">
-                <Button variant="destructive" compact onClick={() => onDeactivate(member)}>
-                  Deactivate
-                </Button>
+                {!member.isDisabled && (
+                  <Button variant="destructive" compact onClick={() => onDeactivate(member)}>
+                    Deactivate
+                  </Button>
+                )}
               </td>
             </tr>
           ))}

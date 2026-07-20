@@ -28,10 +28,32 @@ describe('MembersTable', () => {
     // Assert
     expect(screen.getByText('Ada Byron')).toBeInTheDocument();
     expect(screen.getByText('bo@mws.ai')).toBeInTheDocument();
-    expect(screen.getByLabelText('Level for Ada Byron')).toHaveValue('WorkspaceAdmin');
+    expect(screen.getByLabelText('Access level for Ada Byron')).toHaveValue('WorkspaceAdmin');
   });
 
-  it('shows the Disabled badge for a disabled account', () => {
+  it('shows an em-dash for a member with no valid last-active timestamp', () => {
+    // Arrange — an unparseable timestamp renders the empty-cell em-dash, never a broken date.
+    const members = [buildMember({ displayName: 'Never Active', lastActiveAt: 'not-a-date' })];
+
+    // Act
+    render(<MembersTable members={members} onChangeLevel={noop} onDeactivate={noop} />);
+
+    // Assert
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('shows the Active badge for an enabled account', () => {
+    // Arrange
+    const members = [buildMember({ isDisabled: false })];
+
+    // Act
+    render(<MembersTable members={members} onChangeLevel={noop} onDeactivate={noop} />);
+
+    // Assert
+    expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+
+  it('shows the Suspended badge and no Deactivate action for a disabled account', () => {
     // Arrange
     const members = [buildMember({ isDisabled: true })];
 
@@ -39,7 +61,8 @@ describe('MembersTable', () => {
     render(<MembersTable members={members} onChangeLevel={noop} onDeactivate={noop} />);
 
     // Assert
-    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    expect(screen.getByText('Suspended')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /deactivate/i })).not.toBeInTheDocument();
   });
 
   it('calls onChangeLevel when the inline level is changed', async () => {
@@ -50,7 +73,7 @@ describe('MembersTable', () => {
     render(<MembersTable members={[member]} onChangeLevel={onChangeLevel} onDeactivate={noop} />);
 
     // Act
-    await user.selectOptions(screen.getByLabelText('Level for Ada Byron'), 'Viewer');
+    await user.selectOptions(screen.getByLabelText('Access level for Ada Byron'), 'Viewer');
 
     // Assert
     expect(onChangeLevel).toHaveBeenCalledWith(member.userId, 'Viewer');
@@ -85,7 +108,7 @@ describe('MembersTable', () => {
     );
 
     // Assert
-    expect(screen.getByLabelText('Level for Ada Byron')).toBeDisabled();
+    expect(screen.getByLabelText('Access level for Ada Byron')).toBeDisabled();
   });
 
   it('has no axe violations (default and disabled-member states)', async () => {

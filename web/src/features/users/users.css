@@ -15,6 +15,18 @@
   margin-bottom: var(--space-5);
 }
 
+/* Tab panels sit below the Members / Approver teams tab strip. */
+.users-access__panel {
+  margin-top: var(--space-5);
+}
+
+/* Members toolbar — ADD MEMBER sits at the trailing edge above the list. */
+.users-access__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-4);
+}
+
 /* Add-member card */
 .users-access__add {
   background: var(--bg-surface);
@@ -48,7 +60,7 @@
 
 .users-access__table {
   width: 100%;
-  min-width: 640px;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -99,9 +111,80 @@
   height: var(--control-h-compact);
 }
 
+.users-access__email-cell,
+.users-access__last-active {
+  font-family: ui-monospace, monospace;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .users-access__col-action {
   text-align: right;
   white-space: nowrap;
+}
+
+/* Approver teams roster (read-only) */
+.users-access__teams-note {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: var(--space-5);
+}
+
+.users-access__teams {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.users-access__team {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.users-access__team-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.users-access__team-role {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.users-access__team-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.users-access__team-members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.users-access__team-member {
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-3);
+  font-size: 13px;
+}
+
+.users-access__team-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0;
 }
 
 .users-access__empty {
