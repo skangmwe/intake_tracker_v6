@@ -99,24 +99,39 @@ export interface MembershipUpsertRequest {
   level: AccessLevel;
 }
 
+/** Membership status shown in the S29 list — a real member's Active/Suspended, or a pending Invited. */
+export type MemberStatus = 'Active' | 'Suspended' | 'Invited';
+
 /**
- * One row of the S29 Users & access members list — the caller-facing view of a
- * workspace member: SSO identity, their level in this workspace, last-active, and
- * whether the account is disabled (BS §4.2 / blueprint S29).
+ * One row of the S29 Users & access members list — a real member OR a pending invitation
+ * (BS §4.2 / blueprint S29). For an invitation row `userId` / `displayName` / `lastActiveAt` are
+ * null and `invitationId` is set (used by the cancel action); for a member row `invitationId` is null.
  */
 export interface WorkspaceMemberDto {
-  userId: UserId;
-  /** PII — never logged (api-logging.md). */
-  displayName: string;
+  /** Null for a pending invitation (no account yet). */
+  userId: UserId | null;
+  /** PII — never logged (api-logging.md). Null for a pending invitation. */
+  displayName: string | null;
   /** PII — never logged. */
   email: string;
   level: AccessLevel;
   isDisabled: boolean;
-  /** Last authenticated request (Users.LastSignInAt). */
-  lastActiveAt: IsoDateTime;
+  /** Last authenticated request (Users.LastSignInAt). Null for a pending invitation. */
+  lastActiveAt: IsoDateTime | null;
+  status: MemberStatus;
+  /** Set only on a pending-invitation row (the target of DELETE /workspaces/{id}/invitations/{id}). */
+  invitationId: string | null;
 }
 
 /** Response of GET /workspaces/{id}/members. */
 export interface MembersListDto {
   members: WorkspaceMemberDto[];
+}
+
+/** Outcome of POST /workspaces/{id}/members — joined now (`Member`) or invited (`Invited`). */
+export type MembershipUpsertOutcome = 'Member' | 'Invited';
+
+/** Response body of POST /workspaces/{id}/members. */
+export interface MembershipUpsertResponse {
+  outcome: MembershipUpsertOutcome;
 }

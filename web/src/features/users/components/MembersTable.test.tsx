@@ -1,6 +1,7 @@
-// MembersTable — a pure presentational table. Verifies row rendering, the disabled badge, inline
-// level change, deactivate, and the pending-level disabled state. jest-axe runs against the default
-// and disabled-member renders (web-testing.md accessibility requirement).
+// MembersTable — a pure presentational table. Verifies row rendering, the three status badges
+// (Active / Suspended / Invited), inline level change, deactivate, cancel-invitation, and the
+// pending disabled states. jest-axe runs against the default, disabled-member, and invited renders
+// (web-testing.md accessibility requirement).
 
 import { axe } from 'jest-axe';
 import { render, screen } from '@testing-library/react';
@@ -8,11 +9,17 @@ import userEvent from '@testing-library/user-event';
 
 import type { UserId } from '@shared/types';
 
-import { buildMember } from '@/test-utils';
+import { buildInvitation, buildMember } from '@/test-utils';
 
 import { MembersTable } from './MembersTable';
 
 const noop = () => undefined;
+
+const baseProps = {
+  onChangeLevel: noop,
+  onDeactivate: noop,
+  onCancelInvitation: noop,
+};
 
 describe('MembersTable', () => {
   it('renders a row per member with identity, level, and last-active', () => {
@@ -23,7 +30,7 @@ describe('MembersTable', () => {
     ];
 
     // Act
-    render(<MembersTable members={members} onChangeLevel={noop} onDeactivate={noop} />);
+    render(<MembersTable members={members} {...baseProps} />);
 
     // Assert
     expect(screen.getByText('Ada Byron')).toBeInTheDocument();
@@ -36,7 +43,7 @@ describe('MembersTable', () => {
     const members = [buildMember({ displayName: 'Never Active', lastActiveAt: 'not-a-date' })];
 
     // Act
-    render(<MembersTable members={members} onChangeLevel={noop} onDeactivate={noop} />);
+    render(<MembersTable members={members} {...baseProps} />);
 
     // Assert
     expect(screen.getByText('—')).toBeInTheDocument();
@@ -47,7 +54,7 @@ describe('MembersTable', () => {
     const members = [buildMember({ isDisabled: false })];
 
     // Act
-    render(<MembersTable members={members} onChangeLevel={noop} onDeactivate={noop} />);
+    render(<MembersTable members={members} {...baseProps} />);
 
     // Assert
     expect(screen.getByText('Active')).toBeInTheDocument();
@@ -55,13 +62,29 @@ describe('MembersTable', () => {
 
   it('shows the Suspended badge and no Deactivate action for a disabled account', () => {
     // Arrange
-    const members = [buildMember({ isDisabled: true })];
+    const members = [buildMember({ isDisabled: true, status: 'Suspended' })];
 
     // Act
-    render(<MembersTable members={members} onChangeLevel={noop} onDeactivate={noop} />);
+    render(<MembersTable members={members} {...baseProps} />);
 
     // Assert
     expect(screen.getByText('Suspended')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /deactivate/i })).not.toBeInTheDocument();
+  });
+
+  it('renders a pending invitation with an em-dash name, the Invited badge, and a read-only level', () => {
+    // Arrange — an invitation has no account, so name / last-active are em-dashes and the level is
+    // read-only (there is no userId to change).
+    const members = [buildInvitation({ email: 'invitee@mws.ai', level: 'Viewer' })];
+
+    // Act
+    render(<MembersTable members={members} {...baseProps} />);
+
+    // Assert
+    expect(screen.getByText('invitee@mws.ai')).toBeInTheDocument();
+    expect(screen.getByText('Invited')).toBeInTheDocument();
+    expect(screen.getByLabelText('Access level for invitee@mws.ai')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /cancel invitation/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /deactivate/i })).not.toBeInTheDocument();
   });
 
@@ -70,7 +93,7 @@ describe('MembersTable', () => {
     const member = buildMember({ displayName: 'Ada Byron', level: 'Member' });
     const onChangeLevel = jest.fn();
     const user = userEvent.setup();
-    render(<MembersTable members={[member]} onChangeLevel={onChangeLevel} onDeactivate={noop} />);
+    render(<MembersTable members={[member]} {...baseProps} onChangeLevel={onChangeLevel} />);
 
     // Act
     await user.selectOptions(screen.getByLabelText('Access level for Ada Byron'), 'Viewer');
@@ -84,7 +107,7 @@ describe('MembersTable', () => {
     const member = buildMember();
     const onDeactivate = jest.fn();
     const user = userEvent.setup();
-    render(<MembersTable members={[member]} onChangeLevel={noop} onDeactivate={onDeactivate} />);
+    render(<MembersTable members={[member]} {...baseProps} onDeactivate={onDeactivate} />);
 
     // Act
     await user.click(screen.getByRole('button', { name: /deactivate/i }));
@@ -93,36 +116,61 @@ describe('MembersTable', () => {
     expect(onDeactivate).toHaveBeenCalledWith(member);
   });
 
+  it('calls onCancelInvitation when Cancel invitation is clicked', async () => {
+    // Arrange
+    const invitation = buildInvitation();
+    const onCancelInvitation = jest.fn();
+    const user = userEvent.setup();
+    render(<MembersTable members={[invitation]} {...baseProps} onCancelInvitation={onCancelInvitation} />);
+
+    // Act
+    await user.click(screen.getByRole('button', { name: /cancel invitation/i }));
+
+    // Assert
+    expect(onCancelInvitation).toHaveBeenCalledWith(invitation);
+  });
+
   it('disables the level select for the member whose change is in flight', () => {
     // Arrange
     const member = buildMember({ displayName: 'Ada Byron' });
 
     // Act
-    render(
-      <MembersTable
-        members={[member]}
-        onChangeLevel={noop}
-        onDeactivate={noop}
-        pendingLevelUserId={member.userId}
-      />,
-    );
+    render(<MembersTable members={[member]} {...baseProps} pendingLevelUserId={member.userId} />);
 
     // Assert
     expect(screen.getByLabelText('Access level for Ada Byron')).toBeDisabled();
   });
 
-  it('has no axe violations (default and disabled-member states)', async () => {
-    // Arrange + Act — default
-    const { container, rerender } = render(
-      <MembersTable members={[buildMember()]} onChangeLevel={noop} onDeactivate={noop} />,
+  it('disables the Cancel invitation button for the invitation whose cancellation is in flight', () => {
+    // Arrange
+    const invitation = buildInvitation();
+
+    // Act
+    render(
+      <MembersTable
+        members={[invitation]}
+        {...baseProps}
+        pendingCancelInvitationId={invitation.invitationId}
+      />,
     );
+
+    // Assert
+    expect(screen.getByRole('button', { name: /cancelling…/i })).toBeDisabled();
+  });
+
+  it('has no axe violations (default, disabled-member, and invited states)', async () => {
+    // Arrange + Act — default
+    const { container, rerender } = render(<MembersTable members={[buildMember()]} {...baseProps} />);
     // Assert
     expect(await axe(container)).toHaveNoViolations();
 
     // Act — disabled member
-    rerender(
-      <MembersTable members={[buildMember({ isDisabled: true })]} onChangeLevel={noop} onDeactivate={noop} />,
-    );
+    rerender(<MembersTable members={[buildMember({ isDisabled: true, status: 'Suspended' })]} {...baseProps} />);
+    // Assert
+    expect(await axe(container)).toHaveNoViolations();
+
+    // Act — pending invitation
+    rerender(<MembersTable members={[buildInvitation()]} {...baseProps} />);
     // Assert
     expect(await axe(container)).toHaveNoViolations();
   });

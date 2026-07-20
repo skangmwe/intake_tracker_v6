@@ -6,7 +6,7 @@ import type { UserId, WorkspaceId } from '@shared/types';
 
 import { apiFetch } from '@/shared/http/apiClient';
 
-import { deactivateMember, fetchMembers, upsertMember } from './api';
+import { cancelInvitation, deactivateMember, fetchMembers, upsertMember } from './api';
 
 jest.mock('@/shared/http/apiClient');
 const mockedFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
@@ -31,17 +31,32 @@ describe('users members api', () => {
     expect((opts as { signal: AbortSignal }).signal).toBe(controller.signal);
   });
 
-  it('upsertMember — POSTs the upsert body', async () => {
+  it('upsertMember — POSTs the upsert body and returns the outcome', async () => {
     // Arrange
-    mockedFetch.mockResolvedValue(undefined as never);
+    mockedFetch.mockResolvedValue({ outcome: 'Invited' } as never);
 
     // Act
-    await upsertMember(WORKSPACE, { email: 'x@mws.ai', level: 'Member' });
+    const response = await upsertMember(WORKSPACE, { email: 'x@mws.ai', level: 'Member' });
 
     // Assert
     const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/workspaces/${WORKSPACE}/members`);
     expect(opts).toMatchObject({ method: 'POST', body: { email: 'x@mws.ai', level: 'Member' } });
+    expect(response).toEqual({ outcome: 'Invited' });
+  });
+
+  it('cancelInvitation — DELETEs the invitation by id', async () => {
+    // Arrange
+    mockedFetch.mockResolvedValue(undefined as never);
+    const invitationId = '00000000-0000-0000-0000-0000000000f1';
+
+    // Act
+    await cancelInvitation(WORKSPACE, invitationId);
+
+    // Assert
+    const [path, opts] = mockedFetch.mock.calls[0]!;
+    expect(path).toBe(`/v1/workspaces/${WORKSPACE}/invitations/${invitationId}`);
+    expect(opts).toMatchObject({ method: 'DELETE' });
   });
 
   it('deactivateMember — DELETEs the member by id', async () => {

@@ -116,6 +116,7 @@ public sealed class AppDbContext : DbContext
         // Slice 17 (Users & access admin) — keyless projections read via stored procedures.
         modelBuilder.Entity<WorkspaceMemberRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<MembershipUpsertResultRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<CancelInvitationRow>().HasNoKey().ToView((string?)null);
 
         // Slice 19 (Platform admin) — keyless projections read via stored procedures.
         modelBuilder.Entity<CrossingMapRow>().HasNoKey().ToView((string?)null);

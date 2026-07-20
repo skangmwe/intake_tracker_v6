@@ -316,8 +316,23 @@ export function buildMember(overrides: Partial<WorkspaceMemberDto> = {}): Worksp
     level: 'Member',
     isDisabled: false,
     lastActiveAt: '2026-07-03T13:00:00Z',
+    status: 'Active',
+    invitationId: null,
     ...overrides,
   };
+}
+
+/** One S29 members-list row for a pending invitation (no account yet). */
+export function buildInvitation(overrides: Partial<WorkspaceMemberDto> = {}): WorkspaceMemberDto {
+  return buildMember({
+    userId: null,
+    displayName: null,
+    email: 'invitee@mws.ai',
+    lastActiveAt: null,
+    status: 'Invited',
+    invitationId: '00000000-0000-0000-0000-0000000000f1',
+    ...overrides,
+  });
 }
 
 interface ProviderOptions {

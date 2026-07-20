@@ -1,22 +1,26 @@
 -- =============================================
 -- Author:      /dev-build-application (Slice 17 — Users & access admin)
 -- Create Date: 2026-07-06
+-- Updated:     2026-07-20 (Invited membership state — S29) — an @Email that does NOT resolve to an
+--              active platform user now records a pending dbo.WorkspaceInvitation instead of throwing
+--              50020. The result set gains an Outcome column: 'Member' (added/level-changed against a
+--              real user) or 'Invited' (a pending invitation was created). UserId is NULL on the
+--              'Invited' row. A second live invitation for the same (workspace, email) throws 50022.
 -- Description: Adds a workspace member or changes an existing member's level (S29,
 --              api-contracts §2 POST /workspaces/{id}/members). Exactly one of @TargetUserId
 --              / @Email identifies the member:
 --                - @TargetUserId supplied -> change that member's level (or add by known id).
 --                - @Email supplied        -> resolve to a REAL active platform user (display
---                                            name or email), mirroring usp_AddApproverTeamMember.
+--                                            name or email); if none, create an Invited invitation.
 --              Guards on the @Email path (reuse the approver-team error numbers so the service
 --              maps them the same way):
---                - no active user matches      -> THROW 50020 (unresolved)
 --                - more than one user matches  -> THROW 50021 (ambiguous)
---              Upsert is idempotent: reactivate a soft-deleted membership, or update the level
---              of a live one, or insert a new membership. Returns the resolved (UserId, Level,
---              WasAdded) as its single result set so the service can emit a precise event.
---              Not an access-gate proc — the controller's WorkspaceAdmin AccessGuard is the
---              authoritative check (approver-team precedent). @Level is validated at the
---              controller boundary (Data Annotations) and by CK_WorkspaceMembership_Level.
+--                - a live invite already exists -> THROW 50022 (already invited)
+--              Membership upsert is idempotent: reactivate a soft-deleted membership, or update the
+--              level of a live one, or insert a new membership. Returns (UserId, Level, WasAdded,
+--              Outcome) as its single result set so the service can emit a precise event. Not an
+--              access-gate proc — the controller's WorkspaceAdmin AccessGuard is the authoritative
+--              check. @Level is validated at the controller boundary and by CK_WorkspaceMembership_Level.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_UpsertWorkspaceMembership
     @WorkspaceId  UNIQUEIDENTIFIER,
@@ -52,10 +56,32 @@ BEGIN
 
             DECLARE @MatchCount INT = (SELECT COUNT(*) FROM @Matches);
 
-            IF @MatchCount = 0
-                THROW 50020, 'No active user matches that name or email.', 1;
             IF @MatchCount > 1
                 THROW 50021, 'More than one user matches — use the exact email address.', 1;
+
+            IF @MatchCount = 0
+            BEGIN
+                -- Unknown email -> record a pending invitation (auto-accepted on first sign-in).
+                IF EXISTS (
+                    SELECT 1 FROM dbo.WorkspaceInvitation
+                    WHERE WorkspaceId = @WorkspaceIdLocal AND Email = @EmailLocal
+                      AND Status = N'Invited' AND IsDeleted = 0)
+                    THROW 50022, 'That email already has a pending invitation.', 1;
+
+                INSERT INTO dbo.WorkspaceInvitation
+                    (WorkspaceId, Email, [Level], Status, InvitedBy, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
+                VALUES
+                    (@WorkspaceIdLocal, @EmailLocal, @LevelLocal, N'Invited', @Actor, @Actor, @Actor, @Now, @Now);
+
+                SELECT
+                    CAST(NULL AS UNIQUEIDENTIFIER) AS UserId,
+                    @LevelLocal                    AS [Level],
+                    CAST(0 AS BIT)                 AS WasAdded,
+                    N'Invited'                     AS Outcome;
+
+                COMMIT TRANSACTION;
+                RETURN;
+            END
 
             SET @ResolvedUserId = (SELECT TOP (1) UserId FROM @Matches);
         END
@@ -80,8 +106,8 @@ BEGIN
             SET @WasAdded = 1;
         END
 
-        -- Single result set: the resolved member + whether this was an add.
-        SELECT @ResolvedUserId AS UserId, @LevelLocal AS [Level], @WasAdded AS WasAdded;
+        -- Single result set: the resolved member + whether this was an add + the outcome.
+        SELECT @ResolvedUserId AS UserId, @LevelLocal AS [Level], @WasAdded AS WasAdded, N'Member' AS Outcome;
 
         COMMIT TRANSACTION;
     END TRY

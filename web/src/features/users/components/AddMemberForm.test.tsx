@@ -1,5 +1,7 @@
-// AddMemberForm — submits an email + level, surfaces the API's 400 message, clears on success.
-// jest-axe runs against the default and error states (web-testing.md accessibility requirement).
+// AddMemberForm — submits an email + level. A known user joins now (outcome Member → clears and
+// closes); an unknown email is invited (outcome Invited → confirmation notice, form stays open);
+// ambiguous names surface the API's 400 message. jest-axe runs against the default, error, and
+// invited-notice states (web-testing.md accessibility requirement).
 
 import { axe } from 'jest-axe';
 import { screen, waitFor } from '@testing-library/react';
@@ -27,7 +29,7 @@ beforeEach(() => jest.clearAllMocks());
 describe('AddMemberForm', () => {
   it('submits the trimmed email and selected level, then clears the field', async () => {
     // Arrange
-    mockedUpsert.mockResolvedValue(undefined);
+    mockedUpsert.mockResolvedValue({ outcome: 'Member' });
     const user = userEvent.setup();
     renderWithProviders(<AddMemberForm workspaceId={WORKSPACE} />);
     const email = screen.getByLabelText(/member email/i);
@@ -49,7 +51,7 @@ describe('AddMemberForm', () => {
 
   it('renders a Cancel button and closes on a successful add when onClose is provided', async () => {
     // Arrange
-    mockedUpsert.mockResolvedValue(undefined);
+    mockedUpsert.mockResolvedValue({ outcome: 'Member' });
     const onClose = jest.fn();
     const user = userEvent.setup();
     renderWithProviders(<AddMemberForm workspaceId={WORKSPACE} onClose={onClose} />);
@@ -65,6 +67,24 @@ describe('AddMemberForm', () => {
     await user.click(screen.getByRole('button', { name: /add member/i }));
     // Assert
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(2));
+  });
+
+  it('confirms an invitation and keeps the form open when the email is unknown', async () => {
+    // Arrange — an unknown email returns outcome Invited; the form must confirm it, not close.
+    mockedUpsert.mockResolvedValue({ outcome: 'Invited' });
+    const onClose = jest.fn();
+    const user = userEvent.setup();
+    const { container } = renderWithProviders(<AddMemberForm workspaceId={WORKSPACE} onClose={onClose} />);
+
+    // Act
+    await user.type(screen.getByLabelText(/member email/i), 'newcomer@mws.ai');
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+
+    // Assert — a status confirmation names the invitee; the form stays open.
+    const notice = await screen.findByRole('status');
+    expect(notice).toHaveTextContent(/invited newcomer@mws\.ai/i);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('shows the API message when the email cannot be resolved', async () => {

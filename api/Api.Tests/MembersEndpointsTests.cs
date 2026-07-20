@@ -17,6 +17,7 @@ public sealed class MembersEndpointsTests : IClassFixture<WebApplicationFactory<
 {
     private static readonly Guid WorkspaceId = new("1A150000-0000-4000-8000-000000000001");
     private static readonly Guid TargetUserId = new("00000000-0000-4000-8000-0000000000AA");
+    private static readonly Guid InvitationId = new("00000000-0000-4000-8000-0000000000F1");
 
     private readonly WebApplicationFactory<Program> _factory;
 
@@ -66,6 +67,14 @@ public sealed class MembersEndpointsTests : IClassFixture<WebApplicationFactory<
     {
         var client = _factory.CreateClient();
         var response = await client.DeleteAsync($"/api/v1/workspaces/{WorkspaceId}/members/{TargetUserId}");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelInvitation_WithoutToken_Returns401()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.DeleteAsync($"/api/v1/workspaces/{WorkspaceId}/invitations/{InvitationId}");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }

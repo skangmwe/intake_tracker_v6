@@ -1,7 +1,8 @@
 -- =============================================
--- tSQLt tests for dbo.usp_UpsertWorkspaceMembership (Slice 17 — Users & access).
+-- tSQLt tests for dbo.usp_UpsertWorkspaceMembership (Slice 17 — Users & access; S29 invitation state).
 -- Covers: add-by-email resolution, add-by-userId, level change on an existing member,
--- reactivation of a soft-deleted membership, no-match / ambiguous guards, and idempotency.
+-- reactivation of a soft-deleted membership, unknown-email → pending invitation (S29),
+-- duplicate-invite / ambiguous guards, and idempotency.
 -- =============================================
 
 EXEC tSQLt.NewTestClass 'UpsertWorkspaceMembershipTests';
@@ -88,17 +89,42 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE UpsertWorkspaceMembershipTests.[test_ThrowsWhenEmailUnresolved]
+CREATE PROCEDURE UpsertWorkspaceMembershipTests.[test_InsertsInvitationWhenEmailUnknown]
 AS
 BEGIN
-    -- Arrange
+    -- Arrange — no active user matches the email, so a pending invitation is recorded (S29), not a throw.
     EXEC tSQLt.FakeTable @TableName = 'dbo.Users';
     EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceInvitation';
     DECLARE @Ws UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
 
-    -- Act + Assert
-    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%No active user%';
+    -- Act
     EXEC dbo.usp_UpsertWorkspaceMembership @WorkspaceId = @Ws, @Email = N'nobody@example.com', @Level = N'Member', @ActorUserId = N'test-actor';
+
+    -- Assert — one live Invited invitation at the requested level; no membership row created.
+    EXEC tSQLt.AssertEquals @Expected = 1,
+        @Actual = (SELECT COUNT(*) FROM dbo.WorkspaceInvitation
+                   WHERE WorkspaceId = @Ws AND Email = N'nobody@example.com'
+                     AND [Status] = N'Invited' AND [Level] = N'Member' AND IsDeleted = 0);
+    EXEC tSQLt.AssertEquals @Expected = 0,
+        @Actual = (SELECT COUNT(*) FROM dbo.WorkspaceMembership WHERE WorkspaceId = @Ws AND IsDeleted = 0);
+END;
+GO
+
+CREATE PROCEDURE UpsertWorkspaceMembershipTests.[test_ThrowsWhenDuplicateLiveInvite]
+AS
+BEGIN
+    -- Arrange — a live pending invitation already exists for this (workspace, email).
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Users';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceInvitation';
+    DECLARE @Ws UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
+    INSERT INTO dbo.WorkspaceInvitation (InvitationId, WorkspaceId, Email, [Level], [Status], IsDeleted)
+    VALUES (NEWID(), @Ws, N'dupe@example.com', N'Viewer', N'Invited', 0);
+
+    -- Act + Assert — re-inviting the same email throws the already-invited guard (50022).
+    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%already has a pending invitation%';
+    EXEC dbo.usp_UpsertWorkspaceMembership @WorkspaceId = @Ws, @Email = N'dupe@example.com', @Level = N'Member', @ActorUserId = N'test-actor';
 END;
 GO
 

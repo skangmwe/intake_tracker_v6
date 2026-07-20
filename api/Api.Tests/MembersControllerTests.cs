@@ -1,6 +1,7 @@
 // Unit tests for MembersController — routing, WorkspaceAdmin access mapping, and status-code
-// mapping only (the service and access guard are mocked). Covers happy paths, each upsert / deactivate
-// outcome, the access-denied (403 never 404) branches, the 409 deactivation block, and
+// mapping only (the service and access guard are mocked). Covers happy paths, each upsert outcome
+// (Member 200 / Invited 200 / Ambiguous 400 / AlreadyInvited 409), the cancel-invitation outcomes
+// (204 / 403), the deactivate outcomes (204 / 409), the access-denied (403 never 404) branches, and
 // cancellation-token propagation (api-testing-guidelines.md).
 
 using McDermott.AiTracker.Api.Modules.Users;
@@ -18,6 +19,7 @@ public sealed class MembersControllerTests
     private static readonly Guid WorkspaceId = Guid.NewGuid();
     private static readonly Guid ActorId = Guid.NewGuid();
     private static readonly Guid TargetId = Guid.NewGuid();
+    private static readonly Guid InvitationId = Guid.NewGuid();
 
     private static MembersController Build(Mock<IMembersService> members, bool isAdmin = true)
     {
@@ -43,10 +45,11 @@ public sealed class MembersControllerTests
     [Fact]
     public async Task ListMembers_AdminCanRead_ReturnsOk()
     {
-        // Arrange
+        // Arrange — the list can hold a real member and a pending invitation row.
         var list = new MembersListDto(new[]
         {
-            new WorkspaceMemberDto(TargetId, "Priya Raman", "priya@example.com", "Member", false, DateTime.UtcNow),
+            new WorkspaceMemberDto(TargetId, "Priya Raman", "priya@example.com", "Member", false, DateTime.UtcNow, "Active", null),
+            new WorkspaceMemberDto(null, null, "newcomer@example.com", "Viewer", false, null, "Invited", InvitationId),
         });
         var members = new Mock<IMembersService>();
         members.Setup(service => service.ListAsync(WorkspaceId, It.IsAny<CancellationToken>())).ReturnsAsync(list);
@@ -74,36 +77,39 @@ public sealed class MembersControllerTests
     }
 
     [Fact]
-    public async Task UpsertMember_Success_Returns204()
+    public async Task UpsertMember_Member_Returns200WithMemberOutcome()
     {
-        // Arrange
+        // Arrange — a known platform user joins now.
         var members = new Mock<IMembersService>();
         members
             .Setup(service => service.UpsertAsync(WorkspaceId, It.IsAny<MembershipUpsertRequest>(), ActorId, "op-123", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MembershipUpsertResult(MembershipUpsertOutcome.Success, TargetId, WasAdded: true));
+            .ReturnsAsync(new MembershipUpsertResult(MembershipUpsertOutcome.Member, TargetId, WasAdded: true));
 
         // Act
         var result = await Build(members).UpsertMember(WorkspaceId, AddByEmail(), CancellationToken.None);
 
         // Assert
-        Assert.IsType<NoContentResult>(result);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<MembershipUpsertResponse>(ok.Value);
+        Assert.Equal("Member", response.Outcome);
     }
 
     [Fact]
-    public async Task UpsertMember_Unresolved_Returns400()
+    public async Task UpsertMember_Invited_Returns200WithInvitedOutcome()
     {
-        // Arrange
+        // Arrange — an unknown email becomes a pending invitation.
         var members = new Mock<IMembersService>();
         members
             .Setup(service => service.UpsertAsync(WorkspaceId, It.IsAny<MembershipUpsertRequest>(), ActorId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MembershipUpsertResult(MembershipUpsertOutcome.Unresolved));
+            .ReturnsAsync(new MembershipUpsertResult(MembershipUpsertOutcome.Invited));
 
         // Act
         var result = await Build(members).UpsertMember(WorkspaceId, AddByEmail(), CancellationToken.None);
 
         // Assert
-        var problem = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<MembershipUpsertResponse>(ok.Value);
+        Assert.Equal("Invited", response.Outcome);
     }
 
     [Fact]
@@ -124,10 +130,69 @@ public sealed class MembersControllerTests
     }
 
     [Fact]
+    public async Task UpsertMember_AlreadyInvited_Returns409()
+    {
+        // Arrange — the email already has a live pending invitation.
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.UpsertAsync(WorkspaceId, It.IsAny<MembershipUpsertRequest>(), ActorId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MembershipUpsertResult(MembershipUpsertOutcome.AlreadyInvited));
+
+        // Act
+        var result = await Build(members).UpsertMember(WorkspaceId, AddByEmail(), CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
+    }
+
+    [Fact]
     public async Task UpsertMember_NotAdmin_Returns403()
     {
         var members = new Mock<IMembersService>();
         var result = await Build(members, isAdmin: false).UpsertMember(WorkspaceId, AddByEmail(), CancellationToken.None);
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelInvitation_Cancelled_Returns204()
+    {
+        // Arrange
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.CancelInvitationAsync(WorkspaceId, InvitationId, ActorId, "op-123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CancelInvitationResult(CancelInvitationOutcome.Cancelled));
+
+        // Act
+        var result = await Build(members).CancelInvitation(WorkspaceId, InvitationId, CancellationToken.None);
+
+        // Assert
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task CancelInvitation_NotFound_Returns403()
+    {
+        // Arrange — a missing / other-workspace invite is 403, never 404 (never disclose existence).
+        var members = new Mock<IMembersService>();
+        members
+            .Setup(service => service.CancelInvitationAsync(WorkspaceId, InvitationId, ActorId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CancelInvitationResult(CancelInvitationOutcome.NotFound));
+
+        // Act
+        var result = await Build(members).CancelInvitation(WorkspaceId, InvitationId, CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelInvitation_NotAdmin_Returns403()
+    {
+        var members = new Mock<IMembersService>();
+        var result = await Build(members, isAdmin: false).CancelInvitation(WorkspaceId, InvitationId, CancellationToken.None);
         var problem = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
     }

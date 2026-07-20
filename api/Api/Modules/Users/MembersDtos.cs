@@ -10,13 +10,28 @@ namespace McDermott.AiTracker.Api.Modules.Users;
 /// <summary>Response for GET /api/v1/workspaces/{id}/members.</summary>
 public sealed record MembersListDto(IReadOnlyList<WorkspaceMemberDto> Members);
 
+/// <summary>
+/// One S29 row — a real member OR a pending invitation. <see cref="Status"/> is Active / Suspended /
+/// Invited. For an invitation row <see cref="UserId"/> / <see cref="DisplayName"/> /
+/// <see cref="LastActiveAt"/> are null and <see cref="InvitationId"/> is set (used by the cancel
+/// action); for a member row <see cref="InvitationId"/> is null.
+/// </summary>
 public sealed record WorkspaceMemberDto(
-    Guid UserId,
-    string DisplayName,
+    Guid? UserId,
+    string? DisplayName,
     string Email,
     string Level,
     bool IsDisabled,
-    DateTime LastActiveAt);
+    DateTime? LastActiveAt,
+    string Status,
+    Guid? InvitationId);
+
+/// <summary>
+/// Response for POST /api/v1/workspaces/{id}/members. <see cref="Outcome"/> is "Member" (added or
+/// level-changed against an existing user) or "Invited" (a pending invitation was created for an
+/// email with no account yet).
+/// </summary>
+public sealed record MembershipUpsertResponse(string Outcome);
 
 /// <summary>
 /// Body for POST /api/v1/workspaces/{id}/members. Exactly one of <see cref="UserId"/> /

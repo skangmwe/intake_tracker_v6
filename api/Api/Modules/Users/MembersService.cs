@@ -16,9 +16,14 @@ namespace McDermott.AiTracker.Api.Modules.Users;
 
 public enum MembershipUpsertOutcome
 {
-    Success,
-    Unresolved,
+    /// <summary>Added or level-changed against an existing platform user.</summary>
+    Member,
+    /// <summary>A pending invitation was created for an email with no account yet.</summary>
+    Invited,
+    /// <summary>More than one user matched the email — the caller must use the exact address.</summary>
     Ambiguous,
+    /// <summary>That email already has a live pending invitation in this workspace.</summary>
+    AlreadyInvited,
 }
 
 public sealed record MembershipUpsertResult(
@@ -34,6 +39,15 @@ public enum DeactivateMemberOutcome
 
 public sealed record DeactivateMemberResult(DeactivateMemberOutcome Outcome);
 
+public enum CancelInvitationOutcome
+{
+    Cancelled,
+    /// <summary>No live invitation with that id in this workspace — mapped to 403, never 404.</summary>
+    NotFound,
+}
+
+public sealed record CancelInvitationResult(CancelInvitationOutcome Outcome);
+
 public interface IMembersService
 {
     Task<MembersListDto> ListAsync(Guid workspaceId, CancellationToken cancellationToken);
@@ -43,13 +57,16 @@ public interface IMembersService
 
     Task<DeactivateMemberResult> DeactivateAsync(
         Guid workspaceId, Guid targetUserId, Guid actorUserId, string operationId, CancellationToken cancellationToken);
+
+    Task<CancelInvitationResult> CancelInvitationAsync(
+        Guid workspaceId, Guid invitationId, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 }
 
 public sealed class MembersService : IMembersService
 {
     // Guards raised by the membership procs (usp_UpsertWorkspaceMembership / usp_DeactivateMember).
-    private const int NoMatchError = 50020;
     private const int AmbiguousError = 50021;
+    private const int AlreadyInvitedError = 50022;
     private const int PendingSignoffError = 50030;
 
     private readonly AppDbContext _db;
@@ -78,7 +95,10 @@ public sealed class MembersService : IMembersService
                 row.Level,
                 row.IsDisabled,
                 // Stored UTC (SYSUTCDATETIME) — stamp the kind so it serializes with a 'Z' suffix.
-                DateTime.SpecifyKind(row.LastActiveAt, DateTimeKind.Utc)))
+                // Null for a pending invitation (no sign-in yet).
+                row.LastActiveAt is { } lastActive ? DateTime.SpecifyKind(lastActive, DateTimeKind.Utc) : null,
+                row.Status,
+                row.InvitationId))
             .ToList();
 
         return new MembersListDto(members);
@@ -101,6 +121,21 @@ public sealed class MembersService : IMembersService
                 .ConfigureAwait(false);
 
             var resolved = rows[0];
+
+            // Unknown email → a pending invitation was recorded. Emit a no-PII event (no email/UserId).
+            if (string.Equals(resolved.Outcome, "Invited", StringComparison.Ordinal))
+            {
+                await EmitAsync(
+                    workspaceId,
+                    "member.invited",
+                    new { resolved.Level },
+                    actorUserId,
+                    operationId,
+                    cancellationToken).ConfigureAwait(false);
+
+                return new MembershipUpsertResult(MembershipUpsertOutcome.Invited);
+            }
+
             await EmitAsync(
                 workspaceId,
                 "membership.updated",
@@ -109,15 +144,15 @@ public sealed class MembersService : IMembersService
                 operationId,
                 cancellationToken).ConfigureAwait(false);
 
-            return new MembershipUpsertResult(MembershipUpsertOutcome.Success, resolved.UserId, resolved.WasAdded);
-        }
-        catch (SqlException ex) when (ex.Number == NoMatchError)
-        {
-            return new MembershipUpsertResult(MembershipUpsertOutcome.Unresolved);
+            return new MembershipUpsertResult(MembershipUpsertOutcome.Member, resolved.UserId, resolved.WasAdded);
         }
         catch (SqlException ex) when (ex.Number == AmbiguousError)
         {
             return new MembershipUpsertResult(MembershipUpsertOutcome.Ambiguous);
+        }
+        catch (SqlException ex) when (ex.Number == AlreadyInvitedError)
+        {
+            return new MembershipUpsertResult(MembershipUpsertOutcome.AlreadyInvited);
         }
     }
 
@@ -150,6 +185,35 @@ public sealed class MembersService : IMembersService
             cancellationToken).ConfigureAwait(false);
 
         return new DeactivateMemberResult(DeactivateMemberOutcome.Success);
+    }
+
+    public async Task<CancelInvitationResult> CancelInvitationAsync(
+        Guid workspaceId, Guid invitationId, Guid actorUserId, string operationId, CancellationToken cancellationToken)
+    {
+        var rows = await _db.Set<CancelInvitationRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_CancelInvitation @WorkspaceId, @InvitationId, @ActorUserId",
+                new SqlParameter("@WorkspaceId", workspaceId),
+                new SqlParameter("@InvitationId", invitationId),
+                new SqlParameter("@ActorUserId", actorUserId.ToString()))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // No live invite with that id in this workspace → 403 (never disclose existence).
+        if (rows.Count == 0 || !rows[0].Cancelled)
+        {
+            return new CancelInvitationResult(CancelInvitationOutcome.NotFound);
+        }
+
+        await EmitAsync(
+            workspaceId,
+            "invitation.cancelled",
+            new { InvitationId = invitationId },
+            actorUserId,
+            operationId,
+            cancellationToken).ConfigureAwait(false);
+
+        return new CancelInvitationResult(CancelInvitationOutcome.Cancelled);
     }
 
     private async Task EmitAsync(

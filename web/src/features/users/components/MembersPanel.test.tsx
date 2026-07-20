@@ -7,14 +7,15 @@ import { axe } from 'jest-axe';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { buildMember, buildMembership, renderWithProviders } from '@/test-utils';
+import { buildInvitation, buildMember, buildMembership, renderWithProviders } from '@/test-utils';
 
-import { deactivateMember, fetchMembers } from '../api';
+import { cancelInvitation, deactivateMember, fetchMembers } from '../api';
 import { MembersPanel } from './MembersPanel';
 
 jest.mock('../api');
 const mockedFetchMembers = fetchMembers as jest.MockedFunction<typeof fetchMembers>;
 const mockedDeactivate = deactivateMember as jest.MockedFunction<typeof deactivateMember>;
+const mockedCancelInvitation = cancelInvitation as jest.MockedFunction<typeof cancelInvitation>;
 
 const workspaceId = buildMembership().workspaceId;
 
@@ -107,6 +108,24 @@ describe('MembersPanel', () => {
     // Assert
     expect(dialog).not.toBeInTheDocument();
     expect(mockedDeactivate).not.toHaveBeenCalled();
+  });
+
+  it('MembersPanel — Cancel invitation — cancels the pending invite by id', async () => {
+    // Arrange — a pending-invitation row exposes Cancel invitation instead of Deactivate.
+    const invitation = buildInvitation({ invitationId: '00000000-0000-0000-0000-0000000000fa' });
+    mockedFetchMembers.mockResolvedValue({ members: [invitation] });
+    mockedCancelInvitation.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderWithProviders(<MembersPanel workspaceId={workspaceId} />);
+    await screen.findByText('invitee@mws.ai');
+
+    // Act
+    await user.click(screen.getByRole('button', { name: /cancel invitation/i }));
+
+    // Assert
+    await waitFor(() =>
+      expect(mockedCancelInvitation).toHaveBeenCalledWith(workspaceId, invitation.invitationId),
+    );
   });
 
   it('MembersPanel — Deactivate — opens the dialog and deactivates', async () => {
