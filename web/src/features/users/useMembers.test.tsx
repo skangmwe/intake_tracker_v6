@@ -7,13 +7,19 @@ import { renderHook, waitFor } from '@testing-library/react';
 
 import type { UserId, WorkspaceId } from '@shared/types';
 
-import { deactivateMember, fetchMembers, upsertMember } from './api';
-import { useDeactivateMember, useMembers, useUpsertMember } from './useMembers';
+import { cancelInvitation, deactivateMember, fetchMembers, upsertMember } from './api';
+import {
+  useCancelInvitation,
+  useDeactivateMember,
+  useMembers,
+  useUpsertMember,
+} from './useMembers';
 
 jest.mock('./api');
 const mockedFetch = fetchMembers as jest.MockedFunction<typeof fetchMembers>;
 const mockedUpsert = upsertMember as jest.MockedFunction<typeof upsertMember>;
 const mockedDeactivate = deactivateMember as jest.MockedFunction<typeof deactivateMember>;
+const mockedCancelInvitation = cancelInvitation as jest.MockedFunction<typeof cancelInvitation>;
 
 const WORKSPACE = '1a150000-0000-4000-8000-000000000001' as WorkspaceId;
 const USER = '00000000-0000-4000-8000-0000000000aa' as UserId;
@@ -58,16 +64,37 @@ describe('useMembers', () => {
 describe('useUpsertMember', () => {
   it('upserts and invalidates the members list', async () => {
     // Arrange
-    mockedUpsert.mockResolvedValue(undefined);
+    mockedUpsert.mockResolvedValue({ outcome: 'Member' });
     const { client, Wrapper } = makeWrapper();
     const invalidate = jest.spyOn(client, 'invalidateQueries');
     const { result } = renderHook(() => useUpsertMember(WORKSPACE), { wrapper: Wrapper });
 
     // Act
-    await result.current.mutateAsync({ email: 'x@mws.ai', level: 'Member' });
+    const response = await result.current.mutateAsync({ email: 'x@mws.ai', level: 'Member' });
 
     // Assert
     expect(mockedUpsert).toHaveBeenCalledWith(WORKSPACE, { email: 'x@mws.ai', level: 'Member' });
+    expect(response.outcome).toBe('Member');
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['members', WORKSPACE] });
+  });
+});
+
+describe('useCancelInvitation', () => {
+  it('cancels the invitation by id and invalidates the members list', async () => {
+    // Arrange
+    mockedCancelInvitation.mockResolvedValue(undefined);
+    const { client, Wrapper } = makeWrapper();
+    const invalidate = jest.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => useCancelInvitation(WORKSPACE), { wrapper: Wrapper });
+
+    // Act
+    await result.current.mutateAsync('00000000-0000-0000-0000-0000000000f1');
+
+    // Assert
+    expect(mockedCancelInvitation).toHaveBeenCalledWith(
+      WORKSPACE,
+      '00000000-0000-0000-0000-0000000000f1',
+    );
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['members', WORKSPACE] });
   });
 });

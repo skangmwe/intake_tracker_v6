@@ -13,6 +13,7 @@ BEGIN
     -- Arrange
     EXEC tSQLt.FakeTable @TableName = 'dbo.Users';
     EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceInvitation';
     DECLARE @Ws UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
     DECLARE @U1 UNIQUEIDENTIFIER = '00000000-0000-4000-8000-0000000000A1';
     DECLARE @U2 UNIQUEIDENTIFIER = '00000000-0000-4000-8000-0000000000A2';
@@ -26,7 +27,8 @@ BEGIN
 
     -- Act
     CREATE TABLE #Actual (UserId UNIQUEIDENTIFIER, DisplayName NVARCHAR(256), Email NVARCHAR(320),
-                          [Level] NVARCHAR(32), IsDisabled BIT, LastActiveAt DATETIME2);
+                          [Level] NVARCHAR(32), IsDisabled BIT, LastActiveAt DATETIME2,
+                          [Status] NVARCHAR(32), InvitationId UNIQUEIDENTIFIER);
     INSERT INTO #Actual EXEC dbo.usp_ListWorkspaceMembers @WorkspaceId = @Ws;
 
     -- Assert — both members returned, disabled flag carried through (BS §6.8 admin must see them).
@@ -43,6 +45,7 @@ BEGIN
     -- Arrange
     EXEC tSQLt.FakeTable @TableName = 'dbo.Users';
     EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceInvitation';
     DECLARE @Ws    UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
     DECLARE @Other UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000002';
     DECLARE @Live  UNIQUEIDENTIFIER = '00000000-0000-4000-8000-0000000000B1';
@@ -60,11 +63,52 @@ BEGIN
 
     -- Act
     CREATE TABLE #Actual (UserId UNIQUEIDENTIFIER, DisplayName NVARCHAR(256), Email NVARCHAR(320),
-                          [Level] NVARCHAR(32), IsDisabled BIT, LastActiveAt DATETIME2);
+                          [Level] NVARCHAR(32), IsDisabled BIT, LastActiveAt DATETIME2,
+                          [Status] NVARCHAR(32), InvitationId UNIQUEIDENTIFIER);
     INSERT INTO #Actual EXEC dbo.usp_ListWorkspaceMembers @WorkspaceId = @Ws;
 
     -- Assert — only the one live member of this workspace.
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #Actual);
     EXEC tSQLt.AssertEquals @Expected = @Live, @Actual = (SELECT TOP (1) UserId FROM #Actual);
+END;
+GO
+
+CREATE PROCEDURE ListWorkspaceMembersTests.[test_IncludesPendingInvitationsAsInvitedRows]
+AS
+BEGIN
+    -- Arrange — one real member plus one live pending invitation (Invited); one Cancelled invite and
+    -- one other-workspace invite must be excluded.
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Users';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceInvitation';
+    DECLARE @Ws    UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
+    DECLARE @Other UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000002';
+    DECLARE @U     UNIQUEIDENTIFIER = '00000000-0000-4000-8000-0000000000C1';
+    DECLARE @Inv   UNIQUEIDENTIFIER = '00000000-0000-4000-8000-0000000000F1';
+
+    INSERT INTO dbo.Users (UserId, DisplayName, Email, IsDisabled, LastSignInAt, IsDeleted)
+    VALUES (@U, N'Real Member', N'real@example.com', 0, '2026-07-01T00:00:00', 0);
+    INSERT INTO dbo.WorkspaceMembership (MembershipId, WorkspaceId, UserId, [Level], IsDeleted)
+    VALUES (NEWID(), @Ws, @U, N'Member', 0);
+    INSERT INTO dbo.WorkspaceInvitation (InvitationId, WorkspaceId, Email, [Level], [Status], IsDeleted)
+    VALUES (@Inv,   @Ws,    N'invitee@example.com', N'Viewer', N'Invited',   0),   -- included
+           (NEWID(), @Ws,   N'cancelled@example.com', N'Member', N'Cancelled', 0),  -- excluded (not Invited)
+           (NEWID(), @Other, N'elsewhere@example.com', N'Member', N'Invited',   0); -- excluded (other workspace)
+
+    -- Act
+    CREATE TABLE #Actual (UserId UNIQUEIDENTIFIER, DisplayName NVARCHAR(256), Email NVARCHAR(320),
+                          [Level] NVARCHAR(32), IsDisabled BIT, LastActiveAt DATETIME2,
+                          [Status] NVARCHAR(32), InvitationId UNIQUEIDENTIFIER);
+    INSERT INTO #Actual EXEC dbo.usp_ListWorkspaceMembers @WorkspaceId = @Ws;
+
+    -- Assert — the real member and exactly one Invited row; the invited row carries its id and a null user.
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = (SELECT COUNT(*) FROM #Actual);
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #Actual WHERE [Status] = N'Invited');
+    EXEC tSQLt.AssertEquals @Expected = @Inv,
+        @Actual = (SELECT InvitationId FROM #Actual WHERE Email = N'invitee@example.com');
+    EXEC tSQLt.AssertEquals @Expected = 1,
+        @Actual = (SELECT CASE WHEN UserId IS NULL THEN 1 ELSE 0 END FROM #Actual WHERE Email = N'invitee@example.com');
+    EXEC tSQLt.AssertEquals @Expected = N'Active',
+        @Actual = (SELECT [Status] FROM #Actual WHERE UserId = @U);
 END;
 GO

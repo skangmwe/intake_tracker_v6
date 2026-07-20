@@ -10,7 +10,12 @@ import type { AccessLevel, UserId, WorkspaceId, WorkspaceMemberDto } from '@shar
 import { Button } from '@/shared/components/Button';
 import { problemMessage } from '@/shared/http/problemMessage';
 
-import { useDeactivateMember, useMembers, useUpsertMember } from '../useMembers';
+import {
+  useCancelInvitation,
+  useDeactivateMember,
+  useMembers,
+  useUpsertMember,
+} from '../useMembers';
 import { AddMemberForm } from './AddMemberForm';
 import { DeactivateMemberDialog } from './DeactivateMemberDialog';
 import { MembersTable } from './MembersTable';
@@ -19,10 +24,15 @@ export function MembersPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
   const members = useMembers(workspaceId);
   const levelUpsert = useUpsertMember(workspaceId);
   const deactivate = useDeactivateMember(workspaceId);
+  const cancelInvite = useCancelInvitation(workspaceId);
   const [addOpen, setAddOpen] = useState(false);
   const [toDeactivate, setToDeactivate] = useState<WorkspaceMemberDto | null>(null);
 
   const onChangeLevel = (userId: UserId, level: AccessLevel) => levelUpsert.mutate({ userId, level });
+
+  const onCancelInvitation = (member: WorkspaceMemberDto) => {
+    if (member.invitationId !== null) cancelInvite.mutate(member.invitationId);
+  };
 
   const openDeactivate = (member: WorkspaceMemberDto) => {
     deactivate.reset();
@@ -64,6 +74,12 @@ export function MembersPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
         </p>
       )}
 
+      {cancelInvite.isError && (
+        <p className="mws-alert mws-alert--error users-access__level-error" role="alert">
+          {problemMessage(cancelInvite.error)}
+        </p>
+      )}
+
       {members.isLoading && (
         <p className="caption" role="status">
           Loading members…
@@ -85,7 +101,9 @@ export function MembersPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
           members={members.data.members}
           onChangeLevel={onChangeLevel}
           onDeactivate={openDeactivate}
+          onCancelInvitation={onCancelInvitation}
           pendingLevelUserId={levelUpsert.isPending ? levelUpsert.variables?.userId : undefined}
+          pendingCancelInvitationId={cancelInvite.isPending ? cancelInvite.variables : undefined}
         />
       )}
 

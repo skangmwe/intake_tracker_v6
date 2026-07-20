@@ -48,6 +48,7 @@
 }
 
 .users-access__add-error,
+.users-access__add-notice,
 .users-access__level-error {
   margin-top: var(--space-4);
 }

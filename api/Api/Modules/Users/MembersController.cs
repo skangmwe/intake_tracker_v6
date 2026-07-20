@@ -41,11 +41,15 @@ public sealed class MembersController : ControllerBase
         return Ok(members);
     }
 
-    /// <summary>Add a member (by email) or change an existing member's level (WorkspaceAdmin).</summary>
+    /// <summary>
+    /// Add a member by email, invite an unknown email, or change an existing member's level
+    /// (WorkspaceAdmin). Returns the outcome: "Member" (joined now) or "Invited" (pending invitation).
+    /// </summary>
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(MembershipUpsertResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpsertMember(
         [FromRoute] Guid workspaceId,
         [FromBody] MembershipUpsertRequest request,
@@ -59,9 +63,34 @@ public sealed class MembersController : ControllerBase
         var result = await _members.UpsertAsync(workspaceId, request, _currentUser.UserId, OperationId(), cancellationToken);
         return result.Outcome switch
         {
-            MembershipUpsertOutcome.Success => NoContent(),
-            MembershipUpsertOutcome.Ambiguous => BadRequestProblem("More than one user matches that name — use the exact email address."),
-            _ => BadRequestProblem("No active user matches that name or email."),
+            MembershipUpsertOutcome.Member => Ok(new MembershipUpsertResponse("Member")),
+            MembershipUpsertOutcome.Invited => Ok(new MembershipUpsertResponse("Invited")),
+            MembershipUpsertOutcome.AlreadyInvited =>
+                ConflictProblem("The invitation cannot be created.", "That email already has a pending invitation to this workspace."),
+            _ => BadRequestProblem("More than one user matches that name — use the exact email address."),
+        };
+    }
+
+    /// <summary>Cancel a pending invitation (WorkspaceAdmin). A missing/other-workspace invite is 403.</summary>
+    [HttpDelete("/api/v1/workspaces/{workspaceId:guid}/invitations/{invitationId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> CancelInvitation(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid invitationId,
+        CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.WorkspaceAdmin, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var result = await _members.CancelInvitationAsync(workspaceId, invitationId, _currentUser.UserId, OperationId(), cancellationToken);
+        return result.Outcome switch
+        {
+            CancelInvitationOutcome.Cancelled => NoContent(),
+            // NotFound → 403, never 404 (never disclose whether the invite exists — api-record-access.md).
+            _ => AccessDenied(),
         };
     }
 
@@ -84,7 +113,9 @@ public sealed class MembersController : ControllerBase
         return result.Outcome switch
         {
             DeactivateMemberOutcome.Success => NoContent(),
-            _ => ConflictProblem("This user has a pending individual sign-off. Reassign or resolve it before deactivating them."),
+            _ => ConflictProblem(
+                "The user cannot be deactivated yet.",
+                "This user has a pending individual sign-off. Reassign or resolve it before deactivating them."),
         };
     }
 
@@ -106,11 +137,11 @@ public sealed class MembersController : ControllerBase
             ContentTypes = { "application/problem+json" },
         };
 
-    private ObjectResult ConflictProblem(string detail) =>
+    private ObjectResult ConflictProblem(string title, string detail) =>
         new(new ProblemDetails
         {
             Type = "https://mws.ai/errors/conflict",
-            Title = "The user cannot be deactivated yet.",
+            Title = title,
             Status = StatusCodes.Status409Conflict,
             Detail = detail,
         })

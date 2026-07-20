@@ -783,25 +783,41 @@ public sealed class ImportReportRow
 // EF CRUD) and mutated via usp_UpsertWorkspaceMembership / usp_DeactivateMember. Only these keyless
 // projections are bound through FromSqlRaw.
 
-/// <summary>One S29 member row from usp_ListWorkspaceMembers.</summary>
+/// <summary>
+/// One S29 members-list row from usp_ListWorkspaceMembers — a real membership OR a pending invitation.
+/// For an invitation row UserId / DisplayName / LastActiveAt are null and InvitationId is set; for a
+/// membership row InvitationId is null. Status is 'Active' | 'Suspended' | 'Invited'.
+/// </summary>
 public sealed class WorkspaceMemberRow
 {
-    public Guid UserId { get; set; }
-    /// <summary>PII — never logged (api-logging.md).</summary>
-    public string DisplayName { get; set; } = string.Empty;
+    public Guid? UserId { get; set; }
+    /// <summary>PII — never logged (api-logging.md). Null for a pending invitation.</summary>
+    public string? DisplayName { get; set; }
     /// <summary>PII — never logged.</summary>
     public string Email { get; set; } = string.Empty;
     public string Level { get; set; } = string.Empty;
     public bool IsDisabled { get; set; }
-    public DateTime LastActiveAt { get; set; }
+    public DateTime? LastActiveAt { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public Guid? InvitationId { get; set; }
 }
 
-/// <summary>The resolved member returned by usp_UpsertWorkspaceMembership.</summary>
+/// <summary>
+/// The outcome returned by usp_UpsertWorkspaceMembership. Outcome is 'Member' (added/level-changed
+/// against a real user — UserId set) or 'Invited' (a pending invitation was created — UserId null).
+/// </summary>
 public sealed class MembershipUpsertResultRow
 {
-    public Guid UserId { get; set; }
+    public Guid? UserId { get; set; }
     public string Level { get; set; } = string.Empty;
     public bool WasAdded { get; set; }
+    public string Outcome { get; set; } = string.Empty;
+}
+
+/// <summary>Whether usp_CancelInvitation cancelled a live invitation (0 = no matching live invite).</summary>
+public sealed class CancelInvitationRow
+{
+    public bool Cancelled { get; set; }
 }
 
 // ─── Slice 22 (Home surface) — keyless panel projections ───────────────────────────────
