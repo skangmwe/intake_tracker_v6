@@ -14,7 +14,13 @@ import { problemMessage } from '@/shared/http/problemMessage';
 import { useUpsertMember } from '../useMembers';
 import { LEVEL_OPTIONS } from '../constants';
 
-export function AddMemberForm({ workspaceId }: { workspaceId: WorkspaceId }) {
+interface AddMemberFormProps {
+  workspaceId: WorkspaceId;
+  /** When provided, a Cancel button is shown and the form closes after a successful add. */
+  onClose?: () => void;
+}
+
+export function AddMemberForm({ workspaceId, onClose }: AddMemberFormProps) {
   const [email, setEmail] = useState('');
   const [level, setLevel] = useState<AccessLevel>('Member');
   const upsert = useUpsertMember(workspaceId);
@@ -25,7 +31,12 @@ export function AddMemberForm({ workspaceId }: { workspaceId: WorkspaceId }) {
     if (trimmed.length === 0) return;
     upsert.mutate(
       { email: trimmed, level },
-      { onSuccess: () => setEmail('') },
+      {
+        onSuccess: () => {
+          setEmail('');
+          onClose?.();
+        },
+      },
     );
   };
 
@@ -48,6 +59,11 @@ export function AddMemberForm({ workspaceId }: { workspaceId: WorkspaceId }) {
         />
       </div>
       <div className="users-access__add-actions">
+        {onClose && (
+          <Button type="button" variant="secondary" onClick={onClose} disabled={upsert.isPending}>
+            Cancel
+          </Button>
+        )}
         <Button type="submit" disabled={upsert.isPending || email.trim().length === 0}>
           {upsert.isPending ? 'Adding…' : 'Add member'}
         </Button>

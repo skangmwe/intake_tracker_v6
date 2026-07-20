@@ -47,6 +47,26 @@ describe('AddMemberForm', () => {
     await waitFor(() => expect(email).toHaveValue(''));
   });
 
+  it('renders a Cancel button and closes on a successful add when onClose is provided', async () => {
+    // Arrange
+    mockedUpsert.mockResolvedValue(undefined);
+    const onClose = jest.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<AddMemberForm workspaceId={WORKSPACE} onClose={onClose} />);
+
+    // Act — Cancel closes without submitting.
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    // Assert
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockedUpsert).not.toHaveBeenCalled();
+
+    // Act — a successful add also closes.
+    await user.type(screen.getByLabelText(/member email/i), 'colleague@mws.ai');
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+    // Assert
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(2));
+  });
+
   it('shows the API message when the email cannot be resolved', async () => {
     // Arrange
     mockedUpsert.mockRejectedValue(badRequest('No active user matches that name or email.'));
