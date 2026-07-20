@@ -119,6 +119,37 @@ public sealed class MembersController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Suspend or reactivate a member (WorkspaceAdmin): toggle the disabled flag while keeping them in
+    /// the workspace. Suspending a user with a pending individual sign-off is blocked with 409 (BS §6.8).
+    /// </summary>
+    [HttpPost("{userId:guid}/suspension")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetSuspension(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid userId,
+        [FromBody] MemberSuspensionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.WorkspaceAdmin, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var result = await _members.SetSuspensionAsync(
+            workspaceId, userId, request.Suspended!.Value, _currentUser.UserId, OperationId(), cancellationToken);
+        return result.Outcome switch
+        {
+            SetSuspensionOutcome.Success => NoContent(),
+            _ => ConflictProblem(
+                "The user cannot be suspended yet.",
+                "This user has a pending individual sign-off. Reassign or resolve it before suspending them."),
+        };
+    }
+
     private string OperationId() =>
         HttpContext.Items.TryGetValue(OperationIdMiddleware.HeaderName, out var value) && value is string operationId
             ? operationId

@@ -86,6 +86,7 @@
   }
 
   .side-nav-layout__content {
-    padding: var(--space-6);
+    /* Minimal gutter so data-dense subsections (members, fields, views) use the full canvas. */
+    padding: var(--space-5) var(--space-4);
   }
 }

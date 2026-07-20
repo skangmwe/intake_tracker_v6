@@ -6,7 +6,13 @@ import type { UserId, WorkspaceId } from '@shared/types';
 
 import { apiFetch } from '@/shared/http/apiClient';
 
-import { cancelInvitation, deactivateMember, fetchMembers, upsertMember } from './api';
+import {
+  cancelInvitation,
+  deactivateMember,
+  fetchMembers,
+  setMemberSuspension,
+  upsertMember,
+} from './api';
 
 jest.mock('@/shared/http/apiClient');
 const mockedFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
@@ -70,5 +76,18 @@ describe('users members api', () => {
     const [path, opts] = mockedFetch.mock.calls[0]!;
     expect(path).toBe(`/v1/workspaces/${WORKSPACE}/members/${USER}`);
     expect(opts).toMatchObject({ method: 'DELETE' });
+  });
+
+  it('setMemberSuspension — POSTs the suspended flag to the suspension sub-resource', async () => {
+    // Arrange
+    mockedFetch.mockResolvedValue(undefined as never);
+
+    // Act
+    await setMemberSuspension(WORKSPACE, USER, true);
+
+    // Assert
+    const [path, opts] = mockedFetch.mock.calls[0]!;
+    expect(path).toBe(`/v1/workspaces/${WORKSPACE}/members/${USER}/suspension`);
+    expect(opts).toMatchObject({ method: 'POST', body: { suspended: true } });
   });
 });

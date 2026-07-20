@@ -24,6 +24,8 @@ export interface TableColumn {
   sortable?: boolean | undefined;
   filterable?: boolean | undefined;
   align?: 'left' | 'right' | 'center' | undefined;
+  /** The column that absorbs spare width (1fr). Defaults to the last column when none is flagged. */
+  flex?: boolean | undefined;
 }
 
 export interface TableRow {
@@ -86,23 +88,31 @@ export function TableShell({ columns, rows, sort, onSortChange, renderFilter, ca
 
   const lastIndex = columns.length - 1;
 
+  // The flex column absorbs spare width; default to the last column so existing tables are unchanged.
+  const flexIndex = useMemo(() => {
+    const flagged = columns.findIndex((column) => column.flex);
+    return flagged === -1 ? lastIndex : flagged;
+  }, [columns, lastIndex]);
+
   const gridTemplate = useMemo(
     () =>
       columns
         .map((_, index) =>
-          index === lastIndex
+          index === flexIndex
             ? `minmax(${LAST_COL_MIN}px, 1fr)`
             : `${widths[index] ?? DEFAULT_COL_WIDTH}px`,
         )
         .join(' '),
-    [columns, widths, lastIndex],
+    [columns, widths, flexIndex],
   );
 
   const minWidth = useMemo(
     () =>
-      columns.slice(0, -1).reduce((sum, _, index) => sum + (widths[index] ?? DEFAULT_COL_WIDTH), 0) +
-      LAST_COL_MIN,
-    [columns, widths],
+      columns.reduce(
+        (sum, _, index) => sum + (index === flexIndex ? LAST_COL_MIN : widths[index] ?? DEFAULT_COL_WIDTH),
+        0,
+      ),
+    [columns, widths, flexIndex],
   );
 
   const rowStyle = useMemo<CSSProperties>(() => ({ gridTemplateColumns: gridTemplate }), [gridTemplate]);

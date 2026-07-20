@@ -14,7 +14,13 @@ import type {
   WorkspaceId,
 } from '@shared/types';
 
-import { cancelInvitation, deactivateMember, fetchMembers, upsertMember } from './api';
+import {
+  cancelInvitation,
+  deactivateMember,
+  fetchMembers,
+  setMemberSuspension,
+  upsertMember,
+} from './api';
 
 export const membersKey = (workspaceId: WorkspaceId | undefined) =>
   ['members', workspaceId ?? 'none'] as const;
@@ -45,6 +51,16 @@ export function useDeactivateMember(workspaceId: WorkspaceId | undefined) {
   const queryClient = useQueryClient();
   return useMutation<void, Error, UserId>({
     mutationFn: (userId) => deactivateMember(workspaceId as WorkspaceId, userId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: membersKey(workspaceId) }),
+  });
+}
+
+/** Suspend or reactivate a member (keyed by userId + the target state), then refresh the list. */
+export function useSetMemberSuspension(workspaceId: WorkspaceId | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { userId: UserId; suspended: boolean }>({
+    mutationFn: ({ userId, suspended }) =>
+      setMemberSuspension(workspaceId as WorkspaceId, userId, suspended),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: membersKey(workspaceId) }),
   });
 }
