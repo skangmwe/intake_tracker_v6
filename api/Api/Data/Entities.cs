@@ -692,12 +692,17 @@ public sealed class AnnouncementRow
     public bool Pinned { get; set; }
     public DateTime? ExpiresOn { get; set; }
     public string Status { get; set; } = string.Empty;
+    public DateTime? ScheduledPublishAt { get; set; }
+    public bool AutoArchive { get; set; }
+    public DateTime? AutoArchiveAt { get; set; }
     public DateTime? PublishedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
 
-/// <summary>A browse/manage row from usp_QueryAnnouncements(ForManage) (slice 13). TotalCount is the
+/// <summary>A browse/manage row from usp_QueryAnnouncements(ForManage) (slice 13; reconciled 2026-07-21).
+/// The manage list carries the stored Status plus the lifecycle timestamps so the service derives the
+/// display status once, the poster's display name, and PostedAt for the POSTED column. TotalCount is the
 /// windowed COUNT(*) OVER() so the read is one result set.</summary>
 public sealed class AnnouncementListRowEntity
 {
@@ -706,8 +711,13 @@ public sealed class AnnouncementListRowEntity
     public string BodySnippet { get; set; } = string.Empty;
     public bool Pinned { get; set; }
     public DateTime? PublishedAt { get; set; }
+    public DateTime? ScheduledPublishAt { get; set; }
+    public bool AutoArchive { get; set; }
+    public DateTime? AutoArchiveAt { get; set; }
     public string Status { get; set; } = string.Empty;
     public Guid AuthorUserId { get; set; }
+    public string? AuthorName { get; set; }
+    public DateTime? PostedAt { get; set; }
     public int TotalCount { get; set; }
 }
 

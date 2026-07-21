@@ -1,16 +1,21 @@
 -- =============================================
--- tSQLt tests for the Announcements procs (Slice 13). Covers:
---   usp_CreateAnnouncement          — inserts a Draft with the given fields
---   usp_GetAnnouncementById         — author/admin see any status; a member sees a Published in-audience
---                                     announcement; a non-audience member and an expired announcement are
---                                     hidden (0 rows → API 403, never disclosing existence, BS §22.6)
---   usp_QueryAnnouncements          — the caller's Published, un-expired, in-audience history only
---   usp_QueryAnnouncementsForManage — every status in the workspace; expired-Published collapses to Retired
---   usp_UpdateAnnouncement          — replaces editable fields; a Retired row is immutable (@Found = 0)
---   usp_PublishAnnouncement         — Draft→Published (idempotent; @NewlyPublished only on the transition);
---                                     a Retired row cannot publish (@Found = 0)
---   usp_RetireAnnouncement          — Status→Retired, idempotent
--- database-testing.md (AAA, FakeTable).
+-- tSQLt tests for the Announcements procs (Slice 13; reconciled 2026-07-21 — Depth C lifecycle).
+-- Covers the reconciled contracts:
+--   usp_CreateAnnouncement          — Published stamps PublishedAt/AutoArchiveAt; Scheduled holds; the
+--                                     chosen AuthorUserId ("posted by") is stored
+--   usp_GetAnnouncementById         — author/admin see any status; a member cannot see an unpublished row;
+--                                     an outsider cannot see a Published one
+--   usp_QueryAnnouncements          — the caller's Published, un-expired, in-audience history; AuthorName
+--   usp_QueryAnnouncementsForManage — every status in the workspace, with AuthorName + PostedAt
+--   usp_UpdateAnnouncement          — replaces editable fields incl. author/status; Archived is immutable;
+--                                     Scheduled→Published publishes now
+--   usp_PublishAnnouncement         — Draft/Scheduled→Published (idempotent; @NewlyPublished on transition);
+--                                     Archived cannot publish
+--   usp_RetireAnnouncement          — Status→Archived, idempotent
+--   usp_TickAnnouncements           — publishes due Scheduled (returns them), archives due Published,
+--                                     leaves future rows, is a no-op when nothing is due
+-- database-testing.md (AAA, FakeTable). Assertions assign the actual into a local variable first —
+-- a subquery/CASE cannot be passed directly as an EXEC parameter value.
 -- =============================================
 
 EXEC tSQLt.NewTestClass 'AnnouncementsTests';
@@ -22,8 +27,9 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.Announcements';
     EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
     EXEC tSQLt.FakeTable @TableName = 'dbo.ApproverTeamMembership';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Users';
 
-    -- WS1 members: author aa, admin adm, plain member mem, role-holder rol. Outsider out is NOT a member.
+    -- WS1 members: author aa, admin adm, plain member mem, role-holder rol. Outsider ff is NOT a member.
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0),
            ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000ad', N'WorkspaceAdmin', 0),
@@ -32,281 +38,401 @@ BEGIN
     -- rol holds the 'Manager' role label in WS1.
     INSERT INTO dbo.ApproverTeamMembership (WorkspaceId, RoleLabel, UserId, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', N'Manager', '00000000-0000-4000-8000-0000000000c0', 0);
+    -- Display names for the poster join.
+    INSERT INTO dbo.Users (UserId, DisplayName)
+    VALUES ('00000000-0000-4000-8000-0000000000aa', N'Ann Author'),
+           ('00000000-0000-4000-8000-0000000000be', N'Mem Ber');
 END;
 GO
 
--- A helper to insert an announcement row directly (FakeTable strips the identity default, so supply the id).
+-- Insert an announcement row directly (FakeTable strips the identity default, so supply the id).
 CREATE PROCEDURE AnnouncementsTests.[InsertAnnouncement]
     @Id UNIQUEIDENTIFIER, @Status NVARCHAR(16), @Audience NVARCHAR(MAX),
-    @Pinned BIT = 0, @ExpiresOn DATE = NULL, @PublishedAt DATETIME2 = NULL, @Title NVARCHAR(200) = N'Notice'
+    @Pinned BIT = 0, @ExpiresOn DATE = NULL, @PublishedAt DATETIME2 = NULL, @Title NVARCHAR(200) = N'Notice',
+    @Author UNIQUEIDENTIFIER = '00000000-0000-4000-8000-0000000000aa',
+    @ScheduledPublishAt DATETIME2 = NULL, @AutoArchive BIT = 1, @AutoArchiveAt DATETIME2 = NULL
 AS
 BEGIN
     INSERT INTO dbo.Announcements
         (AnnouncementId, WorkspaceId, AuthorUserId, Title, Body, Audience, Pinned, ExpiresOn, Status,
-         PublishedAt, CreatedAt, UpdatedAt, CreatedBy, UpdatedBy, IsDeleted)
+         ScheduledPublishAt, AutoArchive, AutoArchiveAt, PublishedAt,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy, IsDeleted)
     VALUES
-        (@Id, '1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', @Title, N'Body',
-         @Audience, @Pinned, @ExpiresOn, @Status, @PublishedAt, SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's', 0);
+        (@Id, '1A150000-0000-4000-8000-000000000001', @Author, @Title, N'Body',
+         @Audience, @Pinned, @ExpiresOn, @Status,
+         @ScheduledPublishAt, @AutoArchive, @AutoArchiveAt, @PublishedAt,
+         SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's', 0);
 END;
 GO
 
-CREATE PROCEDURE AnnouncementsTests.[test_CreateInsertsDraft]
+-- ── usp_GetAnnouncementById — visibility ─────────────────────────────────────
+CREATE PROCEDURE AnnouncementsTests.[test_GetByIdAuthorSeesScheduled]
 AS
 BEGIN
-    -- Act
-    DECLARE @NewId UNIQUEIDENTIFIER;
-    EXEC dbo.usp_CreateAnnouncement
-        @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
-        @AuthorUserId = '00000000-0000-4000-8000-0000000000aa',
-        @Title = N'Coverage change', @Body = N'Details', @Audience = N'{"kind":"everyone"}',
-        @Pinned = 1, @ExpiresOn = NULL, @CreatedBy = N'aa', @AnnouncementId = @NewId OUTPUT;
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Scheduled',
+        @Audience = N'{"kind":"everyone"}', @ScheduledPublishAt = '2999-01-01T00:00:00';
 
-    -- Assert — one Draft row with the given fields.
-    DECLARE @Count INT = (SELECT COUNT(*) FROM dbo.Announcements WHERE Title = N'Coverage change' AND Status = N'Draft' AND Pinned = 1);
-    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Count;
-END;
-GO
-
-CREATE PROCEDURE AnnouncementsTests.[test_GetByIdAuthorSeesDraft]
-AS
-BEGIN
-    -- Arrange — a Draft authored by aa.
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Draft', @Audience = N'{"kind":"everyone"}';
-
-    -- Act / Assert — the author sees the Draft.
     CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, AuthorUserId UNIQUEIDENTIFIER,
-        Title NVARCHAR(200), Body NVARCHAR(MAX), Audience NVARCHAR(MAX), Pinned BIT, ExpiresOn DATE,
-        Status NVARCHAR(16), PublishedAt DATETIME2, CreatedAt DATETIME2, UpdatedAt DATETIME2);
+        Title NVARCHAR(200), Body NVARCHAR(MAX), Audience NVARCHAR(MAX), Pinned BIT, ExpiresOn DATE, Status NVARCHAR(16),
+        ScheduledPublishAt DATETIME2, AutoArchive BIT, AutoArchiveAt DATETIME2, PublishedAt DATETIME2, CreatedAt DATETIME2, UpdatedAt DATETIME2);
     INSERT INTO #r EXEC dbo.usp_GetAnnouncementById @AnnouncementId = '0A000000-0000-4000-8000-000000000001', @UserId = '00000000-0000-4000-8000-0000000000aa';
-    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #r);
+
+    DECLARE @cnt INT = (SELECT COUNT(*) FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @cnt;
 END;
 GO
 
-CREATE PROCEDURE AnnouncementsTests.[test_GetByIdAdminSeesDraft]
+CREATE PROCEDURE AnnouncementsTests.[test_GetByIdMemberDeniedForScheduled]
 AS
 BEGIN
-    -- Arrange — a Draft authored by aa; adm is a workspace admin (not the author).
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Draft', @Audience = N'{"kind":"everyone"}';
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Scheduled',
+        @Audience = N'{"kind":"everyone"}', @ScheduledPublishAt = '2999-01-01T00:00:00';
 
-    -- Act / Assert
     CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, AuthorUserId UNIQUEIDENTIFIER,
-        Title NVARCHAR(200), Body NVARCHAR(MAX), Audience NVARCHAR(MAX), Pinned BIT, ExpiresOn DATE,
-        Status NVARCHAR(16), PublishedAt DATETIME2, CreatedAt DATETIME2, UpdatedAt DATETIME2);
-    INSERT INTO #r EXEC dbo.usp_GetAnnouncementById @AnnouncementId = '0A000000-0000-4000-8000-000000000001', @UserId = '00000000-0000-4000-8000-0000000000ad';
-    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #r);
-END;
-GO
-
-CREATE PROCEDURE AnnouncementsTests.[test_GetByIdMemberDeniedForDraft]
-AS
-BEGIN
-    -- Arrange — a Draft; mem is a plain member (not author, not admin).
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Draft', @Audience = N'{"kind":"everyone"}';
-
-    -- Act / Assert — a plain member cannot see a Draft.
-    CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, AuthorUserId UNIQUEIDENTIFIER,
-        Title NVARCHAR(200), Body NVARCHAR(MAX), Audience NVARCHAR(MAX), Pinned BIT, ExpiresOn DATE,
-        Status NVARCHAR(16), PublishedAt DATETIME2, CreatedAt DATETIME2, UpdatedAt DATETIME2);
+        Title NVARCHAR(200), Body NVARCHAR(MAX), Audience NVARCHAR(MAX), Pinned BIT, ExpiresOn DATE, Status NVARCHAR(16),
+        ScheduledPublishAt DATETIME2, AutoArchive BIT, AutoArchiveAt DATETIME2, PublishedAt DATETIME2, CreatedAt DATETIME2, UpdatedAt DATETIME2);
     INSERT INTO #r EXEC dbo.usp_GetAnnouncementById @AnnouncementId = '0A000000-0000-4000-8000-000000000001', @UserId = '00000000-0000-4000-8000-0000000000be';
-    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #r);
+
+    DECLARE @cnt INT = (SELECT COUNT(*) FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @cnt;
 END;
 GO
 
 CREATE PROCEDURE AnnouncementsTests.[test_GetByIdOutsiderDeniedForPublished]
 AS
 BEGIN
-    -- Arrange — a Published everyone announcement; 'out' is NOT a member of the workspace.
     EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Published',
         @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-07-01T00:00:00';
 
-    -- Act / Assert — a non-member sees nothing even for an "everyone" Published announcement.
     CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, AuthorUserId UNIQUEIDENTIFIER,
-        Title NVARCHAR(200), Body NVARCHAR(MAX), Audience NVARCHAR(MAX), Pinned BIT, ExpiresOn DATE,
-        Status NVARCHAR(16), PublishedAt DATETIME2, CreatedAt DATETIME2, UpdatedAt DATETIME2);
+        Title NVARCHAR(200), Body NVARCHAR(MAX), Audience NVARCHAR(MAX), Pinned BIT, ExpiresOn DATE, Status NVARCHAR(16),
+        ScheduledPublishAt DATETIME2, AutoArchive BIT, AutoArchiveAt DATETIME2, PublishedAt DATETIME2, CreatedAt DATETIME2, UpdatedAt DATETIME2);
     INSERT INTO #r EXEC dbo.usp_GetAnnouncementById @AnnouncementId = '0A000000-0000-4000-8000-000000000001', @UserId = '00000000-0000-4000-8000-0000000000ff';
-    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #r);
+
+    DECLARE @cnt INT = (SELECT COUNT(*) FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @cnt;
 END;
 GO
 
-CREATE PROCEDURE AnnouncementsTests.[test_GetByIdExpiredHiddenFromMember]
+-- ── usp_CreateAnnouncement ───────────────────────────────────────────────────
+CREATE PROCEDURE AnnouncementsTests.[test_CreatePublishedStampsLifecycle]
 AS
 BEGIN
-    -- Arrange — a Published announcement whose ExpiresOn is in the past.
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Published',
-        @Audience = N'{"kind":"everyone"}', @ExpiresOn = '2020-01-01', @PublishedAt = '2019-12-01T00:00:00';
+    DECLARE @NewId UNIQUEIDENTIFIER;
+    EXEC dbo.usp_CreateAnnouncement
+        @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @AuthorUserId = '00000000-0000-4000-8000-0000000000aa',
+        @Title = N'Live now', @Body = N'Details', @Audience = N'{"kind":"everyone"}',
+        @Pinned = 0, @ExpiresOn = NULL, @Status = N'Published', @ScheduledPublishAt = NULL,
+        @AutoArchive = 1, @CreatedBy = N'aa', @AnnouncementId = @NewId OUTPUT;
 
-    -- Act / Assert — an expired Published announcement is hidden from a plain member (treated as Retired, §20).
-    CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, AuthorUserId UNIQUEIDENTIFIER,
-        Title NVARCHAR(200), Body NVARCHAR(MAX), Audience NVARCHAR(MAX), Pinned BIT, ExpiresOn DATE,
-        Status NVARCHAR(16), PublishedAt DATETIME2, CreatedAt DATETIME2, UpdatedAt DATETIME2);
-    INSERT INTO #r EXEC dbo.usp_GetAnnouncementById @AnnouncementId = '0A000000-0000-4000-8000-000000000001', @UserId = '00000000-0000-4000-8000-0000000000be';
-    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #r);
+    -- FakeTable strips the AnnouncementId default, so the OUTPUT id is NULL under fake — query by Title.
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE Title = N'Live now');
+    EXEC tSQLt.AssertEquals @Expected = N'Published', @Actual = @st;
+
+    DECLARE @pub NVARCHAR(10) = CASE WHEN (SELECT PublishedAt FROM dbo.Announcements WHERE Title = N'Live now') IS NOT NULL THEN N'set' ELSE N'null' END;
+    EXEC tSQLt.AssertEqualsString @Expected = N'set', @Actual = @pub;
+
+    DECLARE @dd INT = (SELECT DATEDIFF(DAY, PublishedAt, AutoArchiveAt) FROM dbo.Announcements WHERE Title = N'Live now');
+    EXEC tSQLt.AssertEquals @Expected = 30, @Actual = @dd;
 END;
 GO
 
+CREATE PROCEDURE AnnouncementsTests.[test_CreateScheduledHoldsWithoutPublishing]
+AS
+BEGIN
+    DECLARE @NewId UNIQUEIDENTIFIER;
+    EXEC dbo.usp_CreateAnnouncement
+        @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @AuthorUserId = '00000000-0000-4000-8000-0000000000aa',
+        @Title = N'Later', @Body = N'Details', @Audience = N'{"kind":"everyone"}',
+        @Pinned = 0, @ExpiresOn = NULL, @Status = N'Scheduled', @ScheduledPublishAt = '2999-01-01T09:00:00',
+        @AutoArchive = 1, @CreatedBy = N'aa', @AnnouncementId = @NewId OUTPUT;
+
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE Title = N'Later');
+    EXEC tSQLt.AssertEquals @Expected = N'Scheduled', @Actual = @st;
+
+    DECLARE @pub NVARCHAR(10) = CASE WHEN (SELECT PublishedAt FROM dbo.Announcements WHERE Title = N'Later') IS NULL THEN N'null' ELSE N'set' END;
+    EXEC tSQLt.AssertEqualsString @Expected = N'null', @Actual = @pub;
+
+    DECLARE @sch NVARCHAR(10) = CASE WHEN (SELECT ScheduledPublishAt FROM dbo.Announcements WHERE Title = N'Later') IS NOT NULL THEN N'set' ELSE N'null' END;
+    EXEC tSQLt.AssertEqualsString @Expected = N'set', @Actual = @sch;
+END;
+GO
+
+CREATE PROCEDURE AnnouncementsTests.[test_CreateStoresChosenAuthor]
+AS
+BEGIN
+    DECLARE @NewId UNIQUEIDENTIFIER;
+    EXEC dbo.usp_CreateAnnouncement
+        @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @AuthorUserId = '00000000-0000-4000-8000-0000000000be',
+        @Title = N'By proxy', @Body = N'Details', @Audience = N'{"kind":"everyone"}',
+        @Pinned = 0, @ExpiresOn = NULL, @Status = N'Published', @ScheduledPublishAt = NULL,
+        @AutoArchive = 1, @CreatedBy = N'ad', @AnnouncementId = @NewId OUTPUT;
+
+    -- @Expected must be UNIQUEIDENTIFIER too (SQL Server returns GUIDs upper-case; a string literal
+    -- would fail the case-sensitive sql_variant comparison). Query by Title (FakeTable strips the id default).
+    DECLARE @expAuthor UNIQUEIDENTIFIER = '00000000-0000-4000-8000-0000000000be';
+    DECLARE @author UNIQUEIDENTIFIER = (SELECT AuthorUserId FROM dbo.Announcements WHERE Title = N'By proxy');
+    EXEC tSQLt.AssertEquals @Expected = @expAuthor, @Actual = @author;
+
+    DECLARE @cb NVARCHAR(256) = (SELECT CreatedBy FROM dbo.Announcements WHERE Title = N'By proxy');
+    EXEC tSQLt.AssertEqualsString @Expected = N'ad', @Actual = @cb;
+END;
+GO
+
+-- ── usp_QueryAnnouncementsForManage ──────────────────────────────────────────
+CREATE PROCEDURE AnnouncementsTests.[test_ManageReturnsAllStatusesWithAuthorName]
+AS
+BEGIN
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Scheduled', @Audience = N'{"kind":"everyone"}', @ScheduledPublishAt = '2999-01-01T00:00:00', @Title = N'S';
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000002', @Status = N'Published', @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-07-01T00:00:00', @Title = N'P';
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000003', @Status = N'Archived',  @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-06-01T00:00:00', @Title = N'A';
+
+    CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, Title NVARCHAR(200), BodySnippet NVARCHAR(280), Pinned BIT,
+        PublishedAt DATETIME2, ScheduledPublishAt DATETIME2, AutoArchive BIT, AutoArchiveAt DATETIME2, Status NVARCHAR(16),
+        AuthorUserId UNIQUEIDENTIFIER, AuthorName NVARCHAR(200), PostedAt DATETIME2, TotalCount INT);
+    INSERT INTO #r EXEC dbo.usp_QueryAnnouncementsForManage @WorkspaceId = '1A150000-0000-4000-8000-000000000001', @Page = 1, @PageSize = 20;
+
+    DECLARE @cnt INT = (SELECT COUNT(*) FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = 3, @Actual = @cnt;
+
+    DECLARE @nm NVARCHAR(200) = (SELECT TOP 1 AuthorName FROM #r WHERE Title = N'P');
+    EXEC tSQLt.AssertEquals @Expected = N'Ann Author', @Actual = @nm;
+
+    DECLARE @posted NVARCHAR(10) = CASE WHEN (SELECT PostedAt FROM #r WHERE Title = N'S') IS NOT NULL THEN N'set' ELSE N'null' END;
+    EXEC tSQLt.AssertEqualsString @Expected = N'set', @Actual = @posted;
+END;
+GO
+
+-- ── usp_QueryAnnouncements (consumer feed) ───────────────────────────────────
 CREATE PROCEDURE AnnouncementsTests.[test_QueryReturnsPublishedInAudienceOnly]
 AS
 BEGIN
-    -- Arrange — one live Published everyone (visible); plus a Draft, a Retired, and an expired (all hidden).
     EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Published', @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-07-01T00:00:00', @Title = N'Live';
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000002', @Status = N'Draft',     @Audience = N'{"kind":"everyone"}', @Title = N'Draft';
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000003', @Status = N'Retired',   @Audience = N'{"kind":"everyone"}', @Title = N'Retired';
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000004', @Status = N'Published', @Audience = N'{"kind":"everyone"}', @ExpiresOn = '2020-01-01', @PublishedAt = '2019-12-01T00:00:00', @Title = N'Expired';
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000002', @Status = N'Scheduled', @Audience = N'{"kind":"everyone"}', @ScheduledPublishAt = '2999-01-01T00:00:00', @Title = N'Sched';
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000003', @Status = N'Published', @Audience = N'{"kind":"everyone"}', @ExpiresOn = '2020-01-01', @PublishedAt = '2019-12-01T00:00:00', @Title = N'Expired';
 
-    -- Act — the plain member queries their history.
     CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, Title NVARCHAR(200), BodySnippet NVARCHAR(280), Pinned BIT,
-        PublishedAt DATETIME2, Status NVARCHAR(16), AuthorUserId UNIQUEIDENTIFIER, TotalCount INT);
+        PublishedAt DATETIME2, ScheduledPublishAt DATETIME2, AutoArchive BIT, AutoArchiveAt DATETIME2, Status NVARCHAR(16),
+        AuthorUserId UNIQUEIDENTIFIER, AuthorName NVARCHAR(200), PostedAt DATETIME2, TotalCount INT);
     INSERT INTO #r EXEC dbo.usp_QueryAnnouncements @UserId = '00000000-0000-4000-8000-0000000000be', @Page = 1, @PageSize = 20;
 
-    -- Assert — only the one live in-audience Published row.
-    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #r);
-    EXEC tSQLt.AssertEquals @Expected = N'Live', @Actual = (SELECT TOP 1 Title FROM #r);
+    DECLARE @cnt INT = (SELECT COUNT(*) FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @cnt;
+
+    DECLARE @title NVARCHAR(200) = (SELECT TOP 1 Title FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = N'Live', @Actual = @title;
+
+    DECLARE @nm NVARCHAR(200) = (SELECT TOP 1 AuthorName FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = N'Ann Author', @Actual = @nm;
 END;
 GO
 
-CREATE PROCEDURE AnnouncementsTests.[test_QueryRoleScopedMatchesRoleHolderOnly]
+-- ── usp_PublishAnnouncement ──────────────────────────────────────────────────
+CREATE PROCEDURE AnnouncementsTests.[test_PublishScheduledPublishesNow]
 AS
 BEGIN
-    -- Arrange — a Published role-scoped (Manager) announcement. rol holds Manager; mem does not.
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Published',
-        @Audience = N'{"kind":"role-scoped","roleLabels":["Manager"]}', @PublishedAt = '2026-07-01T00:00:00', @Title = N'ForManagers';
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Scheduled',
+        @Audience = N'{"kind":"everyone"}', @ScheduledPublishAt = '2999-01-01T00:00:00';
 
-    -- Act / Assert — the role holder sees it; the non-holder does not.
-    CREATE TABLE #rol (AnnouncementId UNIQUEIDENTIFIER, Title NVARCHAR(200), BodySnippet NVARCHAR(280), Pinned BIT,
-        PublishedAt DATETIME2, Status NVARCHAR(16), AuthorUserId UNIQUEIDENTIFIER, TotalCount INT);
-    INSERT INTO #rol EXEC dbo.usp_QueryAnnouncements @UserId = '00000000-0000-4000-8000-0000000000c0', @Page = 1, @PageSize = 20;
-    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #rol);
-
-    CREATE TABLE #mem (AnnouncementId UNIQUEIDENTIFIER, Title NVARCHAR(200), BodySnippet NVARCHAR(280), Pinned BIT,
-        PublishedAt DATETIME2, Status NVARCHAR(16), AuthorUserId UNIQUEIDENTIFIER, TotalCount INT);
-    INSERT INTO #mem EXEC dbo.usp_QueryAnnouncements @UserId = '00000000-0000-4000-8000-0000000000be', @Page = 1, @PageSize = 20;
-    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #mem);
-END;
-GO
-
-CREATE PROCEDURE AnnouncementsTests.[test_ManageReturnsAllStatusesAndCollapsesExpired]
-AS
-BEGIN
-    -- Arrange — a Draft, a Published, a Retired, and an expired-Published in WS1.
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Draft',     @Audience = N'{"kind":"everyone"}', @Title = N'D';
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000002', @Status = N'Published', @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-07-01T00:00:00', @Title = N'P';
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000003', @Status = N'Retired',   @Audience = N'{"kind":"everyone"}', @Title = N'R';
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000004', @Status = N'Published', @Audience = N'{"kind":"everyone"}', @ExpiresOn = '2020-01-01', @PublishedAt = '2019-12-01T00:00:00', @Title = N'X';
-
-    -- Act
-    CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, Title NVARCHAR(200), BodySnippet NVARCHAR(280), Pinned BIT,
-        PublishedAt DATETIME2, Status NVARCHAR(16), AuthorUserId UNIQUEIDENTIFIER, TotalCount INT);
-    INSERT INTO #r EXEC dbo.usp_QueryAnnouncementsForManage @WorkspaceId = '1A150000-0000-4000-8000-000000000001', @Page = 1, @PageSize = 20;
-
-    -- Assert — all four rows; the expired-Published shows effective status Retired.
-    EXEC tSQLt.AssertEquals @Expected = 4, @Actual = (SELECT COUNT(*) FROM #r);
-    EXEC tSQLt.AssertEquals @Expected = N'Retired', @Actual = (SELECT Status FROM #r WHERE Title = N'X');
-END;
-GO
-
-CREATE PROCEDURE AnnouncementsTests.[test_PublishTransitionsDraftOnce]
-AS
-BEGIN
-    -- Arrange — a Draft.
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Draft', @Audience = N'{"kind":"everyone"}';
-
-    -- Act — publish it.
     DECLARE @Found BIT, @Newly BIT, @Ws UNIQUEIDENTIFIER;
     EXEC dbo.usp_PublishAnnouncement @AnnouncementId = '0A000000-0000-4000-8000-000000000001', @UpdatedBy = N'aa',
         @Found = @Found OUTPUT, @NewlyPublished = @Newly OUTPUT, @WorkspaceId = @Ws OUTPUT;
 
-    -- Assert — found + newly published, status flipped, workspace returned, PublishedAt set.
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Found;
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Newly;
-    EXEC tSQLt.AssertEquals @Expected = N'Published', @Actual = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
-    EXEC tSQLt.AssertEquals @Expected = '1A150000-0000-4000-8000-000000000001', @Actual = @Ws;
-    EXEC tSQLt.AssertEqualsString @Expected = N'set', @Actual = CASE WHEN (SELECT PublishedAt FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001') IS NOT NULL THEN N'set' ELSE N'null' END;
+
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Published', @Actual = @st;
+
+    DECLARE @aa NVARCHAR(10) = CASE WHEN (SELECT AutoArchiveAt FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001') IS NOT NULL THEN N'set' ELSE N'null' END;
+    EXEC tSQLt.AssertEqualsString @Expected = N'set', @Actual = @aa;
 END;
 GO
 
 CREATE PROCEDURE AnnouncementsTests.[test_PublishIsIdempotentSecondTime]
 AS
 BEGIN
-    -- Arrange — an already-Published announcement.
     EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Published', @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-07-01T00:00:00';
 
-    -- Act — publish again.
     DECLARE @Found BIT, @Newly BIT, @Ws UNIQUEIDENTIFIER;
     EXEC dbo.usp_PublishAnnouncement @AnnouncementId = '0A000000-0000-4000-8000-000000000001', @UpdatedBy = N'aa',
         @Found = @Found OUTPUT, @NewlyPublished = @Newly OUTPUT, @WorkspaceId = @Ws OUTPUT;
 
-    -- Assert — found but NOT newly published (no re-fan); status unchanged.
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Found;
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @Newly;
 END;
 GO
 
-CREATE PROCEDURE AnnouncementsTests.[test_PublishRetiredIsBlocked]
+CREATE PROCEDURE AnnouncementsTests.[test_PublishArchivedIsBlocked]
 AS
 BEGIN
-    -- Arrange — a Retired announcement.
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Retired', @Audience = N'{"kind":"everyone"}';
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Archived', @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-06-01T00:00:00';
 
-    -- Act
     DECLARE @Found BIT, @Newly BIT, @Ws UNIQUEIDENTIFIER;
     EXEC dbo.usp_PublishAnnouncement @AnnouncementId = '0A000000-0000-4000-8000-000000000001', @UpdatedBy = N'aa',
         @Found = @Found OUTPUT, @NewlyPublished = @Newly OUTPUT, @WorkspaceId = @Ws OUTPUT;
 
-    -- Assert — not found (a Retired row cannot publish); stays Retired.
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @Found;
-    EXEC tSQLt.AssertEquals @Expected = N'Retired', @Actual = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Archived', @Actual = @st;
 END;
 GO
 
-CREATE PROCEDURE AnnouncementsTests.[test_RetireSetsRetired]
+-- ── usp_RetireAnnouncement (Archive now) ─────────────────────────────────────
+CREATE PROCEDURE AnnouncementsTests.[test_RetireSetsArchived]
 AS
 BEGIN
-    -- Arrange — a Published announcement.
     EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Published', @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-07-01T00:00:00';
 
-    -- Act
     DECLARE @Found BIT;
     EXEC dbo.usp_RetireAnnouncement @AnnouncementId = '0A000000-0000-4000-8000-000000000001', @UpdatedBy = N'aa', @Found = @Found OUTPUT;
 
-    -- Assert
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Found;
-    EXEC tSQLt.AssertEquals @Expected = N'Retired', @Actual = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Archived', @Actual = @st;
 END;
 GO
 
-CREATE PROCEDURE AnnouncementsTests.[test_UpdateReplacesEditableFields]
+-- ── usp_UpdateAnnouncement ───────────────────────────────────────────────────
+CREATE PROCEDURE AnnouncementsTests.[test_UpdateReplacesFieldsAndAuthor]
 AS
 BEGIN
-    -- Arrange — a Draft.
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Draft', @Audience = N'{"kind":"everyone"}', @Title = N'Old';
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Published', @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-07-01T00:00:00', @Title = N'Old';
 
-    -- Act
     DECLARE @Found BIT;
     EXEC dbo.usp_UpdateAnnouncement @AnnouncementId = '0A000000-0000-4000-8000-000000000001',
-        @Title = N'New', @Body = N'B2', @Audience = N'{"kind":"named-users","userIds":[]}', @Pinned = 1, @ExpiresOn = NULL,
-        @UpdatedBy = N'aa', @Found = @Found OUTPUT;
+        @Title = N'New', @Body = N'B2', @Audience = N'{"kind":"everyone"}', @Pinned = 1,
+        @AuthorUserId = '00000000-0000-4000-8000-0000000000be', @Status = N'Published', @ScheduledPublishAt = NULL,
+        @AutoArchive = 1, @ExpiresOn = NULL, @UpdatedBy = N'aa', @Found = @Found OUTPUT;
 
-    -- Assert
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Found;
-    EXEC tSQLt.AssertEquals @Expected = N'New', @Actual = (SELECT Title FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
-    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT Pinned FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+
+    DECLARE @title NVARCHAR(200) = (SELECT Title FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'New', @Actual = @title;
+
+    DECLARE @pin BIT = (SELECT Pinned FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @pin;
+
+    DECLARE @expAuthor UNIQUEIDENTIFIER = '00000000-0000-4000-8000-0000000000be';
+    DECLARE @author UNIQUEIDENTIFIER = (SELECT AuthorUserId FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = @expAuthor, @Actual = @author;
 END;
 GO
 
-CREATE PROCEDURE AnnouncementsTests.[test_UpdateRetiredIsBlocked]
+CREATE PROCEDURE AnnouncementsTests.[test_UpdateScheduledToPublishedPublishesNow]
 AS
 BEGIN
-    -- Arrange — a Retired announcement.
-    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Retired', @Audience = N'{"kind":"everyone"}', @Title = N'Frozen';
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Scheduled',
+        @Audience = N'{"kind":"everyone"}', @ScheduledPublishAt = '2999-01-01T00:00:00', @Title = N'S';
 
-    -- Act
     DECLARE @Found BIT;
     EXEC dbo.usp_UpdateAnnouncement @AnnouncementId = '0A000000-0000-4000-8000-000000000001',
-        @Title = N'Changed', @Body = N'B', @Audience = N'{"kind":"everyone"}', @Pinned = 0, @ExpiresOn = NULL,
-        @UpdatedBy = N'aa', @Found = @Found OUTPUT;
+        @Title = N'S', @Body = N'B', @Audience = N'{"kind":"everyone"}', @Pinned = 0,
+        @AuthorUserId = '00000000-0000-4000-8000-0000000000aa', @Status = N'Published', @ScheduledPublishAt = NULL,
+        @AutoArchive = 1, @ExpiresOn = NULL, @UpdatedBy = N'aa', @Found = @Found OUTPUT;
 
-    -- Assert — no update on a Retired row (edit until Retired, §20).
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Found;
+
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Published', @Actual = @st;
+
+    DECLARE @pub NVARCHAR(10) = CASE WHEN (SELECT PublishedAt FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001') IS NOT NULL THEN N'set' ELSE N'null' END;
+    EXEC tSQLt.AssertEqualsString @Expected = N'set', @Actual = @pub;
+END;
+GO
+
+CREATE PROCEDURE AnnouncementsTests.[test_UpdateArchivedIsBlocked]
+AS
+BEGIN
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Archived',
+        @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-06-01T00:00:00', @Title = N'Frozen';
+
+    DECLARE @Found BIT;
+    EXEC dbo.usp_UpdateAnnouncement @AnnouncementId = '0A000000-0000-4000-8000-000000000001',
+        @Title = N'Changed', @Body = N'B', @Audience = N'{"kind":"everyone"}', @Pinned = 0,
+        @AuthorUserId = '00000000-0000-4000-8000-0000000000aa', @Status = N'Published', @ScheduledPublishAt = NULL,
+        @AutoArchive = 1, @ExpiresOn = NULL, @UpdatedBy = N'aa', @Found = @Found OUTPUT;
+
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @Found;
-    EXEC tSQLt.AssertEquals @Expected = N'Frozen', @Actual = (SELECT Title FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+
+    DECLARE @title NVARCHAR(200) = (SELECT Title FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Frozen', @Actual = @title;
+END;
+GO
+
+-- ── usp_TickAnnouncements ────────────────────────────────────────────────────
+CREATE PROCEDURE AnnouncementsTests.[test_TickPublishesDueScheduled]
+AS
+BEGIN
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Scheduled',
+        @Audience = N'{"kind":"everyone"}', @ScheduledPublishAt = '2020-01-01T09:00:00';
+
+    CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, AuthorUserId UNIQUEIDENTIFIER);
+    INSERT INTO #r EXEC dbo.usp_TickAnnouncements;
+
+    DECLARE @cnt INT = (SELECT COUNT(*) FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @cnt;
+
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Published', @Actual = @st;
+
+    DECLARE @dd INT = (SELECT DATEDIFF(DAY, PublishedAt, AutoArchiveAt) FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = 30, @Actual = @dd;
+END;
+GO
+
+CREATE PROCEDURE AnnouncementsTests.[test_TickLeavesFutureScheduled]
+AS
+BEGIN
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Scheduled',
+        @Audience = N'{"kind":"everyone"}', @ScheduledPublishAt = '2999-01-01T09:00:00';
+
+    CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, AuthorUserId UNIQUEIDENTIFIER);
+    INSERT INTO #r EXEC dbo.usp_TickAnnouncements;
+
+    DECLARE @cnt INT = (SELECT COUNT(*) FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @cnt;
+
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Scheduled', @Actual = @st;
+END;
+GO
+
+CREATE PROCEDURE AnnouncementsTests.[test_TickArchivesDuePublished]
+AS
+BEGIN
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Published',
+        @Audience = N'{"kind":"everyone"}', @PublishedAt = '2020-01-01T00:00:00', @AutoArchive = 1, @AutoArchiveAt = '2020-01-31T00:00:00';
+
+    CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, AuthorUserId UNIQUEIDENTIFIER);
+    INSERT INTO #r EXEC dbo.usp_TickAnnouncements;
+
+    DECLARE @cnt INT = (SELECT COUNT(*) FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @cnt;
+
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Archived', @Actual = @st;
+END;
+GO
+
+CREATE PROCEDURE AnnouncementsTests.[test_TickNoOpWhenNothingDue]
+AS
+BEGIN
+    EXEC AnnouncementsTests.InsertAnnouncement @Id = '0A000000-0000-4000-8000-000000000001', @Status = N'Published',
+        @Audience = N'{"kind":"everyone"}', @PublishedAt = '2026-07-01T00:00:00', @AutoArchive = 1, @AutoArchiveAt = '2999-01-01T00:00:00';
+
+    CREATE TABLE #r (AnnouncementId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, AuthorUserId UNIQUEIDENTIFIER);
+    INSERT INTO #r EXEC dbo.usp_TickAnnouncements;
+
+    DECLARE @cnt INT = (SELECT COUNT(*) FROM #r);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @cnt;
+
+    DECLARE @st NVARCHAR(16) = (SELECT Status FROM dbo.Announcements WHERE AnnouncementId = '0A000000-0000-4000-8000-000000000001');
+    EXEC tSQLt.AssertEquals @Expected = N'Published', @Actual = @st;
 END;
 GO

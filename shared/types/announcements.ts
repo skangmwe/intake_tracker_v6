@@ -3,16 +3,21 @@
 import type { AnnouncementId, IsoDate, IsoDateTime, UserId, WorkspaceId } from './common';
 
 /**
- * v2 (slice 13 polish) adds `'Scheduled'` and `'Archived'`. A Scheduled announcement flips to
- * Published when `scheduledPublishAt` is reached; a Published announcement flips to Archived
- * when `autoArchiveAt` is reached (only when `autoArchive=true`).
+ * Reconciled lifecycle (2026-07-21, Depth C). The API returns a *display* status of `'Active'`
+ * (live), `'Scheduled'` (publishes later), or `'Archived'`. The union stays wide so legacy stored
+ * values (`'Draft'` / `'Published'` / `'Retired'`) still typecheck during the incremental rollout;
+ * new reads only ever carry `'Active'` / `'Scheduled'` / `'Archived'`.
  */
 export type AnnouncementStatus =
-  | 'Draft'
+  | 'Active'
   | 'Scheduled'
+  | 'Archived'
+  | 'Draft'
   | 'Published'
-  | 'Retired'
-  | 'Archived';
+  | 'Retired';
+
+/** What the create / edit form may set: publish now (`'Active'`) or hold for later (`'Scheduled'`). */
+export type AnnouncementWriteStatus = 'Active' | 'Scheduled';
 
 export type AnnouncementAudienceKind = 'everyone' | 'role-scoped' | 'named-users';
 
@@ -60,9 +65,13 @@ export interface AnnouncementCreateRequest {
   audience: AnnouncementAudience;
   pinned?: boolean;
   expiresOn?: IsoDate;
-  /** v2 (slice 13 polish). When present, the row is created in Scheduled status. */
+  /** The poster ("posted by"). Any workspace member; omitted → the acting admin. */
+  author?: UserId;
+  /** Publish now (`'Active'`) or hold for `scheduledPublishAt` (`'Scheduled'`). Omitted → `'Active'`. */
+  status?: AnnouncementWriteStatus;
+  /** When present (and `status='Scheduled'`), the tick publishes the row at this time. */
   scheduledPublishAt?: IsoDateTime;
-  /** v2 (slice 13 polish). Defaults to true when omitted. */
+  /** Auto-archive 30 days after publish. Defaults to true when omitted. */
   autoArchive?: boolean;
 }
 
@@ -76,9 +85,13 @@ export interface AnnouncementPatchRequest {
   audience: AnnouncementAudience;
   pinned: boolean;
   expiresOn?: IsoDate;
-  /** v2 (slice 13 polish). */
+  /** The poster ("posted by"). Any workspace member; omitted → the acting admin. */
+  author?: UserId;
+  /** Publish now (`'Active'`) or hold for `scheduledPublishAt` (`'Scheduled'`). Omitted → `'Active'`. */
+  status?: AnnouncementWriteStatus;
+  /** When present (and `status='Scheduled'`), the tick publishes the row at this time. */
   scheduledPublishAt?: IsoDateTime;
-  /** v2 (slice 13 polish). */
+  /** Auto-archive 30 days after publish. */
   autoArchive?: boolean;
 }
 
@@ -90,4 +103,12 @@ export interface AnnouncementListRow {
   publishedAt?: IsoDateTime;
   status: AnnouncementStatus;
   author: UserId;
+  /** Lifecycle timestamps (present on the manage/browse read) — feed the derived display status. */
+  scheduledPublishAt?: IsoDateTime;
+  autoArchive?: boolean;
+  autoArchiveAt?: IsoDateTime;
+  /** The poster's display name (manage table POSTED BY column). */
+  authorName?: string;
+  /** Published → else scheduled → else created (manage table POSTED column). */
+  postedAt?: IsoDateTime;
 }

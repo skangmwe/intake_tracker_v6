@@ -33,6 +33,9 @@ BEGIN
         a.Pinned,
         a.ExpiresOn,
         a.Status,
+        a.ScheduledPublishAt,
+        a.AutoArchive,
+        a.AutoArchiveAt,
         a.PublishedAt,
         a.CreatedAt,
         a.UpdatedAt

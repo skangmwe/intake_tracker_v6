@@ -67,13 +67,25 @@ public sealed class AnnouncementsController : ControllerBase
             return audienceError;
         }
 
+        var writeError = ValidateWriteStatus(request.Status, request.ScheduledPublishAt);
+        if (writeError is not null)
+        {
+            return writeError;
+        }
+
         if (!await _accessGuard.HasWorkspaceLevelAsync(
                 _currentUser.UserId, workspaceId, WorkspaceLevel.WorkspaceAdmin, cancellationToken))
         {
             return AccessDenied();
         }
 
-        var created = await _announcements.CreateAsync(workspaceId, request, _currentUser.UserId, cancellationToken);
+        if (!await IsChosenAuthorMemberAsync(request.Author, workspaceId, cancellationToken))
+        {
+            return InvalidAuthorProblem();
+        }
+
+        var created = await _announcements.CreateAsync(
+            workspaceId, request, _currentUser.UserId, OperationId(), cancellationToken);
         return Created($"/api/v1/announcements/{created.Id}", created);
     }
 
@@ -114,8 +126,16 @@ public sealed class AnnouncementsController : ControllerBase
             return audienceError;
         }
 
-        var result = await _announcements.UpdateAsync(id, request, _currentUser.UserId, cancellationToken);
-        return MapMutation(result, "This announcement has been retired and can no longer be edited.");
+        var writeError = ValidateWriteStatus(request.Status, request.ScheduledPublishAt);
+        if (writeError is not null)
+        {
+            return writeError;
+        }
+
+        // The chosen "posted by" is validated against the row's workspace in the service (it holds the
+        // row) — a non-member surfaces as InvalidAuthor → 400.
+        var result = await _announcements.UpdateAsync(id, request, _currentUser.UserId, OperationId(), cancellationToken);
+        return MapMutation(result, "This announcement has been archived and can no longer be edited.");
     }
 
     /// <summary>Publish a Draft — fans "Announcement posted" to the audience (author or WorkspaceAdmin).</summary>
@@ -144,8 +164,61 @@ public sealed class AnnouncementsController : ControllerBase
         {
             AnnouncementMutationOutcome.Success => Ok(result.Announcement),
             AnnouncementMutationOutcome.InvalidState => ConflictProblem(invalidStateDetail),
+            AnnouncementMutationOutcome.InvalidAuthor => InvalidAuthorProblem(),
             _ => AccessDenied(),
         };
+
+    /// <summary>Validate the reconciled write status: 'Active' | 'Scheduled' (empty → 'Active'), and that a
+    /// Scheduled post carries a future publish time.</summary>
+    private BadRequestObjectResult? ValidateWriteStatus(string? status, DateTime? scheduledPublishAt)
+    {
+        var normalized = string.IsNullOrWhiteSpace(status) ? "Active" : status;
+        var isActive = string.Equals(normalized, "Active", StringComparison.OrdinalIgnoreCase);
+        var isScheduled = string.Equals(normalized, "Scheduled", StringComparison.OrdinalIgnoreCase);
+
+        if (!isActive && !isScheduled)
+        {
+            return (BadRequestObjectResult)ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["status"] = new[] { "Choose a status: Active or Scheduled." },
+            });
+        }
+
+        if (isScheduled && scheduledPublishAt is null)
+        {
+            return (BadRequestObjectResult)ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["scheduledPublishAt"] = new[] { "Pick a date and time to publish a scheduled announcement." },
+            });
+        }
+
+        if (isScheduled && scheduledPublishAt is not null && scheduledPublishAt.Value <= DateTime.UtcNow)
+        {
+            return (BadRequestObjectResult)ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["scheduledPublishAt"] = new[] { "Choose a publish time in the future." },
+            });
+        }
+
+        return null;
+    }
+
+    /// <summary>True when the chosen poster is the acting admin, unset, or a member of the workspace.</summary>
+    private async Task<bool> IsChosenAuthorMemberAsync(Guid author, Guid workspaceId, CancellationToken cancellationToken)
+    {
+        if (author == Guid.Empty || author == _currentUser.UserId)
+        {
+            return true;
+        }
+
+        return await _accessGuard.HasWorkspaceLevelAsync(author, workspaceId, WorkspaceLevel.Viewer, cancellationToken);
+    }
+
+    private BadRequestObjectResult InvalidAuthorProblem() =>
+        (BadRequestObjectResult)ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["author"] = new[] { "Choose a poster who is a member of this workspace." },
+        });
 
     private BadRequestObjectResult? ValidateAudience(AnnouncementAudience? audience)
     {

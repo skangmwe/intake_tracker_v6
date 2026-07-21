@@ -15,8 +15,13 @@ export const AUDIENCE_OPTIONS: SelectOption[] = [
 
 type StatusKind = 'info' | 'success' | 'warning' | 'error' | 'neutral';
 
-/** Status → pill kind + label. Colour is always paired with the label (notifications-and-feedback.md). */
+/** Status → pill kind + label. Colour is always paired with the label (notifications-and-feedback.md).
+ * The reconciled display statuses are Active / Scheduled / Archived; the legacy stored values
+ * (Draft / Published / Retired) are kept so the map stays exhaustive during the incremental rollout. */
 export const STATUS_PILL: Record<AnnouncementStatus, { kind: StatusKind; label: string }> = {
+  Active: { kind: 'success', label: 'Active' },
+  Scheduled: { kind: 'info', label: 'Scheduled' },
+  Archived: { kind: 'neutral', label: 'Archived' },
   Draft: { kind: 'neutral', label: 'Draft' },
   Published: { kind: 'success', label: 'Published' },
   Retired: { kind: 'warning', label: 'Retired' },

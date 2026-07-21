@@ -27,6 +27,9 @@ public enum AnnouncementMutationOutcome
     Success,
     Forbidden,
     InvalidState,
+
+    /// <summary>The chosen "posted by" author is not a member of the announcement's workspace (→ 400).</summary>
+    InvalidAuthor,
 }
 
 public sealed record AnnouncementMutationResult(AnnouncementMutationOutcome Outcome, AnnouncementDto? Announcement);
@@ -34,7 +37,7 @@ public sealed record AnnouncementMutationResult(AnnouncementMutationOutcome Outc
 public interface IAnnouncementsService
 {
     Task<AnnouncementDto> CreateAsync(
-        Guid workspaceId, AnnouncementCreateRequest request, Guid actorUserId, CancellationToken cancellationToken);
+        Guid workspaceId, AnnouncementCreateRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 
     /// <summary>S21 detail. Null when the caller cannot see it (→ 403).</summary>
     Task<AnnouncementDto?> GetByIdAsync(Guid announcementId, Guid userId, CancellationToken cancellationToken);
@@ -48,7 +51,7 @@ public interface IAnnouncementsService
         Guid workspaceId, int page, int pageSize, CancellationToken cancellationToken);
 
     Task<AnnouncementMutationResult> UpdateAsync(
-        Guid announcementId, AnnouncementPatchRequest request, Guid actorUserId, CancellationToken cancellationToken);
+        Guid announcementId, AnnouncementPatchRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 
     Task<AnnouncementMutationResult> PublishAsync(
         Guid announcementId, Guid actorUserId, string operationId, CancellationToken cancellationToken);
@@ -75,31 +78,46 @@ public sealed class AnnouncementsService : IAnnouncementsService
     }
 
     public async Task<AnnouncementDto> CreateAsync(
-        Guid workspaceId, AnnouncementCreateRequest request, Guid actorUserId, CancellationToken cancellationToken)
+        Guid workspaceId, AnnouncementCreateRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken)
     {
+        // "Posted by": empty → the acting admin. Membership of a chosen poster is validated in the
+        // controller (it holds the workspace id); CreatedBy stays the actor for audit integrity.
+        var authorUserId = request.Author == Guid.Empty ? actorUserId : request.Author;
+        var storedStatus = ToStoredStatus(request.Status);
+
         var idParameter = new SqlParameter("@AnnouncementId", SqlDbType.UniqueIdentifier)
         {
             Direction = ParameterDirection.Output,
         };
 
         await _db.Database.ExecuteSqlRawAsync(
-            "EXEC dbo.usp_CreateAnnouncement @WorkspaceId, @AuthorUserId, @Title, @Body, @Audience, @Pinned, @ExpiresOn, @CreatedBy, @AnnouncementId OUTPUT",
+            "EXEC dbo.usp_CreateAnnouncement @WorkspaceId, @AuthorUserId, @Title, @Body, @Audience, @Pinned, @ExpiresOn, @Status, @ScheduledPublishAt, @AutoArchive, @CreatedBy, @AnnouncementId OUTPUT",
             new[]
             {
                 new SqlParameter("@WorkspaceId", workspaceId),
-                new SqlParameter("@AuthorUserId", actorUserId),
+                new SqlParameter("@AuthorUserId", authorUserId),
                 new SqlParameter("@Title", request.Title),
                 new SqlParameter("@Body", request.Body),
                 new SqlParameter("@Audience", JsonSerializer.Serialize(request.Audience, JsonOptions)),
                 new SqlParameter("@Pinned", request.Pinned),
                 new SqlParameter("@ExpiresOn", (object?)request.ExpiresOn ?? DBNull.Value),
+                new SqlParameter("@Status", storedStatus),
+                new SqlParameter("@ScheduledPublishAt", (object?)request.ScheduledPublishAt ?? DBNull.Value),
+                new SqlParameter("@AutoArchive", request.AutoArchive),
                 new SqlParameter("@CreatedBy", actorUserId.ToString()),
                 idParameter,
             },
             cancellationToken).ConfigureAwait(false);
 
         var newId = (Guid)idParameter.Value!;
-        // The author can always read their own new Draft.
+
+        // Created directly Published → fan out now through the same event-spine path manual publish uses.
+        if (string.Equals(storedStatus, PublishedStatus, StringComparison.Ordinal))
+        {
+            await EmitPublishedAsync(newId, workspaceId, actorUserId, operationId, cancellationToken).ConfigureAwait(false);
+        }
+
+        // The actor can always read the row they just created (author or admin).
         var created = await GetByIdAsync(newId, actorUserId, cancellationToken).ConfigureAwait(false);
         return created!;
     }
@@ -145,7 +163,7 @@ public sealed class AnnouncementsService : IAnnouncementsService
     }
 
     public async Task<AnnouncementMutationResult> UpdateAsync(
-        Guid announcementId, AnnouncementPatchRequest request, Guid actorUserId, CancellationToken cancellationToken)
+        Guid announcementId, AnnouncementPatchRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken)
     {
         var row = await ReadRowAsync(announcementId, actorUserId, cancellationToken).ConfigureAwait(false);
         if (row is null || !await CanManageAsync(row, actorUserId, cancellationToken).ConfigureAwait(false))
@@ -153,14 +171,26 @@ public sealed class AnnouncementsService : IAnnouncementsService
             return new AnnouncementMutationResult(AnnouncementMutationOutcome.Forbidden, null);
         }
 
-        if (string.Equals(row.Status, "Retired", StringComparison.Ordinal))
+        // Terminal rows (Archived, or legacy Retired) are immutable.
+        if (row.Status is "Retired" or "Archived")
         {
             return new AnnouncementMutationResult(AnnouncementMutationOutcome.InvalidState, null);
         }
 
+        // "Posted by": a chosen poster other than the actor must be a member of the row's workspace.
+        var authorUserId = request.Author == Guid.Empty ? actorUserId : request.Author;
+        if (authorUserId != actorUserId
+            && !await _accessGuard.HasWorkspaceLevelAsync(authorUserId, row.WorkspaceId, WorkspaceLevel.Viewer, cancellationToken).ConfigureAwait(false))
+        {
+            return new AnnouncementMutationResult(AnnouncementMutationOutcome.InvalidAuthor, null);
+        }
+
+        var storedStatus = ToStoredStatus(request.Status);
+        var wasPublished = string.Equals(row.Status, PublishedStatus, StringComparison.Ordinal);
+
         var foundParameter = BitOutput("@Found");
         await _db.Database.ExecuteSqlRawAsync(
-            "EXEC dbo.usp_UpdateAnnouncement @AnnouncementId, @Title, @Body, @Audience, @Pinned, @ExpiresOn, @UpdatedBy, @Found OUTPUT",
+            "EXEC dbo.usp_UpdateAnnouncement @AnnouncementId, @Title, @Body, @Audience, @Pinned, @AuthorUserId, @Status, @ScheduledPublishAt, @AutoArchive, @ExpiresOn, @UpdatedBy, @Found OUTPUT",
             new[]
             {
                 new SqlParameter("@AnnouncementId", announcementId),
@@ -168,6 +198,10 @@ public sealed class AnnouncementsService : IAnnouncementsService
                 new SqlParameter("@Body", request.Body),
                 new SqlParameter("@Audience", JsonSerializer.Serialize(request.Audience, JsonOptions)),
                 new SqlParameter("@Pinned", request.Pinned),
+                new SqlParameter("@AuthorUserId", authorUserId),
+                new SqlParameter("@Status", storedStatus),
+                new SqlParameter("@ScheduledPublishAt", (object?)request.ScheduledPublishAt ?? DBNull.Value),
+                new SqlParameter("@AutoArchive", request.AutoArchive),
                 new SqlParameter("@ExpiresOn", (object?)request.ExpiresOn ?? DBNull.Value),
                 new SqlParameter("@UpdatedBy", actorUserId.ToString()),
                 foundParameter,
@@ -177,6 +211,12 @@ public sealed class AnnouncementsService : IAnnouncementsService
         if (foundParameter.Value is not bool found || !found)
         {
             return new AnnouncementMutationResult(AnnouncementMutationOutcome.InvalidState, null);
+        }
+
+        // Edited into Published from a non-Published state → fan out exactly once (same spine path).
+        if (!wasPublished && string.Equals(storedStatus, PublishedStatus, StringComparison.Ordinal))
+        {
+            await EmitPublishedAsync(announcementId, row.WorkspaceId, actorUserId, operationId, cancellationToken).ConfigureAwait(false);
         }
 
         var updated = await GetByIdAsync(announcementId, actorUserId, cancellationToken).ConfigureAwait(false);
@@ -217,13 +257,10 @@ public sealed class AnnouncementsService : IAnnouncementsService
             return new AnnouncementMutationResult(AnnouncementMutationOutcome.InvalidState, null);
         }
 
-        // Emit the fan-out event exactly once — only on the Draft→Published transition.
+        // Emit the fan-out event exactly once — only on the transition into Published.
         if (newlyParameter.Value is bool newly && newly && workspaceParameter.Value is Guid workspaceId)
         {
-            var payload = JsonSerializer.Serialize(new { announcementId }, JsonOptions);
-            var envelope = new EventEnvelope(
-                Guid.NewGuid(), "announcement.published", workspaceId, null, actorUserId, _clock.UtcNow, payload, operationId);
-            await _eventSpine.EmitAsync(envelope, cancellationToken).ConfigureAwait(false);
+            await EmitPublishedAsync(announcementId, workspaceId, actorUserId, operationId, cancellationToken).ConfigureAwait(false);
         }
 
         var published = await GetByIdAsync(announcementId, actorUserId, cancellationToken).ConfigureAwait(false);
@@ -283,19 +320,29 @@ public sealed class AnnouncementsService : IAnnouncementsService
     private PaginatedResponse<AnnouncementListRow> BuildListResponse(
         IReadOnlyList<AnnouncementListRowEntity> rows, int page, int pageSize)
     {
-        var items = rows.Select(row => new AnnouncementListRow(
-            row.AnnouncementId,
-            row.Title,
-            row.BodySnippet,
-            row.Pinned,
-            row.PublishedAt is null ? null : DateTime.SpecifyKind(row.PublishedAt.Value, DateTimeKind.Utc),
-            row.Status,
-            row.AuthorUserId)).ToList();
+        var items = rows.Select(row =>
+        {
+            var scheduledPublishAt = AsUtc(row.ScheduledPublishAt);
+            var autoArchiveAt = AsUtc(row.AutoArchiveAt);
+            return new AnnouncementListRow(
+                row.AnnouncementId,
+                row.Title,
+                row.BodySnippet,
+                row.Pinned,
+                AsUtc(row.PublishedAt),
+                DeriveDisplayStatus(row.Status, scheduledPublishAt, autoArchiveAt),
+                row.AuthorUserId,
+                scheduledPublishAt,
+                row.AutoArchive,
+                autoArchiveAt,
+                row.AuthorName,
+                AsUtc(row.PostedAt));
+        }).ToList();
         var totalCount = rows.Count > 0 ? rows[0].TotalCount : 0;
         return new PaginatedResponse<AnnouncementListRow>(items, totalCount, page, pageSize);
     }
 
-    private static AnnouncementDto Map(AnnouncementRow row)
+    private AnnouncementDto Map(AnnouncementRow row)
     {
         AnnouncementAudience audience;
         try
@@ -308,6 +355,9 @@ public sealed class AnnouncementsService : IAnnouncementsService
             audience = new AnnouncementAudience("everyone", null, null);
         }
 
+        var scheduledPublishAt = AsUtc(row.ScheduledPublishAt);
+        var autoArchiveAt = AsUtc(row.AutoArchiveAt);
+
         return new AnnouncementDto(
             row.AnnouncementId,
             row.WorkspaceId,
@@ -316,10 +366,48 @@ public sealed class AnnouncementsService : IAnnouncementsService
             audience,
             row.Pinned,
             row.ExpiresOn is null ? null : DateOnly.FromDateTime(row.ExpiresOn.Value),
-            row.Status,
+            DeriveDisplayStatus(row.Status, scheduledPublishAt, autoArchiveAt),
             row.AuthorUserId,
             DateTime.SpecifyKind(row.CreatedAt, DateTimeKind.Utc),
             DateTime.SpecifyKind(row.UpdatedAt, DateTimeKind.Utc),
-            row.PublishedAt is null ? null : DateTime.SpecifyKind(row.PublishedAt.Value, DateTimeKind.Utc));
+            AsUtc(row.PublishedAt),
+            scheduledPublishAt,
+            row.AutoArchive,
+            autoArchiveAt);
     }
+
+    private const string PublishedStatus = "Published";
+
+    /// <summary>Wire status → stored status: 'Scheduled' stays; anything else ('Active' / empty) → Published.</summary>
+    private static string ToStoredStatus(string? writeStatus) =>
+        string.Equals(writeStatus, "Scheduled", StringComparison.OrdinalIgnoreCase) ? "Scheduled" : PublishedStatus;
+
+    /// <summary>The single read-time derivation of the display status (Active / Scheduled / Archived) from
+    /// the stored status + lifecycle timestamps — reused by the detail Map and the list builder so the
+    /// derivation lives in exactly one place (reuses the "past-time ⇒ treated-as" precedent from §20).</summary>
+    private string DeriveDisplayStatus(string storedStatus, DateTime? scheduledPublishAt, DateTime? autoArchiveAt)
+    {
+        var now = _clock.UtcNow;
+        return storedStatus switch
+        {
+            "Scheduled" => scheduledPublishAt.HasValue && scheduledPublishAt.Value > now ? "Scheduled" : "Active",
+            "Published" => autoArchiveAt.HasValue && autoArchiveAt.Value <= now ? "Archived" : "Active",
+            "Archived" => "Archived",
+            _ => "Archived", // legacy Draft / Retired collapse to Archived in the reconciled UI.
+        };
+    }
+
+    /// <summary>Emit the announcement.published event (audit + bell fan-out) through the shared spine path —
+    /// used by create-as-Published, edit-to-Published, and manual publish so fan-out is never duplicated.</summary>
+    private async Task EmitPublishedAsync(
+        Guid announcementId, Guid workspaceId, Guid actorUserId, string operationId, CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Serialize(new { announcementId }, JsonOptions);
+        var envelope = new EventEnvelope(
+            Guid.NewGuid(), "announcement.published", workspaceId, null, actorUserId, _clock.UtcNow, payload, operationId);
+        await _eventSpine.EmitAsync(envelope, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static DateTime? AsUtc(DateTime? value) =>
+        value is null ? null : DateTime.SpecifyKind(value.Value, DateTimeKind.Utc);
 }

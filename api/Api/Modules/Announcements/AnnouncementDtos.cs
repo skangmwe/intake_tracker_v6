@@ -17,7 +17,8 @@ public sealed record AnnouncementAudience(
 
 // ─── Responses ──────────────────────────────────────────────────────────────────
 
-/// <summary>Full announcement detail (S21). Mirrors AnnouncementDto.</summary>
+/// <summary>Full announcement detail (S21). Mirrors AnnouncementDto. <c>Status</c> is the derived
+/// display status (Active / Scheduled / Archived); the lifecycle timestamps let the editor pre-fill.</summary>
 public sealed record AnnouncementDto(
     Guid Id,
     Guid WorkspaceId,
@@ -30,9 +31,13 @@ public sealed record AnnouncementDto(
     Guid Author,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    DateTime? PublishedAt);
+    DateTime? PublishedAt,
+    DateTime? ScheduledPublishAt,
+    bool AutoArchive,
+    DateTime? AutoArchiveAt);
 
-/// <summary>A list/browse row (S22/S23). Mirrors AnnouncementListRow.</summary>
+/// <summary>A list/browse row (S22/S23). Mirrors AnnouncementListRow. <c>Status</c> is the derived display
+/// status; <c>AuthorName</c> and <c>PostedAt</c> feed the manage table's POSTED BY / POSTED columns.</summary>
 public sealed record AnnouncementListRow(
     Guid Id,
     string Title,
@@ -40,11 +45,18 @@ public sealed record AnnouncementListRow(
     bool Pinned,
     DateTime? PublishedAt,
     string Status,
-    Guid Author);
+    Guid Author,
+    DateTime? ScheduledPublishAt,
+    bool AutoArchive,
+    DateTime? AutoArchiveAt,
+    string? AuthorName,
+    DateTime? PostedAt);
 
 // ─── Request bodies ───────────────────────────────────────────────────────────────
 
-/// <summary>Create a Draft announcement. Mirrors AnnouncementCreateRequest.</summary>
+/// <summary>Create an announcement. Mirrors AnnouncementCreateRequest. <c>Author</c> ("posted by") may be
+/// any workspace member (validated in the controller); empty defaults to the acting admin. <c>Status</c>
+/// is 'Active' (publish now) or 'Scheduled' (publish at <c>ScheduledPublishAt</c>).</summary>
 public sealed class AnnouncementCreateRequest
 {
     [Required]
@@ -60,6 +72,18 @@ public sealed class AnnouncementCreateRequest
     public bool Pinned { get; set; }
 
     public DateOnly? ExpiresOn { get; set; }
+
+    /// <summary>The poster. Empty → the acting admin.</summary>
+    public Guid Author { get; set; }
+
+    /// <summary>'Active' (publish now) or 'Scheduled'. Empty → 'Active'.</summary>
+    public string Status { get; set; } = "Active";
+
+    /// <summary>Required and future when <c>Status</c> = 'Scheduled'.</summary>
+    public DateTime? ScheduledPublishAt { get; set; }
+
+    /// <summary>Auto-archive 30 days after publish. Defaults on.</summary>
+    public bool AutoArchive { get; set; } = true;
 }
 
 /// <summary>Replace the editable field set (PATCH). Mirrors AnnouncementPatchRequest.</summary>
@@ -78,6 +102,18 @@ public sealed class AnnouncementPatchRequest
     public bool Pinned { get; set; }
 
     public DateOnly? ExpiresOn { get; set; }
+
+    /// <summary>The poster. Empty → the acting admin.</summary>
+    public Guid Author { get; set; }
+
+    /// <summary>'Active' (publish now) or 'Scheduled'. Empty → 'Active'.</summary>
+    public string Status { get; set; } = "Active";
+
+    /// <summary>Required and future when <c>Status</c> = 'Scheduled'.</summary>
+    public DateTime? ScheduledPublishAt { get; set; }
+
+    /// <summary>Auto-archive 30 days after publish. Defaults on.</summary>
+    public bool AutoArchive { get; set; } = true;
 }
 
 /// <summary>POST …/query — the paginated list body. Mirrors the firm query envelope.</summary>
