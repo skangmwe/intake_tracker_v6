@@ -44,8 +44,8 @@ public sealed class RequestsControllerTests
 
     private static RequestDto SampleRequestDto() => new(
         RecordId, WorkspaceId, "AI Solutions", DateTime.UtcNow, DateTime.UtcNow, UserId.ToString(), UserId.ToString(),
-        LegacyId: null, LifecycleId: Guid.NewGuid(),
-        Stages: new[] { new RequestStageRef("intake", "Intake") },
+        LegacyId: null, LifecycleId: Guid.NewGuid(), LifecycleName: "Standard AI build",
+        Stages: new[] { new RequestStageRef("intake", "Intake", "Intake") },
         Stage: "intake",
         StatusHold: RequestStatusHoldValue.InProgress, StatusHoldNote: null,
         Hold: new HoldState(false, null), Outcome: null, DisplayStatus: "Intake", SlaStatus: null, TimeInStage: null,

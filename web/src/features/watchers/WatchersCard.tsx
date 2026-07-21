@@ -9,10 +9,10 @@
 // explicit loading / error / empty states (web-component-architecture.md). All preference state is
 // per-caller-per-record; watchers never see other watchers' preferences.
 
-import { Bell, Eye, EyeSlash, Warning } from '@phosphor-icons/react';
+import { Bell, Eye, EyeSlash } from '@phosphor-icons/react';
 
 import type {
-  RecordId,
+  RequestDto,
   WatcherListItemDto,
   WatcherPreferencesPatchRequest,
 } from '@shared/types';
@@ -21,6 +21,7 @@ import { Button } from '@/shared/components/Button';
 import { problemMessage } from '@/shared/http/problemMessage';
 import { useMe } from '@/features/users/useMe';
 
+import { ActiveAlerts } from './ActiveAlerts';
 import { usePatchMyWatch, useRecordWatchers, useWatchToggle } from './useWatchers';
 import './watchers.css';
 
@@ -91,7 +92,8 @@ function PreferenceToggleRow({ row, value, onChange, disabled }: PreferenceToggl
   );
 }
 
-export function WatchersCard({ recordId }: { recordId: RecordId }) {
+export function WatchersCard({ request }: { request: RequestDto }) {
+  const recordId = request.id;
   const { data, isLoading, isError, error } = useRecordWatchers(recordId);
   const { data: me } = useMe();
   const toggle = useWatchToggle(recordId);
@@ -171,16 +173,7 @@ export function WatchersCard({ recordId }: { recordId: RecordId }) {
         )}
       </section>
 
-      <section className="record-card" aria-label="Active alerts">
-        <span className="record-chip">
-          <Warning size={15} aria-hidden />
-          Active alerts
-        </span>
-        <p className="caption">
-          Nothing needs attention right now. Overdue dates, blocked gates, pending approvals, and
-          holds will surface here.
-        </p>
-      </section>
+      <ActiveAlerts request={request} />
 
       <section className="record-card" aria-label="Notify watchers about">
         <span className="record-chip">

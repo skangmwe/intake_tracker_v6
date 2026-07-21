@@ -11,13 +11,18 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 
 import type { RecordId, UserId, WatcherListDto, WatcherPreferences } from '@shared/types';
 
-import { buildMe, renderWithProviders } from '@/test-utils';
+import { buildMe, buildRequestDto, renderWithProviders } from '@/test-utils';
 
 import * as api from './api';
 import { WatchersCard, initials } from './WatchersCard';
 
 expect.extend(toHaveNoViolations);
 jest.mock('./api');
+// The Active-alerts card (nested in WatchersCard) reads the record's gates. Mock the hook to a
+// synchronous empty result so no background query settles after the assertions (avoids act warnings).
+jest.mock('@/features/gates', () => ({
+  useApprovalRequests: jest.fn(() => ({ data: [] })),
+}));
 
 const mockedApi = api as jest.Mocked<typeof api>;
 const RECORD = 'AIS-00000001' as RecordId;
@@ -70,7 +75,7 @@ describe('WatchersCard', () => {
     mockedApi.fetchWatchers.mockReturnValue(new Promise<WatcherListDto>(() => {}));
 
     // Act
-    const { container } = renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    const { container } = renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
 
     // Assert
     expect(screen.getByText('Loading watchers…')).toBeInTheDocument();
@@ -82,7 +87,7 @@ describe('WatchersCard', () => {
     mockedApi.fetchWatchers.mockRejectedValue(new Error('boom'));
 
     // Act
-    const { container } = renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    const { container } = renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
 
     // Assert
     expect(await screen.findByText(/Watchers couldn’t be loaded/)).toBeInTheDocument();
@@ -94,7 +99,7 @@ describe('WatchersCard', () => {
     mockedApi.fetchWatchers.mockResolvedValue({ watchers: [], isWatching: false, myPreferences: defaultPrefs() });
 
     // Act
-    const { container } = renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    const { container } = renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
 
     // Assert — roster empty + Watch action
     expect(await screen.findByText('No one is watching this record yet.')).toBeInTheDocument();
@@ -112,7 +117,7 @@ describe('WatchersCard', () => {
     mockedApi.fetchWatchers.mockResolvedValue(watching());
 
     // Act
-    const { container } = renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    const { container } = renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
 
     // Assert — roster
     expect(await screen.findByText('Ben Builder')).toBeInTheDocument();
@@ -136,7 +141,7 @@ describe('WatchersCard', () => {
     });
 
     // Act
-    renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
 
     // Assert — the toggles render during load too (disabled + defaults), so wait for the fetched
     // preferences to apply before asserting the divergent value.
@@ -160,7 +165,7 @@ describe('WatchersCard', () => {
       watchers: [{ userId: ME_ID, displayName: 'Priya Raman', subscribedAt: '2026-07-05T10:00:00Z' }],
     });
     const user = userEvent.setup();
-    renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
     const gateCheckbox = await screen.findByRole('checkbox', { name: 'Gate decisions' });
 
     // Act
@@ -181,7 +186,7 @@ describe('WatchersCard', () => {
       myPreferences: defaultPrefs({ notifyStatusChanges: false }),
     });
     const user = userEvent.setup();
-    renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
     const statusCheckbox = await screen.findByRole('checkbox', { name: 'Status changes' });
 
     // Act
@@ -198,7 +203,7 @@ describe('WatchersCard', () => {
     mockedApi.fetchWatchers.mockResolvedValue({ watchers: [], isWatching: false, myPreferences: defaultPrefs() });
     mockedApi.watchRecord.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
     await screen.findByRole('button', { name: 'Watch this record' });
 
     // Act
@@ -213,7 +218,7 @@ describe('WatchersCard', () => {
     mockedApi.fetchWatchers.mockResolvedValue({ watchers: [], isWatching: false, myPreferences: defaultPrefs() });
     mockedApi.watchRecord.mockRejectedValue(new Error('boom'));
     const user = userEvent.setup();
-    renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
     await screen.findByRole('button', { name: 'Watch this record' });
 
     // Act
@@ -228,7 +233,7 @@ describe('WatchersCard', () => {
     mockedApi.fetchWatchers.mockResolvedValue(watching());
     mockedApi.unwatchRecord.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    renderWithProviders(<WatchersCard recordId={RECORD} />, { seedMe: seededMe() });
+    renderWithProviders(<WatchersCard request={buildRequestDto()} />, { seedMe: seededMe() });
     await screen.findByRole('button', { name: 'Watching' });
 
     // Act
