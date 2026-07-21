@@ -105,16 +105,31 @@ describe('ToolkitSurface', () => {
     expect(screen.getByTestId('detail-sheet')).toHaveTextContent('AIS-00000073');
   });
 
-  it('ToolkitSurface — view toggle — switches to the list view', async () => {
-    // Arrange
+  it('ToolkitSurface — view toggle — switches to the table view', async () => {
+    // Arrange — the toggle is the shared ViewModeToggle (Gallery/Table); default is gallery.
     listStub({ data: page([row()]) });
     renderWithProviders(<ToolkitSurface />, { seedMe: me });
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'List view' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Table' }));
 
     // Assert
-    expect(screen.getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('ToolkitSurface — gallery hides the item-count/pager footer; the table shows it', async () => {
+    // Arrange — default view is the gallery (full-page scroll, no pager).
+    listStub({ data: page([row()]) });
+    renderWithProviders(<ToolkitSurface />, { seedMe: me });
+
+    // Assert — no footer in the gallery
+    expect(screen.queryByText(/of 1 items/i)).not.toBeInTheDocument();
+
+    // Act — switch to the table view
+    await userEvent.click(screen.getByRole('button', { name: 'Table' }));
+
+    // Assert — the footer (count + pager) returns for the table
+    expect(screen.getByText(/of 1 items/i)).toBeInTheDocument();
   });
 
   it('ToolkitSurface — New item — opens the editor sheet', async () => {

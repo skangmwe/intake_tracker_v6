@@ -13,6 +13,28 @@ import { useRequestsList } from '../useRequests';
 jest.mock('@/features/users/useMe');
 jest.mock('../useRequests');
 
+// The board pulls its columns from the default lifecycle's ordered stages (all 7, incl. empty).
+jest.mock('@/features/lifecycle', () => ({
+  useLifecycleConfig: () => ({
+    data: {
+      lifecycles: [
+        {
+          isDefault: true,
+          stages: [
+            { key: 'intake', label: 'Intake', sortOrder: 0 },
+            { key: 'triage', label: 'Triage', sortOrder: 1 },
+            { key: 'execution', label: 'Execution', sortOrder: 2 },
+            { key: 'validation', label: 'Validation', sortOrder: 3 },
+            { key: 'delivery', label: 'Delivery', sortOrder: 4 },
+            { key: 'stabilization', label: 'Stabilization', sortOrder: 5 },
+            { key: 'closure', label: 'Closure', sortOrder: 6 },
+          ],
+        },
+      ],
+    },
+  }),
+}));
+
 // Slice 14 wired the saved-view picker to the real saved-views feature. These tests focus on the
 // list itself; stub the feature so no network call fires and the editor stays out of the tree.
 jest.mock('@/features/saved-views', () => ({
@@ -317,8 +339,8 @@ describe('RequestsListPage', () => {
     expect(within(toggle).queryByRole('button', { name: 'Gallery' })).not.toBeInTheDocument();
   });
 
-  it('RequestsListPage — switching to Board groups rows into stage columns and drops the table', async () => {
-    // Arrange — two rows in different stages ⇒ two board columns.
+  it('RequestsListPage — Board shows all 7 lifecycle stages (labelled, empty ones included) and no pager', async () => {
+    // Arrange — two rows land in two stages; the other five stages must still render as empty columns.
     const intake = buildRequestListRow();
     const triage = {
       ...intake,
@@ -331,12 +353,33 @@ describe('RequestsListPage', () => {
     const { container } = renderWithProviders(<RequestsListPage />, { route: '/requests' });
     await userEvent.click(screen.getByRole('button', { name: 'Board' }));
 
-    // Assert — the board renders a labelled column per stage; the table grid is gone.
+    // Assert — all seven lifecycle stages render as columns, by label, in order; populated ones carry
+    // a count and the rest are empty. The table grid and the pager footer are both gone.
     expect(screen.getByRole('button', { name: 'Board' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('region', { name: 'intake (1)' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'triage (1)' })).toBeInTheDocument();
+    const columns = screen.getAllByRole('region').map((region) => region.getAttribute('aria-label'));
+    expect(columns).toEqual([
+      'Intake (1)',
+      'Triage (1)',
+      'Execution (0)',
+      'Validation (0)',
+      'Delivery (0)',
+      'Stabilization (0)',
+      'Closure (0)',
+    ]);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByText(/of \d+ records/i)).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RequestsListPage — the table view keeps its pager footer', () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()], 60) });
+
+    // Act — default view is the table.
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert — the footer (count + pager) is present for the table.
+    expect(screen.getByText(/of 60 records/i)).toBeInTheDocument();
   });
 
   it('RequestsListPage — a Board card opens its record', async () => {

@@ -73,50 +73,6 @@
   outline-offset: 2px;
 }
 
-/* ── View toggle ────────────────────────────────────────────────────── */
-.tk-view-toggle {
-  display: inline-flex;
-  border: 1px solid var(--border-button);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.tk-view-toggle__btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: var(--bg-surface);
-  color: var(--icon-default);
-  cursor: pointer;
-}
-
-.tk-view-toggle__btn + .tk-view-toggle__btn {
-  border-left: 1px solid var(--border-button);
-}
-
-.tk-view-toggle__btn:hover {
-  color: var(--accent-interactive);
-}
-
-.tk-view-toggle__btn[aria-pressed='true'] {
-  background: var(--color-pale-blue);
-  color: var(--color-navy);
-}
-
-.tk-view-toggle__btn:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
-}
-
-.tk-count {
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
 /* ── Type pill + status badge ───────────────────────────────────────── */
 .tk-pill {
   display: inline-flex;

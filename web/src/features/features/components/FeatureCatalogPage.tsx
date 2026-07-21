@@ -44,6 +44,9 @@ import { useFeaturesList } from '../useFeatures';
 import '../features.css';
 
 const PAGE_SIZE = 25;
+// The gallery drops pagination and scrolls the whole page, so it loads the full set in one request —
+// up to the API's maximum page size (100). Beyond that a catalog would need infinite scroll.
+const GALLERY_PAGE_SIZE = 100;
 const EM_DASH = '—';
 
 const COLUMNS: TableColumn[] = [
@@ -207,11 +210,15 @@ export function FeatureCatalogPage() {
   const [editor, setEditor] = useState<EditorState>(null);
 
   const query = useMemo<PaginatedQuery>(() => {
-    const built: PaginatedQuery = { page, pageSize: PAGE_SIZE };
+    const isGallery = viewMode === 'gallery';
+    const built: PaginatedQuery = {
+      page: isGallery ? 1 : page,
+      pageSize: isGallery ? GALLERY_PAGE_SIZE : PAGE_SIZE,
+    };
     if (Object.keys(filters).length > 0) built.filters = filters;
     if (sort) built.sort = [{ column: sort.column, direction: sort.direction }];
     return built;
-  }, [page, filters, sort]);
+  }, [viewMode, page, filters, sort]);
 
   const { data, isLoading, isError } = useFeaturesList(query);
   const rows = data?.items ?? [];
@@ -297,12 +304,13 @@ export function FeatureCatalogPage() {
           onSaveAsNew={() => openEditor('filters', null)}
         />
       }
-      layoutSlot={
+      trailingSlot={
         <ViewModeToggle
           available={FEATURE_VIEW_KINDS}
           active={viewMode}
           onChange={setViewMode}
           label="Feature catalog layout"
+          iconOnly
         />
       }
       filters={activePills}
@@ -360,7 +368,10 @@ export function FeatureCatalogPage() {
   };
 
   return (
-    <main className="feature-catalog-page list-surface" data-layout="wide">
+    <main
+      className={`feature-catalog-page list-surface${viewMode === 'gallery' ? ' list-surface--flow' : ''}`}
+      data-layout="wide"
+    >
       <h1 className="h1 feature-catalog-page__title">Feature Catalog</h1>
       {viewBar}
       <div className="feature-catalog-page__grid list-surface__body">
@@ -387,14 +398,12 @@ export function FeatureCatalogPage() {
         ) : (
           <>
             {viewMode === 'gallery' ? (
-              <div className="list-surface__scroll">
-                <GalleryView
-                  items={rows.map((row) =>
-                    toGalleryItem(row, () => navigate(`/feature-catalog/${row.id}`)),
-                  )}
-                  caption="Feature gallery"
-                />
-              </div>
+              <GalleryView
+                items={rows.map((row) =>
+                  toGalleryItem(row, () => navigate(`/feature-catalog/${row.id}`)),
+                )}
+                caption="Feature gallery"
+              />
             ) : (
               <TableShell
                 caption="Feature Catalog"
@@ -410,16 +419,18 @@ export function FeatureCatalogPage() {
                 renderFilter={renderFilter}
               />
             )}
-            <TableFooter
-              page={page}
-              totalPages={totalPages}
-              total={total}
-              start={start}
-              end={end}
-              noun="features"
-              onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
-              onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-            />
+            {viewMode !== 'gallery' && (
+              <TableFooter
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                start={start}
+                end={end}
+                noun="features"
+                onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
+                onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              />
+            )}
           </>
         )}
       </div>

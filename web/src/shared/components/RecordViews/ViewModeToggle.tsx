@@ -17,6 +17,11 @@ const KIND_META: Record<RecordViewKind, { label: string; icon: ComponentType<Ico
   gallery: { label: 'Gallery', icon: GridFour },
 };
 
+// Canonical render order for every surface. A surface's `available` list is filtered to this order,
+// so the segments always appear list → board → timeline → agenda → gallery regardless of the order
+// they were passed in. Only the kinds a surface offers are shown.
+const KIND_ORDER: RecordViewKind[] = ['table', 'kanban', 'timeline', 'agenda', 'gallery'];
+
 export interface ViewModeToggleProps {
   /** Layouts offered on this surface, in render order. */
   available: RecordViewKind[];
@@ -24,14 +29,22 @@ export interface ViewModeToggleProps {
   onChange: (kind: RecordViewKind) => void;
   /** Accessible name for the group (e.g. "Requests layout"). */
   label: string;
+  /** Compact icon-only segments: labels stay in the DOM (accessible name) but are visually hidden,
+   *  and each segment gets a hover tooltip. Use where the toggle sits beside a primary action. */
+  iconOnly?: boolean;
 }
 
-export function ViewModeToggle({ available, active, onChange, label }: ViewModeToggleProps) {
+export function ViewModeToggle({ available, active, onChange, label, iconOnly = false }: ViewModeToggleProps) {
   if (available.length < 2) return null;
 
   return (
-    <div className="rv-toggle" role="group" aria-label={label} data-ds="segmented">
-      {available.map((kind) => {
+    <div
+      className={`rv-toggle${iconOnly ? ' rv-toggle--icon-only' : ''}`}
+      role="group"
+      aria-label={label}
+      data-ds="segmented"
+    >
+      {KIND_ORDER.filter((kind) => available.includes(kind)).map((kind) => {
         const meta = KIND_META[kind];
         const IconComponent = meta.icon;
         const isActive = kind === active;
@@ -41,6 +54,7 @@ export function ViewModeToggle({ available, active, onChange, label }: ViewModeT
             type="button"
             className={`rv-toggle__seg${isActive ? ' rv-toggle__seg--active' : ''}`}
             aria-pressed={isActive}
+            title={iconOnly ? meta.label : undefined}
             onClick={() => onChange(kind)}
           >
             <IconComponent size={16} weight="regular" aria-hidden />

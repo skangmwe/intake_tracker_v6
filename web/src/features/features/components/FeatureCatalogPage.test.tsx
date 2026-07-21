@@ -106,6 +106,22 @@ describe('FeatureCatalogPage', () => {
     expect(screen.getByRole('button', { name: /Citation overlay/ })).toBeInTheDocument();
   });
 
+  it('FeatureCatalogPage — the gallery hides the pager footer; the table keeps it', async () => {
+    // Arrange
+    mockHooks({ data: page([buildFeatureRow()], 60) });
+    const user = userEvent.setup();
+    renderWithProviders(<FeatureCatalogPage />, { route: '/feature-catalog' });
+
+    // Assert — the table view (default) shows the footer
+    expect(screen.getByText(/of 60 features/i)).toBeInTheDocument();
+
+    // Act — switch to the gallery
+    await user.click(screen.getByRole('button', { name: /Gallery/ }));
+
+    // Assert — the gallery drops the pager (full-page scroll, load-all)
+    expect(screen.queryByText(/of 60 features/i)).not.toBeInTheDocument();
+  });
+
   it('FeatureCatalogPage — renders the loading state', () => {
     // Arrange
     mockHooks({ isLoading: true });
