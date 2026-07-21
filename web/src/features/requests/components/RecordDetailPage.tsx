@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowsLeftRight, CaretRight, CloudCheck } from '@phosphor-icons/react';
+import { ArrowsLeftRight, CaretRight, CloudCheck, FlagBanner } from '@phosphor-icons/react';
 
 import type {
   FieldDefinitionDto,
@@ -41,6 +41,10 @@ import {
 } from '@/features/relationships';
 
 import { RequestFieldControl } from './RequestFieldControl';
+import { SlaBlock } from './SlaBlock';
+import { StatusHistoryTrail } from './StatusHistoryTrail';
+import { StatusSummaryRow } from './StatusSummaryRow';
+import { formatSubmitted } from '../statusPresentation';
 import {
   useRequest,
   usePatchRequest,
@@ -68,8 +72,8 @@ type StatusKind = 'info' | 'success' | 'warning' | 'error' | 'neutral';
 const BASE_TABS: { id: string; label: string }[] = [
   { id: 'status', label: 'Status' },
   { id: 'intake', label: 'Intake' },
-  { id: 'attachments', label: 'Attachments' },
   { id: 'tasks', label: 'Tasks & gates' },
+  { id: 'attachments', label: 'Attachments' },
   { id: 'activity', label: 'Activity' },
   { id: 'watchers', label: 'Watchers & alerts' },
 ];
@@ -104,13 +108,6 @@ function formatDayMonth(value: unknown): string {
   return Number.isNaN(date.getTime())
     ? '—'
     : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-}
-
-function formatSubmitted(iso: string): string {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? '—'
-    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // SLA Status (BS §17.2) — the API derives it authoritatively from Due Date and the workspace's
@@ -364,7 +361,13 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
 
   return (
     <div className="record-status">
+      <StatusSummaryRow request={request} />
+
       <section className="record-card" aria-label="Record status">
+        <span className="record-chip">
+          <FlagBanner size={15} aria-hidden />
+          Status
+        </span>
         <Select
           label="Status override"
           value={statusChoice}
@@ -400,6 +403,10 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
           Update status
         </Button>
       </section>
+
+      <SlaBlock slaStatus={request.slaStatus} />
+
+      <StatusHistoryTrail recordId={request.id} />
 
       <section className="record-card" aria-label="Move stage">
         <Select label="Stage" value={toStage} onChange={setToStage} options={stageOptions} />
@@ -630,7 +637,7 @@ export function RecordDetailPage() {
           />
         )}
         {activeTab === 'activity' && <ActivityTab recordId={request.id as RecordId} />}
-        {activeTab === 'watchers' && <WatchersCard recordId={request.id as RecordId} />}
+        {activeTab === 'watchers' && <WatchersCard request={request} />}
         {activeRelationship && (
           <GenericRelatedRecordsTab
             workspaceId={request.workspaceId as WorkspaceId}

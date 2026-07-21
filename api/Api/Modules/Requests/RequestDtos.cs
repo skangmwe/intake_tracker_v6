@@ -13,8 +13,9 @@ namespace McDermott.AiTracker.Api.Modules.Requests;
 
 // ─── Responses ────────────────────────────────────────────────────────────────
 
-/// <summary>One stage on a record's lifecycle — the ordered set drives the record-detail stepper (S4).</summary>
-public sealed record RequestStageRef(string Key, string Label);
+/// <summary>One stage on a record's lifecycle — the ordered set drives the record-detail stepper (S4).
+/// <c>StatusCategory</c> is the stage's dashboard bucket (BS §10.6), surfaced on the S4 Status-tab summary row.</summary>
+public sealed record RequestStageRef(string Key, string Label, string StatusCategory);
 
 /// <summary>Hold sub-block on a request (legacy binary derived read — v2 slice 26).</summary>
 public sealed record HoldState(bool Held, string? Reason);
@@ -54,6 +55,8 @@ public sealed record RequestDto(
     string UpdatedBy,
     string? LegacyId,
     Guid LifecycleId,
+    // The lifecycle's display name — projected for the S4 Status-tab summary row.
+    string LifecycleName,
     IReadOnlyList<RequestStageRef> Stages,
     string? Stage,
     // Slice 26 — tri-state Status/hold. Source of truth for the pill + guards.

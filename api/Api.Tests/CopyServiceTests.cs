@@ -50,6 +50,7 @@ public sealed class CopyServiceTests
             UpdatedBy: "seed",
             LegacyId: null,
             LifecycleId: Guid.NewGuid(),
+            LifecycleName: "Standard AI build",
             Stages: Array.Empty<RequestStageRef>(),
             Stage: "execution",
             StatusHold: RequestStatusHoldValue.InProgress,

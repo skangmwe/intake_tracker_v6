@@ -161,8 +161,13 @@ public sealed partial class RequestsService
         }
 
         var stages = await GetStageRefsAsync(row.WorkspaceId, row.LifecycleId, cancellationToken).ConfigureAwait(false);
+        // The lifecycle's display name for the S4 Status-tab summary row. usp_GetWorkspaceLifecycles
+        // already returns Name (the data was dropped at the DTO boundary before this slice); one extra
+        // read on the detail path only. Empty string when the lifecycle can't be resolved (defensive).
+        var lifecycles = await ReadLifecyclesAsync(row.WorkspaceId, cancellationToken).ConfigureAwait(false);
+        var lifecycleName = lifecycles.FirstOrDefault(lifecycle => lifecycle.LifecycleId == row.LifecycleId)?.Name ?? string.Empty;
         var today = DateOnly.FromDateTime(_clock.UtcNow.UtcDateTime);
-        var dto = MapRow(row, stages, today);
+        var dto = MapRow(row, stages, lifecycleName, today);
 
         // Escalated records carry a bridge block — the "Escalated · [origin]" pill, the mirror status,
         // and the PG-side locked-field keys (BS §6.4). Non-escalated records get null (one extra proc
@@ -188,13 +193,13 @@ public sealed partial class RequestsService
         return stages
             .Where(stage => stage.LifecycleId == lifecycleId)
             .OrderBy(stage => stage.SortOrder)
-            .Select(stage => new RequestStageRef(stage.StageKey, stage.Label))
+            .Select(stage => new RequestStageRef(stage.StageKey, stage.Label, stage.StatusCategory))
             .ToList();
     }
 
     // ─── Mapping ───────────────────────────────────────────────────────────────
 
-    private static RequestDto MapRow(RequestRow row, IReadOnlyList<RequestStageRef> stages, DateOnly today)
+    private static RequestDto MapRow(RequestRow row, IReadOnlyList<RequestStageRef> stages, string lifecycleName, DateOnly today)
     {
         var fields = ParseFields(row.FieldValues);
         // Slice 26: StatusHold is the source of truth; the legacy `hold` block is now a derived read
@@ -214,6 +219,7 @@ public sealed partial class RequestsService
             UpdatedBy: row.UpdatedBy,
             LegacyId: null,
             LifecycleId: row.LifecycleId,
+            LifecycleName: lifecycleName,
             Stages: stages,
             Stage: string.IsNullOrEmpty(row.Stage) ? null : row.Stage,
             StatusHold: statusHold,

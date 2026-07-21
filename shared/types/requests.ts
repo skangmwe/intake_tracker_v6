@@ -14,6 +14,12 @@ import type {
 export interface RequestStageRef {
   key: string;
   label: string;
+  /**
+   * The dashboard/rollup bucket this stage maps to (one of the StatusCategory values — BS §10.6).
+   * Surfaced on the S4 Status-tab summary row as the "Status category" chip; the current record's
+   * category is the `statusCategory` of the stage whose `key` matches `RequestDto.stage`.
+   */
+  statusCategory: string;
 }
 
 /** AI Solutions delivery Outcome (BS §8) — the AI-side terminal states. */
@@ -79,6 +85,8 @@ export interface RequestDto {
   // Lifecycle
   /** The lifecycle this record runs on (chosen at intake by request type, else the default). */
   lifecycleId: LifecycleId;
+  /** The lifecycle's display name — shown on the S4 Status-tab summary row (e.g. "Standard AI build"). */
+  lifecycleName: string;
   /** The record's lifecycle's ordered stages — drives the S4 stepper without a second fetch. */
   stages: RequestStageRef[];
   /** Current stage key (matches one of `stages[].key`). */

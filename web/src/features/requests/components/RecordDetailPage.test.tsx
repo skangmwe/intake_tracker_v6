@@ -47,6 +47,17 @@ jest.mock('@/features/watchers/api', () => ({
   watchRecord: jest.fn(),
   unwatchRecord: jest.fn(),
 }));
+// The Status tab hosts the Status-history trail (record-detail reconciliation), which reads the
+// activity thread; the Watchers tab's Active-alerts card reads the record's gates. Mock both hooks
+// to synchronous empty results so no background query settles after assertions (avoids act warnings).
+// ActivityTab is stubbed (its own tab is never opened in these tests).
+jest.mock('@/features/comments', () => ({
+  ActivityTab: () => null,
+  useThread: jest.fn(() => ({ data: [], isLoading: false, isError: false })),
+}));
+jest.mock('@/features/gates', () => ({
+  useApprovalRequests: jest.fn(() => ({ data: [] })),
+}));
 // The config-driven tab bar (slice 25) reads workspace Relationships via fetchRelationships.
 // Default to an empty list so the base tab bar shape stays unchanged for these tests.
 jest.mock('@/features/relationships/api', () => ({
@@ -474,5 +485,57 @@ describe('RecordDetailPage', () => {
     const tabs = await within(tablist).findAllByRole('tab');
     expect(tabs).toHaveLength(7);
     expect(within(tablist).getByRole('tab', { name: 'Deliverables' })).toBeInTheDocument();
+  });
+
+  it('RecordDetailPage — tab order matches the prototype (Tasks & gates before Attachments)', async () => {
+    // Arrange — reset the relationships mock to empty (clearAllMocks keeps implementations, so an
+    // earlier test's admin-relationship tab could otherwise leak in and change the tab count).
+    const relationshipsApi = await import('@/features/relationships/api');
+    jest.mocked(relationshipsApi.fetchRelationships).mockResolvedValue([]);
+
+    // Act — record-detail reconciliation restored the prototype's tab order.
+    renderPage();
+
+    // Assert
+    const tablist = await screen.findByRole('tablist', { name: 'Record sections' });
+    const labels = within(tablist)
+      .getAllByRole('tab')
+      .map((tab) => tab.textContent);
+    expect(labels).toEqual(['Status', 'Intake', 'Tasks & gates', 'Attachments', 'Activity', 'Watchers & alerts']);
+  });
+
+  it('RecordDetailPage — Status tab shows the summary row, SLA block, and the empty status-history trail', async () => {
+    // Arrange — default record: no due date, no status-hold events.
+    const user = userEvent.setup();
+
+    // Act
+    const { container } = renderPage();
+    await user.click(await screen.findByRole('tab', { name: 'Status' }));
+
+    // Assert — summary row (Submitted / Lifecycle / Status category), SLA block, and the empty trail.
+    expect(screen.getByText('Lifecycle')).toBeInTheDocument();
+    expect(screen.getByText('Standard AI build')).toBeInTheDocument();
+    expect(screen.getByText('Status category')).toBeInTheDocument();
+    expect(screen.getByText('No due date')).toBeInTheDocument();
+    expect(await screen.findByText(/No status changes yet/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RecordDetailPage — Watchers tab Active alerts composes SLA + hold signals', async () => {
+    // Arrange — an overdue, on-hold record surfaces two composed alerts on the Watchers tab.
+    const user = userEvent.setup();
+    jest.mocked(useRequests.useRequest).mockReturnValue(
+      queryResult(
+        buildRequestDto({ slaStatus: 'Overdue', statusHold: 'OnHold', statusHoldNote: 'Waiting on client' }),
+      ),
+    );
+
+    // Act
+    renderPage();
+    await user.click(await screen.findByRole('tab', { name: 'Watchers & alerts' }));
+
+    // Assert — the SLA-breach title and the hold reason are unique to the Active-alerts feed.
+    expect(await screen.findByText('Past the due date')).toBeInTheDocument();
+    expect(screen.getByText('Waiting on client')).toBeInTheDocument();
   });
 });

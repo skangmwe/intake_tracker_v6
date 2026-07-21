@@ -272,15 +272,197 @@
   width: 100%;
 }
 
+/* Record-detail section-header pill. Prototype-authoritative: a navy square pill with white text
+   and a leading Phosphor icon (S4 Status/Watchers tabs), replacing the earlier pale-blue rounded
+   chip. --color-navy is theme-stable (navy in both themes, like the sidebar), so white text holds
+   contrast in light and dark. Shared by every record-detail card header (Status, SLA, history,
+   watchers, alerts, relationships, attachments). */
 .record-chip {
   display: inline-flex;
   align-items: center;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--color-pale-blue);
-  color: var(--color-navy);
+  gap: var(--space-2);
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-navy);
+  color: var(--color-white);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+}
+
+/* ─── Status-tab summary row (Submitted · Lifecycle · Status category) ─── */
+
+.record-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3) var(--space-6);
+  min-width: 0;
+}
+
+.record-summary__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.record-summary__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.record-summary__value {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+/* Theme-stable: pale-blue fill + navy text in both themes (critical rule 1). */
+.record-summary__category {
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  border-radius: var(--radius-pill);
+  padding: 1px var(--space-3);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ─── SLA block ─── */
+
+.record-sla {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.record-sla__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.record-sla__icon[data-tone='error'] {
+  color: var(--color-error);
+}
+
+.record-sla__icon[data-tone='warning'] {
+  color: var(--color-warning);
+}
+
+.record-sla__icon[data-tone='success'] {
+  color: var(--color-success);
+}
+
+.record-sla__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.record-sla__detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ─── Status history & reactivation trail ─── */
+
+.record-trail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record-trail__item {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.record-trail__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--icon-default);
+}
+
+.record-trail__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.record-trail__title {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.record-trail__meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ─── Active alerts (Watchers & alerts tab) ─── */
+
+.record-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  min-width: 0;
+}
+
+.record-alert__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.record-alert__icon[data-tone='error'] {
+  color: var(--color-error);
+}
+
+.record-alert__icon[data-tone='warning'] {
+  color: var(--color-warning);
+}
+
+.record-alert__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.record-alert__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.record-alert__note {
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow-wrap: break-word;
 }
