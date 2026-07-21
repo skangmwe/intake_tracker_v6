@@ -58,6 +58,12 @@ public interface IAnnouncementsService
 
     Task<AnnouncementMutationResult> RetireAsync(
         Guid announcementId, Guid actorUserId, CancellationToken cancellationToken);
+
+    /// <summary>Emit the announcement.published event (audit + bell fan-out) for one announcement through the
+    /// shared event-spine path. The scheduler (slice 2) calls this once per row usp_TickAnnouncements newly
+    /// published, so scheduled publishes fan out identically to manual publishes and are never duplicated.</summary>
+    Task EmitPublishedAsync(
+        Guid announcementId, Guid workspaceId, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 }
 
 public sealed class AnnouncementsService : IAnnouncementsService
@@ -398,8 +404,9 @@ public sealed class AnnouncementsService : IAnnouncementsService
     }
 
     /// <summary>Emit the announcement.published event (audit + bell fan-out) through the shared spine path —
-    /// used by create-as-Published, edit-to-Published, and manual publish so fan-out is never duplicated.</summary>
-    private async Task EmitPublishedAsync(
+    /// used by create-as-Published, edit-to-Published, manual publish, and the scheduler tick (slice 2) so
+    /// fan-out is never duplicated.</summary>
+    public async Task EmitPublishedAsync(
         Guid announcementId, Guid workspaceId, Guid actorUserId, string operationId, CancellationToken cancellationToken)
     {
         var payload = JsonSerializer.Serialize(new { announcementId }, JsonOptions);

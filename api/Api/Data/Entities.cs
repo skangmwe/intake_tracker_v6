@@ -745,6 +745,16 @@ public sealed class AnnouncementListRowEntity
     public int TotalCount { get; set; }
 }
 
+/// <summary>A newly-published row returned by usp_TickAnnouncements (Announcements scheduler, slice 2).
+/// The tick flips due Scheduled rows to Published and returns them so the Worker emits exactly one
+/// announcement.published event per row through the same event-spine path manual publish uses.</summary>
+public sealed class AnnouncementTickRow
+{
+    public Guid AnnouncementId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public Guid AuthorUserId { get; set; }
+}
+
 // ─── Slice 14 (Feature Catalog + Saved views) — keyless read projections ───────────────
 
 /// <summary>One full Feature row from usp_GetFeatureByIdForUser (access baked into the proc join).</summary>
