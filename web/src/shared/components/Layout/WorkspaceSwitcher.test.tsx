@@ -41,6 +41,31 @@ describe('WorkspaceSwitcher', () => {
     expect(screen.getByRole('menuitem', { name: /Litigation/ })).toBeInTheDocument();
   });
 
+  it('WorkspaceSwitcher — opened — hides the PG/Dept template from the list', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    render(
+      <WorkspaceSwitcher
+        memberships={[
+          membership(),
+          membership({
+            workspaceId: 'ws-tmpl' as WorkspaceId,
+            workspaceName: 'PG / Department Template',
+            workspaceKind: 'pg-dept-template',
+          }),
+        ]}
+      />,
+    );
+
+    // Act
+    await user.click(screen.getByRole('button', { name: /Switch workspace/ }));
+
+    // Assert — template is filtered out; only the real workspace remains.
+    expect(screen.getByRole('menuitem', { name: /AI Solutions/ })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Template/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+  });
+
   it('WorkspaceSwitcher — opened with no memberships — shows the empty note', async () => {
     const user = userEvent.setup();
     render(<WorkspaceSwitcher memberships={[]} />);
@@ -54,10 +79,12 @@ describe('WorkspaceSwitcher', () => {
     const { container } = render(<WorkspaceSwitcher memberships={[membership()]} />);
     expect(await axe(container)).toHaveNoViolations();
 
-    // Act — open then re-check.
+    // Act — open, then re-check. The menu is portalled outside `container`, so axe it directly.
+    // (Scoping to the menu also avoids the page-level "region" landmark rule, which is the
+    // AppShell's responsibility, not this isolated component's.)
     await user.click(screen.getByRole('button', { name: /Switch workspace/ }));
 
     // Assert
-    expect(await axe(container)).toHaveNoViolations();
+    expect(await axe(screen.getByRole('menu', { name: 'Your workspaces' }))).toHaveNoViolations();
   });
 });

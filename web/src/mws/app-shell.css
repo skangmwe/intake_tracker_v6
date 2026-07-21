@@ -129,10 +129,13 @@ button.mws-drawer-scrim { border: none; padding: 0; margin: 0; cursor: pointer; 
 .ast-ws-text-kind { opacity: 0.55; }
 .ast-ws-caret { opacity: 0.6; flex-shrink: 0; }
 .ast-ws-menu {
-  /* Inset both sides so the popover never grows past the sidebar's right edge. The sidebar is a
-     scroll container (overflow-y:auto forces overflow-x to clip), so an un-capped popover would
-     have its right-hand kind badges sliced off on long workspace names. */
-  position: absolute; top: calc(100% - 4px); left: var(--space-4); right: var(--space-4); z-index: 110;
+  /* Portalled to <body> and positioned at the trigger (top/left set inline). position:fixed lets
+     it extend past the sidebar's right edge — the sidebar is a scroll container that would clip an
+     in-flow popover — and width:max-content grows it to fit the full workspace name (no truncation),
+     capped to the viewport so it never forces horizontal page scroll. */
+  position: fixed; z-index: 110;
+  width: max-content;
+  max-width: calc(100vw - var(--space-5) * 2);
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
@@ -156,7 +159,9 @@ button.mws-drawer-scrim { border: none; padding: 0; margin: 0; cursor: pointer; 
 .ast-ws-menu__item svg { color: var(--accent-interactive); flex-shrink: 0; }
 /* Fixed-width spacer aligning label-only items with the 14px check-icon column. */
 .ast-ws-menu__item-spacer { width: 14px; flex-shrink: 0; }
-.ast-ws-menu__item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Show the full name — the popover grows to fit, and wraps (never truncates) only if a name is
+   wide enough to hit the viewport cap. */
+.ast-ws-menu__item-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .ast-ws-menu__item-kind {
   flex-shrink: 0; white-space: nowrap;
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
@@ -316,9 +321,6 @@ button.mws-drawer-scrim { border: none; padding: 0; margin: 0; cursor: pointer; 
   .mws-sidebar[data-collapsed="true"] .ast-ws-button { justify-content: center; }
   .mws-sidebar[data-collapsed="true"] .ast-ws-text,
   .mws-sidebar[data-collapsed="true"] .ast-ws-caret { display: none; }
-  /* On the 72px rail the two-sided inset would crush the popover; anchor left and let it size to
-     content so it stays usable when opened from the collapsed switcher button. */
-  .mws-sidebar[data-collapsed="true"] .ast-ws-menu { right: auto; min-width: 220px; }
   .mws-sidebar[data-collapsed="true"] .ast-nav-collapse { justify-content: center; padding: var(--space-2) 0; }
 }
 
