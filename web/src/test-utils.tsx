@@ -15,6 +15,7 @@ import type {
   LifecycleId,
   LifecycleSummaryDto,
   MeDto,
+  ObjectDefinitionDto,
   PlatformFieldDto,
   RecordId,
   RelationshipDto,
@@ -74,7 +75,9 @@ export function buildMembership(
   };
 }
 
-export function buildFieldDefinition(overrides: Partial<FieldDefinitionDto> = {}): FieldDefinitionDto {
+export function buildFieldDefinition(
+  overrides: Partial<FieldDefinitionDto> = {},
+): FieldDefinitionDto {
   return {
     id: '00000000-0000-0000-0000-0000000000f1' as FieldDefinitionDto['id'],
     workspaceId: 'ws-1' as WorkspaceId,
@@ -120,7 +123,9 @@ export function buildPlatformField(overrides: Partial<PlatformFieldDto> = {}): P
 }
 
 /** A seeded S31 config: one default "Standard" lifecycle (execution → validation) with a gate + roster. */
-export function buildLifecycleConfig(overrides: Partial<LifecycleConfigDto> = {}): LifecycleConfigDto {
+export function buildLifecycleConfig(
+  overrides: Partial<LifecycleConfigDto> = {},
+): LifecycleConfigDto {
   const executionStage = '00000000-0000-0000-0000-0000000000b1' as StageDefinitionId;
   const validationStage = '00000000-0000-0000-0000-0000000000b2' as StageDefinitionId;
   return {
@@ -133,8 +138,20 @@ export function buildLifecycleConfig(overrides: Partial<LifecycleConfigDto> = {}
         isDefault: true,
         sortOrder: 0,
         stages: [
-          { id: executionStage, key: 'execution', label: 'Execution', statusCategory: 'Execution', sortOrder: 0 },
-          { id: validationStage, key: 'validation', label: 'Validation', statusCategory: 'Validation', sortOrder: 1 },
+          {
+            id: executionStage,
+            key: 'execution',
+            label: 'Execution',
+            statusCategory: 'Execution',
+            sortOrder: 0,
+          },
+          {
+            id: validationStage,
+            key: 'validation',
+            label: 'Validation',
+            statusCategory: 'Validation',
+            sortOrder: 1,
+          },
         ],
         gates: [
           {
@@ -151,7 +168,12 @@ export function buildLifecycleConfig(overrides: Partial<LifecycleConfigDto> = {}
     ],
     roleLabels: ['InfoSec', 'AI Solutions Manager'],
     approverTeams: [
-      { roleLabel: 'InfoSec', members: [{ userId: '00000000-0000-0000-0000-0000000000a1' as UserId, displayName: 'N. Varga' }] },
+      {
+        roleLabel: 'InfoSec',
+        members: [
+          { userId: '00000000-0000-0000-0000-0000000000a1' as UserId, displayName: 'N. Varga' },
+        ],
+      },
       { roleLabel: 'AI Solutions Manager', members: [] },
     ],
     ...overrides,
@@ -162,7 +184,9 @@ export function buildLifecycleConfig(overrides: Partial<LifecycleConfigDto> = {}
  * A lightweight lifecycle summary for the S3 intake picker + S31 dropdown (v2, slice 27).
  * Defaults to the default "Standard" lifecycle; matches buildLifecycleConfig's default id.
  */
-export function buildLifecycleSummary(overrides: Partial<LifecycleSummaryDto> = {}): LifecycleSummaryDto {
+export function buildLifecycleSummary(
+  overrides: Partial<LifecycleSummaryDto> = {},
+): LifecycleSummaryDto {
   return {
     id: '00000000-0000-0000-0000-00000000010c' as LifecycleId,
     name: 'Standard',
@@ -227,7 +251,9 @@ export function buildRequestListRow(overrides: Partial<RequestListRow> = {}): Re
  * Override `state` / `decisions` / `slots` to reach the approved / rejected / resolved / empty-roster
  * variants.
  */
-export function buildApprovalRequest(overrides: Partial<ApprovalRequestDto> = {}): ApprovalRequestDto {
+export function buildApprovalRequest(
+  overrides: Partial<ApprovalRequestDto> = {},
+): ApprovalRequestDto {
   return {
     id: 'gate-1' as ApprovalRequestId,
     requestRecordId: 'AIS-00000001' as RecordId,
@@ -293,7 +319,9 @@ export function buildRelationship(overrides: Partial<RelationshipDto> = {}): Rel
 }
 
 /** One relationship-driven link row (S4/S5 side panel + relationship-driven tab). */
-export function buildRelationshipLink(overrides: Partial<RelationshipLinkDto> = {}): RelationshipLinkDto {
+export function buildRelationshipLink(
+  overrides: Partial<RelationshipLinkDto> = {},
+): RelationshipLinkDto {
   return {
     id: '00000000-0000-0000-0000-0000000000l1',
     relationshipId: '00000000-0000-0000-0000-0000000000r1' as RelationshipId,
@@ -334,6 +362,26 @@ export function buildInvitation(overrides: Partial<WorkspaceMemberDto> = {}): Wo
     invitationId: '00000000-0000-0000-0000-0000000000f1',
     ...overrides,
   });
+}
+
+/** One S30 Objects-tab row. Defaults to an editable custom object. */
+export function buildObjectDefinition(
+  overrides: Partial<ObjectDefinitionDto> = {},
+): ObjectDefinitionDto {
+  return {
+    id: '00000000-0000-0000-0000-0000000000d1',
+    workspaceId: 'ws-1' as WorkspaceId,
+    name: 'Vendor',
+    pluralLabel: 'Vendors',
+    location: 'LocalWorkspace',
+    description: 'A third-party supplier.',
+    showInSidebar: true,
+    sidebarCategory: 'Reference',
+    recordsCount: 0,
+    fieldsCount: 0,
+    isSystem: false,
+    ...overrides,
+  };
 }
 
 interface ProviderOptions {

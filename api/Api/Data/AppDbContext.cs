@@ -163,6 +163,12 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Toolkit.ToolkitWorkspaceRow>()
             .HasNoKey().ToView((string?)null);
 
+        // Objects tab (S30) — keyless projections read via stored procedures.
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Objects.ObjectDefinitionRow>()
+            .HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Objects.ObjectRecordCountsRow>()
+            .HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

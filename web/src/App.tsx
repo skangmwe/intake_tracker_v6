@@ -49,6 +49,7 @@ import '@/mws/app-shell.css';
 import '@/features/home/home.css';
 import '@/features/announcements/announcements.css';
 import '@/features/fields/fields.css';
+import '@/features/objects/objects.css';
 import '@/features/lifecycle/lifecycle.css';
 import '@/features/requests/requests.css';
 import '@/features/features/features.css';

@@ -22,3 +22,6 @@ export const IMPORT_POLL_INTERVAL_MS = 2000;
 
 /** Page size for the S33 workspace audit log (BS §12). */
 export const AUDIT_LOG_PAGE_SIZE = 25;
+
+/** Page size for the S30 Objects tab list. Large enough that the small object set fits one page. */
+export const OBJECTS_PAGE_SIZE = 25;

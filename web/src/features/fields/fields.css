@@ -11,6 +11,58 @@
   margin-bottom: var(--space-5);
 }
 
+.fields-eyebrow {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+/* S30 Fields / Objects / Relationships segmented tab bar (bordered group with leading icons). */
+.fields-tabbar {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: var(--space-5);
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.fields-tabbar__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px var(--space-4);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+  border: none;
+  border-left: 1px solid var(--border-light);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fields-tabbar__tab:first-child {
+  border-left: none;
+}
+
+.fields-tabbar__tab:hover {
+  color: var(--accent-interactive);
+}
+
+.fields-tabbar__tab--active {
+  background: color-mix(in srgb, var(--accent-interactive) 8%, transparent);
+  color: var(--accent-interactive);
+  font-weight: 600;
+}
+
+.fields-tabbar__tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
 .fields-inline-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
