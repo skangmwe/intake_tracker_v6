@@ -24,6 +24,12 @@ import {
   type TableColumn,
   type TableRow,
 } from '@/shared/components/Table';
+import {
+  KanbanView,
+  ViewModeToggle,
+  type RecordViewItem,
+  type RecordViewKind,
+} from '@/shared/components/RecordViews';
 import { agingTintClass } from '@/shared/components/Feedback';
 import { EmptyListFilteredToZero, EmptyListZeroData } from '@/shared/components/EdgeStates';
 import { useMe } from '@/features/users/useMe';
@@ -244,6 +250,48 @@ function toTableRow(row: RequestListRow, onOpen: () => void): TableRow {
   };
 }
 
+/** Layouts offered on the Requests surface (Slice 24 — S24). Table + Board only; the date/gallery
+ *  layouts are scoped to Dashboards, not Requests. */
+const REQUEST_VIEW_KINDS: RecordViewKind[] = ['table', 'kanban'];
+
+function slaBadges(sla: SlaStatus | undefined): RecordViewItem['badges'] {
+  if (sla === 'Overdue') return [{ label: 'Overdue', tone: 'error' }];
+  if (sla === 'DueSoon') return [{ label: 'Due soon', tone: 'warning' }];
+  return undefined;
+}
+
+/** Row → normalised board item (Slice 24). Grouped by Stage into kanban columns. */
+function toViewItem(row: RequestListRow, onOpen: () => void): RecordViewItem {
+  const columns = row.columns;
+  return {
+    id: row.id,
+    title: cellText(columns.name),
+    subtitle: columns.desc ? cellText(columns.desc) : undefined,
+    groupValue: cellText(columns.stage),
+    badges: slaBadges(row.slaStatus),
+    meta: [
+      { label: 'ID', value: cellText(columns.id) },
+      { label: 'Dept/PG/Client', value: cellText(columns.origin) },
+      { label: 'Analyst', value: cellText(columns.analyst) },
+    ],
+    onOpen,
+  };
+}
+
+/** Distinct stage values from the loaded rows, in first-seen order — the kanban column order. */
+function deriveStageOrder(rows: RequestListRow[]): string[] {
+  const order: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const stage = cellText(row.columns.stage);
+    if (!seen.has(stage)) {
+      seen.add(stage);
+      order.push(stage);
+    }
+  }
+  return order;
+}
+
 /** Repo URL rollup cell (slice 7) — the first task-level URL field, rendered as a monospace link. */
 function RepoCell({ value }: { value: unknown }) {
   if (typeof value !== 'string' || value.trim() === '') {
@@ -286,6 +334,7 @@ export function RequestsListPage() {
   const [filters, setFilters] = useState<Record<string, FilterClause>>({});
   const [sort, setSort] = useState<SortState | undefined>(undefined);
   const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState<RecordViewKind>('table');
   const [editor, setEditor] = useState<{
     editingView: SavedViewDto | null;
     initialTab: 'filters' | 'fields' | 'sort';
@@ -405,6 +454,14 @@ export function RequestsListPage() {
           {exportView.isPending ? 'Exporting…' : 'Export view'}
         </Button>
       }
+      layoutSlot={
+        <ViewModeToggle
+          available={REQUEST_VIEW_KINDS}
+          active={viewMode}
+          onChange={setViewMode}
+          label="Requests layout"
+        />
+      }
       filters={activePills}
       onClearAll={clearAllFilters}
       primaryAction={
@@ -478,14 +535,24 @@ export function RequestsListPage() {
         </div>
       ) : (
         <div className="requests-list-page__grid list-surface__body">
-          <TableShell
-            caption="Requests"
-            columns={COLUMNS}
-            rows={rows.map((row) => toTableRow(row, () => navigate(`/requests/${row.id}`)))}
-            sort={sort}
-            onSortChange={onSortChange}
-            renderFilter={renderFilter}
-          />
+          {viewMode === 'table' ? (
+            <TableShell
+              caption="Requests"
+              columns={COLUMNS}
+              rows={rows.map((row) => toTableRow(row, () => navigate(`/requests/${row.id}`)))}
+              sort={sort}
+              onSortChange={onSortChange}
+              renderFilter={renderFilter}
+            />
+          ) : (
+            // Board renders the current page's rows grouped by stage. Pagination stays, so the board
+            // shows the same access-filtered page the table would.
+            <KanbanView
+              items={rows.map((row) => toViewItem(row, () => navigate(`/requests/${row.id}`)))}
+              groupOrder={deriveStageOrder(rows)}
+              caption="Requests by stage"
+            />
+          )}
           <TableFooter
             page={page}
             totalPages={totalPages}

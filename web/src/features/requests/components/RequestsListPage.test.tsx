@@ -1,5 +1,5 @@
 import { axe } from 'jest-axe';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { PaginatedResponse, RequestListRow } from '@shared/types';
@@ -296,6 +296,60 @@ describe('RequestsListPage', () => {
     // Assert — the row still renders; the due cell falls back to an em-dash.
     expect(screen.getByText('AIS-00000001')).toBeInTheDocument();
     expect(container.querySelectorAll('[role="cell"]').length).toBeGreaterThan(0);
+  });
+
+  it('RequestsListPage — offers only Table and Board layouts (date/gallery are Dashboards-only)', () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()]) });
+
+    // Act
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert — the Requests layout toggle exposes Table + Board and nothing else.
+    const toggle = screen.getByRole('group', { name: 'Requests layout' });
+    expect(within(toggle).getByRole('button', { name: 'Table' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(toggle).getByRole('button', { name: 'Board' })).toBeInTheDocument();
+    expect(within(toggle).queryByRole('button', { name: 'Timeline' })).not.toBeInTheDocument();
+    expect(within(toggle).queryByRole('button', { name: 'Agenda' })).not.toBeInTheDocument();
+    expect(within(toggle).queryByRole('button', { name: 'Gallery' })).not.toBeInTheDocument();
+  });
+
+  it('RequestsListPage — switching to Board groups rows into stage columns and drops the table', async () => {
+    // Arrange — two rows in different stages ⇒ two board columns.
+    const intake = buildRequestListRow();
+    const triage = {
+      ...intake,
+      id: 'AIS-00000002',
+      columns: { ...intake.columns, id: 'AIS-00000002', name: 'Contract clause finder', stage: 'triage' },
+    };
+    mockHooks({ data: page([intake, triage] as never) });
+
+    // Act
+    const { container } = renderWithProviders(<RequestsListPage />, { route: '/requests' });
+    await userEvent.click(screen.getByRole('button', { name: 'Board' }));
+
+    // Assert — the board renders a labelled column per stage; the table grid is gone.
+    expect(screen.getByRole('button', { name: 'Board' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('region', { name: 'intake (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'triage (1)' })).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RequestsListPage — a Board card opens its record', async () => {
+    // Arrange
+    mockHooks({ data: page([buildRequestListRow()]) });
+
+    // Act
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+    await userEvent.click(screen.getByRole('button', { name: 'Board' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Meeting-notes action extraction' }));
+
+    // Assert
+    expect(mockNavigate).toHaveBeenCalledWith('/requests/AIS-00000001');
   });
 });
 
