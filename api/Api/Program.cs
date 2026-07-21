@@ -170,6 +170,16 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Notifications.INotifi
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Announcements.IAnnouncementsService,
     McDermott.AiTracker.Api.Modules.Announcements.AnnouncementsService>();
 
+// ─── Announcements scheduler (reconciliation slice 2) — a ~60s in-process sweep of usp_TickAnnouncements
+//     that catches up the stored lifecycle (Scheduled→Published, Published→auto-Archived) between requests
+//     and fans out each scheduled publish through the shared event-spine path (same in-process precedent as
+//     ImportProcessor / notification fan-out — the dev/test stack has no Service Bus). ─
+builder.Services.Configure<McDermott.AiTracker.Api.Modules.Announcements.AnnouncementSchedulerOptions>(
+    builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.Announcements.AnnouncementSchedulerOptions.SectionName));
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Announcements.IAnnouncementTickGateway,
+    McDermott.AiTracker.Api.Modules.Announcements.AnnouncementTickGateway>();
+builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.Announcements.AnnouncementSchedulerService>();
+
 // ─── Feature Catalog + Saved views (slice 14) — Features depends on Requests / Drafts / TypedLinks
 //     (all registered above); Saved views is presentation metadata over the list surfaces ─
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Features.IFeaturesService,

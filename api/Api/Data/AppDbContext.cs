@@ -105,6 +105,8 @@ public sealed class AppDbContext : DbContext
         // Slice 13 (Announcements) — keyless projections read via stored procedures.
         modelBuilder.Entity<AnnouncementRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<AnnouncementListRowEntity>().HasNoKey().ToView((string?)null);
+        // Announcements scheduler (slice 2) — the newly-published rows returned by usp_TickAnnouncements.
+        modelBuilder.Entity<AnnouncementTickRow>().HasNoKey().ToView((string?)null);
 
         // Slice 14 (Feature Catalog + Saved views) — keyless projections read via stored procedures.
         modelBuilder.Entity<FeatureRow>().HasNoKey().ToView((string?)null);
