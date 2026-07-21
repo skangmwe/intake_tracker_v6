@@ -1,26 +1,39 @@
-// S29 Approver teams panel — a read-only view of the per-workspace approver-team roster (the groups
-// that fill gate slots across every lifecycle). Editing still lives under Lifecycle & gates today, so
-// this panel links there via "Manage teams"; a later slice moves the editor here (blueprint S29/S31).
-// The roster is read through the workspace lifecycle config — the only place it is currently exposed.
+// S29 Approver teams editor — the per-workspace approver-team roster plus full team management
+// (create / rename / delete a team, add / remove members). A "team" is a firm-wide role label, so
+// create/rename/delete edit the shared catalog (WorkspaceAdmin; the API authorizes). The roster and
+// the "Fills N gate slots" usage are read from the workspace lifecycle config; each team card owns
+// its own member/rename/delete interactions. The three non-data states are rendered explicitly
+// (web-component-architecture.md).
 
-import { Link } from 'react-router-dom';
-import { UsersThree } from '@phosphor-icons/react';
+import { useMemo, useState } from 'react';
+import { Plus } from '@phosphor-icons/react';
 
 import type { WorkspaceId } from '@shared/types';
 
-import { useLifecycleConfig } from '@/features/lifecycle';
+import { Button } from '@/shared/components/Button';
+import { useCreateApproverTeam, useLifecycleConfig } from '@/features/lifecycle';
+import { problemMessage } from '@/shared/http/problemMessage';
+
+import { ApproverTeamCard } from './ApproverTeamCard';
 
 export function ApproverTeamsPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
   const { data: config, isLoading, isError } = useLifecycleConfig(workspaceId);
+  const [teamName, setTeamName] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
+  const createTeam = useCreateApproverTeam(workspaceId);
 
-  const manageLink = (
-    <p className="users-access__teams-note">
-      Approver teams are edited under Lifecycle &amp; gates.{' '}
-      <Link className="mws-link" to="/admin/lifecycle">
-        Manage teams
-      </Link>
-    </p>
-  );
+  // Gate-slot usage per role label — how many gate slots across all lifecycles each team fills.
+  const gateUsesByRole = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const lifecycle of config?.lifecycles ?? []) {
+      for (const gate of lifecycle.gates) {
+        for (const slot of gate.slots) {
+          counts.set(slot.roleLabel, (counts.get(slot.roleLabel) ?? 0) + 1);
+        }
+      }
+    }
+    return counts;
+  }, [config]);
 
   if (isLoading) {
     return (
@@ -42,40 +55,71 @@ export function ApproverTeamsPanel({ workspaceId }: { workspaceId: WorkspaceId }
     );
   }
 
-  if (config.approverTeams.length === 0) {
-    return (
-      <div className="users-access__panel">
-        <p className="users-access__empty">No approver teams yet.</p>
-        {manageLink}
-      </div>
+  const submitCreate = () => {
+    const label = teamName.trim();
+    if (label === '') return;
+    createTeam.mutate(
+      { label },
+      {
+        onSuccess: () => {
+          setTeamName('');
+          setCreateError(null);
+        },
+        onError: (mutationError) => setCreateError(problemMessage(mutationError)),
+      },
     );
-  }
+  };
 
   return (
-    <div className="users-access__panel">
-      {manageLink}
-      <ul className="users-access__teams" aria-label="Approver teams">
+    <div className="approver-teams">
+      <div className="approver-teams__create">
+        <label className="approver-teams__create-field">
+          <span className="approver-teams__create-label">New approver team</span>
+          <input
+            className="mws-input"
+            data-ds="input"
+            type="text"
+            value={teamName}
+            placeholder="Team name — e.g. Model Risk"
+            aria-label="New approver team name"
+            onChange={(event) => setTeamName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                submitCreate();
+              }
+            }}
+          />
+        </label>
+        <Button
+          variant="primary"
+          onClick={submitCreate}
+          disabled={teamName.trim() === '' || createTeam.isPending}
+        >
+          <Plus size={16} aria-hidden /> Add team
+        </Button>
+      </div>
+
+      {createError && (
+        <p className="mws-alert mws-alert--error approver-teams__error" role="alert">
+          {createError}
+        </p>
+      )}
+
+      <p className="approver-teams__note">
+        Approver teams are the groups that fill gate slots across every lifecycle. On a request, an
+        approver picks their own name from their team. Members here also need workspace access on the
+        Members tab to file their approvals.
+      </p>
+
+      <ul className="approver-teams__list" aria-label="Approver teams">
         {config.approverTeams.map((team) => (
-          <li className="users-access__team" key={team.roleLabel}>
-            <div className="users-access__team-head">
-              <UsersThree size={16} aria-hidden />
-              <span className="users-access__team-role">{team.roleLabel}</span>
-              <span className="users-access__team-count">
-                {team.members.length} {team.members.length === 1 ? 'member' : 'members'}
-              </span>
-            </div>
-            {team.members.length > 0 ? (
-              <ul className="users-access__team-members" aria-label={`${team.roleLabel} members`}>
-                {team.members.map((member) => (
-                  <li className="users-access__team-member" key={member.userId}>
-                    {member.displayName}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="users-access__team-empty">No members yet</p>
-            )}
-          </li>
+          <ApproverTeamCard
+            key={team.roleLabelId ?? team.roleLabel}
+            workspaceId={workspaceId}
+            team={team}
+            gateUses={gateUsesByRole.get(team.roleLabel) ?? 0}
+          />
         ))}
       </ul>
     </div>

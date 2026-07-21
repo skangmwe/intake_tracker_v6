@@ -186,21 +186,44 @@ public sealed class LifecycleServiceTests
     public void BuildApproverTeams_SurfacesRetiredLabelWithLiveMembers()
     {
         // Arrange — a member still sits under a role label that is no longer in the catalog.
-        var roleLabels = new[] { new RoleLabelRow { RoleLabelId = Guid.NewGuid(), Label = "InfoSec", SortOrder = 0 } };
+        var catalogId = Guid.NewGuid();
+        var roleLabels = new[] { new RoleLabelRow { RoleLabelId = catalogId, Label = "InfoSec", SortOrder = 0 } };
         var members = new[]
         {
-            new ApproverTeamMemberRow { RoleLabel = "GCO", UserId = Guid.NewGuid(), DisplayName = "R. Osei" },
+            new ApproverTeamMemberRow { RoleLabel = "GCO", UserId = Guid.NewGuid(), DisplayName = "R. Osei", Email = "r.osei@example.com" },
         };
 
         // Act
         var teams = LifecycleService.BuildApproverTeams(roleLabels, members);
 
-        // Assert — catalog label first (empty), then the retired label carrying its member.
+        // Assert — catalog label first (empty, carries its id), then the retired label carrying its member.
         Assert.Equal(2, teams.Count);
         Assert.Equal("InfoSec", teams[0].RoleLabel);
+        Assert.Equal(catalogId, teams[0].RoleLabelId);
         Assert.Empty(teams[0].Members);
         Assert.Equal("GCO", teams[1].RoleLabel);
+        // A retired label (members but no catalog row) has no id — the editor cannot rename / retire it.
+        Assert.Null(teams[1].RoleLabelId);
         Assert.Single(teams[1].Members);
+    }
+
+    [Fact]
+    public void BuildApproverTeams_MapsMemberDisplayNameAndEmail()
+    {
+        // Arrange
+        var roleLabels = new[] { new RoleLabelRow { RoleLabelId = Guid.NewGuid(), Label = "InfoSec", SortOrder = 0 } };
+        var members = new[]
+        {
+            new ApproverTeamMemberRow { RoleLabel = "InfoSec", UserId = Guid.NewGuid(), DisplayName = "Priya Raman", Email = "priya.raman@example.com" },
+        };
+
+        // Act
+        var team = Assert.Single(LifecycleService.BuildApproverTeams(roleLabels, members));
+
+        // Assert — the roster row carries both the display name and the email for the S29 member rows.
+        var member = Assert.Single(team.Members);
+        Assert.Equal("Priya Raman", member.DisplayName);
+        Assert.Equal("priya.raman@example.com", member.Email);
     }
 
     [Fact]

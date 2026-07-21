@@ -4,6 +4,7 @@
 // (api-testing-guidelines.md).
 
 using McDermott.AiTracker.Api.Modules.Lifecycle;
+using McDermott.AiTracker.Api.Modules.PlatformAdmin;
 using McDermott.AiTracker.Api.Shared.Auth;
 using McDermott.AiTracker.Api.Shared.Middleware;
 using Microsoft.AspNetCore.Http;
@@ -21,7 +22,8 @@ public sealed class LifecycleControllerTests
     private static LifecycleController Build(
         Mock<ILifecycleService> lifecycle,
         bool isViewer = true,
-        bool isAdmin = true)
+        bool isAdmin = true,
+        Mock<IRoleLabelsService>? roleLabels = null)
     {
         var accessGuard = new Mock<IAccessGuard>();
         accessGuard.Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>())).ReturnsAsync(isViewer);
@@ -33,7 +35,8 @@ public sealed class LifecycleControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Items[OperationIdMiddleware.HeaderName] = "op-123";
 
-        return new LifecycleController(lifecycle.Object, accessGuard.Object, currentUser.Object)
+        return new LifecycleController(
+            lifecycle.Object, (roleLabels ?? new Mock<IRoleLabelsService>()).Object, accessGuard.Object, currentUser.Object)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
         };
@@ -240,6 +243,160 @@ public sealed class LifecycleControllerTests
         var result = await Build(lifecycle, isAdmin: false).RemoveApproverMember(WorkspaceId, request, CancellationToken.None);
         var problem = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
+    // ─── Team lifecycle (create / rename / delete a role label) ─────────────────
+
+    [Fact]
+    public async Task CreateApproverTeam_Success_Returns201()
+    {
+        // Arrange
+        var roleLabels = new Mock<IRoleLabelsService>();
+        var created = new RoleLabelResponse(Guid.NewGuid(), "Model Risk", 3);
+        roleLabels.Setup(service => service.CreateAsync("Model Risk", UserId, "op-123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RoleLabelWriteResult(RoleLabelWriteOutcome.Success, created));
+
+        // Act
+        var result = await Build(new Mock<ILifecycleService>(), roleLabels: roleLabels)
+            .CreateApproverTeam(WorkspaceId, new RoleLabelCreateRequest { Label = "Model Risk" }, CancellationToken.None);
+
+        // Assert
+        var response = Assert.IsType<CreatedResult>(result);
+        Assert.Same(created, response.Value);
+    }
+
+    [Fact]
+    public async Task CreateApproverTeam_Duplicate_Returns409()
+    {
+        // Arrange
+        var roleLabels = new Mock<IRoleLabelsService>();
+        roleLabels.Setup(service => service.CreateAsync(It.IsAny<string>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RoleLabelWriteResult(RoleLabelWriteOutcome.Duplicate));
+
+        // Act
+        var result = await Build(new Mock<ILifecycleService>(), roleLabels: roleLabels)
+            .CreateApproverTeam(WorkspaceId, new RoleLabelCreateRequest { Label = "GCO" }, CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateApproverTeam_Blank_Returns400()
+    {
+        // Arrange
+        var roleLabels = new Mock<IRoleLabelsService>();
+        roleLabels.Setup(service => service.CreateAsync(It.IsAny<string>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RoleLabelWriteResult(RoleLabelWriteOutcome.Blank));
+
+        // Act
+        var result = await Build(new Mock<ILifecycleService>(), roleLabels: roleLabels)
+            .CreateApproverTeam(WorkspaceId, new RoleLabelCreateRequest { Label = " " }, CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateApproverTeam_NotAdmin_Returns403()
+    {
+        // Arrange
+        var roleLabels = new Mock<IRoleLabelsService>();
+
+        // Act
+        var result = await Build(new Mock<ILifecycleService>(), isAdmin: false, roleLabels: roleLabels)
+            .CreateApproverTeam(WorkspaceId, new RoleLabelCreateRequest { Label = "Model Risk" }, CancellationToken.None);
+
+        // Assert — the write is never attempted when access is denied.
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        roleLabels.Verify(service => service.CreateAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RenameApproverTeam_Success_ReturnsOk()
+    {
+        // Arrange
+        var roleLabelId = Guid.NewGuid();
+        var roleLabels = new Mock<IRoleLabelsService>();
+        var renamed = new RoleLabelResponse(roleLabelId, "Contracts", 1);
+        roleLabels.Setup(service => service.RenameAsync(roleLabelId, "Contracts", UserId, "op-123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RoleLabelWriteResult(RoleLabelWriteOutcome.Success, renamed));
+
+        // Act
+        var result = await Build(new Mock<ILifecycleService>(), roleLabels: roleLabels)
+            .RenameApproverTeam(WorkspaceId, roleLabelId, new RoleLabelRenameRequest { Label = "Contracts" }, CancellationToken.None);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(renamed, ok.Value);
+    }
+
+    [Fact]
+    public async Task RenameApproverTeam_NotFound_Returns404()
+    {
+        // Arrange
+        var roleLabels = new Mock<IRoleLabelsService>();
+        roleLabels.Setup(service => service.RenameAsync(It.IsAny<Guid>(), It.IsAny<string>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RoleLabelWriteResult(RoleLabelWriteOutcome.NotFound));
+
+        // Act
+        var result = await Build(new Mock<ILifecycleService>(), roleLabels: roleLabels)
+            .RenameApproverTeam(WorkspaceId, Guid.NewGuid(), new RoleLabelRenameRequest { Label = "Contracts" }, CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status404NotFound, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task RenameApproverTeam_NotAdmin_Returns403()
+    {
+        // Arrange
+        var roleLabels = new Mock<IRoleLabelsService>();
+
+        // Act
+        var result = await Build(new Mock<ILifecycleService>(), isAdmin: false, roleLabels: roleLabels)
+            .RenameApproverTeam(WorkspaceId, Guid.NewGuid(), new RoleLabelRenameRequest { Label = "Contracts" }, CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        roleLabels.Verify(service => service.RenameAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteApproverTeam_Success_Returns204()
+    {
+        // Arrange
+        var roleLabelId = Guid.NewGuid();
+        var roleLabels = new Mock<IRoleLabelsService>();
+
+        // Act
+        var result = await Build(new Mock<ILifecycleService>(), roleLabels: roleLabels)
+            .DeleteApproverTeam(WorkspaceId, roleLabelId, CancellationToken.None);
+
+        // Assert
+        Assert.IsType<NoContentResult>(result);
+        roleLabels.Verify(service => service.RetireAsync(roleLabelId, UserId, "op-123", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteApproverTeam_NotAdmin_Returns403()
+    {
+        // Arrange
+        var roleLabels = new Mock<IRoleLabelsService>();
+
+        // Act
+        var result = await Build(new Mock<ILifecycleService>(), isAdmin: false, roleLabels: roleLabels)
+            .DeleteApproverTeam(WorkspaceId, Guid.NewGuid(), CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        roleLabels.Verify(service => service.RetireAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

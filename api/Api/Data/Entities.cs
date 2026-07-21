@@ -283,6 +283,8 @@ public sealed class ApproverTeamMemberRow
     public Guid UserId { get; set; }
     /// <summary>PII (display name). Presentation only — never logged.</summary>
     public string DisplayName { get; set; } = string.Empty;
+    /// <summary>PII (email). Presentation only (S29 Approver teams member rows) — never logged.</summary>
+    public string Email { get; set; } = string.Empty;
 }
 
 /// <summary>The resolved member returned by usp_AddApproverTeamMember.</summary>

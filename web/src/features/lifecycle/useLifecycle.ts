@@ -11,14 +11,19 @@ import type {
   LifecycleConfigDto,
   LifecycleConfigUpdateRequest,
   LifecycleSummaryDto,
+  RoleLabelCreateRequest,
+  RoleLabelRenameRequest,
   WorkspaceId,
 } from '@shared/types';
 
 import {
   addApproverMember,
+  createApproverTeam,
+  deleteApproverTeam,
   fetchLifecycleConfig,
   fetchWorkspaceLifecycles,
   removeApproverMember,
+  renameApproverTeam,
   saveLifecycleConfig,
 } from './api';
 
@@ -67,6 +72,34 @@ export function useRemoveApproverMember(workspaceId: WorkspaceId) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (request: ApproverTeamRemoveRequest) => removeApproverMember(workspaceId, request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: lifecycleConfigQueryKey(workspaceId) }),
+  });
+}
+
+// Team lifecycle (create / rename / delete). Each edits the firm-wide role-label catalog, so it
+// invalidates the config query the roster is drawn from.
+
+export function useCreateApproverTeam(workspaceId: WorkspaceId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: RoleLabelCreateRequest) => createApproverTeam(workspaceId, request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: lifecycleConfigQueryKey(workspaceId) }),
+  });
+}
+
+export function useRenameApproverTeam(workspaceId: WorkspaceId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: { roleLabelId: string; request: RoleLabelRenameRequest }) =>
+      renameApproverTeam(workspaceId, variables.roleLabelId, variables.request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: lifecycleConfigQueryKey(workspaceId) }),
+  });
+}
+
+export function useDeleteApproverTeam(workspaceId: WorkspaceId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (roleLabelId: string) => deleteApproverTeam(workspaceId, roleLabelId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: lifecycleConfigQueryKey(workspaceId) }),
   });
 }

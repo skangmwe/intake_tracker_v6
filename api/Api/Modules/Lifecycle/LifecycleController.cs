@@ -4,6 +4,7 @@
 // maps the service result to a status code (api-coding-standards.md — no business logic in
 // controllers). Access violations return 403, never 404 (api-error-handling.md).
 
+using McDermott.AiTracker.Api.Modules.PlatformAdmin;
 using McDermott.AiTracker.Api.Shared.Auth;
 using McDermott.AiTracker.Api.Shared.Middleware;
 using Microsoft.AspNetCore.Mvc;
@@ -15,12 +16,18 @@ namespace McDermott.AiTracker.Api.Modules.Lifecycle;
 public sealed class LifecycleController : ControllerBase
 {
     private readonly ILifecycleService _lifecycle;
+    private readonly IRoleLabelsService _roleLabels;
     private readonly IAccessGuard _accessGuard;
     private readonly ICurrentUser _currentUser;
 
-    public LifecycleController(ILifecycleService lifecycle, IAccessGuard accessGuard, ICurrentUser currentUser)
+    public LifecycleController(
+        ILifecycleService lifecycle,
+        IRoleLabelsService roleLabels,
+        IAccessGuard accessGuard,
+        ICurrentUser currentUser)
     {
         _lifecycle = lifecycle;
+        _roleLabels = roleLabels;
         _accessGuard = accessGuard;
         _currentUser = currentUser;
     }
@@ -141,6 +148,85 @@ public sealed class LifecycleController : ControllerBase
         return NoContent();
     }
 
+    // Team lifecycle (create / rename / retire) operates on the platform-scope role-label catalog:
+    // in this model a "team" IS a role label (BS §7.2), so a change here is firm-wide — every
+    // workspace's Approver-teams list draws from the same catalog. The workspace-admin surface is
+    // authorized here (WorkspaceAdmin); the write itself reuses IRoleLabelsService (no duplicated
+    // proc/error logic) which anchors its audit event to the platform audit workspace. Rename and
+    // retire are forward-only — existing rosters and past sign-offs keep their captured label.
+
+    /// <summary>Create a new approver team (adds a firm-wide role label). WorkspaceAdmin.</summary>
+    [HttpPost("approver-teams/labels")]
+    [ProducesResponseType(typeof(RoleLabelResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateApproverTeam(
+        [FromRoute] Guid workspaceId,
+        [FromBody] RoleLabelCreateRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.WorkspaceAdmin, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var result = await _roleLabels.CreateAsync(request.Label!, _currentUser.UserId, OperationId(), cancellationToken);
+        return result.Outcome switch
+        {
+            RoleLabelWriteOutcome.Success => Created(
+                $"/api/v1/workspaces/{workspaceId}/approver-teams/labels/{result.Label!.RoleLabelId}", result.Label),
+            RoleLabelWriteOutcome.Duplicate => ConflictProblem("A team with that name already exists."),
+            _ => BadRequestProblem("A team name cannot be blank."),
+        };
+    }
+
+    /// <summary>Rename an approver team (forward-only — history keeps its captured label). WorkspaceAdmin.</summary>
+    [HttpPatch("approver-teams/labels/{roleLabelId:guid}")]
+    [ProducesResponseType(typeof(RoleLabelResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RenameApproverTeam(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid roleLabelId,
+        [FromBody] RoleLabelRenameRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.WorkspaceAdmin, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var result = await _roleLabels.RenameAsync(roleLabelId, request.Label!, _currentUser.UserId, OperationId(), cancellationToken);
+        return result.Outcome switch
+        {
+            RoleLabelWriteOutcome.Success => Ok(result.Label),
+            RoleLabelWriteOutcome.Duplicate => ConflictProblem("A team with that name already exists."),
+            RoleLabelWriteOutcome.NotFound => NotFoundProblem("That team does not exist."),
+            _ => BadRequestProblem("A team name cannot be blank."),
+        };
+    }
+
+    /// <summary>Delete (retire) an approver team — forward-only, idempotent. WorkspaceAdmin.</summary>
+    [HttpDelete("approver-teams/labels/{roleLabelId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> DeleteApproverTeam(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid roleLabelId,
+        CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.WorkspaceAdmin, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        await _roleLabels.RetireAsync(roleLabelId, _currentUser.UserId, OperationId(), cancellationToken);
+        return NoContent();
+    }
+
     private string OperationId() =>
         HttpContext.Items.TryGetValue(OperationIdMiddleware.HeaderName, out var value) && value is string operationId
             ? operationId
@@ -156,6 +242,32 @@ public sealed class LifecycleController : ControllerBase
         })
         {
             StatusCode = StatusCodes.Status400BadRequest,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    private ObjectResult ConflictProblem(string detail) =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/conflict",
+            Title = "The request conflicts with the current state.",
+            Status = StatusCodes.Status409Conflict,
+            Detail = detail,
+        })
+        {
+            StatusCode = StatusCodes.Status409Conflict,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    private ObjectResult NotFoundProblem(string detail) =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/not-found",
+            Title = "The requested resource was not found.",
+            Status = StatusCodes.Status404NotFound,
+            Detail = detail,
+        })
+        {
+            StatusCode = StatusCodes.Status404NotFound,
             ContentTypes = { "application/problem+json" },
         };
 

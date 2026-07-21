@@ -1,34 +1,60 @@
-// ApproverTeamsPanel — the read-only approver-teams roster on S29. The workspace lifecycle config
-// read is the panel's only dependency, so it is mocked at the @/features/lifecycle boundary and
-// driven through its loading / error / empty / roster states. jest-axe runs against each state
-// (web-testing.md accessibility requirement). The "Manage teams" link is asserted in the loaded state.
+// ApproverTeamsPanel — the S29 Approver-teams editor shell. Drives the loading / error / loaded
+// states, the create-team bar (disabled-when-empty, success clears the field, error surfaces an
+// alert), and that one card renders per team. The child ApproverTeamCard is mocked here — its own
+// interactions live in ApproverTeamCard.test.tsx. jest-axe runs against each rendered state
+// (web-testing.md accessibility requirement).
 
 import { axe } from 'jest-axe';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { UseQueryResult } from '@tanstack/react-query';
 
-import type { LifecycleConfigDto, UserId } from '@shared/types';
+import type { LifecycleConfigDto, ProblemDetails } from '@shared/types';
 
 import { buildLifecycleConfig, buildMembership, renderWithProviders } from '@/test-utils';
 
-import { useLifecycleConfig } from '@/features/lifecycle';
+import { useCreateApproverTeam, useLifecycleConfig } from '@/features/lifecycle';
+import { ApiError } from '@/shared/http/apiClient';
 
 import { ApproverTeamsPanel } from './ApproverTeamsPanel';
 
-jest.mock('@/features/lifecycle', () => ({ useLifecycleConfig: jest.fn() }));
+// Focus the panel: stub the card so we don't pull in its four mutation hooks.
+jest.mock('./ApproverTeamCard', () => ({
+  ApproverTeamCard: ({ team, gateUses }: { team: { roleLabel: string }; gateUses: number }) => (
+    <li data-testid="team-card">
+      {team.roleLabel} · {gateUses}
+    </li>
+  ),
+}));
+
+jest.mock('@/features/lifecycle', () => ({
+  useLifecycleConfig: jest.fn(),
+  useCreateApproverTeam: jest.fn(),
+}));
+
 const mockedConfig = useLifecycleConfig as jest.MockedFunction<typeof useLifecycleConfig>;
+const mockedCreate = useCreateApproverTeam as jest.MockedFunction<typeof useCreateApproverTeam>;
 
 const workspaceId = buildMembership().workspaceId;
 
-// The panel reads only data / isLoading / isError from the query result — a partial stub is enough.
-// Cast is required because the real UseQueryResult union has ~20 discriminated members we don't set.
-function queryStub(
-  partial: Partial<UseQueryResult<LifecycleConfigDto>>,
-): UseQueryResult<LifecycleConfigDto> {
+function queryStub(partial: Partial<UseQueryResult<LifecycleConfigDto>>): UseQueryResult<LifecycleConfigDto> {
   return partial as UseQueryResult<LifecycleConfigDto>;
 }
 
-beforeEach(() => jest.clearAllMocks());
+// A create-team mutation stub whose `mutate` invokes the caller's onSuccess/onError callback.
+function createStub(behaviour: 'success' | { error: ApiError } = 'success') {
+  const mutate = jest.fn((_vars: unknown, opts?: { onSuccess?: () => void; onError?: (error: unknown) => void }) => {
+    if (behaviour === 'success') opts?.onSuccess?.();
+    else opts?.onError?.(behaviour.error);
+  });
+  mockedCreate.mockReturnValue({ mutate, isPending: false } as unknown as ReturnType<typeof useCreateApproverTeam>);
+  return mutate;
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  createStub('success');
+});
 
 describe('ApproverTeamsPanel', () => {
   it('ApproverTeamsPanel — config loading — shows the loading state', async () => {
@@ -55,26 +81,16 @@ describe('ApproverTeamsPanel', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('ApproverTeamsPanel — no teams — shows the empty state and the manage link', async () => {
-    // Arrange
-    mockedConfig.mockReturnValue(
-      queryStub({ data: buildLifecycleConfig({ approverTeams: [] }), isLoading: false, isError: false }),
-    );
-
-    // Act
-    const { container } = renderWithProviders(<ApproverTeamsPanel workspaceId={workspaceId} />);
-
-    // Assert
-    expect(screen.getByText(/no approver teams yet/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /manage teams/i })).toHaveAttribute('href', '/admin/lifecycle');
-    expect(await axe(container)).toHaveNoViolations();
-  });
-
-  it('ApproverTeamsPanel — team with no members — shows the per-team empty note', async () => {
+  it('ApproverTeamsPanel — loaded — renders the create bar, the note, and one card per team', async () => {
     // Arrange
     mockedConfig.mockReturnValue(
       queryStub({
-        data: buildLifecycleConfig({ approverTeams: [{ roleLabel: 'GCO', members: [] }] }),
+        data: buildLifecycleConfig({
+          approverTeams: [
+            { roleLabel: 'InfoSec', roleLabelId: 'r1', members: [] },
+            { roleLabel: 'GCO', roleLabelId: 'r2', members: [] },
+          ],
+        }),
         isLoading: false,
         isError: false,
       }),
@@ -84,32 +100,69 @@ describe('ApproverTeamsPanel', () => {
     const { container } = renderWithProviders(<ApproverTeamsPanel workspaceId={workspaceId} />);
 
     // Assert
-    expect(screen.getByText('GCO')).toBeInTheDocument();
-    expect(screen.getByText(/no members yet/i)).toBeInTheDocument();
-    expect(screen.getByText('0 members')).toBeInTheDocument();
+    expect(screen.getByText('New approver team')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add team/i })).toBeInTheDocument();
+    expect(screen.getByText(/groups that fill gate slots/i)).toBeInTheDocument();
+    expect(screen.getAllByTestId('team-card')).toHaveLength(2);
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('ApproverTeamsPanel — teams present — lists each role with its members and a manage link', async () => {
+  it('ApproverTeamsPanel — Add team disabled until a name is typed', async () => {
     // Arrange
-    const config = buildLifecycleConfig({
-      approverTeams: [
-        {
-          roleLabel: 'GCO',
-          members: [{ userId: '00000000-0000-0000-0000-0000000000a1' as UserId, displayName: 'Ada Byron' }],
-        },
-      ],
-    });
-    mockedConfig.mockReturnValue(queryStub({ data: config, isLoading: false, isError: false }));
+    mockedConfig.mockReturnValue(
+      queryStub({ data: buildLifecycleConfig({ approverTeams: [] }), isLoading: false, isError: false }),
+    );
+    const user = userEvent.setup();
 
     // Act
-    const { container } = renderWithProviders(<ApproverTeamsPanel workspaceId={workspaceId} />);
+    renderWithProviders(<ApproverTeamsPanel workspaceId={workspaceId} />);
+
+    // Assert — empty → disabled; typing enables it.
+    expect(screen.getByRole('button', { name: /add team/i })).toBeDisabled();
+    await user.type(screen.getByLabelText('New approver team name'), 'Model Risk');
+    expect(screen.getByRole('button', { name: /add team/i })).toBeEnabled();
+  });
+
+  it('ApproverTeamsPanel — create success — calls the mutation and clears the field', async () => {
+    // Arrange
+    mockedConfig.mockReturnValue(
+      queryStub({ data: buildLifecycleConfig({ approverTeams: [] }), isLoading: false, isError: false }),
+    );
+    const mutate = createStub('success');
+    const user = userEvent.setup();
+    renderWithProviders(<ApproverTeamsPanel workspaceId={workspaceId} />);
+    const input = screen.getByLabelText('New approver team name');
+
+    // Act
+    await user.type(input, 'Model Risk');
+    await user.click(screen.getByRole('button', { name: /add team/i }));
 
     // Assert
-    expect(screen.getByText('GCO')).toBeInTheDocument();
-    expect(screen.getByText('Ada Byron')).toBeInTheDocument();
-    expect(screen.getByText('1 member')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /manage teams/i })).toHaveAttribute('href', '/admin/lifecycle');
+    expect(mutate).toHaveBeenCalledWith({ label: 'Model Risk' }, expect.anything());
+    expect(input).toHaveValue('');
+  });
+
+  it('ApproverTeamsPanel — create conflict — surfaces the API error message', async () => {
+    // Arrange
+    mockedConfig.mockReturnValue(
+      queryStub({ data: buildLifecycleConfig({ approverTeams: [] }), isLoading: false, isError: false }),
+    );
+    const problem: ProblemDetails = {
+      type: 'https://mws.ai/errors/conflict',
+      title: 'The request conflicts with the current state.',
+      status: 409,
+      detail: 'A team with that name already exists.',
+    };
+    createStub({ error: new ApiError(409, problem) });
+    const user = userEvent.setup();
+    const { container } = renderWithProviders(<ApproverTeamsPanel workspaceId={workspaceId} />);
+
+    // Act
+    await user.type(screen.getByLabelText('New approver team name'), 'GCO');
+    await user.click(screen.getByRole('button', { name: /add team/i }));
+
+    // Assert
+    expect(screen.getByRole('alert')).toHaveTextContent(/already exists/i);
     expect(await axe(container)).toHaveNoViolations();
   });
 });

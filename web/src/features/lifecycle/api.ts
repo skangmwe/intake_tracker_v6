@@ -7,6 +7,9 @@ import type {
   LifecycleConfigDto,
   LifecycleConfigUpdateRequest,
   LifecycleSummaryDto,
+  RoleLabelCreateRequest,
+  RoleLabelDto,
+  RoleLabelRenameRequest,
   WorkspaceId,
 } from '@shared/types';
 
@@ -46,4 +49,35 @@ export function removeApproverMember(
   request: ApproverTeamRemoveRequest,
 ): Promise<void> {
   return apiFetch<void>(`/v1/workspaces/${workspaceId}/approver-teams`, { method: 'DELETE', body: request });
+}
+
+// Team lifecycle — create / rename / delete a role label (a "team"). These edit the firm-wide
+// role-label catalog (a team IS a role label); the API authorizes WorkspaceAdmin. Rename and delete
+// are forward-only — existing rosters and past sign-offs keep their captured label.
+
+export function createApproverTeam(
+  workspaceId: WorkspaceId,
+  request: RoleLabelCreateRequest,
+): Promise<RoleLabelDto> {
+  return apiFetch<RoleLabelDto>(`/v1/workspaces/${workspaceId}/approver-teams/labels`, {
+    method: 'POST',
+    body: request,
+  });
+}
+
+export function renameApproverTeam(
+  workspaceId: WorkspaceId,
+  roleLabelId: string,
+  request: RoleLabelRenameRequest,
+): Promise<RoleLabelDto> {
+  return apiFetch<RoleLabelDto>(`/v1/workspaces/${workspaceId}/approver-teams/labels/${roleLabelId}`, {
+    method: 'PATCH',
+    body: request,
+  });
+}
+
+export function deleteApproverTeam(workspaceId: WorkspaceId, roleLabelId: string): Promise<void> {
+  return apiFetch<void>(`/v1/workspaces/${workspaceId}/approver-teams/labels/${roleLabelId}`, {
+    method: 'DELETE',
+  });
 }
