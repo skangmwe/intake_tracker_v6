@@ -62,7 +62,9 @@ export function WorkspaceSwitcher({ memberships }: WorkspaceSwitcherProps) {
               ) : (
                 <span aria-hidden className="ast-ws-menu__item-spacer" />
               )}
-              <span className="ast-ws-menu__item-name">{membership.workspaceName}</span>
+              <span className="ast-ws-menu__item-name" title={membership.workspaceName}>
+                {membership.workspaceName}
+              </span>
               <span className="ast-ws-menu__item-kind">{KIND_LABEL[membership.workspaceKind]}</span>
             </button>
           ))}
