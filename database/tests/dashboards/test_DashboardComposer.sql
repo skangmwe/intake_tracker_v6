@@ -112,9 +112,9 @@ BEGIN
     DECLARE @Today DATE = '2026-07-19';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, DeptPgClient, AssignedAnalyst, PriorityScore, DueDate, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'build', N'Finance', N'Priya', 7, '2026-07-10', N'{}', 0, N's', N's'), -- open, assigned, high, overdue
-           (N'AIS-2', @Ws, @Lc, N'build', N'Finance', NULL,     2, '2026-08-01', N'{}', 0, N's', N's'), -- open, unassigned
-           (N'AIS-3', @Ws, @Lc, N'build', N'Finance', N'Priya', 6, NULL,        N'{"outcome":"Live"}', 0, N's', N's'); -- closed → excluded
+    VALUES (N'AIS-1', @Ws, @Lc, N'execution', N'Finance', N'Priya', 7, '2026-07-10', N'{}', 0, N's', N's'), -- open, assigned, high, overdue
+           (N'AIS-2', @Ws, @Lc, N'execution', N'Finance', NULL,     2, '2026-08-01', N'{}', 0, N's', N's'), -- open, unassigned
+           (N'AIS-3', @Ws, @Lc, N'execution', N'Finance', N'Priya', 6, NULL,        N'{"outcome":"Live"}', 0, N's', N's'); -- closed → excluded
 
     -- Act + Assert — count
     CREATE TABLE #C (Cnt INT);
@@ -152,9 +152,9 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, DeptPgClient, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'build', N'Finance',    N'{}', 0, N's', N's'),
-           (N'AIS-2', @Ws, @Lc, N'build', N'Litigation', N'{}', 0, N's', N's'),
-           (N'AIS-3', @Ws, @Lc, N'build', N'Finance',    N'{}', 0, N's', N's');
+    VALUES (N'AIS-1', @Ws, @Lc, N'execution', N'Finance',    N'{}', 0, N's', N's'),
+           (N'AIS-2', @Ws, @Lc, N'execution', N'Litigation', N'{}', 0, N's', N's'),
+           (N'AIS-3', @Ws, @Lc, N'execution', N'Finance',    N'{}', 0, N's', N's');
 
     -- Act — scope to Finance only.
     CREATE TABLE #C (Cnt INT);
@@ -178,10 +178,10 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, DeptPgClient, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'build', N'Finance',    N'{}', 0, N's', N's'),
-           (N'AIS-2', @Ws, @Lc, N'build', N'Finance',    N'{}', 0, N's', N's'),
-           (N'AIS-3', @Ws, @Lc, N'build', N'Litigation', N'{}', 0, N's', N's'),
-           (N'AIS-4', @Ws, @Lc, N'build', N'Finance',    N'{"outcome":"Live"}', 0, N's', N's'); -- closed → excluded
+    VALUES (N'AIS-1', @Ws, @Lc, N'execution', N'Finance',    N'{}', 0, N's', N's'),
+           (N'AIS-2', @Ws, @Lc, N'execution', N'Finance',    N'{}', 0, N's', N's'),
+           (N'AIS-3', @Ws, @Lc, N'execution', N'Litigation', N'{}', 0, N's', N's'),
+           (N'AIS-4', @Ws, @Lc, N'execution', N'Finance',    N'{"outcome":"Live"}', 0, N's', N's'); -- closed → excluded
 
     -- Act
     CREATE TABLE #R (Label NVARCHAR(200), Cnt INT);
@@ -206,13 +206,13 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.StageDefinition (LifecycleId, StageKey, Label, StatusCategory, IsDeleted, WorkspaceId, CreatedBy, UpdatedBy)
-    VALUES (@Lc, N'build', N'Build', N'Build', 0, @Ws, N's', N's');
+    VALUES (@Lc, N'execution', N'Execution', N'Execution', 0, @Ws, N's', N's');
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, Name, DeptPgClient, PriorityScore, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'build', N'One',   N'Finance',    9, N'{}', 0, N's', N's'),
-           (N'AIS-2', @Ws, @Lc, N'build', N'Two',   N'Finance',    3, N'{}', 0, N's', N's'),
-           (N'AIS-3', @Ws, @Lc, N'build', N'Three', N'Litigation', 5, N'{}', 0, N's', N's'), -- out of scope
-           (N'AIS-4', @Ws, @Lc, N'build', N'Four',  N'Finance',    1, N'{"outcome":"Live"}', 0, N's', N's'); -- closed → excluded
+    VALUES (N'AIS-1', @Ws, @Lc, N'execution', N'One',   N'Finance',    9, N'{}', 0, N's', N's'),
+           (N'AIS-2', @Ws, @Lc, N'execution', N'Two',   N'Finance',    3, N'{}', 0, N's', N's'),
+           (N'AIS-3', @Ws, @Lc, N'execution', N'Three', N'Litigation', 5, N'{}', 0, N's', N's'), -- out of scope
+           (N'AIS-4', @Ws, @Lc, N'execution', N'Four',  N'Finance',    1, N'{"outcome":"Live"}', 0, N's', N's'); -- closed → excluded
 
     -- Act — scope to Finance, page size 1. Two result sets → capture each via ResultSetFilter
     -- (an INSERT..EXEC would try to concatenate the mismatched page + count shapes and fail).

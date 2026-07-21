@@ -15,12 +15,12 @@ const lifecycle = (): LifecycleDraft => draftFromConfig(buildLifecycleConfig())[
 describe('StagesEditor', () => {
   it('renders a name input and category select per stage', () => {
     render(<StagesEditor lifecycle={lifecycle()} dispatch={jest.fn()} />);
-    expect(screen.getByLabelText('Stage 1 name')).toHaveValue('Build');
-    expect(screen.getByLabelText('Status category for QA')).toHaveValue('Review');
+    expect(screen.getByLabelText('Stage 1 name')).toHaveValue('Execution');
+    expect(screen.getByLabelText('Status category for Validation')).toHaveValue('Validation');
   });
 
   it('marks the stage a gate fires into with a gate icon', () => {
-    // The seed gate targets "qa"; a "Gate on entry" marker should appear.
+    // The seed gate targets "validation"; a "Gate on entry" marker should appear.
     render(<StagesEditor lifecycle={lifecycle()} dispatch={jest.fn()} />);
     expect(screen.getByLabelText('Gate on entry')).toBeInTheDocument();
   });
@@ -32,7 +32,7 @@ describe('StagesEditor', () => {
 
     await user.type(screen.getByLabelText('Stage 1 name'), '!');
 
-    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'STAGE_UPDATE', patch: { label: 'Build!' } }));
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'STAGE_UPDATE', patch: { label: 'Execution!' } }));
   });
 
   it('dispatches add and remove actions', async () => {
@@ -43,7 +43,7 @@ describe('StagesEditor', () => {
     await user.click(screen.getByRole('button', { name: /add stage/i }));
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'STAGE_ADD' }));
 
-    await user.click(screen.getByRole('button', { name: /remove stage build/i }));
+    await user.click(screen.getByRole('button', { name: /remove stage execution/i }));
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'STAGE_REMOVE' }));
   });
 

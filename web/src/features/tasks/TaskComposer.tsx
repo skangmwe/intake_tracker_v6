@@ -45,7 +45,7 @@ export function TaskComposer({
   onAddBundle,
 }: TaskComposerProps) {
   const [title, setTitle] = useState('');
-  const [phase, setPhase] = useState<TaskPhase>('Discovery');
+  const [phase, setPhase] = useState<TaskPhase>('Triage');
   const [fieldId, setFieldId] = useState('');
   const [bundleId, setBundleId] = useState('');
 

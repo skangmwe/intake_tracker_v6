@@ -19,13 +19,13 @@ BEGIN
 
     INSERT INTO dbo.StageDefinition (LifecycleId, StageKey, Label, StatusCategory, IsDeleted, WorkspaceId, CreatedBy, UpdatedBy)
     VALUES (@Lc, N'intake', N'Intake', N'Intake', 0, @Ws, N's', N's'),
-           (@Lc, N'build',  N'Build',  N'Build',  0, @Ws, N's', N's');
+           (@Lc, N'execution',  N'Execution',  N'Execution',  0, @Ws, N's', N's');
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-1', @Ws, @Lc, N'intake', N'{}', 0, N's', N's'),
            (N'AIS-2', @Ws, @Lc, N'intake', N'{}', 0, N's', N's'),
-           (N'AIS-3', @Ws, @Lc, N'build',  N'{}', 0, N's', N's'),
-           (N'AIS-4', @Ws, @Lc, N'build',  N'{"outcome":"Live"}', 0, N's', N's');  -- closed → excluded
+           (N'AIS-3', @Ws, @Lc, N'execution',  N'{}', 0, N's', N's'),
+           (N'AIS-4', @Ws, @Lc, N'execution',  N'{"outcome":"Live"}', 0, N's', N's');  -- closed → excluded
 
     -- Act
     CREATE TABLE #R (Category NVARCHAR(16), Cnt INT);
@@ -34,7 +34,7 @@ BEGIN
     -- Assert
     DECLARE @Intake SQL_VARIANT = (SELECT Cnt FROM #R WHERE Category = N'Intake');
     EXEC tSQLt.AssertEquals @Expected = 2, @Actual = @Intake;
-    DECLARE @Build SQL_VARIANT = (SELECT Cnt FROM #R WHERE Category = N'Build');
+    DECLARE @Build SQL_VARIANT = (SELECT Cnt FROM #R WHERE Category = N'Execution');
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Build;
 END;
 GO
@@ -96,12 +96,12 @@ BEGIN
 
     INSERT INTO dbo.StageDefinition (LifecycleId, StageKey, Label, StatusCategory, IsDeleted, WorkspaceId, CreatedBy, UpdatedBy)
     VALUES (@Lc, N'intake', N'Intake', N'Intake', 0, @Ws, N's', N's'),
-           (@Lc, N'build',  N'Build',  N'Build',  0, @Ws, N's', N's');
+           (@Lc, N'execution',  N'Execution',  N'Execution',  0, @Ws, N's', N's');
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, DeptPgClient, AssignedAnalyst, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'build',  N'Finance', NULL,        N'{}', 0, N's', N's'), -- past-intake, unassigned
-           (N'AIS-2', @Ws, @Lc, N'build',  N'Finance', N'—',        N'{}', 0, N's', N's'), -- em-dash = unassigned
-           (N'AIS-3', @Ws, @Lc, N'build',  N'Finance', N'Priya',    N'{}', 0, N's', N's'), -- assigned → excluded
+    VALUES (N'AIS-1', @Ws, @Lc, N'execution',  N'Finance', NULL,        N'{}', 0, N's', N's'), -- past-intake, unassigned
+           (N'AIS-2', @Ws, @Lc, N'execution',  N'Finance', N'—',        N'{}', 0, N's', N's'), -- em-dash = unassigned
+           (N'AIS-3', @Ws, @Lc, N'execution',  N'Finance', N'Priya',    N'{}', 0, N's', N's'), -- assigned → excluded
            (N'AIS-4', @Ws, @Lc, N'intake', N'Finance', NULL,        N'{}', 0, N's', N's'); -- intake → excluded
 
     -- Act
@@ -124,10 +124,10 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, FieldValues, UpdatedAt, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'deploy', N'{"outcome":"Live"}',     SYSUTCDATETIME(), 0, N's', N's'),
-           (N'AIS-2', @Ws, @Lc, N'deploy', N'{"outcome":"Declined"}', SYSUTCDATETIME(), 0, N's', N's'),
-           (N'AIS-3', @Ws, @Lc, N'deploy', N'{"outcome":"Live"}',     DATEADD(DAY, -200, SYSUTCDATETIME()), 0, N's', N's'), -- prior quarter
-           (N'AIS-4', @Ws, @Lc, N'deploy', N'{}',                     SYSUTCDATETIME(), 0, N's', N's');                     -- open
+    VALUES (N'AIS-1', @Ws, @Lc, N'delivery', N'{"outcome":"Live"}',     SYSUTCDATETIME(), 0, N's', N's'),
+           (N'AIS-2', @Ws, @Lc, N'delivery', N'{"outcome":"Declined"}', SYSUTCDATETIME(), 0, N's', N's'),
+           (N'AIS-3', @Ws, @Lc, N'delivery', N'{"outcome":"Live"}',     DATEADD(DAY, -200, SYSUTCDATETIME()), 0, N's', N's'), -- prior quarter
+           (N'AIS-4', @Ws, @Lc, N'delivery', N'{}',                     SYSUTCDATETIME(), 0, N's', N's');                     -- open
 
     -- Act
     CREATE TABLE #R (Outcome NVARCHAR(32), Cnt INT);
@@ -180,10 +180,10 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, AssignedAnalyst, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'build', N'Priya', N'{}', 0, N's', N's'),
-           (N'AIS-2', @Ws, @Lc, N'build', N'Priya', N'{}', 0, N's', N's'),
-           (N'AIS-3', @Ws, @Lc, N'build', N'Priya', N'{"outcome":"Live"}', 0, N's', N's'), -- closed → excluded
-           (N'AIS-4', @Ws, @Lc, N'build', NULL,     N'{}', 0, N's', N's');                 -- unassigned → excluded
+    VALUES (N'AIS-1', @Ws, @Lc, N'execution', N'Priya', N'{}', 0, N's', N's'),
+           (N'AIS-2', @Ws, @Lc, N'execution', N'Priya', N'{}', 0, N's', N's'),
+           (N'AIS-3', @Ws, @Lc, N'execution', N'Priya', N'{"outcome":"Live"}', 0, N's', N's'), -- closed → excluded
+           (N'AIS-4', @Ws, @Lc, N'execution', NULL,     N'{}', 0, N's', N's');                 -- unassigned → excluded
 
     -- Act
     CREATE TABLE #R (Analyst NVARCHAR(200), Cnt INT);
@@ -206,8 +206,8 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'build', N'{}', 0, N's', N's'),
-           (N'AIS-2', @Ws, @Lc, N'build', N'{}', 0, N's', N's');
+    VALUES (N'AIS-1', @Ws, @Lc, N'execution', N'{}', 0, N's', N's'),
+           (N'AIS-2', @Ws, @Lc, N'execution', N'{}', 0, N's', N's');
 
     INSERT INTO dbo.ApprovalRequests (RequestRecordId, WorkspaceId, State, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-1', @Ws, N'Pending', 0, N's', N's'),
@@ -233,7 +233,7 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, AssignedAnalyst, CreatedAt, StageEnteredAt, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'build', N'Priya', DATEADD(DAY, -5, SYSUTCDATETIME()), SYSUTCDATETIME(), N'{}', 0, N's', N's');
+    VALUES (N'AIS-1', @Ws, @Lc, N'execution', N'Priya', DATEADD(DAY, -5, SYSUTCDATETIME()), SYSUTCDATETIME(), N'{}', 0, N's', N's');
 
     -- Act
     CREATE TABLE #R (MedianDays FLOAT, PriorMedianDays FLOAT);
@@ -255,9 +255,9 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Stage, StageEnteredAt, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'build', DATEADD(DAY,  -1, SYSUTCDATETIME()), N'{}', 0, N's', N's'), -- 0–2
-           (N'AIS-2', @Ws, @Lc, N'build', DATEADD(DAY, -10, SYSUTCDATETIME()), N'{}', 0, N's', N's'), -- 8–14
-           (N'AIS-3', @Ws, @Lc, N'build', DATEADD(DAY, -40, SYSUTCDATETIME()), N'{}', 0, N's', N's'); -- 30+
+    VALUES (N'AIS-1', @Ws, @Lc, N'execution', DATEADD(DAY,  -1, SYSUTCDATETIME()), N'{}', 0, N's', N's'), -- 0–2
+           (N'AIS-2', @Ws, @Lc, N'execution', DATEADD(DAY, -10, SYSUTCDATETIME()), N'{}', 0, N's', N's'), -- 8–14
+           (N'AIS-3', @Ws, @Lc, N'execution', DATEADD(DAY, -40, SYSUTCDATETIME()), N'{}', 0, N's', N's'); -- 30+
 
     -- Act
     CREATE TABLE #R (Bucket NVARCHAR(16), SortOrder INT, Cnt INT);

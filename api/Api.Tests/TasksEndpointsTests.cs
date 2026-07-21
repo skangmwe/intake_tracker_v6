@@ -55,7 +55,7 @@ public sealed class TasksEndpointsTests : IClassFixture<WebApplicationFactory<Pr
     {
         var client = _factory.CreateClient();
         var response = await client.PostAsync(
-            $"/api/v1/requests/{RecordId}/tasks", Json("""{ "kind": "single", "title": "New task", "phase": "Build" }"""));
+            $"/api/v1/requests/{RecordId}/tasks", Json("""{ "kind": "single", "title": "New task", "phase": "Execution" }"""));
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 

@@ -65,7 +65,7 @@ export const COMPARATOR_OPTIONS: readonly { value: RuleComparator; label: string
   { value: 'contains', label: 'contains' },
 ];
 
-export const STAGE_KEYS: readonly string[] = ['intake', 'discovery', 'build', 'qa', 'deploy', 'post-launch'];
+export const STAGE_KEYS: readonly string[] = ['intake', 'triage', 'execution', 'validation', 'delivery', 'stabilization', 'closure'];
 
 export const SELECT_TYPES: readonly FieldType[] = ['SingleSelect', 'MultiSelect'];
 export const NUMERIC_TYPES: readonly FieldType[] = ['Number', 'Decimal', 'Currency', 'Percent'];

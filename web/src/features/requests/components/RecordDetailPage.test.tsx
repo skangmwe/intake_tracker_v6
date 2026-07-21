@@ -130,7 +130,7 @@ function escalatedRecord(overrides: Partial<RequestDto> = {}) {
       originWorkspaceName: 'Litigation',
       aiWorkspaceId: 'ws-1' as WorkspaceId,
       escalatedAt: '2026-07-04T18:00:00Z',
-      aiSolutionsStatus: 'Build',
+      aiSolutionsStatus: 'Execution',
       lockedFields: ['name'],
     },
     ...overrides,
@@ -320,11 +320,11 @@ describe('RecordDetailPage', () => {
 
     // Act
     await user.click(await screen.findByRole('tab', { name: 'Status' }));
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Stage' }), 'build');
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Stage' }), 'execution');
     await user.click(screen.getByRole('button', { name: 'Move stage' }));
 
     // Assert
-    expect(setStageMutate).toHaveBeenCalledWith('build');
+    expect(setStageMutate).toHaveBeenCalledWith('execution');
     expect(await axe(container)).toHaveNoViolations();
   });
 

@@ -14,7 +14,7 @@ function buildView(overrides: Partial<SavedViewDto> = {}): SavedViewDto {
     scope: 'personal',
     isDefault: false,
     columns: ['id', 'name', 'stage'],
-    filters: { stage: { kind: 'select', values: ['build'] } },
+    filters: { stage: { kind: 'select', values: ['execution'] } },
     sort: [{ column: 'due', direction: 'asc' }],
     ownerUserId: 'user-1' as UserId,
     createdBy: 'user-1' as UserId,
@@ -38,7 +38,7 @@ it('toUpsertRequest — no override — carries the definition through unchanged
     scope: 'personal',
     isDefault: false,
     columns: ['id', 'name', 'stage'],
-    filters: { stage: { kind: 'select', values: ['build'] } },
+    filters: { stage: { kind: 'select', values: ['execution'] } },
     sort: [{ column: 'due', direction: 'asc' }],
   });
 });

@@ -19,7 +19,7 @@ const widget: DashboardWidgetDto = {
     total: 8,
     segments: [
       { label: 'Intake', count: 3, percent: 38 },
-      { label: 'Build', count: 5, percent: 62 },
+      { label: 'Execution', count: 5, percent: 62 },
     ],
   },
 };
@@ -32,7 +32,7 @@ it('SegmentedBarWidget — with data — renders the legend and is accessible', 
 
   // Assert
   expect(screen.getByText('Inflight status')).toBeInTheDocument();
-  expect(screen.getByText('Build')).toBeInTheDocument();
+  expect(screen.getByText('Execution')).toBeInTheDocument();
   expect(await axe(container)).toHaveNoViolations();
 });
 
@@ -42,10 +42,10 @@ it('SegmentedBarWidget — legend row clicked — drills by category', async () 
   renderWithProviders(<SegmentedBarWidget widget={widget} objectType="Request" onDrill={onDrill} />);
 
   // Act — the bar segment carries a unique aria-label.
-  await userEvent.click(screen.getByRole('button', { name: 'Build · 5 records' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Execution · 5 records' }));
 
   // Assert
-  expect(onDrill).toHaveBeenCalledWith({ type: 'category', value: 'Build' });
+  expect(onDrill).toHaveBeenCalledWith({ type: 'category', value: 'Execution' });
 });
 
 it('SegmentedBarWidget — no onDrill — segments are disabled', () => {
@@ -53,5 +53,5 @@ it('SegmentedBarWidget — no onDrill — segments are disabled', () => {
   renderWithProviders(<SegmentedBarWidget widget={widget} objectType="Request" />);
 
   // Assert
-  expect(screen.getByRole('button', { name: 'Build · 5 records' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Execution · 5 records' })).toBeDisabled();
 });

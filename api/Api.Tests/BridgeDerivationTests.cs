@@ -1,5 +1,5 @@
 // Unit tests for the pure escalation-bridge helpers on RequestsService (no database): the AI Solutions
-// Status mirror derivation (BS §6.4 — Deploy + Post-launch collapse to "Deployed"; hold + outcome
+// Status mirror derivation (BS §6.4 — Delivery + Stabilization + Closure collapse to "Delivered"; hold + outcome
 // take precedence), the locked-field-keys JSON parse, and the PATCH locked-field violation check
 // (platform-defined keys always; PG-side crossing keys once escalated; unchanged values allowed).
 
@@ -13,11 +13,12 @@ public sealed class BridgeDerivationTests
 {
     [Theory]
     [InlineData("intake", "Intake")]
-    [InlineData("discovery", "Discovery")]
-    [InlineData("build", "Build")]
-    [InlineData("qa", "QA")]
-    [InlineData("deploy", "Deployed")]
-    [InlineData("post-launch", "Deployed")]
+    [InlineData("triage", "Triage")]
+    [InlineData("execution", "Execution")]
+    [InlineData("validation", "Validation")]
+    [InlineData("delivery", "Delivered")]
+    [InlineData("stabilization", "Delivered")]
+    [InlineData("closure", "Delivered")]
     public void DeriveMirrorStatus_MapsStageToMirrorVocabulary(string aiStage, string expected)
     {
         // Act
@@ -31,7 +32,7 @@ public sealed class BridgeDerivationTests
     public void DeriveMirrorStatus_HoldTakesPrecedenceOverStage()
     {
         // Act
-        var status = RequestsService.DeriveMirrorStatus("build", """{"holdBlocked":"true"}""");
+        var status = RequestsService.DeriveMirrorStatus("execution", """{"holdBlocked":"true"}""");
 
         // Assert
         Assert.Equal("On hold", status);
@@ -41,7 +42,7 @@ public sealed class BridgeDerivationTests
     public void DeriveMirrorStatus_OutcomeTakesPrecedenceOverStageAndHold()
     {
         // Act — a closed AI record shows its outcome on the PG mirror.
-        var status = RequestsService.DeriveMirrorStatus("deploy", """{"outcome":"Live","holdBlocked":"true"}""");
+        var status = RequestsService.DeriveMirrorStatus("delivery", """{"outcome":"Live","holdBlocked":"true"}""");
 
         // Assert
         Assert.Equal("Live", status);
@@ -75,7 +76,7 @@ public sealed class BridgeDerivationTests
     public void IsLockedFieldViolation_PlatformDefinedKey_AlwaysBlocked()
     {
         // Arrange — no crossing lock, but the patch tries to write the platform-defined mirror field.
-        var request = new RequestPatchRequest { Fields = Fields("""{"ai-solutions-status":"Build"}"""), IfMatch = "e" };
+        var request = new RequestPatchRequest { Fields = Fields("""{"ai-solutions-status":"Execution"}"""), IfMatch = "e" };
 
         // Act
         var violated = RequestsService.IsLockedFieldViolation(

@@ -17,7 +17,7 @@ function bridge(overrides: Partial<BridgeBlock> = {}): BridgeBlock {
     originWorkspaceName: 'Litigation',
     aiWorkspaceId: 'ws-1' as WorkspaceId,
     escalatedAt: '2026-07-04T18:00:00Z',
-    aiSolutionsStatus: 'Build',
+    aiSolutionsStatus: 'Execution',
     lockedFields: ['name'],
     ...overrides,
   };
@@ -32,7 +32,7 @@ describe('EscalatedIntakeNote', () => {
     const note = screen.getByRole('complementary', { name: 'Escalation bridge' });
     expect(note).toHaveTextContent('Litigation');
     expect(note).toHaveTextContent('AI Solutions Status');
-    expect(note).toHaveTextContent('Build');
+    expect(note).toHaveTextContent('Execution');
     expect(await axe(container)).toHaveNoViolations();
   });
 

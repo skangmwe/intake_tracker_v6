@@ -3,7 +3,7 @@ import { axe } from 'jest-axe';
 
 import { Stepper } from './Stepper';
 
-const STEPS = [{ label: 'Intake' }, { label: 'Build' }, { label: 'QA' }, { label: 'Done' }];
+const STEPS = [{ label: 'Intake' }, { label: 'Execution' }, { label: 'Validation' }, { label: 'Done' }];
 
 describe('Stepper', () => {
   it('Stepper — renders completed steps with a check and completed status', () => {
@@ -19,7 +19,7 @@ describe('Stepper', () => {
   it('Stepper — marks the current step with aria-current and its number', () => {
     render(<Stepper steps={STEPS} currentIndex={2} />);
 
-    const current = screen.getByText('QA').closest('.mws-step');
+    const current = screen.getByText('Validation').closest('.mws-step');
     expect(current).toHaveAttribute('data-state', 'current');
     expect(current).toHaveAttribute('aria-current', 'step');
     expect(current).toHaveTextContent('3');

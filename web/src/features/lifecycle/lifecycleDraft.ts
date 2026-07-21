@@ -48,13 +48,13 @@ export interface LifecycleDraft {
   gates: GateDraft[];
 }
 
-export const STATUS_CATEGORIES: readonly StatusCategory[] = ['Intake', 'Build', 'Review', 'Deploy'];
+export const STATUS_CATEGORIES: readonly StatusCategory[] = ['Intake', 'Execution', 'Validation', 'Delivery'];
 
 const uid = (): string => crypto.randomUUID();
 
 export function newStage(): StageDraft {
   const id = uid();
-  return { uid: id, key: id, label: 'New stage', statusCategory: 'Build' };
+  return { uid: id, key: id, label: 'New stage', statusCategory: 'Execution' };
 }
 
 export function newGate(firstStageKey: string): GateDraft {

@@ -100,7 +100,7 @@ public sealed class StageUpsertInput
     public string? Label { get; set; }
 
     [Required]
-    [RegularExpression("^(Intake|Build|Review|Deploy)$")]
+    [RegularExpression("^(Intake|Execution|Validation|Delivery)$")]
     public string? StatusCategory { get; set; }
 
     public int SortOrder { get; set; }

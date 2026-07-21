@@ -18,7 +18,7 @@ function buildTask(overrides: Partial<TaskDto> = {}): TaskDto {
     id: (overrides.id ?? 'task-1') as TaskId,
     parentRequestId: 'AIS-00000001' as RecordId,
     title: 'A task',
-    phase: 'Build',
+    phase: 'Execution',
     status: 'Open',
     createdAt: '2026-07-01T09:00:00Z',
     ...overrides,
@@ -30,28 +30,28 @@ describe('groupTasksByPhase', () => {
     // Arrange — deliberately out of canonical order.
     const tasks = [
       buildTask({ id: 't1' as TaskId, phase: 'Unphased' }),
-      buildTask({ id: 't2' as TaskId, phase: 'Build' }),
-      buildTask({ id: 't3' as TaskId, phase: 'Discovery' }),
+      buildTask({ id: 't2' as TaskId, phase: 'Execution' }),
+      buildTask({ id: 't3' as TaskId, phase: 'Triage' }),
     ];
 
     // Act
     const groups = groupTasksByPhase(tasks);
 
-    // Assert — Discovery before Build before Unphased.
-    expect(groups.map((group) => group.phase)).toEqual(['Discovery', 'Build', 'Unphased']);
+    // Assert — Triage before Execution before Unphased.
+    expect(groups.map((group) => group.phase)).toEqual(['Triage', 'Execution', 'Unphased']);
   });
 
   it('groupTasksByPhase — preserves within-phase order and omits empty phases', () => {
     // Arrange
     const tasks = [
-      buildTask({ id: 'a' as TaskId, phase: 'Build', title: 'First' }),
-      buildTask({ id: 'b' as TaskId, phase: 'Build', title: 'Second' }),
+      buildTask({ id: 'a' as TaskId, phase: 'Execution', title: 'First' }),
+      buildTask({ id: 'b' as TaskId, phase: 'Execution', title: 'Second' }),
     ];
 
     // Act
     const groups = groupTasksByPhase(tasks);
 
-    // Assert — only Build appears, in server order.
+    // Assert — only Execution appears, in server order.
     expect(groups).toHaveLength(1);
     expect(groups[0]?.tasks.map((task) => task.title)).toEqual(['First', 'Second']);
   });

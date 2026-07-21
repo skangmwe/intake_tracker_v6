@@ -13,7 +13,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', 'A1150000-0000-4000-8000-000000000001', N'Extractor', N'build',
+    VALUES (N'AIS-00000001', 'A1150000-0000-4000-8000-000000000001', N'Extractor', N'execution',
             N'{"businessValue":4}', 0, N'seed', N'seed');
 END;
 GO

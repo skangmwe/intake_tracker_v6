@@ -27,7 +27,7 @@ describe('GateBlock', () => {
 
     // Assert
     expect(screen.getByText('QA readiness gate')).toBeInTheDocument();
-    expect(screen.getByText('Gate · fires on Build → QA')).toBeInTheDocument();
+    expect(screen.getByText('Gate · fires on Execution → Validation')).toBeInTheDocument();
     expect(screen.getByText('Single approving team')).toBeInTheDocument();
     expect(screen.getByLabelText('Select your name')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();

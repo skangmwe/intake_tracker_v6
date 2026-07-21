@@ -37,9 +37,9 @@ const ME = {
 
 const STAGES = [
   { key: 'intake', label: 'Intake' },
-  { key: 'discovery', label: 'Discovery' },
-  { key: 'build', label: 'Build' },
-  { key: 'qa', label: 'QA' },
+  { key: 'triage', label: 'Triage' },
+  { key: 'execution', label: 'Execution' },
+  { key: 'validation', label: 'Validation' },
 ];
 
 function field(overrides: Record<string, unknown>) {

@@ -44,12 +44,12 @@ const RECORD = {
   updatedBy: ME.user.id,
   lifecycleId: LIFECYCLE_ID,
   stages: [
-    { key: 'build', label: 'Build' },
-    { key: 'qa', label: 'QA' },
+    { key: 'execution', label: 'Execution' },
+    { key: 'validation', label: 'Validation' },
   ],
-  stage: 'build',
+  stage: 'execution',
   hold: { held: false },
-  displayStatus: 'Build',
+  displayStatus: 'Execution',
   name: 'Meeting-notes action extraction',
   description: 'Pull action items out of meetings.',
   fields: { name: 'Meeting-notes action extraction' },
@@ -65,8 +65,8 @@ function pendingGate() {
     requestRecordId: RECORD_ID,
     gateDefinitionId: 'g1',
     gateName: 'QA readiness gate',
-    fromStage: 'Build',
-    toStage: 'QA',
+    fromStage: 'Execution',
+    toStage: 'Validation',
     state: 'Pending',
     openedAt: '2026-07-04T18:00:00Z',
     slots: [{ slotIndex: 0, roleLabel: 'GCO', displayLabel: 'GCO', eligibleMembers: [MEMBER] }],
@@ -142,7 +142,7 @@ test('approve an open gate — it resolves', async ({ page }) => {
 
   // The open gate renders with its transition pill and name picker.
   await expect(page.getByText('QA readiness gate')).toBeVisible();
-  await expect(page.getByText('Gate · fires on Build → QA')).toBeVisible();
+  await expect(page.getByText('Gate · fires on Execution → Validation')).toBeVisible();
 
   await page.getByLabel('Select your name').selectOption(ME.user.id);
   await page.getByRole('button', { name: 'Approve' }).click();

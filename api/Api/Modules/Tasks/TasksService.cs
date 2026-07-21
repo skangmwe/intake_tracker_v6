@@ -519,7 +519,7 @@ public sealed class TasksService : ITasksService
 
     private static readonly IReadOnlySet<string> KnownPhases = new HashSet<string>(StringComparer.Ordinal)
     {
-        "Intake", "Discovery", "Build", "QA", "Deploy", "Post-launch", "Unphased",
+        "Intake", "Triage", "Execution", "Validation", "Delivery", "Stabilization", "Closure", "Unphased",
     };
 
     /// <summary>Coerce a phase to a known value; anything unrecognised falls to 'Unphased'.</summary>

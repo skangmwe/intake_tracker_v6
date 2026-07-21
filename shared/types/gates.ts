@@ -110,12 +110,12 @@ export interface GateDefinitionDto {
 // each with its own ordered stages and gates, plus a per-workspace Approver-teams roster.
 
 /** Dashboard/rollup bucket a stage maps to (§10.6). */
-export type StatusCategory = 'Intake' | 'Build' | 'Review' | 'Deploy';
+export type StatusCategory = 'Intake' | 'Execution' | 'Validation' | 'Delivery';
 
 /** One stage on a lifecycle's track. */
 export interface StageDefinitionDto {
   id: StageDefinitionId;
-  /** Stable machine key (`intake`, `build`, …). */
+  /** Stable machine key (`intake`, `execution`, …). */
   key: string;
   label: string;
   statusCategory: StatusCategory;

@@ -141,13 +141,13 @@ describe('FieldEditorSheet', () => {
     // Act
     await user.type(screen.getByLabelText('Display name'), 'Client number');
     await user.type(screen.getByLabelText('Field key'), 'clientNumber');
-    await user.click(screen.getByLabelText('build'));
+    await user.click(screen.getByLabelText('execution'));
     await user.click(screen.getByRole('button', { name: /add rule/i }));
     await user.click(screen.getByRole('button', { name: 'Save field' }));
 
     // Assert
     const [, request] = onSave.mock.calls[0]!;
-    expect(request.visibleStages).toContain('build');
+    expect(request.visibleStages).toContain('execution');
     expect(request.rules).toHaveLength(1);
   });
 

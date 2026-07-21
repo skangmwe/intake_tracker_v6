@@ -90,7 +90,7 @@ describe('composerModel', () => {
         width: 'Full',
         sortOrder: 1,
         depts: ['Finance'],
-        stages: ['build'],
+        stages: ['execution'],
       },
       data: {},
     };
@@ -103,7 +103,7 @@ describe('composerModel', () => {
     expect(draft.metric).toBe('overdue');
     expect(draft.width).toBe('Full');
     expect(draft.depts).toEqual(['Finance']);
-    expect(draft.stages).toEqual(['build']);
+    expect(draft.stages).toEqual(['execution']);
   });
 
   it('isWidgetDraftValid — blank title — false; non-blank — true', () => {
@@ -125,9 +125,9 @@ describe('composerModel', () => {
 
   it('scopeLabel — depts and stages — joins, mapping stage keys to labels', () => {
     // Arrange
-    const config = { depts: ['Finance'], stages: ['build'] } as DashboardWidgetConfig;
+    const config = { depts: ['Finance'], stages: ['execution'] } as DashboardWidgetConfig;
 
     // Act + Assert
-    expect(scopeLabel(config, { build: 'Build' })).toBe('Finance · Build');
+    expect(scopeLabel(config, { execution: 'Execution' })).toBe('Finance · Execution');
   });
 });

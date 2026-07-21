@@ -14,7 +14,7 @@ expect.extend(toHaveNoViolations);
 const item: HomeDecisionItem = {
   recordId: 'REQ-1042',
   name: 'Clause extraction',
-  gateLabel: 'Build → QA',
+  gateLabel: 'Execution → Validation',
   roleLabel: 'AI Solutions Manager',
   openedAt: '2026-07-04T12:00:00Z',
 };
@@ -26,7 +26,7 @@ it('DecisionsPanel — populated — links the row to the record and shows the g
   // Assert
   const link = screen.getByRole('link', { name: /Clause extraction/i });
   expect(link).toHaveAttribute('href', '/requests/REQ-1042');
-  expect(screen.getByText(/Build → QA/)).toBeInTheDocument();
+  expect(screen.getByText(/Execution → Validation/)).toBeInTheDocument();
   expect(screen.getByText('1 open')).toBeInTheDocument();
   expect(await axe(container)).toHaveNoViolations();
 });

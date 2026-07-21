@@ -6,11 +6,12 @@ import type { TaskDto, TaskLibraryFieldType, TaskPhase, TaskStatus, TaskTypedFie
 /** Canonical build-phase order for the collapsible phase groups; 'Unphased' always trails. */
 export const PHASE_ORDER: readonly TaskPhase[] = [
   'Intake',
-  'Discovery',
-  'Build',
-  'QA',
-  'Deploy',
-  'Post-launch',
+  'Triage',
+  'Execution',
+  'Validation',
+  'Delivery',
+  'Stabilization',
+  'Closure',
   'Unphased',
 ];
 

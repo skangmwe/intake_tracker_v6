@@ -23,11 +23,11 @@ function fullHome(): HomeDto {
   return {
     workspaceId: WORKSPACE_ID,
     decisions: [
-      { recordId: 'REQ-1042', name: 'Clause extraction', gateLabel: 'Build → QA', roleLabel: 'AI Solutions Manager', openedAt: '2026-07-04T12:00:00Z' },
+      { recordId: 'REQ-1042', name: 'Clause extraction', gateLabel: 'Execution → Validation', roleLabel: 'AI Solutions Manager', openedAt: '2026-07-04T12:00:00Z' },
     ],
     decisionCount: 1,
     work: [
-      { recordId: 'REQ-0991', name: 'Billing checker', stageLabel: 'QA', origin: 'Finance', dueDate: '2026-07-01', slaStatus: 'Overdue' },
+      { recordId: 'REQ-0991', name: 'Billing checker', stageLabel: 'Validation', origin: 'Finance', dueDate: '2026-07-01', slaStatus: 'Overdue' },
     ],
     workCount: 1,
     activity: [

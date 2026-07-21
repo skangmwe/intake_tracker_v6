@@ -79,7 +79,7 @@ export function StagesEditor({ lifecycle, dispatch }: StagesEditorProps) {
       </div>
 
       <p className="caption">
-        Each stage maps to a status category (Intake · Build · Review · Deploy) used for dashboards and cross-lifecycle
+        Each stage maps to a status category (Intake · Execution · Validation · Delivery) used for dashboards and cross-lifecycle
         rollups.
       </p>
       <span>

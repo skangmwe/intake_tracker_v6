@@ -30,7 +30,7 @@ describe('tasks api', () => {
   it('createTasks — POSTs the create request', () => {
     // Arrange
     mockedFetch.mockResolvedValue([] as never);
-    const request: TaskCreateRequest = { kind: 'single', title: 'New', phase: 'Build' };
+    const request: TaskCreateRequest = { kind: 'single', title: 'New', phase: 'Execution' };
 
     // Act
     createTasks(RECORD, request);

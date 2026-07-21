@@ -141,14 +141,14 @@ BEGIN
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StatusHold,
                               FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            '22222222-2222-4222-8222-222222222222', N'Rec', N'build', N'OnHold',
+            '22222222-2222-4222-8222-222222222222', N'Rec', N'execution', N'OnHold',
             N'{"holdBlocked":"true"}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder,
                            IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('55555555-5555-4555-8555-555555555555', N'AIS-00000001',
-            '1A150000-0000-4000-8000-000000000001', N'Do it', N'Build', N'Open', 1, 0, N'seed', N'seed');
+            '1A150000-0000-4000-8000-000000000001', N'Do it', N'Execution', N'Open', 1, 0, N'seed', N'seed');
 
     -- Act + Assert — Status→Done on a held parent throws 51201.
     EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%record is on hold%';
@@ -175,14 +175,14 @@ BEGIN
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StatusHold,
                               FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            '22222222-2222-4222-8222-222222222222', N'Rec', N'build', N'Abandoned',
+            '22222222-2222-4222-8222-222222222222', N'Rec', N'execution', N'Abandoned',
             N'{"holdBlocked":"true"}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder,
                            IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('55555555-5555-4555-8555-555555555555', N'AIS-00000001',
-            '1A150000-0000-4000-8000-000000000001', N'Do it', N'Build', N'Open', 1, 0, N'seed', N'seed');
+            '1A150000-0000-4000-8000-000000000001', N'Do it', N'Execution', N'Open', 1, 0, N'seed', N'seed');
 
     -- Act + Assert
     EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%record is on hold%';
@@ -209,14 +209,14 @@ BEGIN
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StatusHold,
                               FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            '22222222-2222-4222-8222-222222222222', N'Rec', N'build', N'OnHold',
+            '22222222-2222-4222-8222-222222222222', N'Rec', N'execution', N'OnHold',
             N'{"holdBlocked":"true"}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder,
                            IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('55555555-5555-4555-8555-555555555555', N'AIS-00000001',
-            '1A150000-0000-4000-8000-000000000001', N'Do it', N'Build', N'Open', 1, 0, N'seed', N'seed');
+            '1A150000-0000-4000-8000-000000000001', N'Do it', N'Execution', N'Open', 1, 0, N'seed', N'seed');
 
     -- Act — Notes-only edit on a held record must succeed (D3 — only Done is blocked).
     EXEC dbo.usp_PatchTask
@@ -248,14 +248,14 @@ BEGIN
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StatusHold,
                               FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            '22222222-2222-4222-8222-222222222222', N'Rec', N'build', N'InProgress',
+            '22222222-2222-4222-8222-222222222222', N'Rec', N'execution', N'InProgress',
             N'{}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder,
                            IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('55555555-5555-4555-8555-555555555555', N'AIS-00000001',
-            '1A150000-0000-4000-8000-000000000001', N'Do it', N'Build', N'Open', 1, 0, N'seed', N'seed');
+            '1A150000-0000-4000-8000-000000000001', N'Do it', N'Execution', N'Open', 1, 0, N'seed', N'seed');
 
     -- Act
     EXEC dbo.usp_PatchTask
@@ -290,7 +290,7 @@ BEGIN
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StatusHold,
                               FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            '22222222-2222-4222-8222-222222222222', N'Rec', N'build', N'OnHold',
+            '22222222-2222-4222-8222-222222222222', N'Rec', N'execution', N'OnHold',
             N'{"holdBlocked":"true"}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
@@ -324,7 +324,7 @@ BEGIN
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StatusHold,
                               FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            '22222222-2222-4222-8222-222222222222', N'Rec', N'build', N'Abandoned',
+            '22222222-2222-4222-8222-222222222222', N'Rec', N'execution', N'Abandoned',
             N'{"holdBlocked":"true"}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
@@ -364,7 +364,7 @@ BEGIN
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey,
                                      Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001',
-            N'review', N'Review', N'Review', 1, 0, N'seed', N'seed');
+            N'review', N'Validation', N'Validation', 1, 0, N'seed', N'seed');
 
     -- Act + Assert
     EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%record is on hold%';
@@ -388,7 +388,7 @@ BEGIN
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey,
                                      Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001',
-            N'review', N'Review', N'Review', 1, 0, N'seed', N'seed');
+            N'review', N'Validation', N'Validation', 1, 0, N'seed', N'seed');
 
     -- Act
     EXEC dbo.usp_SetRequestStage

@@ -36,7 +36,7 @@ public sealed class TasksControllerTests
     }
 
     private static TaskDto SampleTask() =>
-        new(Guid.NewGuid(), RecordId, "Confirm scope", "Discovery", UserId, "Open", null, null, null, DateTime.UtcNow);
+        new(Guid.NewGuid(), RecordId, "Confirm scope", "Triage", UserId, "Open", null, null, null, DateTime.UtcNow);
 
     [Fact]
     public async Task GetTasks_Accessible_ReturnsOk()
@@ -268,8 +268,8 @@ public sealed class TasksServiceHelperTests
     }
 
     [Theory]
-    [InlineData("Build", "Build")]
-    [InlineData("Discovery", "Discovery")]
+    [InlineData("Execution", "Execution")]
+    [InlineData("Triage", "Triage")]
     [InlineData("", "Unphased")]
     [InlineData(null, "Unphased")]
     [InlineData("Nonsense", "Unphased")]
@@ -283,7 +283,7 @@ public sealed class TasksServiceHelperTests
     public void ParseBundleTasks_ValidJson_ReturnsEntriesWithNormalisedPhases()
     {
         // Arrange
-        const string json = "[{\"title\":\"Alpha\",\"phase\":\"Build\"},{\"title\":\"Beta\",\"phase\":\"\"}]";
+        const string json = "[{\"title\":\"Alpha\",\"phase\":\"Execution\"},{\"title\":\"Beta\",\"phase\":\"\"}]";
 
         // Act
         var tasks = TasksService.ParseBundleTasks(json);
@@ -291,7 +291,7 @@ public sealed class TasksServiceHelperTests
         // Assert
         Assert.Equal(2, tasks.Count);
         Assert.Equal("Alpha", tasks[0].Title);
-        Assert.Equal("Build", tasks[0].Phase);
+        Assert.Equal("Execution", tasks[0].Phase);
         Assert.Equal("Unphased", tasks[1].Phase);
     }
 

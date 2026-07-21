@@ -246,15 +246,15 @@ public sealed class RequestsControllerTests
     {
         // Arrange
         var requests = new Mock<IRequestsService>();
-        requests.Setup(service => service.SetStageAsync(RecordId, "build", UserId, "op-123", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new StageMoveResult(StageMoveOutcome.Success, new StageTransitionResultDto(true, "build")));
+        requests.Setup(service => service.SetStageAsync(RecordId, "execution", UserId, "op-123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StageMoveResult(StageMoveOutcome.Success, new StageTransitionResultDto(true, "execution")));
 
         // Act
-        var result = await Build(requests).MoveStage(RecordId, new StageTransitionRequest { ToStage = "build" }, CancellationToken.None);
+        var result = await Build(requests).MoveStage(RecordId, new StageTransitionRequest { ToStage = "execution" }, CancellationToken.None);
 
         // Assert
         var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal("build", Assert.IsType<StageTransitionResultDto>(ok.Value).NewStage);
+        Assert.Equal("execution", Assert.IsType<StageTransitionResultDto>(ok.Value).NewStage);
     }
 
     [Fact]
@@ -279,11 +279,11 @@ public sealed class RequestsControllerTests
         // Slice 26 — the parent record is OnHold or Abandoned; the stage advance is blocked.
         // Arrange
         var requests = new Mock<IRequestsService>();
-        requests.Setup(service => service.SetStageAsync(RecordId, "build", UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        requests.Setup(service => service.SetStageAsync(RecordId, "execution", UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StageMoveResult(StageMoveOutcome.RecordOnHold));
 
         // Act
-        var result = await Build(requests).MoveStage(RecordId, new StageTransitionRequest { ToStage = "build" }, CancellationToken.None);
+        var result = await Build(requests).MoveStage(RecordId, new StageTransitionRequest { ToStage = "execution" }, CancellationToken.None);
 
         // Assert
         var problem = Assert.IsType<ObjectResult>(result);

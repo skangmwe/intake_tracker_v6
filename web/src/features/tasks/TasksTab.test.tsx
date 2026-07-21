@@ -60,7 +60,7 @@ function buildTask(overrides: Partial<TaskDto> = {}): TaskDto {
     id: (overrides.id ?? 'task-1') as TaskId,
     parentRequestId: RECORD,
     title: 'Confirm scope with the requestor',
-    phase: 'Discovery',
+    phase: 'Triage',
     status: 'Open',
     assignee: me.user.id,
     createdAt: '2026-07-01T09:00:00Z',
@@ -168,8 +168,8 @@ describe('TasksTab', () => {
     // Arrange
     mockTasks({
       data: [
-        buildTask({ id: 't1' as TaskId, phase: 'Discovery', title: 'Scope' }),
-        buildTask({ id: 't2' as TaskId, phase: 'Build', title: 'Wire it up', status: 'Done', completedAt: '2026-06-24T10:00:00Z' }),
+        buildTask({ id: 't1' as TaskId, phase: 'Triage', title: 'Scope' }),
+        buildTask({ id: 't2' as TaskId, phase: 'Execution', title: 'Wire it up', status: 'Done', completedAt: '2026-06-24T10:00:00Z' }),
       ],
     });
 
@@ -177,7 +177,7 @@ describe('TasksTab', () => {
     const { container } = render();
 
     // Assert — phase headers, both titles, and "1 open" (Done excluded).
-    expect(screen.getByRole('button', { name: /Discovery/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Triage/ })).toBeInTheDocument();
     expect(screen.getByText('Scope')).toBeInTheDocument();
     expect(screen.getByText('Wire it up')).toBeInTheDocument();
     expect(screen.getByText('1 open')).toBeInTheDocument();
@@ -275,11 +275,11 @@ describe('TasksTab', () => {
 
   it('TasksTab — collapsing a phase group hides its tasks', async () => {
     // Arrange
-    mockTasks({ data: [buildTask({ id: 't1' as TaskId, phase: 'Discovery', title: 'Scope' })] });
+    mockTasks({ data: [buildTask({ id: 't1' as TaskId, phase: 'Triage', title: 'Scope' })] });
 
     // Act
     render();
-    await userEvent.click(screen.getByRole('button', { name: /Discovery/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Triage/ }));
 
     // Assert — the task disappears when the group collapses.
     expect(screen.queryByText('Scope')).not.toBeInTheDocument();
@@ -330,16 +330,16 @@ describe('TasksTab', () => {
   });
 
   it('TasksTab — an open gate renders inline under its target phase, even with no tasks there', async () => {
-    // Arrange — no tasks, one open QA-readiness gate targeting the QA phase.
+    // Arrange — no tasks, one open readiness gate targeting the Validation phase.
     mockTasks({ data: [] });
     mockGates([buildApprovalRequest()]);
 
     // Act
     const { container } = render();
 
-    // Assert — the QA phase group + gate appear; the "no tasks yet" empty state is suppressed.
+    // Assert — the Validation phase group + gate appear; the "no tasks yet" empty state is suppressed.
     expect(screen.getByLabelText('Gate: QA readiness gate')).toBeInTheDocument();
-    expect(screen.getByText('Gate · fires on Build → QA')).toBeInTheDocument();
+    expect(screen.getByText('Gate · fires on Execution → Validation')).toBeInTheDocument();
     expect(screen.queryByText(/No tasks yet/i)).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });

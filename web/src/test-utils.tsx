@@ -119,10 +119,10 @@ export function buildPlatformField(overrides: Partial<PlatformFieldDto> = {}): P
   };
 }
 
-/** A seeded S31 config: one default "Standard" lifecycle (build → qa) with a QA gate + roster. */
+/** A seeded S31 config: one default "Standard" lifecycle (execution → validation) with a gate + roster. */
 export function buildLifecycleConfig(overrides: Partial<LifecycleConfigDto> = {}): LifecycleConfigDto {
-  const buildStage = '00000000-0000-0000-0000-0000000000b1' as StageDefinitionId;
-  const qaStage = '00000000-0000-0000-0000-0000000000b2' as StageDefinitionId;
+  const executionStage = '00000000-0000-0000-0000-0000000000b1' as StageDefinitionId;
+  const validationStage = '00000000-0000-0000-0000-0000000000b2' as StageDefinitionId;
   return {
     workspaceId: 'ws-1' as WorkspaceId,
     lifecycles: [
@@ -133,16 +133,16 @@ export function buildLifecycleConfig(overrides: Partial<LifecycleConfigDto> = {}
         isDefault: true,
         sortOrder: 0,
         stages: [
-          { id: buildStage, key: 'build', label: 'Build', statusCategory: 'Build', sortOrder: 0 },
-          { id: qaStage, key: 'qa', label: 'QA', statusCategory: 'Review', sortOrder: 1 },
+          { id: executionStage, key: 'execution', label: 'Execution', statusCategory: 'Execution', sortOrder: 0 },
+          { id: validationStage, key: 'validation', label: 'Validation', statusCategory: 'Validation', sortOrder: 1 },
         ],
         gates: [
           {
             id: '00000000-0000-0000-0000-0000000001a1' as GateDefinitionId,
             lifecycleId: '00000000-0000-0000-0000-00000000010c' as LifecycleId,
             name: 'QA readiness gate',
-            fromStageId: buildStage,
-            toStageId: qaStage,
+            fromStageId: executionStage,
+            toStageId: validationStage,
             joinKind: 'and',
             slots: [{ roleLabel: 'InfoSec', eligibleCount: 2 }],
           },
@@ -184,11 +184,12 @@ export function buildRequestDto(overrides: Partial<RequestDto> = {}): RequestDto
     lifecycleId: '00000000-0000-0000-0000-00000000010c' as LifecycleId,
     stages: [
       { key: 'intake', label: 'Intake' },
-      { key: 'discovery', label: 'Discovery' },
-      { key: 'build', label: 'Build' },
-      { key: 'qa', label: 'QA' },
-      { key: 'deploy', label: 'Deploy' },
-      { key: 'post-launch', label: 'Post-launch' },
+      { key: 'triage', label: 'Triage' },
+      { key: 'execution', label: 'Execution' },
+      { key: 'validation', label: 'Validation' },
+      { key: 'delivery', label: 'Delivery' },
+      { key: 'stabilization', label: 'Stabilization' },
+      { key: 'closure', label: 'Closure' },
     ],
     stage: 'intake',
     hold: { held: false },
@@ -232,8 +233,8 @@ export function buildApprovalRequest(overrides: Partial<ApprovalRequestDto> = {}
     requestRecordId: 'AIS-00000001' as RecordId,
     gateDefinitionId: '6A7E0000-0000-4000-8000-000000000001' as GateDefinitionId,
     gateName: 'QA readiness gate',
-    fromStage: 'Build',
-    toStage: 'QA',
+    fromStage: 'Execution',
+    toStage: 'Validation',
     state: 'Pending',
     openedAt: '2026-07-04T18:00:00Z',
     slots: [
@@ -257,7 +258,7 @@ export function buildTypedLink(overrides: Partial<TypedLinkDto> = {}): TypedLink
     toRecordId: 'AIS-00000002' as RecordId,
     kind: 'related',
     toName: 'Summariser',
-    toStage: 'qa',
+    toStage: 'validation',
     createdAt: '2026-07-04T10:00:00Z',
     ...overrides,
   };
@@ -299,7 +300,7 @@ export function buildRelationshipLink(overrides: Partial<RelationshipLinkDto> = 
     fromRecordId: 'AIS-00000001' as RecordId,
     toRecordId: 'AIS-00000009' as RecordId,
     toRecordDisplayName: 'Extraction task',
-    toRecordStage: 'build',
+    toRecordStage: 'execution',
     direction: 'Out',
     createdAt: '2026-07-16T13:00:00Z',
     createdBy: '00000000-0000-0000-0000-000000000001' as UserId,

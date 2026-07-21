@@ -26,9 +26,9 @@ describe('draftFromConfig / draftToRequest', () => {
 
     // Assert
     expect(drafts).toHaveLength(1);
-    expect(drafts[0]!.stages.map((stage) => stage.key)).toEqual(['build', 'qa']);
-    expect(drafts[0]!.gates[0]!.fromStageKey).toBe('build');
-    expect(drafts[0]!.gates[0]!.toStageKey).toBe('qa');
+    expect(drafts[0]!.stages.map((stage) => stage.key)).toEqual(['execution', 'validation']);
+    expect(drafts[0]!.gates[0]!.fromStageKey).toBe('execution');
+    expect(drafts[0]!.gates[0]!.toStageKey).toBe('validation');
     expect(drafts[0]!.gates[0]!.slots[0]!.roleLabel).toBe('InfoSec');
   });
 
@@ -43,7 +43,7 @@ describe('draftFromConfig / draftToRequest', () => {
     expect(request.lifecycles[0]!.sortOrder).toBe(0);
     expect(request.lifecycles[0]!.isDefault).toBe(true);
     expect(request.lifecycles[0]!.stages[1]!.sortOrder).toBe(1);
-    expect(request.lifecycles[0]!.gates[0]!.fromStageKey).toBe('build');
+    expect(request.lifecycles[0]!.gates[0]!.fromStageKey).toBe('execution');
     expect(request.lifecycles[0]!.gates[0]!.slots).toEqual([{ roleLabel: 'InfoSec' }]);
   });
 
@@ -82,16 +82,16 @@ describe('draftFromConfig / draftToRequest', () => {
 });
 
 describe('factory helpers', () => {
-  it('newStage — starts as a Build-category stage with matching uid/key', () => {
+  it('newStage — starts as an Execution-category stage with matching uid/key', () => {
     const stage = newStage();
-    expect(stage.statusCategory).toBe('Build');
+    expect(stage.statusCategory).toBe('Execution');
     expect(stage.uid).toBe(stage.key);
   });
 
   it('newGate — points from and to the provided stage key', () => {
-    const gate = newGate('build');
-    expect(gate.fromStageKey).toBe('build');
-    expect(gate.toStageKey).toBe('build');
+    const gate = newGate('execution');
+    expect(gate.fromStageKey).toBe('execution');
+    expect(gate.toStageKey).toBe('execution');
     expect(gate.slots).toEqual([]);
   });
 
@@ -151,26 +151,26 @@ describe('lifecycleDraftReducer', () => {
       type: 'STAGE_UPDATE',
       lifecycleUid: state[0]!.uid,
       stageUid,
-      patch: { label: 'Discovery', statusCategory: 'Intake' },
+      patch: { label: 'Triage', statusCategory: 'Intake' },
     });
-    expect(updated[0]!.stages[2]!.label).toBe('Discovery');
+    expect(updated[0]!.stages[2]!.label).toBe('Triage');
     expect(updated[0]!.stages[2]!.statusCategory).toBe('Intake');
   });
 
   it('STAGE_REMOVE — repoints gates that referenced the removed stage', () => {
     const state = seed();
-    // Remove the "qa" stage that the gate points to; the gate should fall back to the remaining stage.
-    const qaStageUid = state[0]!.stages[1]!.uid;
-    const next = lifecycleDraftReducer(state, { type: 'STAGE_REMOVE', lifecycleUid: state[0]!.uid, stageUid: qaStageUid });
+    // Remove the "validation" stage that the gate points to; the gate should fall back to the remaining stage.
+    const validationStageUid = state[0]!.stages[1]!.uid;
+    const next = lifecycleDraftReducer(state, { type: 'STAGE_REMOVE', lifecycleUid: state[0]!.uid, stageUid: validationStageUid });
     expect(next[0]!.stages).toHaveLength(1);
-    expect(next[0]!.gates[0]!.toStageKey).toBe('build');
+    expect(next[0]!.gates[0]!.toStageKey).toBe('execution');
   });
 
   it('STAGE_REMOVE — leaves stages and gates untouched when the stage uid is unknown', () => {
     const state = seed();
     const next = lifecycleDraftReducer(state, { type: 'STAGE_REMOVE', lifecycleUid: state[0]!.uid, stageUid: 'no-such-uid' });
     expect(next[0]!.stages).toHaveLength(2);
-    expect(next[0]!.gates[0]!.toStageKey).toBe('qa'); // gate keys unchanged (nothing was removed)
+    expect(next[0]!.gates[0]!.toStageKey).toBe('validation'); // gate keys unchanged (nothing was removed)
   });
 
   it('LIFECYCLE_REMOVE — removing a non-default lifecycle leaves the default in place', () => {
@@ -190,7 +190,7 @@ describe('lifecycleDraftReducer', () => {
       type: 'GATE_UPDATE',
       lifecycleUid: state[0]!.uid,
       gateUid,
-      patch: { name: 'Launch gate', toStageKey: 'qa' },
+      patch: { name: 'Launch gate', toStageKey: 'validation' },
     });
     expect(renamed[0]!.gates[1]!.name).toBe('Launch gate');
     const removed = lifecycleDraftReducer(renamed, { type: 'GATE_REMOVE', lifecycleUid: state[0]!.uid, gateUid });

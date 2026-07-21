@@ -18,8 +18,8 @@ function gridWidget(overrides: Partial<RecordsGridData> = {}): DashboardWidgetDt
     columns: COLUMNS,
     count: 2,
     rows: [
-      { id: 'REQ-1', name: 'Alpha', stage: 'Build', origin: 'Tax', analyst: 'M. Chen', priority: 5, due: '2026-07-01' },
-      { id: 'REQ-2', name: 'Beta', stage: 'Review', origin: 'IP', analyst: 'S. Boyd', priority: 3, due: null },
+      { id: 'REQ-1', name: 'Alpha', stage: 'Execution', origin: 'Tax', analyst: 'M. Chen', priority: 5, due: '2026-07-01' },
+      { id: 'REQ-2', name: 'Beta', stage: 'Validation', origin: 'IP', analyst: 'S. Boyd', priority: 3, due: null },
     ],
     ...overrides,
   };

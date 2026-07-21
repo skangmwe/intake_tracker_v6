@@ -45,8 +45,8 @@ const CONFIG = {
       isDefault: true,
       sortOrder: 0,
       stages: [
-        { id: BUILD_STAGE, key: 'build', label: 'Build', statusCategory: 'Build', sortOrder: 0 },
-        { id: QA_STAGE, key: 'qa', label: 'QA', statusCategory: 'Review', sortOrder: 1 },
+        { id: BUILD_STAGE, key: 'execution', label: 'Execution', statusCategory: 'Execution', sortOrder: 0 },
+        { id: QA_STAGE, key: 'validation', label: 'Validation', statusCategory: 'Validation', sortOrder: 1 },
       ],
       gates: [
         {
@@ -98,7 +98,7 @@ test('a workspace admin sees the seeded lifecycle, its stages, gate and roster',
   // The lifecycle dropdown selector (v2, slice 27) and its stage track render.
   await expect(page.getByRole('combobox', { name: 'Select lifecycle' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Lifecycle name' })).toHaveValue('Standard AI build');
-  await expect(page.getByLabel('Stage 1 name')).toHaveValue('Build');
+  await expect(page.getByLabel('Stage 1 name')).toHaveValue('Execution');
   await expect(page.getByRole('textbox', { name: 'Gate name' })).toHaveValue('QA readiness gate');
   // The InfoSec roster shows the seeded member.
   await expect(page.getByText('N. Varga')).toBeVisible();

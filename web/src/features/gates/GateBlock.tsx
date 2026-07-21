@@ -1,5 +1,5 @@
 // A gate block on the Tasks & gates tab (S4/S5) — renders inline within its target phase group.
-// Header: seal-check + gate name + "Gate · fires on Build → QA" transition pill, plus a
+// Header: seal-check + gate name + "Gate · fires on Execution → Validation" transition pill, plus a
 // "Changes requested" chip while a slot is rejected, the AND-join note while open, or a "Resolved"
 // chip once every slot is approved. Below: one GateSlot per frozen approver slot. Design-system
 // tokens only (web-styling.md); data-ds pairs it against the prototype's gate block.

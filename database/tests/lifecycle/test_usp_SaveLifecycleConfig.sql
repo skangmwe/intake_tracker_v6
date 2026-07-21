@@ -19,10 +19,10 @@ BEGIN
     DECLARE @Json NVARCHAR(MAX) = N'[
         { "name": "Standard AI build", "requestType": "Full build", "isDefault": true, "sortOrder": 0,
           "stages": [
-            { "key": "build", "label": "Build", "statusCategory": "Build", "sortOrder": 0 },
-            { "key": "qa", "label": "QA", "statusCategory": "Review", "sortOrder": 1 } ],
+            { "key": "execution", "label": "Execution", "statusCategory": "Execution", "sortOrder": 0 },
+            { "key": "validation", "label": "Validation", "statusCategory": "Validation", "sortOrder": 1 } ],
           "gates": [
-            { "name": "QA readiness gate", "fromStageKey": "build", "toStageKey": "qa", "sortOrder": 0,
+            { "name": "Validation readiness gate", "fromStageKey": "execution", "toStageKey": "validation", "sortOrder": 0,
               "slots": [ { "roleLabel": "InfoSec" }, { "roleLabel": "AI Solutions Manager" } ] } ] } ]';
 
     -- Act
@@ -57,7 +57,7 @@ BEGIN
     INSERT INTO dbo.Lifecycle (LifecycleId, WorkspaceId, Name, RequestType, IsDefault, SortOrder, IsDeleted)
     VALUES (@Lc, @Ws, N'Standard', N'Full build', 1, 0, 0);
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted)
-    VALUES (@SBuild, @Lc, @Ws, N'build', N'Build', N'Build', 0, 0), (@SQa, @Lc, @Ws, N'qa', N'QA', N'Review', 1, 0);
+    VALUES (@SBuild, @Lc, @Ws, N'execution', N'Execution', N'Execution', 0, 0), (@SQa, @Lc, @Ws, N'validation', N'Validation', N'Validation', 1, 0);
     INSERT INTO dbo.GateDefinition (GateDefinitionId, LifecycleId, WorkspaceId, Name, FromStageId, ToStageId, JoinKind, SortOrder, IsDeleted)
     VALUES (@GKeep, @Lc, @Ws, N'Keep gate', @SBuild, @SQa, N'and', 0, 0),
            (@GDrop, @Lc, @Ws, N'Drop gate', @SBuild, @SQa, N'and', 1, 0);
@@ -65,10 +65,10 @@ BEGIN
     DECLARE @Json NVARCHAR(MAX) = N'[
         { "id": "11FE0000-0000-4000-8000-000000000001", "name": "Standard", "requestType": "Full build", "isDefault": true, "sortOrder": 0,
           "stages": [
-            { "id": "57A60000-0000-4000-8000-000000000003", "key": "build", "label": "Build", "statusCategory": "Build", "sortOrder": 0 },
-            { "id": "57A60000-0000-4000-8000-000000000004", "key": "qa", "label": "QA", "statusCategory": "Review", "sortOrder": 1 } ],
+            { "id": "57A60000-0000-4000-8000-000000000003", "key": "execution", "label": "Execution", "statusCategory": "Execution", "sortOrder": 0 },
+            { "id": "57A60000-0000-4000-8000-000000000004", "key": "validation", "label": "Validation", "statusCategory": "Validation", "sortOrder": 1 } ],
           "gates": [
-            { "id": "6A7E0000-0000-4000-8000-000000000001", "name": "Keep gate", "fromStageKey": "build", "toStageKey": "qa", "sortOrder": 0, "slots": [] } ] } ]';
+            { "id": "6A7E0000-0000-4000-8000-000000000001", "name": "Keep gate", "fromStageKey": "execution", "toStageKey": "validation", "sortOrder": 0, "slots": [] } ] } ]';
 
     -- Act
     EXEC dbo.usp_SaveLifecycleConfig @WorkspaceId = @Ws, @LifecyclesJson = @Json, @ActorUserId = N'test-actor';
@@ -110,8 +110,8 @@ BEGIN
     DECLARE @Ws UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
     DECLARE @Json NVARCHAR(MAX) = N'[
         { "name": "A", "requestType": "T1", "isDefault": true, "sortOrder": 0,
-          "stages": [ { "key": "build", "label": "Build", "statusCategory": "Build", "sortOrder": 0 } ],
-          "gates": [ { "name": "Bad gate", "fromStageKey": "build", "toStageKey": "nope", "sortOrder": 0, "slots": [] } ] } ]';
+          "stages": [ { "key": "execution", "label": "Execution", "statusCategory": "Execution", "sortOrder": 0 } ],
+          "gates": [ { "name": "Bad gate", "fromStageKey": "execution", "toStageKey": "nope", "sortOrder": 0, "slots": [] } ] } ]';
 
     -- Act + Assert
     EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%not part of its lifecycle%';

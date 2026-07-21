@@ -258,8 +258,8 @@ public sealed partial class RequestsService
 
     /// <summary>
     /// The PG-side AI Solutions Status mirror — derived read-time from the AI-side record's current
-    /// stage + hold/outcome (BS §6.4; slice-9 read-time-derivation decision). Deploy and Post-launch
-    /// both collapse to "Deployed" so the PG side sees neither distinctly. Pure — unit-tested.
+    /// stage + hold/outcome (BS §6.4; slice-9 read-time-derivation decision). Delivery, Stabilization
+    /// and Closure all collapse to "Delivered" so the PG side sees none of them distinctly. Pure — unit-tested.
     /// </summary>
     public static string DeriveMirrorStatus(string aiStage, string aiFieldValues)
     {
@@ -279,11 +279,12 @@ public sealed partial class RequestsService
         return (aiStage?.ToLowerInvariant()) switch
         {
             "intake" => "Intake",
-            "discovery" => "Discovery",
-            "build" => "Build",
-            "qa" => "QA",
-            "deploy" => "Deployed",
-            "post-launch" => "Deployed",
+            "triage" => "Triage",
+            "execution" => "Execution",
+            "validation" => "Validation",
+            "delivery" => "Delivered",
+            "stabilization" => "Delivered",
+            "closure" => "Delivered",
             _ => string.IsNullOrEmpty(aiStage) ? string.Empty : aiStage,
         };
     }

@@ -35,7 +35,7 @@ function buildTask(overrides: Partial<TaskDto> = {}): TaskDto {
     id: 't1' as TaskId,
     parentRequestId: 'AIS-00000001' as never,
     title: 'Confirm scope',
-    phase: 'Discovery',
+    phase: 'Triage',
     status: 'Open',
     assignee: ME,
     createdAt: '2026-07-01T09:00:00Z',

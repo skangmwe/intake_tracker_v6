@@ -13,8 +13,8 @@ const COLUMNS: TableColumn[] = [
 
 function buildRows(onOpen?: () => void): TableRow[] {
   return [
-    { id: 'r1', cells: ['Alpha request', 'Build', '7'], onOpen },
-    { id: 'r2', cells: ['Beta request', 'QA', '4'] },
+    { id: 'r1', cells: ['Alpha request', 'Execution', '7'], onOpen },
+    { id: 'r2', cells: ['Beta request', 'Validation', '4'] },
   ];
 }
 
@@ -83,7 +83,7 @@ describe('TableShell', () => {
   });
 
   it('TableShell — applies the row tint class', () => {
-    const rows: TableRow[] = [{ id: 'r1', cells: ['Alpha', 'Build', '7'], tint: 'mws-aging-tint--overdue' }];
+    const rows: TableRow[] = [{ id: 'r1', cells: ['Alpha', 'Execution', '7'], tint: 'mws-aging-tint--overdue' }];
     render(<TableShell columns={COLUMNS} rows={rows} caption="Requests" />);
     expect(screen.getByText('Alpha').closest('.ast-grid__row')).toHaveClass('mws-aging-tint--overdue');
   });

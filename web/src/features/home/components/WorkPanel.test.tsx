@@ -13,10 +13,10 @@ import { WorkPanel } from './WorkPanel';
 expect.extend(toHaveNoViolations);
 
 const overdue: HomeWorkItem = {
-  recordId: 'REQ-0991', name: 'Billing checker', stageLabel: 'QA', origin: 'Finance', dueDate: '2026-07-01', slaStatus: 'Overdue',
+  recordId: 'REQ-0991', name: 'Billing checker', stageLabel: 'Validation', origin: 'Finance', dueDate: '2026-07-01', slaStatus: 'Overdue',
 };
 const onTrack: HomeWorkItem = {
-  recordId: 'REQ-0899', name: 'Deposition rollout', stageLabel: 'Post-launch', origin: 'Litigation', dueDate: '2026-09-01', slaStatus: 'OnTrack',
+  recordId: 'REQ-0899', name: 'Deposition rollout', stageLabel: 'Stabilization', origin: 'Litigation', dueDate: '2026-09-01', slaStatus: 'OnTrack',
 };
 
 it('WorkPanel — overdue item — renders the overdue badge; on-track item renders plain due text', async () => {

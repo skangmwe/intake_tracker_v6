@@ -96,7 +96,7 @@ it('WorkspaceSearch — clicking a result — navigates to the record', async ()
   // Arrange
   const user = userEvent.setup();
   mockedApi.searchRecords.mockResolvedValue([
-    { recordId: 'AIS-00000042' as RecordId, name: 'Billing report', stage: 'build', origin: 'AI Solutions' },
+    { recordId: 'AIS-00000042' as RecordId, name: 'Billing report', stage: 'execution', origin: 'AI Solutions' },
   ]);
   renderSearch();
 
