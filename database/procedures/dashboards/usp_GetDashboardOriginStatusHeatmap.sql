@@ -3,10 +3,11 @@
 -- Create Date: 2026-07-06
 -- Description: Metric resolver — the Origin × status heatmap (S6 "Requests by Dept/PG/Client ×
 --              status"). Emits one row per (Origin, ColKey) cell with its count. Open records
---              contribute a cell under their StatusCategory (ColKey ∈ Intake, Execution, Validation,
---              Delivery); closed records contribute a cell under their Outcome (ColKey ∈ Live,
+--              contribute a cell under their StatusCategory (ColKey ∈ the 7 stage buckets:
+--              Intake, Triage, Execution, Validation, Delivery, Stabilization, Closure);
+--              closed records contribute a cell under their Outcome (ColKey ∈ Live,
 --              Declined, Withdrawn, Duplicate). Origin from Dept/PG/Client; NULL/'' → '— (unset)'.
---              The API pivots to the fixed 8 columns and the distinct origins present ('— (unset)'
+--              The API pivots to the fixed 11 columns (7 categories + 4 outcomes) and the distinct origins present ('— (unset)'
 --              always last). Scoped to @WorkspaceId AND IsDeleted = 0.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_GetDashboardOriginStatusHeatmap

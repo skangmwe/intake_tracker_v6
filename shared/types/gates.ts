@@ -109,8 +109,15 @@ export interface GateDefinitionDto {
 // The prototype (authoritative) models many per-request-type Lifecycles per workspace,
 // each with its own ordered stages and gates, plus a per-workspace Approver-teams roster.
 
-/** Dashboard/rollup bucket a stage maps to (§10.6). */
-export type StatusCategory = 'Intake' | 'Execution' | 'Validation' | 'Delivery';
+/** Dashboard/rollup bucket a stage maps to (§10.6). One per stage (1:1 with the lifecycle). */
+export type StatusCategory =
+  | 'Intake'
+  | 'Triage'
+  | 'Execution'
+  | 'Validation'
+  | 'Delivery'
+  | 'Stabilization'
+  | 'Closure';
 
 /** One stage on a lifecycle's track. */
 export interface StageDefinitionDto {
