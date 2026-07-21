@@ -39,7 +39,7 @@ BEGIN
         r.StageEnteredAt,
         w.DueSoonWindowDays,
         -- Slice 26 (v2 §Model deltas 3): tri-state Status/hold. StatusHold is the source of truth
-        -- for the pill + guards; StatusHoldNote carries the free-text note for OnHold / Abandoned.
+        -- for the pill + guards; StatusHoldNote carries the free-text note for OnHold.
         -- The JSON keys `$.holdBlocked` / `$.holdReason` remain mirrored on write for the condition
         -- engine's Display/Mirror Status derivation but the API reads these columns.
         r.StatusHold,

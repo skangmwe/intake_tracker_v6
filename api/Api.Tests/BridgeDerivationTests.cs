@@ -18,7 +18,7 @@ public sealed class BridgeDerivationTests
     [InlineData("validation", "Validation")]
     [InlineData("delivery", "Delivered")]
     [InlineData("stabilization", "Delivered")]
-    [InlineData("closure", "Delivered")]
+    [InlineData("closeout", "Delivered")]
     public void DeriveMirrorStatus_MapsStageToMirrorVocabulary(string aiStage, string expected)
     {
         // Act

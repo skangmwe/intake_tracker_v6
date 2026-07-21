@@ -1,8 +1,9 @@
 -- =============================================
 -- Author:      /dev-build-application (Slice 26 — Record Status/hold model)
 -- Create Date: 2026-07-17
--- Description: Sets a Request's tri-state Status/hold (v2-reconciliation.md §Model deltas 3):
---                'InProgress' | 'OnHold' | 'Abandoned'
+-- Description: Sets a Request's Status/hold (close/status cleanup — 'Abandoned' retired; dropping a
+--              record is now a Close with a 'Not pursued' / 'Withdrawn' outcome, not a hold state):
+--                'InProgress' | 'OnHold'
 --              Supersedes usp_SetRequestHold (which took a binary @Held / @Reason pair and
 --              wrote only into FieldValues JSON). Both column state AND JSON mirror are
 --              updated so:
@@ -14,10 +15,6 @@
 --
 --              Mirror rules:
 --                - StatusHold='OnHold'     → $.holdBlocked='true',  $.holdReason=@Note
---                - StatusHold='Abandoned'  → $.holdBlocked='true',  $.holdReason=@Note
---                                            (Display Status derivation treats Abandoned as
---                                            a held state — the pill copy differs, the
---                                            block semantics are the same.)
 --                - StatusHold='InProgress' → $.holdBlocked='false', $.holdReason=NULL
 --
 --              Note is optional (NULL) — the UI validates that a non-InProgress transition
@@ -42,14 +39,13 @@ BEGIN
     DECLARE @NoteLocal     NVARCHAR(500)    = @Note;
     DECLARE @Actor         NVARCHAR(256)    = @ActorUserId;
 
-    -- Local scalars for the JSON mirror. Mirror carries 'true' when non-Active; the Display /
-    -- Mirror Status derivation reads `$.holdBlocked` and does not distinguish OnHold from
-    -- Abandoned (the pill copy differs — the block semantics are the same).
+    -- Local scalars for the JSON mirror. Mirror carries 'true' when non-Active (OnHold); the
+    -- Display / Mirror Status derivation reads `$.holdBlocked`.
     DECLARE @JsonHeldText  NVARCHAR(5)      = CASE WHEN @Status = N'InProgress' THEN N'false' ELSE N'true' END;
     DECLARE @JsonReason    NVARCHAR(500)    = CASE WHEN @Status = N'InProgress' THEN NULL ELSE @NoteLocal END;
 
-    IF @Status NOT IN (N'InProgress', N'OnHold', N'Abandoned')
-        THROW 50060, N'usp_UpsertRequestStatusHold: statusHold must be InProgress, OnHold, or Abandoned.', 1;
+    IF @Status NOT IN (N'InProgress', N'OnHold')
+        THROW 50060, N'usp_UpsertRequestStatusHold: statusHold must be InProgress or OnHold.', 1;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.Requests WHERE RecordId = @RecordIdLocal AND WorkspaceId = @Ws AND IsDeleted = 0)
         THROW 50043, N'usp_UpsertRequestStatusHold: request not found.', 1;

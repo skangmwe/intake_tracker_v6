@@ -7,7 +7,7 @@
 import type { ApprovalRequestDto, RequestDto } from '@shared/types';
 
 export type AlertTone = 'error' | 'warning';
-export type AlertIconKey = 'overdue' | 'dueSoon' | 'hold' | 'abandoned' | 'gateOpen' | 'gateBlocked';
+export type AlertIconKey = 'overdue' | 'dueSoon' | 'hold' | 'gateOpen' | 'gateBlocked';
 
 /** One row in the Active-alerts feed. */
 export interface ActiveAlert {
@@ -40,11 +40,8 @@ export function computeActiveAlerts(
   // Only attach a note when there's a non-empty reason — exactOptionalPropertyTypes forbids an
   // explicit `undefined` on the optional `note` field.
   const reason = request.statusHoldNote?.trim();
-  const notePart = reason ? { note: reason } : {};
   if (request.statusHold === 'OnHold') {
-    alerts.push({ id: 'hold', tone: 'warning', iconKey: 'hold', title: 'On hold', ...notePart });
-  } else if (request.statusHold === 'Abandoned') {
-    alerts.push({ id: 'abandoned', tone: 'error', iconKey: 'abandoned', title: 'Abandoned', ...notePart });
+    alerts.push({ id: 'hold', tone: 'warning', iconKey: 'hold', title: 'On hold', ...(reason ? { note: reason } : {}) });
   }
 
   for (const gate of gates ?? []) {

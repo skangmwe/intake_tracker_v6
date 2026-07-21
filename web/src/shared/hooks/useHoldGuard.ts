@@ -11,7 +11,7 @@
 import type { RequestStatusHold } from '@shared/types';
 
 export interface HoldGuardResult {
-  /** True when the record is OnHold or Abandoned. Callers should treat the guarded action as forbidden. */
+  /** True when the record is OnHold. Callers should treat the guarded action as forbidden. */
   blocked: boolean;
   /** Same as {@link blocked} — supplied for the common `disabled={disable}` prop-passing pattern. */
   disable: boolean;
@@ -27,16 +27,12 @@ export interface HoldGuardResult {
   statusHold: RequestStatusHold | null;
 }
 
-const REASON_ON_HOLD  = 'This record is on hold. Reactivate it from the Status tab before continuing.';
-const REASON_ABANDONED = 'This record is abandoned. Reactivate it from the Status tab before continuing.';
+const REASON_ON_HOLD = 'This record is on hold. Reactivate it from the Status tab before continuing.';
 
 export function useHoldGuard(statusHold: RequestStatusHold | null | undefined): HoldGuardResult {
   const normalized = statusHold ?? null;
   if (normalized === 'OnHold') {
     return { blocked: true, disable: true, reason: REASON_ON_HOLD, statusHold: normalized };
-  }
-  if (normalized === 'Abandoned') {
-    return { blocked: true, disable: true, reason: REASON_ABANDONED, statusHold: normalized };
   }
   return { blocked: false, disable: false, reason: null, statusHold: normalized };
 }

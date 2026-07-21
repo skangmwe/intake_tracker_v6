@@ -3,7 +3,7 @@
 -- Covers:
 --   usp_UpsertRequestStatusHold — tri-state write + JSON mirror + validation + not-found.
 --   usp_PatchTask hold guard (D3) — fires only on Status→'Done' when parent record is
---                                    OnHold or Abandoned; other patches (title/notes) still work.
+--                                    OnHold; other patches (title/notes) still work.
 --   usp_SubmitDecision hold guard — blocks Approve AND Reject when parent record is held.
 --   usp_SetRequestStage hold guard — blocks advance when record is held.
 --   Migration 061 backfill logic — JSON `$.holdBlocked='true'` → StatusHold='OnHold' (idempotent).
@@ -40,30 +40,6 @@ BEGIN
     EXEC tSQLt.AssertEqualsString @Expected = N'Waiting on client', @Actual = @Note;
     EXEC tSQLt.AssertEqualsString @Expected = N'true',              @Actual = @Blk;
     EXEC tSQLt.AssertEqualsString @Expected = N'Waiting on client', @Actual = @Rsn;
-END;
-GO
-
-CREATE PROCEDURE StatusHoldTests.[test_UpsertStatusHoldAbandonedMirrorsHeldTrue]
-AS
-BEGIN
-    -- Arrange
-    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
-    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StatusHold,
-                              FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            '22222222-2222-4222-8222-222222222222', N'Test', N'intake', N'InProgress',
-            N'{}', 0, N'seed', N'seed');
-
-    -- Act — Abandoned uses the same "held" semantics as OnHold; only the pill copy differs.
-    EXEC dbo.usp_UpsertRequestStatusHold
-        @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
-        @StatusHold = N'Abandoned', @Note = N'Superseded by AIS-42', @ActorUserId = N'actor';
-
-    -- Assert
-    DECLARE @Sh  NVARCHAR(20) = (SELECT StatusHold FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
-    DECLARE @Blk NVARCHAR(5)  = (SELECT JSON_VALUE(FieldValues, N'$.holdBlocked') FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
-    EXEC tSQLt.AssertEqualsString @Expected = N'Abandoned', @Actual = @Sh;
-    EXEC tSQLt.AssertEqualsString @Expected = N'true',       @Actual = @Blk;
 END;
 GO
 
@@ -108,7 +84,7 @@ BEGIN
             N'{}', 0, N'seed', N'seed');
 
     -- Act + Assert — invalid value THROW 50060.
-    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%must be InProgress, OnHold, or Abandoned%';
+    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%must be InProgress or OnHold%';
     EXEC dbo.usp_UpsertRequestStatusHold
         @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
         @StatusHold = N'Paused', @Note = NULL, @ActorUserId = N'actor';
@@ -151,40 +127,6 @@ BEGIN
             '1A150000-0000-4000-8000-000000000001', N'Do it', N'Execution', N'Open', 1, 0, N'seed', N'seed');
 
     -- Act + Assert — Status→Done on a held parent throws 51201.
-    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%record is on hold%';
-    EXEC dbo.usp_PatchTask
-        @TaskId = '55555555-5555-4555-8555-555555555555',
-        @UserId = '00000000-0000-4000-8000-0000000000aa',
-        @SetTitle = 0, @Title = NULL, @SetPhase = 0, @Phase = NULL,
-        @SetAssignee = 0, @AssigneeUserId = NULL,
-        @SetStatus = 1, @Status = N'Done',
-        @SetNotes = 0, @Notes = NULL,
-        @SetTypedFieldValue = 0,
-        @FieldValueUrl = NULL, @FieldValueText = NULL, @FieldValueNumber = NULL,
-        @FieldValueDate = NULL, @FieldValueSelect = NULL, @FieldValueBool = NULL;
-END;
-GO
-
-CREATE PROCEDURE StatusHoldTests.[test_PatchTaskDoneAbandonedRecordThrows]
-AS
-BEGIN
-    -- Arrange — Abandoned records block completion the same as OnHold.
-    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
-    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
-    EXEC tSQLt.FakeTable @TableName = 'dbo.Tasks';
-    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StatusHold,
-                              FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            '22222222-2222-4222-8222-222222222222', N'Rec', N'execution', N'Abandoned',
-            N'{"holdBlocked":"true"}', 0, N'seed', N'seed');
-    INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
-    VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
-    INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder,
-                           IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('55555555-5555-4555-8555-555555555555', N'AIS-00000001',
-            '1A150000-0000-4000-8000-000000000001', N'Do it', N'Execution', N'Open', 1, 0, N'seed', N'seed');
-
-    -- Act + Assert
     EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%record is on hold%';
     EXEC dbo.usp_PatchTask
         @TaskId = '55555555-5555-4555-8555-555555555555',
@@ -324,7 +266,7 @@ BEGIN
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, StatusHold,
                               FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            '22222222-2222-4222-8222-222222222222', N'Rec', N'execution', N'Abandoned',
+            '22222222-2222-4222-8222-222222222222', N'Rec', N'execution', N'OnHold',
             N'{"holdBlocked":"true"}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);

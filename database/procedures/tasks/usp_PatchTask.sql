@@ -18,7 +18,7 @@
 --              usp_GetTasksForRequest).
 --
 --              Slice 26 (D3): when @SetStatus=1 AND @Status='Done' AND the parent Request has
---              StatusHold IN ('OnHold','Abandoned'), THROW 51201 (→ API 409 record-on-hold).
+--              StatusHold = 'OnHold', THROW 51201 (→ API 409 record-on-hold).
 --              A held record blocks task COMPLETION but not other patches (title / phase / notes /
 --              typed-field values remain editable). This matches the addendum's "On hold pauses
 --              task completion" wording without over-blocking harmless edits.
@@ -67,7 +67,7 @@ BEGIN
             INNER JOIN dbo.WorkspaceMembership AS m
                 ON m.WorkspaceId = t.WorkspaceId AND m.UserId = @User AND m.IsDeleted = 0
             WHERE t.TaskId = @Task AND t.IsDeleted = 0
-              AND r.StatusHold IN (N'OnHold', N'Abandoned'))
+              AND r.StatusHold = N'OnHold')
             THROW 51201, N'usp_PatchTask: this record is on hold. Reactivate it before completing tasks.', 1;
     END;
 

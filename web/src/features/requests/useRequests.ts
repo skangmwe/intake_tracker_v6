@@ -123,8 +123,8 @@ export function useSetHold(recordId: RecordId) {
 }
 
 /**
- * Slice 26 — set the tri-state Status/hold (In progress / On hold / Abandoned) via
- * PATCH /requests/{id} with the current ETag. Adopts the fresh record on success so the header
+ * Set the record Status/hold (In progress / On hold) via PATCH /requests/{id} with the current
+ * ETag. (close/status cleanup — Abandoned retired.) Adopts the fresh record on success so the header
  * pill + hold-guard buttons update without an extra round-trip. Callers must pass the ETag from
  * the currently rendered request; a stale ETag surfaces as an API error (409).
  */
@@ -133,7 +133,7 @@ export function useSetStatusHold(recordId: RecordId) {
   return useMutation({
     mutationFn: (input: {
       etag: string;
-      statusHold: 'InProgress' | 'OnHold' | 'Abandoned';
+      statusHold: 'InProgress' | 'OnHold';
       statusHoldNote?: string | null;
     }) =>
       patchRequest(recordId, {

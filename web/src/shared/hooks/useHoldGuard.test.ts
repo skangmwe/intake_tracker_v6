@@ -20,15 +20,6 @@ describe('useHoldGuard', () => {
     expect(result.current.statusHold).toBe('OnHold');
   });
 
-  it('useHoldGuard — Abandoned record blocks and returns an abandoned-specific reason', () => {
-    const { result } = renderHook(() => useHoldGuard('Abandoned'));
-    expect(result.current.blocked).toBe(true);
-    expect(result.current.disable).toBe(true);
-    expect(result.current.reason).toContain('abandoned');
-    expect(result.current.reason).toContain('Status tab');
-    expect(result.current.statusHold).toBe('Abandoned');
-  });
-
   it('useHoldGuard — null or undefined statusHold is treated as safe (unknown → do not block optimistically)', () => {
     const { result: nullish } = renderHook(() => useHoldGuard(null));
     expect(nullish.current.blocked).toBe(false);

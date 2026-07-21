@@ -62,7 +62,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM dbo.Requests
         WHERE RecordId = @Record AND WorkspaceId = @WsId AND IsDeleted = 0
-          AND StatusHold IN (N'OnHold', N'Abandoned'))
+          AND StatusHold = N'OnHold')
         THROW 51201, N'usp_SubmitDecision: this record is on hold. Reactivate it before deciding.', 1;
 
     IF @State = N'Resolved'

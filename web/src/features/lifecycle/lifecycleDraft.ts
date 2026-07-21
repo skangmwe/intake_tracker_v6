@@ -55,7 +55,7 @@ export const STATUS_CATEGORIES: readonly StatusCategory[] = [
   'Validation',
   'Delivery',
   'Stabilization',
-  'Closure',
+  'Closeout',
 ];
 
 const uid = (): string => crypto.randomUUID();

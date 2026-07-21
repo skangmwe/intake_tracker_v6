@@ -268,8 +268,8 @@ describe('RecordDetailPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('RecordDetailPage — Status tab: choosing On hold and updating calls setStatusHold with the tri-state + note + ETag', async () => {
-    // Slice 26 — the tri-state PATCH carries statusHold + note + the record's current ETag.
+  it('RecordDetailPage — Status tab: choosing On hold (Active group) and updating calls setStatusHold with the note + ETag', async () => {
+    // close/status cleanup — the grouped picker's Active group writes statusHold via Update status.
     // Arrange
     const user = userEvent.setup();
     const { container } = renderPage();
@@ -277,7 +277,7 @@ describe('RecordDetailPage', () => {
     // Act
     await user.click(await screen.findByRole('tab', { name: 'Status' }));
     await user.selectOptions(
-      await screen.findByRole('combobox', { name: 'Status override' }),
+      await screen.findByRole('combobox', { name: 'Status' }),
       'OnHold',
     );
     await user.type(screen.getByLabelText('Note'), 'Waiting on client');
@@ -290,6 +290,24 @@ describe('RecordDetailPage', () => {
       statusHoldNote: 'Waiting on client',
     });
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RecordDetailPage — Status tab: picking a Closed outcome opens the Close-record confirm modal, pre-set', async () => {
+    // close/status cleanup — the grouped picker's Closed group runs the deliberate Close flow.
+    // Arrange
+    const user = userEvent.setup();
+    renderPage();
+
+    // Act
+    await user.click(await screen.findByRole('tab', { name: 'Status' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Status' }), 'Withdrawn');
+
+    // Assert — the confirm modal opens, its Outcome pre-selected to the picked value.
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/Close this record/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: 'Outcome' })).toHaveValue('Withdrawn');
+    // setStatusHold is NOT called — closing is the Close flow, not a hold write.
+    expect(setStatusHoldMutate).not.toHaveBeenCalled();
   });
 
   it('RecordDetailPage — loading — announces via role=status', async () => {

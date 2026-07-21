@@ -15,8 +15,11 @@ import { problemMessage } from '@/shared/http/problemMessage';
 import { useCloseRecord } from './useClose';
 import './closure.css';
 
+/** A closable outcome value (BS §8). Also the "Closed" group of the S4 Status picker. */
+export type CloseOutcomeValue = DeliveryOutcome | LocalOutcome;
+
 interface OutcomeChoice {
-  value: DeliveryOutcome | LocalOutcome;
+  value: CloseOutcomeValue;
   label: string;
   kind: Outcome['kind'];
 }
@@ -26,20 +29,23 @@ const OUTCOME_CHOICES: OutcomeChoice[] = [
   { value: 'Live', label: 'Live (delivered)', kind: 'delivery' },
   { value: 'Declined', label: 'Declined', kind: 'delivery' },
   { value: 'Withdrawn', label: 'Withdrawn', kind: 'local' },
-  { value: 'Duplicate', label: 'Duplicate', kind: 'local' },
   { value: 'NotPursued', label: 'Not pursued', kind: 'local' },
+  { value: 'Duplicate', label: 'Duplicate', kind: 'local' },
 ];
 
-const OUTCOME_OPTIONS = OUTCOME_CHOICES.map((choice) => ({ value: choice.value, label: choice.label }));
+/** {value,label} options for the closable outcomes — reused by the S4 Status picker's Closed group. */
+export const CLOSE_OUTCOME_OPTIONS = OUTCOME_CHOICES.map((choice) => ({ value: choice.value, label: choice.label }));
 
 interface CloseRecordModalProps {
   recordId: RecordId;
   recordName: string;
+  /** Pre-select an outcome when opened from the Status picker's Closed group. Defaults to 'Live'. */
+  initialOutcome?: CloseOutcomeValue | undefined;
   onClose: () => void;
 }
 
-export function CloseRecordModal({ recordId, recordName, onClose }: CloseRecordModalProps) {
-  const [value, setValue] = useState<OutcomeChoice['value']>('Live');
+export function CloseRecordModal({ recordId, recordName, initialOutcome, onClose }: CloseRecordModalProps) {
+  const [value, setValue] = useState<CloseOutcomeValue>(initialOutcome ?? 'Live');
   const [notes, setNotes] = useState('');
   const [duplicateOf, setDuplicateOf] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -85,8 +91,8 @@ export function CloseRecordModal({ recordId, recordName, onClose }: CloseRecordM
       <Select
         label="Outcome"
         value={value}
-        onChange={(next) => setValue(next as OutcomeChoice['value'])}
-        options={OUTCOME_OPTIONS}
+        onChange={(next) => setValue(next as CloseOutcomeValue)}
+        options={CLOSE_OUTCOME_OPTIONS}
       />
 
       {isDuplicate && (

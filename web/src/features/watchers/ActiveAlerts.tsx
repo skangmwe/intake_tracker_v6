@@ -3,7 +3,7 @@
 // gates. No new backend: gates come from the existing approval-requests read. Alert icons are
 // decorative (aria-hidden); the bold title carries the meaning.
 
-import { Hourglass, Pause, Prohibit, Timer, Warning, WarningCircle } from '@phosphor-icons/react';
+import { Hourglass, Pause, Timer, Warning, WarningCircle } from '@phosphor-icons/react';
 
 import type { RequestDto } from '@shared/types';
 
@@ -15,7 +15,6 @@ const ALERT_ICONS: Record<AlertIconKey, typeof Timer> = {
   overdue: WarningCircle,
   dueSoon: Timer,
   hold: Pause,
-  abandoned: Prohibit,
   gateOpen: Hourglass,
   gateBlocked: WarningCircle,
 };

@@ -45,16 +45,16 @@ describe('computeActiveAlerts', () => {
     ]);
   });
 
-  it('computeActiveAlerts — abandoned without a note — no note field (exactOptional-safe)', () => {
-    // Arrange — no note supplied.
-    const request = buildRequestDto({ statusHold: 'Abandoned', statusHoldNote: null });
+  it('computeActiveAlerts — on hold without a note — no note field (exactOptional-safe)', () => {
+    // Arrange — on hold, no note supplied.
+    const request = buildRequestDto({ statusHold: 'OnHold', statusHoldNote: null });
 
     // Act
     const alerts = computeActiveAlerts(request, []);
 
-    // Assert — the alert is present and carries no `note` key.
+    // Assert — the hold alert is present and carries no `note` key.
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]).toMatchObject({ id: 'abandoned', tone: 'error', title: 'Abandoned' });
+    expect(alerts[0]).toMatchObject({ id: 'hold', tone: 'warning', title: 'On hold' });
     expect(alerts[0]).not.toHaveProperty('note');
   });
 

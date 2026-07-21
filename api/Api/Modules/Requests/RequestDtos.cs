@@ -20,12 +20,11 @@ public sealed record RequestStageRef(string Key, string Label, string StatusCate
 /// <summary>Hold sub-block on a request (legacy binary derived read — v2 slice 26).</summary>
 public sealed record HoldState(bool Held, string? Reason);
 
-/// <summary>Slice 26 — tri-state Status/hold values. Serializes as string via JsonStringEnumConverter.</summary>
+/// <summary>Record Status/hold values (close/status cleanup — 'Abandoned' retired). Serializes as string via JsonStringEnumConverter.</summary>
 public enum RequestStatusHoldValue
 {
     InProgress,
     OnHold,
-    Abandoned,
 }
 
 /// <summary>Combined Outcome (delivery | local). Populated by close (later slice); null in slice 5.</summary>
@@ -80,7 +79,7 @@ public sealed record RequestListRow(
     string ETag,
     IReadOnlyDictionary<string, object?> Columns,
     string? SlaStatus,
-    // Slice 26 — the S2 row pill (InProgress / OnHold / Abandoned).
+    // The S2 row pill (InProgress / OnHold).
     RequestStatusHoldValue StatusHold);
 
 /// <summary>An intake similar-requests match (BS §9.8). Mirrors SimilarRequestDto in requests.ts.</summary>

@@ -382,7 +382,7 @@ public sealed class RequestRow
     public DateTime? StageEnteredAt { get; set; }
     /// <summary>The record's workspace due-soon window (slice 21) — the SLA "Due soon" threshold in days.</summary>
     public int DueSoonWindowDays { get; set; }
-    /// <summary>Slice 26 — tri-state Status/hold ('InProgress' | 'OnHold' | 'Abandoned').</summary>
+    /// <summary>Record Status/hold ('InProgress' | 'OnHold'). ('Abandoned' retired — close/status cleanup.)</summary>
     public string StatusHold { get; set; } = "InProgress";
     /// <summary>Slice 26 — free-text note; null on InProgress.</summary>
     public string? StatusHoldNote { get; set; }

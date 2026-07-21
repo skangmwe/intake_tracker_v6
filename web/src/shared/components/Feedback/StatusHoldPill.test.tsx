@@ -24,13 +24,6 @@ describe('StatusHoldPill', () => {
     expect(pill).toHaveAttribute('data-status-hold', 'OnHold');
   });
 
-  it('StatusHoldPill — Abandoned shows a muted draft-style pill', () => {
-    render(<StatusHoldPill statusHold="Abandoned" />);
-    const pill = screen.getByText('Abandoned');
-    expect(pill).toHaveClass('mws-badge--draft');
-    expect(pill).toHaveAttribute('data-status-hold', 'Abandoned');
-  });
-
   it('StatusHoldPill — null or undefined renders nothing (safe default when data missing)', () => {
     const { container, rerender } = render(<StatusHoldPill statusHold={null} />);
     expect(container).toBeEmptyDOMElement();
@@ -43,7 +36,6 @@ describe('StatusHoldPill', () => {
       <>
         <StatusHoldPill statusHold="InProgress" alwaysRender />
         <StatusHoldPill statusHold="OnHold" />
-        <StatusHoldPill statusHold="Abandoned" />
       </>,
     );
     expect(await axe(container)).toHaveNoViolations();

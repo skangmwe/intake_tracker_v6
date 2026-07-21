@@ -36,7 +36,7 @@ public enum ApprovalDecisionOutcome
     UnknownSlot,
     AlreadyResolved,
     Invalid,
-    /// <summary>Slice 26 — parent record is <c>OnHold</c> or <c>Abandoned</c>; approval blocked (409 record-on-hold).</summary>
+    /// <summary>Parent record is <c>OnHold</c>; approval blocked (409 record-on-hold).</summary>
     RecordOnHold,
 }
 

@@ -8,11 +8,20 @@ export interface SelectOption {
   label: string;
 }
 
+/** A labelled group of options, rendered as an <optgroup> (e.g. the Active / Closed status picker). */
+export interface SelectOptionGroup {
+  label: string;
+  options: SelectOption[];
+}
+
 interface SelectProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  options: SelectOption[];
+  /** Flat options. Provide this OR `groups` (groups take precedence). */
+  options?: SelectOption[] | undefined;
+  /** Grouped options, rendered as <optgroup> sections. Takes precedence over `options`. */
+  groups?: SelectOptionGroup[] | undefined;
   optional?: boolean | undefined;
   hint?: string | undefined;
   error?: string | undefined;
@@ -25,6 +34,7 @@ export function Select({
   value,
   onChange,
   options,
+  groups,
   optional,
   hint,
   error,
@@ -48,11 +58,21 @@ export function Select({
               {placeholder}
             </option>
           )}
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
+          {groups
+            ? groups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))
+            : (options ?? []).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
         </select>
       )}
     </FieldShell>

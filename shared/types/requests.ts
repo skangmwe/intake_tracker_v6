@@ -46,13 +46,14 @@ export interface Outcome {
 export type SlaStatus = 'OnTrack' | 'DueSoon' | 'Overdue';
 
 /**
- * v2 (slice 26). Record Status/hold state — tri-state replacing the binary Hold.
+ * Record Status/hold state — the record's active working state.
  *   - `InProgress` — the working state; tasks complete and gates advance normally.
  *   - `OnHold`     — pauses task completion and gate approvals. Reactivating returns to InProgress.
- *   - `Abandoned`  — the solution was dropped. Blocks all mutations except re-activation to InProgress.
- * Set from the S4 Status tab; surfaced as a `StatusHoldPill` on S2 rows, S4/S5 header, and Home cards.
+ * (close/status cleanup) `Abandoned` was retired — dropping a record is now a Close with a
+ * `Not pursued` / `Withdrawn` Outcome (a terminal disposition), not a hold state. Set from the S4
+ * Status tab's grouped picker (Active group); surfaced as a `StatusHoldPill` on S2 rows / S4 header.
  */
-export type RequestStatusHold = 'InProgress' | 'OnHold' | 'Abandoned';
+export type RequestStatusHold = 'InProgress' | 'OnHold';
 
 /** Time spent in the record's current stage (BS §10.6) — whole days since the stage was entered. */
 export interface TimeInStage {
