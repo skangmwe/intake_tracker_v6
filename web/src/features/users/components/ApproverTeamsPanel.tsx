@@ -14,13 +14,30 @@ import { Button } from '@/shared/components/Button';
 import { useCreateApproverTeam, useLifecycleConfig } from '@/features/lifecycle';
 import { problemMessage } from '@/shared/http/problemMessage';
 
+import { useMembers } from '../useMembers';
 import { ApproverTeamCard } from './ApproverTeamCard';
+import type { MemberOption } from './ApproverMemberCombobox';
 
 export function ApproverTeamsPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
   const { data: config, isLoading, isError } = useLifecycleConfig(workspaceId);
+  const { data: membersData } = useMembers(workspaceId);
   const [teamName, setTeamName] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
   const createTeam = useCreateApproverTeam(workspaceId);
+
+  // Active members feed the add-a-person typeahead in every team card. Invitations and suspended
+  // members are excluded (the server only resolves active members).
+  const memberOptions = useMemo<MemberOption[]>(
+    () =>
+      (membersData?.members ?? [])
+        .filter((member) => member.status === 'Active' && member.userId !== null && member.displayName !== null)
+        .map((member) => ({
+          userId: member.userId as string,
+          displayName: member.displayName as string,
+          email: member.email,
+        })),
+    [membersData],
+  );
 
   // Gate-slot usage per role label — how many gate slots across all lifecycles each team fills.
   const gateUsesByRole = useMemo(() => {
@@ -119,6 +136,7 @@ export function ApproverTeamsPanel({ workspaceId }: { workspaceId: WorkspaceId }
             workspaceId={workspaceId}
             team={team}
             gateUses={gateUsesByRole.get(team.roleLabel) ?? 0}
+            memberOptions={memberOptions}
           />
         ))}
       </ul>

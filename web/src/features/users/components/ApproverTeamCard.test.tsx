@@ -5,7 +5,7 @@
 // jest-axe runs against each meaningfully different rendered state (web-testing.md).
 
 import { axe } from 'jest-axe';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { ApproverTeamDto, ProblemDetails, UserId, WorkspaceId } from '@shared/types';
@@ -43,23 +43,24 @@ function mutateStub(error?: ApiError) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a partial mutation result is enough for these tests.
-const asHook = (mutate: jest.Mock) => ({ mutate, isPending: false }) as any;
+const asHook = (fns: Record<string, jest.Mock>) => ({ ...fns, isPending: false }) as any;
 
-let addMutate: jest.Mock;
+// Add uses mutateAsync (the combobox awaits it to clear its field); the other actions use mutate.
+let addMutateAsync: jest.Mock;
 let removeMutate: jest.Mock;
 let renameMutate: jest.Mock;
 let deleteMutate: jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  addMutate = mutateStub();
+  addMutateAsync = jest.fn().mockResolvedValue(undefined);
   removeMutate = mutateStub();
   renameMutate = mutateStub();
   deleteMutate = mutateStub();
-  mockedAdd.mockReturnValue(asHook(addMutate));
-  mockedRemove.mockReturnValue(asHook(removeMutate));
-  mockedRename.mockReturnValue(asHook(renameMutate));
-  mockedDelete.mockReturnValue(asHook(deleteMutate));
+  mockedAdd.mockReturnValue(asHook({ mutate: jest.fn(), mutateAsync: addMutateAsync }));
+  mockedRemove.mockReturnValue(asHook({ mutate: removeMutate }));
+  mockedRename.mockReturnValue(asHook({ mutate: renameMutate }));
+  mockedDelete.mockReturnValue(asHook({ mutate: deleteMutate }));
 });
 
 const workspaceId = 'ws-1' as WorkspaceId;
@@ -143,8 +144,8 @@ describe('ApproverTeamCard', () => {
     await user.click(screen.getByRole('button', { name: /add member/i }));
 
     // Assert
-    expect(addMutate).toHaveBeenCalledWith({ roleLabel: 'InfoSec', person: 'Dana Cole' }, expect.anything());
-    expect(input).toHaveValue('');
+    expect(addMutateAsync).toHaveBeenCalledWith({ roleLabel: 'InfoSec', person: 'Dana Cole' });
+    await waitFor(() => expect(input).toHaveValue(''));
   });
 
   it('ApproverTeamCard — add member error — surfaces the API message', async () => {
@@ -155,8 +156,8 @@ describe('ApproverTeamCard', () => {
       status: 400,
       detail: 'No active member of this workspace matches that name or email.',
     };
-    addMutate = mutateStub(new ApiError(400, problem));
-    mockedAdd.mockReturnValue(asHook(addMutate));
+    addMutateAsync = jest.fn().mockRejectedValue(new ApiError(400, problem));
+    mockedAdd.mockReturnValue(asHook({ mutate: jest.fn(), mutateAsync: addMutateAsync }));
     const user = userEvent.setup();
     renderCard(buildTeam());
 
@@ -165,7 +166,7 @@ describe('ApproverTeamCard', () => {
     await user.click(screen.getByRole('button', { name: /add member/i }));
 
     // Assert
-    expect(screen.getByRole('alert')).toHaveTextContent(/no active member/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no active member/i);
   });
 
   it('ApproverTeamCard — remove member — calls the mutation with the userId', async () => {
@@ -233,7 +234,7 @@ describe('ApproverTeamCard', () => {
       detail: 'A team with that name already exists.',
     };
     renameMutate = mutateStub(new ApiError(409, problem));
-    mockedRename.mockReturnValue(asHook(renameMutate));
+    mockedRename.mockReturnValue(asHook({ mutate: renameMutate }));
     const user = userEvent.setup();
     renderCard(buildTeam());
     const nameInput = screen.getByLabelText('Team name');
@@ -273,7 +274,7 @@ describe('ApproverTeamCard', () => {
   });
 
   it('ApproverTeamCard — Enter in the add-a-person field submits the add', async () => {
-    // Arrange
+    // Arrange — no member options, so Enter submits the typed free text.
     const user = userEvent.setup();
     renderCard(buildTeam());
 
@@ -281,7 +282,7 @@ describe('ApproverTeamCard', () => {
     await user.type(screen.getByLabelText('Add member to InfoSec'), 'Dana Cole{Enter}');
 
     // Assert
-    expect(addMutate).toHaveBeenCalledWith({ roleLabel: 'InfoSec', person: 'Dana Cole' }, expect.anything());
+    expect(addMutateAsync).toHaveBeenCalledWith({ roleLabel: 'InfoSec', person: 'Dana Cole' });
   });
 
   it('ApproverTeamCard — remove member error — surfaces a message', async () => {
@@ -293,7 +294,7 @@ describe('ApproverTeamCard', () => {
       detail: 'The roster could not be updated.',
     };
     removeMutate = mutateStub(new ApiError(500, problem));
-    mockedRemove.mockReturnValue(asHook(removeMutate));
+    mockedRemove.mockReturnValue(asHook({ mutate: removeMutate }));
     const user = userEvent.setup();
     renderCard(buildTeam());
     const memberRow = screen.getByText('Priya Raman').closest('li') as HTMLElement;

@@ -6,11 +6,11 @@
 // be deleted, but its members can still be removed.
 
 import { useRef, useState } from 'react';
-import { Plus, Trash, UsersThree, X } from '@phosphor-icons/react';
+import { Trash, UsersThree, X } from '@phosphor-icons/react';
 
 import type { ApproverTeamDto, WorkspaceId } from '@shared/types';
 
-import { Button, IconButton } from '@/shared/components/Button';
+import { IconButton } from '@/shared/components/Button';
 import {
   useAddApproverMember,
   useDeleteApproverTeam,
@@ -20,19 +20,22 @@ import {
 import { initialsOf } from '@/shared/auth/authContext';
 import { problemMessage } from '@/shared/http/problemMessage';
 
+import { ApproverMemberCombobox, type MemberOption } from './ApproverMemberCombobox';
+
 interface ApproverTeamCardProps {
   workspaceId: WorkspaceId;
   team: ApproverTeamDto;
   /** How many gate slots across all lifecycles this team fills — the usage label. */
   gateUses: number;
+  /** Active workspace members to offer in the add-a-person typeahead. */
+  memberOptions?: MemberOption[];
 }
 
-export function ApproverTeamCard({ workspaceId, team, gateUses }: ApproverTeamCardProps) {
+export function ApproverTeamCard({ workspaceId, team, gateUses, memberOptions = [] }: ApproverTeamCardProps) {
   const roleLabelId = team.roleLabelId ?? null;
   const canEditTeam = roleLabelId !== null;
 
   const [nameDraft, setNameDraft] = useState(team.roleLabel);
-  const [personDraft, setPersonDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   // Set on Escape so the blur it triggers cancels the commit instead of renaming to the draft.
   const skipCommitRef = useRef(false);
@@ -68,19 +71,23 @@ export function ApproverTeamCard({ workspaceId, team, gateUses }: ApproverTeamCa
     );
   };
 
-  const submitAdd = () => {
-    const person = personDraft.trim();
-    if (person === '') return;
-    addMember.mutate(
-      { roleLabel: team.roleLabel, person },
-      {
-        onSuccess: () => {
-          setPersonDraft('');
-          setError(null);
-        },
-        onError: (mutationError) => setError(problemMessage(mutationError)),
-      },
-    );
+  // Members already on the team are not offered in the typeahead.
+  const availableMembers = memberOptions.filter(
+    (option) => !team.members.some((member) => member.userId === option.userId),
+  );
+
+  // Resolve + add the typed/picked person. Returns true on success so the combobox clears its field.
+  const submitPerson = async (person: string): Promise<boolean> => {
+    const trimmed = person.trim();
+    if (trimmed === '') return false;
+    try {
+      await addMember.mutateAsync({ roleLabel: team.roleLabel, person: trimmed });
+      setError(null);
+      return true;
+    } catch (mutationError) {
+      setError(problemMessage(mutationError));
+      return false;
+    }
   };
 
   const removeOne = (userId: ApproverTeamDto['members'][number]['userId'], displayName: string) => {
@@ -132,26 +139,7 @@ export function ApproverTeamCard({ workspaceId, team, gateUses }: ApproverTeamCa
         )}
       </div>
 
-      <div className="approver-team__add">
-        <input
-          className="mws-input mws-input--compact approver-team__add-input"
-          data-ds="input"
-          type="text"
-          value={personDraft}
-          placeholder="Add a person…"
-          aria-label={`Add member to ${team.roleLabel}`}
-          onChange={(event) => setPersonDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              submitAdd();
-            }
-          }}
-        />
-        <Button variant="secondary" compact onClick={submitAdd}>
-          <Plus size={16} aria-hidden /> Add member
-        </Button>
-      </div>
+      <ApproverMemberCombobox roleLabel={team.roleLabel} members={availableMembers} onAdd={submitPerson} />
 
       {error && (
         <p className="mws-alert mws-alert--error approver-teams__error" role="alert">
