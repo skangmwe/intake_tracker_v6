@@ -162,7 +162,10 @@ public sealed class FieldDefinitionRow
     public bool IsRequired { get; set; }
     public bool IsReadOnly { get; set; }
     public bool IsPlatformDefined { get; set; }
+    public bool IsSystemProvisioned { get; set; }
     public string? PlatformFieldKey { get; set; }
+    // 'Global' (available to every workspace) | 'LocalWorkspace' (this workspace only).
+    public string Location { get; set; } = "LocalWorkspace";
     public string? VisibleStagesJson { get; set; }
     public string? CrossingToFieldKey { get; set; }
     public decimal? MinValue { get; set; }
@@ -170,11 +173,32 @@ public sealed class FieldDefinitionRow
     public bool AllowNewValues { get; set; }
     public int SortOrder { get; set; }
     public bool IsRetired { get; set; }
+    // True when the row belongs to the reading workspace; false for a foreign Global field
+    // (read-only here — editable only from its owning workspace).
+    public bool IsLocal { get; set; }
     public string? DerivedKind { get; set; }
     public string? DerivedExpression { get; set; }
     public string? DerivedDefaultValue { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>One flat row from usp_GetWorkspaceFieldCatalog — the reconciled S30 Fields tab table.</summary>
+public sealed class FieldCatalogRow
+{
+    public Guid FieldDefinitionId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string ObjectType { get; set; } = string.Empty;
+    public string FieldKey { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string FieldType { get; set; } = string.Empty;
+    public string Location { get; set; } = "LocalWorkspace";
+    public bool IsRequired { get; set; }
+    public bool IsReadOnly { get; set; }
+    public bool IsPlatformDefined { get; set; }
+    public bool IsSystemProvisioned { get; set; }
+    public bool IsRetired { get; set; }
+    public bool IsLocal { get; set; }
 }
 
 /// <summary>One option row from usp_GetWorkspaceFieldOptions, keyed by its field.</summary>

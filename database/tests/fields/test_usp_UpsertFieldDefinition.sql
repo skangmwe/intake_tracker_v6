@@ -94,6 +94,29 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE UpsertFieldDefinitionTests.[test_PersistsLocationOnInsert]
+AS
+BEGIN
+    -- Arrange
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.SelectOption';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldRule';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.DerivedField';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldRuleDependency';
+    DECLARE @Ws UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
+
+    -- Act — create a Global-scoped field (Fields tab reconciliation).
+    EXEC dbo.usp_UpsertFieldDefinition
+        @WorkspaceId = @Ws, @ObjectType = N'Request', @FieldKey = N'sharedPriority',
+        @DisplayName = N'Shared Priority', @FieldType = N'ShortText', @Category = N'WorkspaceLocal',
+        @Location = N'Global', @ActorUserId = N'test-actor';
+
+    -- Assert
+    DECLARE @Location NVARCHAR(20) = (SELECT Location FROM dbo.FieldDefinition WHERE FieldKey = N'sharedPriority' AND IsDeleted = 0);
+    EXEC tSQLt.AssertEqualsString @Expected = N'Global', @Actual = @Location;
+END;
+GO
+
 CREATE PROCEDURE UpsertFieldDefinitionTests.[test_PlatformDefinedField_Throws]
 AS
 BEGIN

@@ -22,6 +22,7 @@ public enum FieldOperationOutcome
     Conflict,
     ValidationFailed,
     PlatformDefined,
+    ForeignGlobal,
 }
 
 public sealed record FieldOperationResult(
@@ -32,6 +33,8 @@ public sealed record FieldOperationResult(
 public interface IFieldSchemaService
 {
     Task<WorkspaceFieldSchemaDto> GetSchemaAsync(Guid workspaceId, string objectType, CancellationToken cancellationToken);
+
+    Task<WorkspaceFieldCatalogDto> GetCatalogAsync(Guid workspaceId, CancellationToken cancellationToken);
 
     Task<FieldOperationResult> UpsertFieldAsync(
         Guid workspaceId, FieldDefinitionUpsertRequest request, bool isCreate, Guid actorUserId, string operationId, CancellationToken cancellationToken);
@@ -116,6 +119,12 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
             return new FieldOperationResult(FieldOperationOutcome.NotFound);
         }
 
+        // A Global field owned by another workspace is read-only here — editable only from its owner.
+        if (current is not null && !current.IsLocal)
+        {
+            return new FieldOperationResult(FieldOperationOutcome.ForeignGlobal);
+        }
+
         if (current is not null && current.IsPlatformDefined)
         {
             return new FieldOperationResult(FieldOperationOutcome.PlatformDefined);
@@ -169,6 +178,11 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
         if (current is null)
         {
             return new FieldOperationResult(FieldOperationOutcome.NotFound);
+        }
+
+        if (!current.IsLocal)
+        {
+            return new FieldOperationResult(FieldOperationOutcome.ForeignGlobal);
         }
 
         if (current.IsPlatformDefined)

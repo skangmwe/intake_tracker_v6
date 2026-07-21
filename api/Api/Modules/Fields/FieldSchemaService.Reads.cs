@@ -70,6 +70,9 @@ public sealed partial class FieldSchemaService
             row.IsRequired,
             row.IsReadOnly,
             row.IsPlatformDefined,
+            row.IsSystemProvisioned,
+            row.Location,
+            row.IsLocal,
             row.PlatformFieldKey,
             ParseStringArray(row.VisibleStagesJson),
             row.CrossingToFieldKey,
@@ -138,7 +141,7 @@ public sealed partial class FieldSchemaService
 
         await _db.Database.ExecuteSqlRawAsync(
             @"EXEC dbo.usp_UpsertFieldDefinition
-                @WorkspaceId, @ObjectType, @FieldKey, @DisplayName, @FieldType, @Category, @Section, @HelpText,
+                @WorkspaceId, @ObjectType, @FieldKey, @DisplayName, @FieldType, @Category, @Location, @Section, @HelpText,
                 @IsRequired, @VisibleStagesJson, @CrossingToFieldKey, @MinValue, @MaxValue, @AllowNewValues, @SortOrder,
                 @DerivedKind, @DerivedExpression, @DerivedDefaultValue, @OptionsJson, @RulesJson, @DependenciesJson, @ActorUserId",
             new[]
@@ -149,6 +152,7 @@ public sealed partial class FieldSchemaService
                 new SqlParameter("@DisplayName", request.DisplayName),
                 new SqlParameter("@FieldType", request.FieldType),
                 new SqlParameter("@Category", request.Category),
+                new SqlParameter("@Location", request.Location),
                 Nullable("@Section", request.Section),
                 Nullable("@HelpText", request.HelpText),
                 new SqlParameter("@IsRequired", request.IsRequired),

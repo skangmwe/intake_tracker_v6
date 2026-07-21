@@ -42,6 +42,7 @@ public sealed class FieldsControllerTests
     private static FieldDefinitionDto SampleField(string key = "severity") => new(
         Guid.NewGuid(), WorkspaceId, "Request", key, "Severity", "SingleSelect", "WorkspaceLocal",
         Section: null, HelpText: null, IsRequired: false, IsReadOnly: false, IsPlatformDefined: false,
+        IsSystemProvisioned: false, Location: "LocalWorkspace", IsLocal: true,
         PlatformFieldKey: null, VisibleStages: null, CrossingToFieldKey: null, MinValue: null, MaxValue: null,
         AllowNewValues: false, SortOrder: 1, IsRetired: false,
         Options: Array.Empty<SelectOptionDto>(), Rules: Array.Empty<FieldRuleDto>(), Derived: null,
@@ -93,6 +94,62 @@ public sealed class FieldsControllerTests
         var result = await Build(fields).GetFields(WorkspaceId, "Bogus", CancellationToken.None);
         var problem = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetFields_AttachmentObjectType_IsAccepted()
+    {
+        // Arrange — the widened object set (migration 073) accepts Attachment.
+        var schema = new WorkspaceFieldSchemaDto(WorkspaceId, "Attachment", Array.Empty<FieldDefinitionDto>(), Array.Empty<PlatformFieldDto>());
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.GetSchemaAsync(WorkspaceId, "Attachment", It.IsAny<CancellationToken>())).ReturnsAsync(schema);
+
+        // Act
+        var result = await Build(fields).GetFields(WorkspaceId, "Attachment", CancellationToken.None);
+
+        // Assert
+        Assert.IsType<OkObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task GetFieldCatalog_MemberCanRead_ReturnsOk()
+    {
+        // Arrange
+        var catalog = new WorkspaceFieldCatalogDto(WorkspaceId, Array.Empty<FieldCatalogRowDto>());
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.GetCatalogAsync(WorkspaceId, It.IsAny<CancellationToken>())).ReturnsAsync(catalog);
+
+        // Act
+        var result = await Build(fields).GetFieldCatalog(WorkspaceId, CancellationToken.None);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(catalog, ok.Value);
+    }
+
+    [Fact]
+    public async Task GetFieldCatalog_NoMembership_Returns403()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        var result = await Build(fields, isViewer: false).GetFieldCatalog(WorkspaceId, CancellationToken.None);
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateField_ForeignGlobal_Returns403()
+    {
+        // Arrange — a Global field owned by another workspace is read-only here.
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.UpsertFieldAsync(WorkspaceId, It.IsAny<FieldDefinitionUpsertRequest>(), false, UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(FieldOperationOutcome.ForeignGlobal));
+
+        // Act
+        var result = await Build(fields).UpdateField(WorkspaceId, "sharedPriority", SampleRequest(), CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
     }
 
     [Fact]

@@ -24,8 +24,8 @@ BEGIN
     CREATE TABLE #Actual (FieldDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, ObjectType NVARCHAR(16),
         FieldKey NVARCHAR(64), DisplayName NVARCHAR(200), FieldType NVARCHAR(32), Category NVARCHAR(16),
         Section NVARCHAR(64), HelpText NVARCHAR(400), IsRequired BIT, IsReadOnly BIT, IsPlatformDefined BIT,
-        PlatformFieldKey NVARCHAR(64), VisibleStagesJson NVARCHAR(MAX), CrossingToFieldKey NVARCHAR(64),
-        MinValue DECIMAL(18,4), MaxValue DECIMAL(18,4), AllowNewValues BIT, SortOrder INT, IsRetired BIT,
+        IsSystemProvisioned BIT, PlatformFieldKey NVARCHAR(64), Location NVARCHAR(20), VisibleStagesJson NVARCHAR(MAX), CrossingToFieldKey NVARCHAR(64),
+        MinValue DECIMAL(18,4), MaxValue DECIMAL(18,4), AllowNewValues BIT, SortOrder INT, IsRetired BIT, IsLocal BIT,
         DerivedKind NVARCHAR(16), DerivedExpression NVARCHAR(1000), DerivedDefaultValue NVARCHAR(400),
         CreatedAt DATETIME2, UpdatedAt DATETIME2);
     INSERT INTO #Actual EXEC dbo.usp_GetWorkspaceFields @WorkspaceId = @Ws, @ObjectType = N'Request';
@@ -54,8 +54,8 @@ BEGIN
     CREATE TABLE #Actual (FieldDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, ObjectType NVARCHAR(16),
         FieldKey NVARCHAR(64), DisplayName NVARCHAR(200), FieldType NVARCHAR(32), Category NVARCHAR(16),
         Section NVARCHAR(64), HelpText NVARCHAR(400), IsRequired BIT, IsReadOnly BIT, IsPlatformDefined BIT,
-        PlatformFieldKey NVARCHAR(64), VisibleStagesJson NVARCHAR(MAX), CrossingToFieldKey NVARCHAR(64),
-        MinValue DECIMAL(18,4), MaxValue DECIMAL(18,4), AllowNewValues BIT, SortOrder INT, IsRetired BIT,
+        IsSystemProvisioned BIT, PlatformFieldKey NVARCHAR(64), Location NVARCHAR(20), VisibleStagesJson NVARCHAR(MAX), CrossingToFieldKey NVARCHAR(64),
+        MinValue DECIMAL(18,4), MaxValue DECIMAL(18,4), AllowNewValues BIT, SortOrder INT, IsRetired BIT, IsLocal BIT,
         DerivedKind NVARCHAR(16), DerivedExpression NVARCHAR(1000), DerivedDefaultValue NVARCHAR(400),
         CreatedAt DATETIME2, UpdatedAt DATETIME2);
     INSERT INTO #Actual EXEC dbo.usp_GetWorkspaceFields @WorkspaceId = @Ws, @ObjectType = N'Request';
@@ -83,8 +83,8 @@ BEGIN
     CREATE TABLE #Actual (FieldDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, ObjectType NVARCHAR(16),
         FieldKey NVARCHAR(64), DisplayName NVARCHAR(200), FieldType NVARCHAR(32), Category NVARCHAR(16),
         Section NVARCHAR(64), HelpText NVARCHAR(400), IsRequired BIT, IsReadOnly BIT, IsPlatformDefined BIT,
-        PlatformFieldKey NVARCHAR(64), VisibleStagesJson NVARCHAR(MAX), CrossingToFieldKey NVARCHAR(64),
-        MinValue DECIMAL(18,4), MaxValue DECIMAL(18,4), AllowNewValues BIT, SortOrder INT, IsRetired BIT,
+        IsSystemProvisioned BIT, PlatformFieldKey NVARCHAR(64), Location NVARCHAR(20), VisibleStagesJson NVARCHAR(MAX), CrossingToFieldKey NVARCHAR(64),
+        MinValue DECIMAL(18,4), MaxValue DECIMAL(18,4), AllowNewValues BIT, SortOrder INT, IsRetired BIT, IsLocal BIT,
         DerivedKind NVARCHAR(16), DerivedExpression NVARCHAR(1000), DerivedDefaultValue NVARCHAR(400),
         CreatedAt DATETIME2, UpdatedAt DATETIME2);
     INSERT INTO #Actual EXEC dbo.usp_GetWorkspaceFields @WorkspaceId = @Ws, @ObjectType = N'Request';
@@ -92,5 +92,44 @@ BEGIN
     -- Assert — neither the Task field nor the soft-deleted Request field is returned.
     DECLARE @Count INT = (SELECT COUNT(*) FROM #Actual);
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @Count;
+END;
+GO
+
+CREATE PROCEDURE GetWorkspaceFieldsTests.[test_IncludesGlobalsAndPrefersLocalOnKeyCollision]
+AS
+BEGIN
+    -- Arrange — a foreign Global field surfaces here, and a local field wins over a foreign Global
+    -- field of the same key (Fields tab reconciliation).
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.DerivedField';
+    DECLARE @Ws      UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
+    DECLARE @OtherWs UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000099';
+
+    INSERT INTO dbo.FieldDefinition (FieldDefinitionId, WorkspaceId, ObjectType, FieldKey, DisplayName, FieldType, Category, Location, SortOrder, IsRequired, IsReadOnly, IsPlatformDefined, AllowNewValues, IsRetired, IsDeleted)
+    VALUES
+        (NEWID(), @Ws,      N'Request', N'localOnly',    N'Local Only',    N'ShortText', N'WorkspaceLocal', N'LocalWorkspace', 1, 0, 0, 0, 0, 0, 0),
+        (NEWID(), @OtherWs, N'Request', N'sharedGlobal', N'Shared Global', N'ShortText', N'WorkspaceLocal', N'Global',         2, 0, 0, 0, 0, 0, 0),
+        (NEWID(), @Ws,      N'Request', N'priority',     N'Priority',      N'ShortText', N'WorkspaceLocal', N'LocalWorkspace', 3, 0, 0, 0, 0, 0, 0),
+        (NEWID(), @OtherWs, N'Request', N'priority',     N'Priority (G)',  N'ShortText', N'WorkspaceLocal', N'Global',         4, 0, 0, 0, 0, 0, 0);
+
+    -- Act
+    CREATE TABLE #Actual (FieldDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, ObjectType NVARCHAR(16),
+        FieldKey NVARCHAR(64), DisplayName NVARCHAR(200), FieldType NVARCHAR(32), Category NVARCHAR(16),
+        Section NVARCHAR(64), HelpText NVARCHAR(400), IsRequired BIT, IsReadOnly BIT, IsPlatformDefined BIT,
+        IsSystemProvisioned BIT, PlatformFieldKey NVARCHAR(64), Location NVARCHAR(20), VisibleStagesJson NVARCHAR(MAX), CrossingToFieldKey NVARCHAR(64),
+        MinValue DECIMAL(18,4), MaxValue DECIMAL(18,4), AllowNewValues BIT, SortOrder INT, IsRetired BIT, IsLocal BIT,
+        DerivedKind NVARCHAR(16), DerivedExpression NVARCHAR(1000), DerivedDefaultValue NVARCHAR(400),
+        CreatedAt DATETIME2, UpdatedAt DATETIME2);
+    INSERT INTO #Actual EXEC dbo.usp_GetWorkspaceFields @WorkspaceId = @Ws, @ObjectType = N'Request';
+
+    -- Assert — the foreign Global surfaces as non-local; the colliding key resolves to the local row once.
+    DECLARE @Shared BIT = (SELECT IsLocal FROM #Actual WHERE FieldKey = N'sharedGlobal');
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @Shared;
+
+    DECLARE @PriorityCount INT = (SELECT COUNT(*) FROM #Actual WHERE FieldKey = N'priority');
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @PriorityCount;
+
+    DECLARE @PriorityLocal BIT = (SELECT IsLocal FROM #Actual WHERE FieldKey = N'priority');
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @PriorityLocal;
 END;
 GO

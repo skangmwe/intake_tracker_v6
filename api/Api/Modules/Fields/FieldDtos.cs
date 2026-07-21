@@ -26,6 +26,11 @@ public sealed record FieldDefinitionDto(
     bool IsRequired,
     bool IsReadOnly,
     bool IsPlatformDefined,
+    bool IsSystemProvisioned,
+    // 'Global' (available to every workspace) | 'LocalWorkspace' (this workspace only).
+    string Location,
+    // False for a foreign Global field surfaced here — read-only, editable only from its owner.
+    bool IsLocal,
     string? PlatformFieldKey,
     IReadOnlyList<string>? VisibleStages,
     string? CrossingToFieldKey,
@@ -39,6 +44,27 @@ public sealed record FieldDefinitionDto(
     DerivedFieldDto? Derived,
     DateTime CreatedAt,
     DateTime UpdatedAt);
+
+/// <summary>The flat, all-object-types field catalog behind the reconciled S30 Fields tab.</summary>
+public sealed record WorkspaceFieldCatalogDto(
+    Guid WorkspaceId,
+    IReadOnlyList<FieldCatalogRowDto> Rows);
+
+/// <summary>One row of the Fields tab table (FIELD · KEY · TYPE · OBJECT · LOCATION · REQUIRED ·
+/// SOURCE · STATUS). <c>Source</c> is "System" or "User"; <c>Status</c> is "Active" or "Archived".
+/// <c>ObjectLabel</c> is the display name ("Toolkit item"); <c>ObjectType</c> is the machine key.</summary>
+public sealed record FieldCatalogRowDto(
+    string Id,
+    string ObjectType,
+    string ObjectLabel,
+    string FieldKey,
+    string DisplayName,
+    string FieldType,
+    string Location,
+    bool IsRequired,
+    string Source,
+    string Status,
+    bool IsReadOnly);
 
 public sealed record SelectOptionDto(string Id, string Value, string Label, int SortOrder);
 
@@ -128,8 +154,12 @@ public sealed class DerivedFieldInput
 public sealed class FieldDefinitionUpsertRequest
 {
     [Required]
-    [RegularExpression("^(Request|Task|Feature)$")]
+    [RegularExpression("^(Request|Task|Feature|ToolkitItem|Attachment)$")]
     public string? ObjectType { get; set; }
+
+    // 'Global' (available to every workspace) | 'LocalWorkspace' (this workspace only).
+    [RegularExpression("^(Global|LocalWorkspace)$")]
+    public string Location { get; set; } = "LocalWorkspace";
 
     [Required]
     [MaxLength(64)]

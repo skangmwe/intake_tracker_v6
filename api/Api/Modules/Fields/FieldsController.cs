@@ -36,7 +36,7 @@ public sealed class FieldsController : ControllerBase
     {
         if (!IsValidObjectType(objectType))
         {
-            return BadRequestProblem("Object type must be one of Request, Task, or Feature.");
+            return BadRequestProblem("Object type must be one of Request, Task, Feature, Toolkit item, or Attachment.");
         }
 
         if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.Viewer, cancellationToken))
@@ -46,6 +46,23 @@ public sealed class FieldsController : ControllerBase
 
         var schema = await _fields.GetSchemaAsync(workspaceId, objectType, cancellationToken);
         return Ok(schema);
+    }
+
+    /// <summary>The flat, all-object-types field catalog behind the reconciled S30 Fields tab.</summary>
+    [HttpGet("field-catalog")]
+    [ProducesResponseType(typeof(WorkspaceFieldCatalogDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetFieldCatalog(
+        [FromRoute] Guid workspaceId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.Viewer, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var catalog = await _fields.GetCatalogAsync(workspaceId, cancellationToken);
+        return Ok(catalog);
     }
 
     /// <summary>Create a workspace field.</summary>
@@ -105,7 +122,7 @@ public sealed class FieldsController : ControllerBase
     {
         if (!IsValidObjectType(objectType))
         {
-            return BadRequestProblem("Object type must be one of Request, Task, or Feature.");
+            return BadRequestProblem("Object type must be one of Request, Task, Feature, Toolkit item, or Attachment.");
         }
 
         if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.WorkspaceAdmin, cancellationToken))
@@ -119,6 +136,7 @@ public sealed class FieldsController : ControllerBase
             FieldOperationOutcome.Success => NoContent(),
             FieldOperationOutcome.NotFound => NotFound(),
             FieldOperationOutcome.PlatformDefined => PlatformFieldLocked(),
+            FieldOperationOutcome.ForeignGlobal => ForeignGlobalLocked(),
             FieldOperationOutcome.ValidationFailed => BadRequestProblem(string.Join(" ", result.Errors ?? Array.Empty<string>())),
             _ => BadRequestProblem("The field could not be retired."),
         };
@@ -173,6 +191,7 @@ public sealed class FieldsController : ControllerBase
         }),
         FieldOperationOutcome.NotFound => NotFound(),
         FieldOperationOutcome.PlatformDefined => PlatformFieldLocked(),
+        FieldOperationOutcome.ForeignGlobal => ForeignGlobalLocked(),
         FieldOperationOutcome.ValidationFailed => BadRequestProblem(string.Join(" ", result.Errors ?? Array.Empty<string>())),
         _ => BadRequestProblem("The field could not be saved."),
     };
@@ -183,7 +202,7 @@ public sealed class FieldsController : ControllerBase
             : string.Empty;
 
     private static bool IsValidObjectType(string objectType) =>
-        objectType is "Request" or "Task" or "Feature";
+        objectType is "Request" or "Task" or "Feature" or "ToolkitItem" or "Attachment";
 
     private ObjectResult BadRequestProblem(string detail) =>
         new(new ProblemDetails
@@ -218,6 +237,19 @@ public sealed class FieldsController : ControllerBase
             Title = "Platform-defined field.",
             Status = StatusCodes.Status403Forbidden,
             Detail = "This field is defined centrally and can only be changed by a Platform admin.",
+        })
+        {
+            StatusCode = StatusCodes.Status403Forbidden,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    private ObjectResult ForeignGlobalLocked() =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/global-field-locked",
+            Title = "Global field.",
+            Status = StatusCodes.Status403Forbidden,
+            Detail = "This global field belongs to another workspace and can only be changed from the workspace that created it.",
         })
         {
             StatusCode = StatusCodes.Status403Forbidden,

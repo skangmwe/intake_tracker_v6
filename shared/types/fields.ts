@@ -12,7 +12,13 @@ import type { FieldDefinitionId, IsoDateTime, RelationshipId, UserId, WorkspaceI
  * The object a field belongs to. One metadata engine underlies all record types (§2.4/§2.5).
  * v2 (slice 29) adds `'ToolkitItem'` as a workspace-local reference object.
  */
-export type FieldObjectType = 'Request' | 'Task' | 'Feature' | 'ToolkitItem';
+export type FieldObjectType = 'Request' | 'Task' | 'Feature' | 'ToolkitItem' | 'Attachment';
+
+/**
+ * Field scope (Fields tab reconciliation). 'Global' = the field is available to every workspace
+ * (the AI Solutions hub and any PG/Dept workspace); 'LocalWorkspace' = this workspace only.
+ */
+export type FieldLocation = 'Global' | 'LocalWorkspace';
 
 /**
  * The fixed field-type catalog (BS §2.3). Files are the Attachments object, never a field type.
@@ -118,6 +124,16 @@ export interface FieldDefinitionDto {
   helpText: string | null;
   isRequired: boolean;
   isReadOnly: boolean;
+  /**
+   * Field scope (Fields tab reconciliation). 'Global' fields are read (and rendered) by every
+   * workspace; 'LocalWorkspace' fields belong to this workspace only.
+   */
+  location: FieldLocation;
+  /**
+   * False when this row is a foreign Global field surfaced here — read-only, editable only from
+   * the workspace that owns it. True for the reading workspace's own fields.
+   */
+  isLocal: boolean;
   /** True when this is a reference to a platform-defined field (§4.3) — read-only band. */
   isPlatformDefined: boolean;
   /** The platform field key when isPlatformDefined; the central definition wins. */
@@ -174,6 +190,8 @@ export interface FieldDefinitionUpsertRequest {
   displayName: string;
   fieldType: FieldType;
   category: FieldCategory;
+  /** Field scope. Defaults to 'LocalWorkspace' server-side when omitted. */
+  location?: FieldLocation;
   section?: string | null;
   helpText?: string | null;
   isRequired?: boolean;
@@ -274,6 +292,40 @@ export interface WorkspaceFieldSchemaDto {
   fields: FieldDefinitionDto[];
   /** Platform-defined read-only band (§4.3), resolved from the central definition. */
   platformFields: PlatformFieldDto[];
+}
+
+/** The provenance of a catalog row: a synthesised system auto-field, or an analyst-defined field. */
+export type FieldSource = 'System' | 'User';
+
+/** Configuration status shown in the STATUS column. 'Draft' is reserved; not emitted today. */
+export type FieldStatus = 'Active' | 'Draft' | 'Archived';
+
+/**
+ * One row of the reconciled S30 Fields tab table (FIELD · KEY · TYPE · OBJECT · LOCATION ·
+ * REQUIRED · SOURCE · STATUS). Flat across every object type: the five read-only system
+ * auto-fields synthesised per object, then the workspace's stored custom fields.
+ */
+export interface FieldCatalogRowDto {
+  /** `system:{object}:{key}` for a synthesised row, or the field-definition id for a stored row. */
+  id: string;
+  objectType: FieldObjectType;
+  /** Display label of the object ("Toolkit item"); `objectType` is the machine key. */
+  objectLabel: string;
+  fieldKey: string;
+  displayName: string;
+  fieldType: FieldType;
+  location: FieldLocation;
+  isRequired: boolean;
+  source: FieldSource;
+  status: FieldStatus;
+  /** True for system rows, platform/derived fields, and foreign Global fields — the editor opens read-only. */
+  isReadOnly: boolean;
+}
+
+/** GET response for the flat Fields-tab catalog. */
+export interface WorkspaceFieldCatalogDto {
+  workspaceId: WorkspaceId;
+  rows: FieldCatalogRowDto[];
 }
 
 /** Actor context echoed on config-audit surfaces. */

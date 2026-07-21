@@ -5,6 +5,11 @@
 --              keyed by the TARGET field's FieldKey so the API can group rules onto their
 --              fields. Ordered by the target field then rule SortOrder (Derived-category
 --              first-match-wins order, §3.4). Soft-deleted rows excluded. Read-only.
+--
+--              Cross-workspace scope (Fields tab reconciliation): rules are returned for the
+--              workspace's own fields AND every Global field of the object type. The winning
+--              field per key (local over foreign-global) is resolved first so a colliding key
+--              never double-lists rules — mirrors the dedup in usp_GetWorkspaceFields.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_GetWorkspaceFieldRules
     @WorkspaceId UNIQUEIDENTIFIER,
@@ -16,8 +21,21 @@ BEGIN
     DECLARE @WorkspaceIdLocal UNIQUEIDENTIFIER = @WorkspaceId;
     DECLARE @ObjectTypeLocal  NVARCHAR(16)     = @ObjectType;
 
+    ;WITH Winning AS
+    (
+        SELECT
+            d.FieldDefinitionId,
+            d.FieldKey,
+            ROW_NUMBER() OVER (
+                PARTITION BY d.FieldKey
+                ORDER BY CASE WHEN d.WorkspaceId = @WorkspaceIdLocal THEN 0 ELSE 1 END) AS RowRank
+        FROM dbo.FieldDefinition AS d
+        WHERE d.ObjectType = @ObjectTypeLocal
+          AND d.IsDeleted = 0
+          AND (d.WorkspaceId = @WorkspaceIdLocal OR d.Location = N'Global')
+    )
     SELECT
-        d.FieldKey       AS FieldKey,
+        w.FieldKey       AS FieldKey,
         r.FieldRuleId    AS FieldRuleId,
         r.[Action]       AS [Action],
         r.WhenFieldKey   AS WhenFieldKey,
@@ -25,13 +43,11 @@ BEGIN
         r.CompareValue   AS CompareValue,
         r.ProduceValue   AS ProduceValue,
         r.SortOrder      AS SortOrder
-    FROM dbo.FieldRule AS r
-    INNER JOIN dbo.FieldDefinition AS d
-        ON d.FieldDefinitionId = r.FieldDefinitionId
-       AND d.IsDeleted = 0
-    WHERE d.WorkspaceId = @WorkspaceIdLocal
-      AND d.ObjectType = @ObjectTypeLocal
-      AND r.IsDeleted = 0
-    ORDER BY d.FieldKey, r.SortOrder;
+    FROM Winning AS w
+    INNER JOIN dbo.FieldRule AS r
+        ON r.FieldDefinitionId = w.FieldDefinitionId
+       AND r.IsDeleted = 0
+    WHERE w.RowRank = 1
+    ORDER BY w.FieldKey, r.SortOrder;
 END;
 GO
