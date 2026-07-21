@@ -141,8 +141,8 @@ BEGIN
 END;
 GO
 
--- ── #5 origin-by-status-heatmap ──────────────────────────────────────────────
-CREATE PROCEDURE DashboardMetricTests.[test_HeatmapOpenAndClosedCells]
+-- ── #5 origin-by-status-heatmap — open cells only (closed records excluded) ──
+CREATE PROCEDURE DashboardMetricTests.[test_HeatmapOpenCellsOnly_ExcludesClosed]
 AS
 BEGIN
     -- Arrange
@@ -162,11 +162,11 @@ BEGIN
     CREATE TABLE #R (Origin NVARCHAR(200), ColKey NVARCHAR(32), Cnt INT);
     INSERT INTO #R EXEC dbo.usp_GetDashboardOriginStatusHeatmap @WorkspaceId = '1A150000-0000-4000-8000-000000000001';
 
-    -- Assert — an open Intake cell and a closed Live cell for Litigation.
+    -- Assert — the open Intake record produces a cell; the closed (Outcome=Live) record does not.
     DECLARE @Open SQL_VARIANT = (SELECT Cnt FROM #R WHERE Origin = N'Litigation' AND ColKey = N'Intake');
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Open;
-    DECLARE @Closed SQL_VARIANT = (SELECT Cnt FROM #R WHERE Origin = N'Litigation' AND ColKey = N'Live');
-    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Closed;
+    DECLARE @ClosedCells INT = (SELECT COUNT(*) FROM #R WHERE ColKey = N'Live');
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @ClosedCells;
 END;
 GO
 

@@ -405,14 +405,14 @@ public sealed class DashboardMetricResolver
             .FromSqlRaw("EXEC dbo.usp_GetDashboardOriginStatusHeatmap @WorkspaceId", WorkspaceParam(workspaceId))
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var columnKeys = StatusCategories.Concat(ClosureOutcomes).ToList();
+        // The heatmap shows only in-flight status categories. Closed records (those with an
+        // outcome) are excluded — the standalone "Closures by outcome" widget covers outcomes.
+        var columnKeys = StatusCategories.ToList();
         var columns = new List<HeatmapColumn>();
         for (var columnIndex = 0; columnIndex < columnKeys.Count; columnIndex++)
         {
-            var isClosedGroup = columnIndex >= StatusCategories.Length;
-            var group = columnIndex == 0 ? "In flight" : columnIndex == StatusCategories.Length ? "Closed" : null;
-            var groupStart = columnIndex == StatusCategories.Length ? true : (bool?)null;
-            columns.Add(new HeatmapColumn(columnKeys[columnIndex], group, groupStart));
+            var group = columnIndex == 0 ? "In flight" : (string?)null;
+            columns.Add(new HeatmapColumn(columnKeys[columnIndex], group, null));
         }
 
         // Origin rows in first-seen order, then '— (unset)' always last.
