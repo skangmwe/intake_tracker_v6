@@ -149,11 +149,21 @@ export interface LifecycleDto {
 export interface ApproverTeamMemberDto {
   userId: UserId;
   displayName: string;
+  /**
+   * Member email — populated on the S29 Approver-teams roster read (member rows show it). Absent on
+   * other producers of this shape (e.g. a frozen approver slot's eligible members).
+   */
+  email?: string;
 }
 
 /** The roster for one role label. */
 export interface ApproverTeamDto {
   roleLabel: string;
+  /**
+   * Catalog id of the role label — enables rename / delete of the team. Null for a retired label
+   * that still has live members (surfaced with its roster but not editable).
+   */
+  roleLabelId?: string | null;
   members: ApproverTeamMemberDto[];
 }
 

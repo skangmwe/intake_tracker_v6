@@ -166,67 +166,194 @@
   color: var(--text-primary);
 }
 
-/* Approver teams roster (read-only) */
-.users-access__teams-note {
-  color: var(--text-secondary);
-  font-size: 13px;
-  margin-bottom: var(--space-5);
-}
-
-.users-access__teams {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
+/* Approver teams editor (S29) — matches the prototype: create-team bar, per-team cards with an
+   inline-editable name, a "Fills N gate slots" usage label, a trash-to-delete, an add-a-person row,
+   and member rows (avatar + name + email + remove). */
+.approver-teams {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
 }
 
-.users-access__team {
+/* Create a new team */
+.approver-teams__create {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-5);
 }
 
-.users-access__team-head {
+.approver-teams__create-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 220px;
+}
+
+.approver-teams__create-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.approver-teams__note {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.approver-teams__error {
+  margin: 0;
+}
+
+/* Team list + card */
+.approver-teams__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.approver-team {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.approver-team__head {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
-.users-access__team-role {
-  font-weight: 600;
+.approver-team__icon {
+  color: var(--icon-default);
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+/* Inline-editable team name — transparent until hover/focus (prototype). */
+.approver-team__name {
+  height: 32px;
+  min-width: 200px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
   color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.users-access__team-count {
-  margin-left: auto;
+.approver-team__name:hover:not(:disabled) {
+  border-color: var(--border-light);
+}
+
+.approver-team__name:focus-visible {
+  outline: none;
+  border-color: var(--accent-interactive);
+  background: var(--bg-surface);
+}
+
+.approver-team__usage {
   font-size: 12px;
   color: var(--text-secondary);
 }
 
-.users-access__team-members {
+.approver-team__spacer {
+  flex: 1;
+}
+
+/* Add-a-person row */
+.approver-team__add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.approver-team__add-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.approver-team__empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Member rows */
+.approver-team__members {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  flex-direction: column;
 }
 
-.users-access__team-member {
+.approver-team__member {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.approver-team__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
   background: var(--color-pale-blue);
   color: var(--color-navy);
-  border-radius: var(--radius-pill);
-  padding: var(--space-1) var(--space-3);
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
-.users-access__team-empty {
+.approver-team__member-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.approver-team__member-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.approver-team__member-email {
+  font-family: var(--font-mono);
+  font-size: 12px;
   color: var(--text-secondary);
-  font-size: 13px;
-  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .users-access__empty {

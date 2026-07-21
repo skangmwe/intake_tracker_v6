@@ -365,9 +365,15 @@ public sealed class LifecycleService : ILifecycleService
             .ToDictionary(
                 group => group.Key,
                 group => (IReadOnlyList<ApproverTeamMemberDto>)group
-                    .Select(member => new ApproverTeamMemberDto(member.UserId, member.DisplayName))
+                    .Select(member => new ApproverTeamMemberDto(member.UserId, member.DisplayName, member.Email))
                     .ToList(),
                 StringComparer.Ordinal);
+
+        // The catalog id per label — carried on the team so the editor can rename / retire it. A
+        // label with members but no catalog row (retired label) keeps its roster but has no id.
+        var idByLabel = roleLabels
+            .GroupBy(role => role.Label, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First().RoleLabelId, StringComparer.Ordinal);
 
         var orderedLabels = roleLabels
             .OrderBy(role => role.SortOrder)
@@ -383,7 +389,8 @@ public sealed class LifecycleService : ILifecycleService
             .Concat(extraLabels)
             .Select(label => new ApproverTeamDto(
                 label,
-                membersByRole.TryGetValue(label, out var roster) ? roster : Array.Empty<ApproverTeamMemberDto>()))
+                membersByRole.TryGetValue(label, out var roster) ? roster : Array.Empty<ApproverTeamMemberDto>(),
+                idByLabel.TryGetValue(label, out var roleLabelId) ? roleLabelId : null))
             .ToList();
     }
 }

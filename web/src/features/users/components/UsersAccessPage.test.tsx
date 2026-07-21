@@ -19,7 +19,16 @@ import { fetchMe, fetchMembers } from '../api';
 import { UsersAccessPage } from './UsersAccessPage';
 
 jest.mock('../api');
-jest.mock('@/features/lifecycle', () => ({ useLifecycleConfig: jest.fn() }));
+// The Approver teams panel + its cards call the roster/team mutation hooks; stub them so switching
+// to that tab renders. Behaviour for those hooks lives in ApproverTeamsPanel / ApproverTeamCard tests.
+jest.mock('@/features/lifecycle', () => ({
+  useLifecycleConfig: jest.fn(),
+  useCreateApproverTeam: () => ({ mutate: jest.fn(), isPending: false }),
+  useAddApproverMember: () => ({ mutate: jest.fn(), isPending: false }),
+  useRemoveApproverMember: () => ({ mutate: jest.fn(), isPending: false }),
+  useRenameApproverTeam: () => ({ mutate: jest.fn(), isPending: false }),
+  useDeleteApproverTeam: () => ({ mutate: jest.fn(), isPending: false }),
+}));
 
 const mockedFetchMe = fetchMe as jest.MockedFunction<typeof fetchMe>;
 const mockedFetchMembers = fetchMembers as jest.MockedFunction<typeof fetchMembers>;
@@ -94,14 +103,18 @@ describe('UsersAccessPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('UsersAccessPage — Approver teams tab — switches to the read-only roster', async () => {
+  it('UsersAccessPage — Approver teams tab — switches to the team editor', async () => {
     // Arrange
     mockedFetchMembers.mockResolvedValue({ members: [buildMember({ displayName: 'Ada Byron' })] });
     mockedConfig.mockReturnValue(
       configStub({
         data: buildLifecycleConfig({
           approverTeams: [
-            { roleLabel: 'GCO', members: [{ userId: '00000000-0000-0000-0000-0000000000a1' as UserId, displayName: 'Bo Chen' }] },
+            {
+              roleLabel: 'GCO',
+              roleLabelId: '00000000-0000-0000-0000-0000000000f1',
+              members: [{ userId: '00000000-0000-0000-0000-0000000000a1' as UserId, displayName: 'Bo Chen' }],
+            },
           ],
         }),
         isLoading: false,
@@ -115,9 +128,9 @@ describe('UsersAccessPage', () => {
     // Act
     await user.click(screen.getByRole('tab', { name: 'Approver teams' }));
 
-    // Assert
-    expect(await screen.findByText('GCO')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /manage teams/i })).toHaveAttribute('href', '/admin/lifecycle');
+    // Assert — the editor renders: the create-team bar and the team's editable name.
+    expect(await screen.findByText('New approver team')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('GCO')).toBeInTheDocument();
     expect(screen.queryByText('Ada Byron')).not.toBeInTheDocument();
   });
 });

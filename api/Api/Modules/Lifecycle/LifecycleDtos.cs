@@ -49,9 +49,12 @@ public sealed record GateDefinitionDto(
 
 public sealed record GateSlotDto(string RoleLabel, int EligibleCount);
 
-public sealed record ApproverTeamDto(string RoleLabel, IReadOnlyList<ApproverTeamMemberDto> Members);
+// RoleLabelId is the catalog id (null for a retired label that still has live members — such a
+// team cannot be renamed or retired from the editor). Members carry Email for the S29 roster rows.
+public sealed record ApproverTeamDto(
+    string RoleLabel, IReadOnlyList<ApproverTeamMemberDto> Members, Guid? RoleLabelId = null);
 
-public sealed record ApproverTeamMemberDto(Guid UserId, string DisplayName);
+public sealed record ApproverTeamMemberDto(Guid UserId, string DisplayName, string? Email = null);
 
 // ─── Request bodies ───────────────────────────────────────────────────────────
 
