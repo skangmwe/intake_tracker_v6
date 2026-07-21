@@ -1,8 +1,9 @@
 // Add-a-person combobox for an approver team (S29). Enhances the prototype's plain input with a
-// WAI-ARIA combobox that filters to the workspace's active members as the admin types — pick from
-// the list (resolves by email, so never ambiguous) or type a name/email and submit as free text
-// (the server resolves it either way). Keyboard: ArrowUp/Down move, Enter selects the highlighted
-// option or submits the typed text, Escape closes.
+// WAI-ARIA combobox that filters to the workspace's active members as the admin types. Choosing a
+// member (click or Enter on the highlighted option) fills the field and remembers the pick; nothing
+// is added until "Add member" (or Enter with the list closed). Picking resolves by the member's
+// unique email; free text is resolved server-side. Keyboard: ArrowUp/Down move, Enter chooses the
+// highlighted option or (when none) submits, Escape closes.
 
 import { useId, useMemo, useState } from 'react';
 import { Plus } from '@phosphor-icons/react';
@@ -31,6 +32,9 @@ export function ApproverMemberCombobox({ roleLabel, members, onAdd }: ApproverMe
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  // The member chosen from the list, if any — submit resolves by its unique email. Cleared when the
+  // admin edits the text, so a hand-typed value always submits as free text.
+  const [picked, setPicked] = useState<MemberOption | null>(null);
   const listId = useId();
 
   const close = () => {
@@ -51,11 +55,22 @@ export function ApproverMemberCombobox({ roleLabel, members, onAdd }: ApproverMe
     return matches.slice(0, MAX_MEMBER_SUGGESTIONS);
   }, [query, members]);
 
-  const submit = async (person: string) => {
+  // Choose an option: fill the field + remember the pick. Does NOT add — the admin confirms with
+  // "Add member" (or Enter with the list closed).
+  const choose = (member: MemberOption) => {
+    setPicked(member);
+    setQuery(member.displayName);
+    close();
+  };
+
+  // Add the chosen member (by email) or the typed free text.
+  const submit = async () => {
+    const person = picked ? picked.email : query;
     if (person.trim() === '') return;
     const added = await onAdd(person);
     if (added) {
       setQuery('');
+      setPicked(null);
       close();
     }
   };
@@ -73,8 +88,12 @@ export function ApproverMemberCombobox({ roleLabel, members, onAdd }: ApproverMe
       setActiveIndex((index) => Math.max(index - 1, 0));
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      const chosen = showList && activeIndex >= 0 ? suggestions[activeIndex] : undefined;
-      void submit(chosen ? chosen.email : query);
+      const option = showList && activeIndex >= 0 ? suggestions[activeIndex] : undefined;
+      if (option) {
+        choose(option);
+      } else {
+        void submit();
+      }
     } else if (event.key === 'Escape') {
       close();
     }
@@ -97,13 +116,14 @@ export function ApproverMemberCombobox({ roleLabel, members, onAdd }: ApproverMe
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
+            setPicked(null);
             setOpen(true);
             setActiveIndex(-1);
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
         />
-        <Button variant="secondary" compact onClick={() => void submit(query)}>
+        <Button variant="secondary" compact onClick={() => void submit()}>
           <Plus size={16} aria-hidden /> Add member
         </Button>
       </span>
@@ -116,10 +136,10 @@ export function ApproverMemberCombobox({ roleLabel, members, onAdd }: ApproverMe
               role="option"
               aria-selected={index === activeIndex}
               className={`approver-combobox__option${index === activeIndex ? ' is-active' : ''}`}
-              // Mouse-down (not click) so selecting fires before the input's blur closes the list.
+              // Mouse-down (not click) so choosing fires before the input's blur closes the list.
               onMouseDown={(event) => {
                 event.preventDefault();
-                void submit(member.email);
+                choose(member);
               }}
               onMouseEnter={() => setActiveIndex(index)}
             >

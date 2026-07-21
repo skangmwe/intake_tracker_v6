@@ -45,7 +45,7 @@ describe('ApproverMemberCombobox', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('ApproverMemberCombobox — picking an option adds by email and clears the field', async () => {
+  it('ApproverMemberCombobox — clicking an option fills the field but does not add; Add member adds by email', async () => {
     // Arrange
     const onAdd = jest.fn().mockResolvedValue(true);
     const user = userEvent.setup();
@@ -56,24 +56,53 @@ describe('ApproverMemberCombobox', () => {
     await user.click(input);
     await user.click(screen.getByRole('option', { name: /ada byron/i }));
 
+    // Assert — the field is filled with the name and nothing has been added yet.
+    expect(input).toHaveValue('Ada Byron');
+    expect(onAdd).not.toHaveBeenCalled();
+
+    // Act — confirm with Add member.
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+
     // Assert — resolved by the unique email, then the field clears.
     expect(onAdd).toHaveBeenCalledWith('ada@example.com');
     await waitFor(() => expect(input).toHaveValue(''));
   });
 
-  it('ApproverMemberCombobox — ArrowDown + Enter selects the highlighted option', async () => {
+  it('ApproverMemberCombobox — ArrowDown + Enter fills the option; a second Enter adds it', async () => {
     // Arrange
     const onAdd = jest.fn().mockResolvedValue(true);
     const user = userEvent.setup();
     renderCombobox(onAdd);
-
-    // Act
     const input = screen.getByRole('combobox');
+
+    // Act — highlight + Enter fills the field (no add yet).
     await user.click(input);
     await user.keyboard('{ArrowDown}{Enter}');
+    // Assert
+    expect(input).toHaveValue('Ada Byron');
+    expect(onAdd).not.toHaveBeenCalled();
 
-    // Assert — first option (Ada) added by email.
+    // Act — a second Enter (list closed) submits.
+    await user.keyboard('{Enter}');
+    // Assert — added by the unique email.
     expect(onAdd).toHaveBeenCalledWith('ada@example.com');
+  });
+
+  it('ApproverMemberCombobox — editing after choosing clears the pick and submits free text', async () => {
+    // Arrange
+    const onAdd = jest.fn().mockResolvedValue(true);
+    const user = userEvent.setup();
+    renderCombobox(onAdd);
+    const input = screen.getByRole('combobox');
+
+    // Act — choose Ada, then edit the text, then Add member.
+    await user.click(input);
+    await user.click(screen.getByRole('option', { name: /ada byron/i }));
+    await user.type(input, ' (contractor)');
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+
+    // Assert — the edited free text is submitted, not the picked email.
+    expect(onAdd).toHaveBeenCalledWith('Ada Byron (contractor)');
   });
 
   it('ApproverMemberCombobox — Enter with nothing highlighted submits the typed text', async () => {
