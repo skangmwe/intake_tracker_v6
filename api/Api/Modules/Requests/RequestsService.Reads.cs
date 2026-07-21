@@ -202,11 +202,11 @@ public sealed partial class RequestsService
     private static RequestDto MapRow(RequestRow row, IReadOnlyList<RequestStageRef> stages, string lifecycleName, DateOnly today)
     {
         var fields = ParseFields(row.FieldValues);
-        // Slice 26: StatusHold is the source of truth; the legacy `hold` block is now a derived read
-        // computed from StatusHold ('OnHold' → held; 'Abandoned' also blocks but the pre-v2 field only
-        // knew binary, so we surface Abandoned as held=true too — the UI shows the correct pill).
+        // StatusHold is the source of truth; the legacy `hold` block is a derived read computed from
+        // StatusHold ('OnHold' → held). (close/status cleanup — 'Abandoned' retired; dropping a record
+        // is now a Close outcome, not a hold state.)
         var statusHold = ParseStatusHold(row.StatusHold);
-        var held = statusHold == RequestStatusHoldValue.OnHold || statusHold == RequestStatusHoldValue.Abandoned;
+        var held = statusHold == RequestStatusHoldValue.OnHold;
         var reason = statusHold == RequestStatusHoldValue.InProgress ? null : row.StatusHoldNote;
 
         return new RequestDto(
@@ -240,7 +240,8 @@ public sealed partial class RequestsService
     public static RequestStatusHoldValue ParseStatusHold(string? statusHold) => statusHold switch
     {
         "OnHold" => RequestStatusHoldValue.OnHold,
-        "Abandoned" => RequestStatusHoldValue.Abandoned,
+        // Any legacy "Abandoned" (retired) defensively reads as InProgress — migration 073 closed
+        // those records, so none should remain.
         _ => RequestStatusHoldValue.InProgress,
     };
 
@@ -290,7 +291,7 @@ public sealed partial class RequestsService
             "validation" => "Validation",
             "delivery" => "Delivered",
             "stabilization" => "Delivered",
-            "closure" => "Delivered",
+            "closeout" => "Delivered",
             _ => string.IsNullOrEmpty(aiStage) ? string.Empty : aiStage,
         };
     }

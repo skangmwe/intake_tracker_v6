@@ -51,7 +51,7 @@ public enum TaskPatchOutcome
     Success,
     /// <summary>Task not visible to the caller — 403, never disclose existence.</summary>
     Denied,
-    /// <summary>Slice 26 — parent record is <c>OnHold</c> or <c>Abandoned</c>. 409 record-on-hold.</summary>
+    /// <summary>Parent record is <c>OnHold</c>. 409 record-on-hold.</summary>
     RecordOnHold,
 }
 
@@ -519,7 +519,7 @@ public sealed class TasksService : ITasksService
 
     private static readonly IReadOnlySet<string> KnownPhases = new HashSet<string>(StringComparer.Ordinal)
     {
-        "Intake", "Triage", "Execution", "Validation", "Delivery", "Stabilization", "Closure", "Unphased",
+        "Intake", "Triage", "Execution", "Validation", "Delivery", "Stabilization", "Closeout", "Unphased",
     };
 
     /// <summary>Coerce a phase to a known value; anything unrecognised falls to 'Unphased'.</summary>

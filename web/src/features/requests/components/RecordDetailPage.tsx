@@ -31,7 +31,7 @@ import { TasksTab } from '@/features/tasks';
 import { useMe } from '@/features/users/useMe';
 import { EscalateModal, EscalatedIntakeNote } from '@/features/escalation';
 import { AddToCatalogButton } from '@/features/features';
-import { CloseRecordModal } from '@/features/closure';
+import { CloseRecordModal, CLOSE_OUTCOME_OPTIONS, type CloseOutcomeValue } from '@/features/closure';
 import { RelationshipsCard } from '@/features/typed-links';
 import { AttachmentsCard } from '@/features/attachments';
 import { WatchersCard } from '@/features/watchers';
@@ -78,20 +78,30 @@ const BASE_TABS: { id: string; label: string }[] = [
   { id: 'watchers', label: 'Watchers & alerts' },
 ];
 
-// Slice 26 — tri-state Status/hold segmented control. Values are the wire strings the API accepts.
-const STATUS_HOLD_OPTIONS: {
-  value: 'InProgress' | 'OnHold' | 'Abandoned';
-  label: string;
-}[] = [
-  { value: 'InProgress', label: 'In progress' },
-  { value: 'OnHold',     label: 'On hold' },
-  { value: 'Abandoned',  label: 'Abandoned' },
+// The unified record-status picker (close/status cleanup). One control, two groups:
+//   Active  — the working state (In progress / On hold), written via setStatusHold.
+//   Closed  — a terminal Outcome; picking one opens the Close-record confirm flow (CloseRecordModal).
+// 'Abandoned' was retired: dropping a record is now a Close · Withdrawn / Not pursued.
+const STATUS_PICKER_GROUPS = [
+  {
+    label: 'Active',
+    options: [
+      { value: 'InProgress', label: 'In progress' },
+      { value: 'OnHold', label: 'On hold' },
+    ],
+  },
+  { label: 'Closed', options: CLOSE_OUTCOME_OPTIONS },
 ];
+
+/** The Active-group values, written directly via setStatusHold. */
+function isActiveStatus(value: string): value is 'InProgress' | 'OnHold' {
+  return value === 'InProgress' || value === 'OnHold';
+}
 
 function displayStatusKind(status: string): StatusKind {
   const lower = status.toLowerCase();
   if (lower.includes('hold')) return 'warning';
-  if (status === 'Declined' || status === 'Abandoned') return 'neutral';
+  if (status === 'Declined' || status === 'Withdrawn' || status === 'NotPursued') return 'neutral';
   if (status === 'Live') return 'success';
   return 'info';
 }
@@ -339,23 +349,35 @@ interface StatusTabProps {
 
 function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }: StatusTabProps) {
   const currentStatusHold = request.statusHold ?? 'InProgress';
-  const [statusChoice, setStatusChoice] = useState<'InProgress' | 'OnHold' | 'Abandoned'>(currentStatusHold);
+  const closed = request.outcome ?? null;
+  // One control for the record's status. It reflects the record's state — its outcome when closed,
+  // else its active hold state. Active picks write statusHold; Closed picks open the Close flow.
+  const [pickerValue, setPickerValue] = useState<string>(closed ? closed.value : currentStatusHold);
   const [note, setNote] = useState(request.statusHoldNote ?? '');
   const [toStage, setToStage] = useState(request.stage ?? request.stages[0]?.key ?? '');
-  const [closeOpen, setCloseOpen] = useState(false);
+  const [closePreset, setClosePreset] = useState<CloseOutcomeValue | null>(null);
 
-  const noteRequired = statusChoice !== 'InProgress';
+  const activeSelected = isActiveStatus(pickerValue);
+  const noteRequired = pickerValue === 'OnHold';
   const noteMissing = noteRequired && note.trim() === '';
   const stageOptions = request.stages.map((s) => ({ value: s.key, label: s.label }));
-  const closed = request.outcome ?? null;
   const stageGuard = useHoldGuard(request.statusHold);
 
+  const onPickStatus = (value: string) => {
+    if (isActiveStatus(value)) {
+      setPickerValue(value);
+    } else {
+      // A Closed outcome — run the deliberate Close flow (confirm + reason + duplicate-of).
+      setClosePreset(value as CloseOutcomeValue);
+    }
+  };
+
   const updateStatus = () => {
-    const trimmed = note.trim();
+    const next = pickerValue === 'OnHold' ? 'OnHold' : 'InProgress';
     setStatusHold.mutate({
       etag: request.eTag,
-      statusHold: statusChoice,
-      statusHoldNote: statusChoice === 'InProgress' ? null : trimmed,
+      statusHold: next,
+      statusHoldNote: next === 'InProgress' ? null : note.trim(),
     });
   };
 
@@ -369,39 +391,42 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
           Status
         </span>
         <Select
-          label="Status override"
-          value={statusChoice}
-          onChange={(value) => setStatusChoice(value as 'InProgress' | 'OnHold' | 'Abandoned')}
-          options={STATUS_HOLD_OPTIONS}
+          label="Status"
+          value={pickerValue}
+          onChange={onPickStatus}
+          groups={STATUS_PICKER_GROUPS}
+          disabled={closed != null}
         />
+        {closed && (
+          <p className="caption">
+            Closed · {closed.value}
+            {closed.notes ? ` — ${closed.notes}` : ''}
+          </p>
+        )}
         {noteRequired && (
           <TextArea
             label="Note"
             value={note}
             onChange={setNote}
-            error={
-              noteMissing
-                ? statusChoice === 'OnHold'
-                  ? 'Add a reason for placing this record on hold.'
-                  : 'Add a note explaining why this record is being abandoned.'
-                : undefined
-            }
+            error={noteMissing ? 'Add a reason for placing this record on hold.' : undefined}
           />
         )}
-        {currentStatusHold !== 'InProgress' && (
+        {currentStatusHold === 'OnHold' && (
           <p className="mws-alert mws-alert--pending" role="status">
             <StatusHoldPill statusHold={currentStatusHold} /> Task completion and gate approvals are
-            paused while this record is {currentStatusHold === 'OnHold' ? 'on hold' : 'abandoned'}.
-            Set it back to <strong>In progress</strong> to continue.
+            paused while this record is on hold. Set it back to <strong>In progress</strong> to
+            continue.
           </p>
         )}
-        <Button
-          variant="secondary"
-          onClick={updateStatus}
-          disabled={setStatusHold.isPending || noteMissing}
-        >
-          Update status
-        </Button>
+        {activeSelected && (
+          <Button
+            variant="secondary"
+            onClick={updateStatus}
+            disabled={setStatusHold.isPending || noteMissing}
+          >
+            Update status
+          </Button>
+        )}
       </section>
 
       <SlaBlock slaStatus={request.slaStatus} />
@@ -448,30 +473,13 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
         workspaceId={request.workspaceId as WorkspaceId}
       />
 
-      <section className="record-card" aria-label="Close record">
-        <span className="record-chip">Close record</span>
-        {closed ? (
-          <p className="caption">
-            Closed · {closed.value}
-            {closed.notes ? ` — ${closed.notes}` : ''}
-          </p>
-        ) : (
-          <>
-            <p className="caption">
-              Record a final outcome for this request. You can still read it afterward.
-            </p>
-            <Button variant="secondary" onClick={() => setCloseOpen(true)}>
-              Close record
-            </Button>
-          </>
-        )}
-      </section>
-
-      {closeOpen && (
+      {/* Closing is now part of the Status picker's "Closed" group — a Closed pick opens this modal. */}
+      {closePreset && (
         <CloseRecordModal
           recordId={request.id as RecordId}
           recordName={request.name}
-          onClose={() => setCloseOpen(false)}
+          initialOutcome={closePreset}
+          onClose={() => setClosePreset(null)}
         />
       )}
     </div>

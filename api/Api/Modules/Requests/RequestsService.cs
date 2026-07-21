@@ -29,7 +29,7 @@ public enum RequestWriteOutcome
     /// <summary>The patch targets a locked field — a PG-side crossing field on an escalated record, or a
     /// platform-defined field (AI Solutions Status / system fields). 403 (BS §6.2/§6.4).</summary>
     Locked,
-    /// <summary>Slice 26 — the record is <c>OnHold</c> or <c>Abandoned</c> and this mutation is blocked (409 record-on-hold).</summary>
+    /// <summary>The record is <c>OnHold</c> and this mutation is blocked (409 record-on-hold).</summary>
     RecordOnHold,
 }
 
@@ -43,7 +43,7 @@ public enum StageMoveOutcome
     GateOpened,
     /// <summary>A gate is already open on this record — 409 gate-already-open.</summary>
     GateAlreadyOpen,
-    /// <summary>Slice 26 — the record is <c>OnHold</c> or <c>Abandoned</c> and stage advance is blocked (409 record-on-hold).</summary>
+    /// <summary>The record is <c>OnHold</c> and stage advance is blocked (409 record-on-hold).</summary>
     RecordOnHold,
 }
 

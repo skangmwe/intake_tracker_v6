@@ -11,7 +11,7 @@ export const PHASE_ORDER: readonly TaskPhase[] = [
   'Validation',
   'Delivery',
   'Stabilization',
-  'Closure',
+  'Closeout',
   'Unphased',
 ];
 

@@ -214,7 +214,7 @@ export function buildRequestDto(overrides: Partial<RequestDto> = {}): RequestDto
       { key: 'validation', label: 'Validation', statusCategory: 'Validation' },
       { key: 'delivery', label: 'Delivery', statusCategory: 'Delivery' },
       { key: 'stabilization', label: 'Stabilization', statusCategory: 'Stabilization' },
-      { key: 'closure', label: 'Closure', statusCategory: 'Closure' },
+      { key: 'closeout', label: 'Closeout', statusCategory: 'Closeout' },
     ],
     stage: 'intake',
     hold: { held: false },

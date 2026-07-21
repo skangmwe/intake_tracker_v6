@@ -13,7 +13,7 @@ export type TaskPhase =
   | 'Validation'
   | 'Delivery'
   | 'Stabilization'
-  | 'Closure'
+  | 'Closeout'
   | 'Unphased';
 
 /** Type-aware structured field value on a Task. */

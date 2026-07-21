@@ -15,7 +15,6 @@ interface StatusHoldPillProps {
 const VARIANT: Record<RequestStatusHold, { className: string; label: string }> = {
   InProgress: { className: 'mws-badge mws-badge--live',    label: 'In progress' },
   OnHold:     { className: 'mws-badge mws-badge--pending', label: 'On hold' },
-  Abandoned:  { className: 'mws-badge mws-badge--draft',   label: 'Abandoned' },
 };
 
 export function StatusHoldPill({ statusHold, alwaysRender = false }: StatusHoldPillProps) {

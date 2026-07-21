@@ -117,7 +117,7 @@ export type StatusCategory =
   | 'Validation'
   | 'Delivery'
   | 'Stabilization'
-  | 'Closure';
+  | 'Closeout';
 
 /** One stage on a lifecycle's track. */
 export interface StageDefinitionDto {

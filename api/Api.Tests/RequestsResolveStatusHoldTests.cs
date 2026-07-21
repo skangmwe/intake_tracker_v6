@@ -26,19 +26,6 @@ public sealed class RequestsResolveStatusHoldTests
     }
 
     [Fact]
-    public void ResolveStatusHold_ExplicitAbandoned_ReturnsAbandoned()
-    {
-        // Arrange
-        var request = new RequestPatchRequest { StatusHold = RequestStatusHoldValue.Abandoned };
-
-        // Act
-        var resolved = RequestsService.ResolveStatusHold(request);
-
-        // Assert
-        Assert.Equal(RequestStatusHoldValue.Abandoned, resolved);
-    }
-
-    [Fact]
     public void ResolveStatusHold_ExplicitInProgress_ReturnsInProgress()
     {
         // Arrange — the reactivation call.
@@ -54,10 +41,11 @@ public sealed class RequestsResolveStatusHoldTests
     [Fact]
     public void ResolveStatusHold_ExplicitWinsOverLegacyHold()
     {
-        // Arrange — writers upgrading from the legacy shape may temporarily send both. Explicit wins.
+        // Arrange — writers upgrading from the legacy shape may temporarily send both. Explicit wins:
+        // an explicit InProgress overrides a legacy held=true (which alone would map to OnHold).
         var request = new RequestPatchRequest
         {
-            StatusHold = RequestStatusHoldValue.Abandoned,
+            StatusHold = RequestStatusHoldValue.InProgress,
             Hold = new HoldInput { Held = true, Reason = "outdated" },
         };
 
@@ -65,7 +53,7 @@ public sealed class RequestsResolveStatusHoldTests
         var resolved = RequestsService.ResolveStatusHold(request);
 
         // Assert
-        Assert.Equal(RequestStatusHoldValue.Abandoned, resolved);
+        Assert.Equal(RequestStatusHoldValue.InProgress, resolved);
     }
 
     [Fact]

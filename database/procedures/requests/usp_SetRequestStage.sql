@@ -1,7 +1,7 @@
 -- =============================================
 -- Author:      /dev-build-application (Slice 5 — Requests core; Slice 26 — hold guard)
 -- Create Date: 2026-07-04
--- Last update: 2026-07-17 (Slice 26 — hold guard: StatusHold ∈ {OnHold, Abandoned} blocks advance)
+-- Last update: 2026-07-21 (close/status cleanup — hold guard: StatusHold = OnHold blocks advance; Abandoned retired)
 -- Description: Advances (or moves) a Request to a target lifecycle stage. Validates that
 --              @ToStage is a real StageKey on the record's OWN lifecycle (THROW 50041 otherwise),
 --              then sets Stage and mirrors it into the field map (so Display/Mirror Status derive
@@ -41,7 +41,7 @@ BEGIN
             THROW 50043, N'usp_SetRequestStage: request not found.', 1;
 
         -- Slice 26 hold guard: held records cannot advance stages.
-        IF @StatusHoldNow IN (N'OnHold', N'Abandoned')
+        IF @StatusHoldNow = N'OnHold'
             THROW 51201, N'usp_SetRequestStage: this record is on hold. Reactivate it before advancing.', 1;
 
         IF NOT EXISTS (
