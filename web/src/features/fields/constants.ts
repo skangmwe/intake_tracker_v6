@@ -2,7 +2,13 @@
 // never inline JSX for a rendered list). The full field-type catalog is §2.3; the Task tab offers
 // the narrower typed-field library (S30). Stage keys mirror the six-stage seed (§7.1).
 
-import type { FieldObjectType, FieldType, RuleAction, RuleComparator } from '@shared/types';
+import type {
+  FieldLocation,
+  FieldObjectType,
+  FieldType,
+  RuleAction,
+  RuleComparator,
+} from '@shared/types';
 
 export const OBJECT_TYPES: readonly FieldObjectType[] = ['Request', 'Task', 'Feature'];
 
@@ -10,6 +16,47 @@ interface Option {
   readonly value: string;
   readonly label: string;
 }
+
+// The five built-in objects for the reconciled New Field picker. Value is the machine key; only
+// ToolkitItem's label differs. Attachment/Toolkit item accept custom fields (migration 073).
+export const OBJECT_OPTIONS: readonly { value: FieldObjectType; label: string }[] = [
+  { value: 'Request', label: 'Request' },
+  { value: 'Task', label: 'Task' },
+  { value: 'Attachment', label: 'Attachment' },
+  { value: 'Feature', label: 'Feature' },
+  { value: 'ToolkitItem', label: 'Toolkit item' },
+];
+
+export function objectLabel(objectType: string): string {
+  return OBJECT_OPTIONS.find((option) => option.value === objectType)?.label ?? objectType;
+}
+
+// Field scope. 'Global' is available to every workspace; 'LocalWorkspace' to this one only.
+export const FIELD_LOCATION_OPTIONS: readonly { value: FieldLocation; label: string }[] = [
+  { value: 'LocalWorkspace', label: 'Local Workspace' },
+  { value: 'Global', label: 'Global' },
+];
+
+export function fieldLocationLabel(location: string): string {
+  return FIELD_LOCATION_OPTIONS.find((option) => option.value === location)?.label ?? location;
+}
+
+// Select-filter option sets for the catalog table's funnels.
+export const SOURCE_FILTER_OPTIONS: readonly Option[] = [
+  { value: 'System', label: 'System' },
+  { value: 'User', label: 'User' },
+];
+
+export const REQUIRED_FILTER_OPTIONS: readonly Option[] = [
+  { value: 'Required', label: 'Required' },
+  { value: 'Optional', label: 'Optional' },
+];
+
+export const STATUS_FILTER_OPTIONS: readonly Option[] = [
+  { value: 'Active', label: 'Active' },
+  { value: 'Draft', label: 'Draft' },
+  { value: 'Archived', label: 'Archived' },
+];
 
 export const FIELD_TYPE_OPTIONS: readonly { value: FieldType; label: string }[] = [
   { value: 'ShortText', label: 'Short text' },
@@ -65,7 +112,15 @@ export const COMPARATOR_OPTIONS: readonly { value: RuleComparator; label: string
   { value: 'contains', label: 'contains' },
 ];
 
-export const STAGE_KEYS: readonly string[] = ['intake', 'triage', 'execution', 'validation', 'delivery', 'stabilization', 'closure'];
+export const STAGE_KEYS: readonly string[] = [
+  'intake',
+  'triage',
+  'execution',
+  'validation',
+  'delivery',
+  'stabilization',
+  'closure',
+];
 
 export const SELECT_TYPES: readonly FieldType[] = ['SingleSelect', 'MultiSelect'];
 export const NUMERIC_TYPES: readonly FieldType[] = ['Number', 'Decimal', 'Currency', 'Percent'];

@@ -8,6 +8,7 @@ import { apiFetch } from '@/shared/http/apiClient';
 import {
   createField,
   createTaskLibraryField,
+  fetchFieldCatalog,
   fetchPlatformFields,
   fetchTaskLibrary,
   fetchWorkspaceFields,
@@ -33,20 +34,41 @@ describe('fields api', () => {
   });
 
   it('createField — POSTs the request body', () => {
-    const request = { objectType: 'Request', fieldKey: 'x', displayName: 'X', fieldType: 'ShortText', category: 'WorkspaceLocal' } as const;
+    const request = {
+      objectType: 'Request',
+      fieldKey: 'x',
+      displayName: 'X',
+      fieldType: 'ShortText',
+      category: 'WorkspaceLocal',
+    } as const;
     createField(WS, request);
-    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/fields', { method: 'POST', body: request });
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/fields', {
+      method: 'POST',
+      body: request,
+    });
   });
 
   it('updateField — PATCHes the keyed path', () => {
-    const request = { objectType: 'Request', fieldKey: 'name', displayName: 'Name', fieldType: 'ShortText', category: 'Crossing' } as const;
+    const request = {
+      objectType: 'Request',
+      fieldKey: 'name',
+      displayName: 'Name',
+      fieldType: 'ShortText',
+      category: 'Crossing',
+    } as const;
     updateField(WS, 'name', request);
-    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/fields/name', { method: 'PATCH', body: request });
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/fields/name', {
+      method: 'PATCH',
+      body: request,
+    });
   });
 
   it('retireField — POSTs the retire sub-action with objectType', () => {
     retireField(WS, 'name', 'Request');
-    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/fields/name/retire?objectType=Request', { method: 'POST' });
+    expect(mockedFetch).toHaveBeenCalledWith(
+      '/v1/workspaces/ws-1/fields/name/retire?objectType=Request',
+      { method: 'POST' },
+    );
   });
 
   it('fetchTaskLibrary — GETs the task-fields path', () => {
@@ -57,7 +79,10 @@ describe('fields api', () => {
   it('createTaskLibraryField — POSTs to task-fields', () => {
     const request = { fieldKey: 'repoUrl', displayName: 'Repo URL', fieldType: 'Url' } as const;
     createTaskLibraryField(WS, request);
-    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/task-fields', { method: 'POST', body: request });
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/task-fields', {
+      method: 'POST',
+      body: request,
+    });
   });
 
   it('fetchPlatformFields — GETs the platform fields path', () => {
@@ -68,12 +93,30 @@ describe('fields api', () => {
   it('updatePlatformField — PATCHes the platform field', () => {
     const request = { displayName: 'Legacy Identifier' };
     updatePlatformField('legacy-id', request);
-    expect(mockedFetch).toHaveBeenCalledWith('/v1/platform/fields/legacy-id', { method: 'PATCH', body: request });
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/platform/fields/legacy-id', {
+      method: 'PATCH',
+      body: request,
+    });
+  });
+
+  it('fetchFieldCatalog — GETs the flat field-catalog path', () => {
+    fetchFieldCatalog(WS);
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/field-catalog', {});
+  });
+
+  it('fetchFieldCatalog — passes the abort signal when provided', () => {
+    const controller = new AbortController();
+    fetchFieldCatalog(WS, controller.signal);
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/field-catalog', {
+      signal: controller.signal,
+    });
   });
 
   it('fetchWorkspaceFields — passes the abort signal when provided', () => {
     const controller = new AbortController();
     fetchWorkspaceFields(WS, 'Task', controller.signal);
-    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/fields?objectType=Task', { signal: controller.signal });
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/fields?objectType=Task', {
+      signal: controller.signal,
+    });
   });
 });

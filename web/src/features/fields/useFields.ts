@@ -7,6 +7,7 @@ import type {
   FieldObjectType,
   PlatformFieldPatchRequest,
   TaskLibraryFieldUpsertRequest,
+  WorkspaceFieldCatalogDto,
   WorkspaceFieldSchemaDto,
   WorkspaceId,
 } from '@shared/types';
@@ -14,6 +15,7 @@ import type {
 import {
   createField,
   createTaskLibraryField,
+  fetchFieldCatalog,
   fetchPlatformFields,
   fetchTaskLibrary,
   fetchWorkspaceFields,
@@ -25,14 +27,33 @@ import {
 export const fieldsQueryKey = (workspaceId: WorkspaceId, objectType: FieldObjectType) =>
   ['fields', workspaceId, objectType] as const;
 
-export const taskLibraryQueryKey = (workspaceId: WorkspaceId) => ['task-fields', workspaceId] as const;
+/** Broad key matching every object-type schema for a workspace — invalidated on any field write. */
+export const fieldsWorkspaceKey = (workspaceId: WorkspaceId) => ['fields', workspaceId] as const;
+
+export const fieldCatalogQueryKey = (workspaceId: WorkspaceId) =>
+  ['field-catalog', workspaceId] as const;
+
+export const taskLibraryQueryKey = (workspaceId: WorkspaceId) =>
+  ['task-fields', workspaceId] as const;
 
 export const PLATFORM_FIELDS_QUERY_KEY = ['platform-fields'] as const;
 
-export function useWorkspaceFields(workspaceId: WorkspaceId | undefined, objectType: FieldObjectType) {
+export function useWorkspaceFields(
+  workspaceId: WorkspaceId | undefined,
+  objectType: FieldObjectType,
+) {
   return useQuery<WorkspaceFieldSchemaDto>({
     queryKey: fieldsQueryKey(workspaceId ?? ('' as WorkspaceId), objectType),
     queryFn: ({ signal }) => fetchWorkspaceFields(workspaceId as WorkspaceId, objectType, signal),
+    enabled: Boolean(workspaceId),
+  });
+}
+
+/** The flat, all-object-types field catalog behind the reconciled S30 Fields tab. */
+export function useFieldCatalog(workspaceId: WorkspaceId | undefined) {
+  return useQuery<WorkspaceFieldCatalogDto>({
+    queryKey: fieldCatalogQueryKey(workspaceId ?? ('' as WorkspaceId)),
+    queryFn: ({ signal }) => fetchFieldCatalog(workspaceId as WorkspaceId, signal),
     enabled: Boolean(workspaceId),
   });
 }
@@ -43,20 +64,35 @@ interface FieldMutationInput {
   isCreate: boolean;
 }
 
-export function useSaveField(workspaceId: WorkspaceId, objectType: FieldObjectType) {
+interface RetireFieldInput {
+  fieldKey: string;
+  objectType: FieldObjectType;
+}
+
+/** Invalidate every object-type schema and the flat catalog after any field write. */
+function invalidateFields(
+  queryClient: ReturnType<typeof useQueryClient>,
+  workspaceId: WorkspaceId,
+) {
+  void queryClient.invalidateQueries({ queryKey: fieldsWorkspaceKey(workspaceId) });
+  void queryClient.invalidateQueries({ queryKey: fieldCatalogQueryKey(workspaceId) });
+}
+
+export function useSaveField(workspaceId: WorkspaceId) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ fieldKey, request, isCreate }: FieldMutationInput) =>
       isCreate ? createField(workspaceId, request) : updateField(workspaceId, fieldKey, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: fieldsQueryKey(workspaceId, objectType) }),
+    onSuccess: () => invalidateFields(queryClient, workspaceId),
   });
 }
 
-export function useRetireField(workspaceId: WorkspaceId, objectType: FieldObjectType) {
+export function useRetireField(workspaceId: WorkspaceId) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (fieldKey: string) => retireField(workspaceId, fieldKey, objectType),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: fieldsQueryKey(workspaceId, objectType) }),
+    mutationFn: ({ fieldKey, objectType }: RetireFieldInput) =>
+      retireField(workspaceId, fieldKey, objectType),
+    onSuccess: () => invalidateFields(queryClient, workspaceId),
   });
 }
 
@@ -71,10 +107,12 @@ export function useTaskLibrary(workspaceId: WorkspaceId | undefined) {
 export function useAddTaskLibraryField(workspaceId: WorkspaceId) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: TaskLibraryFieldUpsertRequest) => createTaskLibraryField(workspaceId, request),
+    mutationFn: (request: TaskLibraryFieldUpsertRequest) =>
+      createTaskLibraryField(workspaceId, request),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: taskLibraryQueryKey(workspaceId) });
       void queryClient.invalidateQueries({ queryKey: fieldsQueryKey(workspaceId, 'Task') });
+      void queryClient.invalidateQueries({ queryKey: fieldCatalogQueryKey(workspaceId) });
     },
   });
 }
@@ -95,7 +133,8 @@ interface PlatformFieldMutationInput {
 export function useUpdatePlatformField() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ fieldKey, request }: PlatformFieldMutationInput) => updatePlatformField(fieldKey, request),
+    mutationFn: ({ fieldKey, request }: PlatformFieldMutationInput) =>
+      updatePlatformField(fieldKey, request),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: PLATFORM_FIELDS_QUERY_KEY }),
   });
 }

@@ -187,6 +187,152 @@
   gap: var(--space-3);
 }
 
+.fields-sheet__footer-spacer {
+  flex: 1 1 auto;
+}
+
+/* Lock banner in the read-only field sheet. */
+.fields-sheet__lock {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+/* Read-only field attributes (label / value pairs). */
+.fields-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.fields-readonly__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fields-readonly__row dt {
+  color: var(--text-secondary);
+}
+
+.fields-readonly__row dd {
+  margin: 0;
+}
+
+/* ── Fields tab flat catalog ──────────────────────────────────────────────── */
+.fields-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.fields-catalog__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.fields-catalog__spacer {
+  flex: 1 1 auto;
+}
+
+.fields-catalog__clear {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-decoration: underline;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.fields-catalog__clear:hover {
+  color: var(--accent-interactive);
+}
+
+.fields-catalog__no-matches {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.fields-catalog__no-matches-title {
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* Catalog cell treatments. */
+.fields-cat__name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fields-cat__type {
+  color: var(--accent-interactive);
+}
+
+.fields-cat__muted {
+  color: var(--text-secondary);
+}
+
+.fields-cat__required {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-primary);
+}
+
+/* SOURCE = System pill and STATUS pills — pale fills carry navy text (theme-stable rule). */
+.fields-cat__system {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.fields-cat__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-navy);
+}
+
+.fields-cat__status--active {
+  background: var(--color-pale-success);
+}
+
+.fields-cat__status--draft {
+  background: var(--color-pale-gold);
+}
+
+.fields-cat__status--archived {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+
 @media (max-width: 767px) {
   .fields-inline-pair {
     grid-template-columns: 1fr;

@@ -8,12 +8,24 @@ import type {
   PlatformFieldPatchRequest,
   TaskLibraryFieldDto,
   TaskLibraryFieldUpsertRequest,
+  WorkspaceFieldCatalogDto,
   WorkspaceFieldSchemaDto,
   WorkspaceId,
 } from '@shared/types';
 
 import { apiFetch } from '@/shared/http/apiClient';
 import { withQuery } from '@/shared/http/url';
+
+/** The flat, all-object-types field catalog behind the reconciled S30 Fields tab. */
+export function fetchFieldCatalog(
+  workspaceId: WorkspaceId,
+  signal?: AbortSignal,
+): Promise<WorkspaceFieldCatalogDto> {
+  return apiFetch<WorkspaceFieldCatalogDto>(
+    `/v1/workspaces/${workspaceId}/field-catalog`,
+    signal ? { signal } : {},
+  );
+}
 
 export function fetchWorkspaceFields(
   workspaceId: WorkspaceId,
@@ -30,7 +42,10 @@ export function createField(
   workspaceId: WorkspaceId,
   request: FieldDefinitionUpsertRequest,
 ): Promise<FieldDefinitionDto> {
-  return apiFetch<FieldDefinitionDto>(`/v1/workspaces/${workspaceId}/fields`, { method: 'POST', body: request });
+  return apiFetch<FieldDefinitionDto>(`/v1/workspaces/${workspaceId}/fields`, {
+    method: 'POST',
+    body: request,
+  });
 }
 
 export function updateField(
@@ -38,7 +53,10 @@ export function updateField(
   fieldKey: string,
   request: FieldDefinitionUpsertRequest,
 ): Promise<FieldDefinitionDto> {
-  return apiFetch<FieldDefinitionDto>(`/v1/workspaces/${workspaceId}/fields/${fieldKey}`, { method: 'PATCH', body: request });
+  return apiFetch<FieldDefinitionDto>(`/v1/workspaces/${workspaceId}/fields/${fieldKey}`, {
+    method: 'PATCH',
+    body: request,
+  });
 }
 
 export function retireField(
@@ -52,15 +70,24 @@ export function retireField(
   );
 }
 
-export function fetchTaskLibrary(workspaceId: WorkspaceId, signal?: AbortSignal): Promise<TaskLibraryFieldDto[]> {
-  return apiFetch<TaskLibraryFieldDto[]>(`/v1/workspaces/${workspaceId}/task-fields`, signal ? { signal } : {});
+export function fetchTaskLibrary(
+  workspaceId: WorkspaceId,
+  signal?: AbortSignal,
+): Promise<TaskLibraryFieldDto[]> {
+  return apiFetch<TaskLibraryFieldDto[]>(
+    `/v1/workspaces/${workspaceId}/task-fields`,
+    signal ? { signal } : {},
+  );
 }
 
 export function createTaskLibraryField(
   workspaceId: WorkspaceId,
   request: TaskLibraryFieldUpsertRequest,
 ): Promise<FieldDefinitionDto> {
-  return apiFetch<FieldDefinitionDto>(`/v1/workspaces/${workspaceId}/task-fields`, { method: 'POST', body: request });
+  return apiFetch<FieldDefinitionDto>(`/v1/workspaces/${workspaceId}/task-fields`, {
+    method: 'POST',
+    body: request,
+  });
 }
 
 export function fetchPlatformFields(signal?: AbortSignal): Promise<PlatformFieldDto[]> {
@@ -71,5 +98,8 @@ export function updatePlatformField(
   fieldKey: string,
   request: PlatformFieldPatchRequest,
 ): Promise<PlatformFieldDto> {
-  return apiFetch<PlatformFieldDto>(`/v1/platform/fields/${fieldKey}`, { method: 'PATCH', body: request });
+  return apiFetch<PlatformFieldDto>(`/v1/platform/fields/${fieldKey}`, {
+    method: 'PATCH',
+    body: request,
+  });
 }

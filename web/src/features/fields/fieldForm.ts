@@ -6,6 +6,7 @@ import type {
   FieldCategory,
   FieldDefinitionDto,
   FieldDefinitionUpsertRequest,
+  FieldLocation,
   FieldObjectType,
   FieldType,
 } from '@shared/types';
@@ -15,6 +16,8 @@ import type { OptionRow } from './components/OptionsEditor';
 import type { RuleRow } from './components/RulesEditor';
 
 export interface FieldForm {
+  object: FieldObjectType;
+  location: FieldLocation;
   fieldKey: string;
   displayName: string;
   fieldType: FieldType;
@@ -32,11 +35,13 @@ export interface FieldForm {
 
 export function buildInitialForm(
   field: FieldDefinitionDto | null,
-  _objectType: FieldObjectType,
+  objectType: FieldObjectType,
   fieldTypeOptions: readonly { value: FieldType; label: string }[],
 ): FieldForm {
   if (field === null) {
     return {
+      object: objectType,
+      location: 'LocalWorkspace',
       fieldKey: '',
       displayName: '',
       fieldType: fieldTypeOptions[0]?.value ?? 'ShortText',
@@ -54,6 +59,8 @@ export function buildInitialForm(
   }
 
   return {
+    object: field.objectType,
+    location: field.location,
     fieldKey: field.fieldKey,
     displayName: field.displayName,
     fieldType: field.fieldType,
@@ -63,7 +70,11 @@ export function buildInitialForm(
     minValue: field.minValue?.toString() ?? '',
     maxValue: field.maxValue?.toString() ?? '',
     visibleStages: field.visibleStages ?? [],
-    options: field.options.map((option) => ({ id: option.id, value: option.value, label: option.label })),
+    options: field.options.map((option) => ({
+      id: option.id,
+      value: option.value,
+      label: option.label,
+    })),
     rules: field.rules
       .filter((rule) => rule.action !== 'ProduceValue')
       .map((rule) => ({
@@ -78,12 +89,13 @@ export function buildInitialForm(
   };
 }
 
-export function formToRequest(form: FieldForm, objectType: FieldObjectType): FieldDefinitionUpsertRequest {
+export function formToRequest(form: FieldForm): FieldDefinitionUpsertRequest {
   const isSelect = SELECT_TYPES.includes(form.fieldType);
   const isNumeric = NUMERIC_TYPES.includes(form.fieldType);
 
   return {
-    objectType,
+    objectType: form.object,
+    location: form.location,
     fieldKey: form.fieldKey.trim(),
     displayName: form.displayName.trim(),
     fieldType: form.fieldType,
@@ -99,7 +111,11 @@ export function formToRequest(form: FieldForm, objectType: FieldObjectType): Fie
       ? {
           options: form.options
             .filter((option) => option.value.trim().length > 0)
-            .map((option, index) => ({ value: option.value.trim(), label: option.label.trim() || option.value.trim(), sortOrder: index })),
+            .map((option, index) => ({
+              value: option.value.trim(),
+              label: option.label.trim() || option.value.trim(),
+              sortOrder: index,
+            })),
         }
       : {}),
     rules: form.rules.map((rule, index) => ({
@@ -120,7 +136,11 @@ function buildDerived(form: FieldForm): DerivedFieldDto | null {
   }
 
   if (form.fieldType === 'DerivedCategory') {
-    return { kind: 'DerivedCategory', expression: null, defaultValue: form.defaultValue.trim() || null };
+    return {
+      kind: 'DerivedCategory',
+      expression: null,
+      defaultValue: form.defaultValue.trim() || null,
+    };
   }
 
   return null;

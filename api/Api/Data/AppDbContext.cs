@@ -51,6 +51,7 @@ public sealed class AppDbContext : DbContext
         // The field-schema tables are never tracked as EF entities (reads go through procs,
         // writes through usp_UpsertFieldDefinition / usp_RetireFieldDefinition).
         modelBuilder.Entity<FieldDefinitionRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<FieldCatalogRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<FieldOptionRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<FieldRuleRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<FieldDependencyRow>().HasNoKey().ToView((string?)null);

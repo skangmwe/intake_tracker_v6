@@ -9,6 +9,7 @@ import { render } from '@testing-library/react';
 import type {
   ApprovalRequestDto,
   ApprovalRequestId,
+  FieldCatalogRowDto,
   FieldDefinitionDto,
   GateDefinitionId,
   LifecycleConfigDto,
@@ -90,6 +91,8 @@ export function buildFieldDefinition(
     helpText: null,
     isRequired: true,
     isReadOnly: false,
+    location: 'LocalWorkspace',
+    isLocal: true,
     isPlatformDefined: false,
     platformFieldKey: null,
     visibleStages: null,
@@ -104,6 +107,25 @@ export function buildFieldDefinition(
     derived: null,
     createdAt: '2026-07-03T13:00:00Z',
     updatedAt: '2026-07-03T13:00:00Z',
+    ...overrides,
+  };
+}
+
+export function buildFieldCatalogRow(
+  overrides: Partial<FieldCatalogRowDto> = {},
+): FieldCatalogRowDto {
+  return {
+    id: 'fd-1',
+    objectType: 'Request',
+    objectLabel: 'Request',
+    fieldKey: 'severity',
+    displayName: 'Severity',
+    fieldType: 'SingleSelect',
+    location: 'LocalWorkspace',
+    isRequired: false,
+    source: 'User',
+    status: 'Active',
+    isReadOnly: false,
     ...overrides,
   };
 }

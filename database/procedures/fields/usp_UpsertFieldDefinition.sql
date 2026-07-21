@@ -24,6 +24,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_UpsertFieldDefinition
     @DisplayName        NVARCHAR(200),
     @FieldType          NVARCHAR(32),
     @Category           NVARCHAR(16),
+    @Location           NVARCHAR(20)   = N'LocalWorkspace',
     @Section            NVARCHAR(64)   = NULL,
     @HelpText           NVARCHAR(400)  = NULL,
     @IsRequired         BIT            = 0,
@@ -70,18 +71,18 @@ BEGIN
         BEGIN
             SET @FieldDefinitionId = NEWID();
             INSERT INTO dbo.FieldDefinition
-                (FieldDefinitionId, WorkspaceId, ObjectType, FieldKey, DisplayName, FieldType, Category, Section,
+                (FieldDefinitionId, WorkspaceId, ObjectType, FieldKey, DisplayName, FieldType, Category, Location, Section,
                  HelpText, IsRequired, IsReadOnly, VisibleStagesJson, CrossingToFieldKey, MinValue, MaxValue,
                  AllowNewValues, SortOrder, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
             VALUES
-                (@FieldDefinitionId, @WorkspaceIdLocal, @ObjectTypeLocal, @FieldKeyLocal, @DisplayName, @FieldType, @Category, @Section,
+                (@FieldDefinitionId, @WorkspaceIdLocal, @ObjectTypeLocal, @FieldKeyLocal, @DisplayName, @FieldType, @Category, @Location, @Section,
                  @HelpText, @IsRequired, CASE WHEN @DerivedKind IS NULL THEN 0 ELSE 1 END, @VisibleStagesJson, @CrossingToFieldKey, @MinValue, @MaxValue,
                  @AllowNewValues, @SortOrder, @Actor, @Actor, @Now, @Now);
         END
         ELSE
         BEGIN
             UPDATE dbo.FieldDefinition
-            SET DisplayName = @DisplayName, FieldType = @FieldType, Category = @Category, Section = @Section,
+            SET DisplayName = @DisplayName, FieldType = @FieldType, Category = @Category, Location = @Location, Section = @Section,
                 HelpText = @HelpText, IsRequired = @IsRequired, IsReadOnly = CASE WHEN @DerivedKind IS NULL THEN 0 ELSE 1 END,
                 VisibleStagesJson = @VisibleStagesJson, CrossingToFieldKey = @CrossingToFieldKey,
                 MinValue = @MinValue, MaxValue = @MaxValue, AllowNewValues = @AllowNewValues, SortOrder = @SortOrder,

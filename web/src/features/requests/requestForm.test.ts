@@ -24,6 +24,8 @@ function buildField(overrides: Partial<FieldDefinitionDto>): FieldDefinitionDto 
     helpText: null,
     isRequired: false,
     isReadOnly: false,
+    location: 'LocalWorkspace',
+    isLocal: true,
     isPlatformDefined: false,
     platformFieldKey: null,
     visibleStages: null,
@@ -152,7 +154,14 @@ describe('evaluateFieldConditions', () => {
       buildField({ fieldKey: 'holdBlocked', fieldType: 'Boolean' }),
       buildField({
         fieldKey: 'holdReason',
-        rules: [rule({ action: 'Show', whenFieldKey: 'holdBlocked', comparator: 'eq', compareValue: 'true' })],
+        rules: [
+          rule({
+            action: 'Show',
+            whenFieldKey: 'holdBlocked',
+            comparator: 'eq',
+            compareValue: 'true',
+          }),
+        ],
       }),
     ];
 
@@ -171,7 +180,14 @@ describe('evaluateFieldConditions', () => {
       buildField({ fieldKey: 'archived', fieldType: 'Boolean' }),
       buildField({
         fieldKey: 'legacyNotes',
-        rules: [rule({ action: 'Hide', whenFieldKey: 'archived', comparator: 'eq', compareValue: 'true' })],
+        rules: [
+          rule({
+            action: 'Hide',
+            whenFieldKey: 'archived',
+            comparator: 'eq',
+            compareValue: 'true',
+          }),
+        ],
       }),
     ];
 
@@ -190,7 +206,14 @@ describe('evaluateFieldConditions', () => {
       buildField({ fieldKey: 'deptPgClient', fieldType: 'SingleSelect' }),
       buildField({
         fieldKey: 'clientNumber',
-        rules: [rule({ action: 'Require', whenFieldKey: 'deptPgClient', comparator: 'eq', compareValue: 'Client' })],
+        rules: [
+          rule({
+            action: 'Require',
+            whenFieldKey: 'deptPgClient',
+            comparator: 'eq',
+            compareValue: 'Client',
+          }),
+        ],
       }),
     ];
 
@@ -220,7 +243,14 @@ describe('validateRequestForm', () => {
       buildField({
         fieldKey: 'clientNumber',
         displayName: 'Client number',
-        rules: [rule({ action: 'Require', whenFieldKey: 'deptPgClient', comparator: 'eq', compareValue: 'Client' })],
+        rules: [
+          rule({
+            action: 'Require',
+            whenFieldKey: 'deptPgClient',
+            comparator: 'eq',
+            compareValue: 'Client',
+          }),
+        ],
       }),
     ];
 
@@ -234,7 +264,15 @@ describe('validateRequestForm', () => {
 
   it('validateRequestForm — enforces numeric 1–5 bounds', () => {
     // Arrange
-    const fields = [buildField({ fieldKey: 'businessValue', displayName: 'Business Value', fieldType: 'Number', minValue: 1, maxValue: 5 })];
+    const fields = [
+      buildField({
+        fieldKey: 'businessValue',
+        displayName: 'Business Value',
+        fieldType: 'Number',
+        minValue: 1,
+        maxValue: 5,
+      }),
+    ];
 
     // Act
     const errors = validateRequestForm(fields, { businessValue: 9 });
@@ -245,7 +283,15 @@ describe('validateRequestForm', () => {
 
   it('validateRequestForm — flags a value below the minimum', () => {
     // Arrange
-    const fields = [buildField({ fieldKey: 'businessValue', displayName: 'Business Value', fieldType: 'Number', minValue: 1, maxValue: 5 })];
+    const fields = [
+      buildField({
+        fieldKey: 'businessValue',
+        displayName: 'Business Value',
+        fieldType: 'Number',
+        minValue: 1,
+        maxValue: 5,
+      }),
+    ];
 
     // Act
     const errors = validateRequestForm(fields, { businessValue: 0 });
@@ -256,7 +302,9 @@ describe('validateRequestForm', () => {
 
   it('validateRequestForm — flags a non-numeric value in a Number field', () => {
     // Arrange
-    const fields = [buildField({ fieldKey: 'businessValue', displayName: 'Business Value', fieldType: 'Number' })];
+    const fields = [
+      buildField({ fieldKey: 'businessValue', displayName: 'Business Value', fieldType: 'Number' }),
+    ];
 
     // Act
     const errors = validateRequestForm(fields, { businessValue: 'abc' });
@@ -267,7 +315,15 @@ describe('validateRequestForm', () => {
 
   it('validateRequestForm — a valid in-range Decimal produces no error', () => {
     // Arrange
-    const fields = [buildField({ fieldKey: 'ratio', displayName: 'Ratio', fieldType: 'Decimal', minValue: 0, maxValue: 10 })];
+    const fields = [
+      buildField({
+        fieldKey: 'ratio',
+        displayName: 'Ratio',
+        fieldType: 'Decimal',
+        minValue: 0,
+        maxValue: 10,
+      }),
+    ];
 
     // Act
     const errors = validateRequestForm(fields, { ratio: 3.5 });
