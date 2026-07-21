@@ -32,6 +32,9 @@ jest.mock('@/features/lifecycle', () => ({
   useCreateApproverTeam: jest.fn(),
 }));
 
+// The panel sources active members for the typeahead; the card (mocked below) is what consumes them.
+jest.mock('../useMembers', () => ({ useMembers: () => ({ data: { members: [] } }) }));
+
 const mockedConfig = useLifecycleConfig as jest.MockedFunction<typeof useLifecycleConfig>;
 const mockedCreate = useCreateApproverTeam as jest.MockedFunction<typeof useCreateApproverTeam>;
 
