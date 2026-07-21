@@ -4,13 +4,14 @@
 // states (web-component-architecture.md).
 
 import { useState } from 'react';
-import { Plus } from '@phosphor-icons/react';
+import { type Icon, Graph, Plus, Stack, Textbox } from '@phosphor-icons/react';
 import type { FieldDefinitionDto, FieldObjectType, WorkspaceId } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { useMe } from '@/features/users/useMe';
 
 import { RelationshipsAdminTab } from '@/features/relationships';
+import { ObjectsAdminTab } from '@/features/objects';
 
 import { FIELD_TYPE_OPTIONS, TASK_FIELD_TYPE_OPTIONS } from '../constants';
 import { problemMessage } from '../errorMessage';
@@ -21,16 +22,19 @@ import { ObjectTypeTabs } from './ObjectTypeTabs';
 import { PlatformFieldBand } from './PlatformFieldBand';
 import { SystemProvisionedFieldBand } from './SystemProvisionedFieldBand';
 
-type S30Tab = 'fields' | 'relationships';
+type S30Tab = 'fields' | 'objects' | 'relationships';
 
-const S30_TABS: { value: S30Tab; label: string }[] = [
-  { value: 'fields', label: 'Fields' },
-  { value: 'relationships', label: 'Relationships' },
+const S30_TABS: { value: S30Tab; label: string; Icon: Icon }[] = [
+  { value: 'fields', label: 'Fields', Icon: Textbox },
+  { value: 'objects', label: 'Objects', Icon: Stack },
+  { value: 'relationships', label: 'Relationships', Icon: Graph },
 ];
 
 export function FieldsAdminPage() {
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
-  const adminMemberships = (me?.memberships ?? []).filter((membership) => membership.level === 'WorkspaceAdmin');
+  const adminMemberships = (me?.memberships ?? []).filter(
+    (membership) => membership.level === 'WorkspaceAdmin',
+  );
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<WorkspaceId | null>(null);
   const [objectType, setObjectType] = useState<FieldObjectType>('Request');
@@ -42,30 +46,48 @@ export function FieldsAdminPage() {
 
   const workspaceId = selectedWorkspaceId ?? adminMemberships[0]?.workspaceId ?? null;
 
-  const { data: schema, isLoading, isError } = useWorkspaceFields(workspaceId ?? undefined, objectType);
+  const {
+    data: schema,
+    isLoading,
+    isError,
+  } = useWorkspaceFields(workspaceId ?? undefined, objectType);
   const saveField = useSaveField((workspaceId ?? '') as WorkspaceId, objectType);
   const retireField = useRetireField((workspaceId ?? '') as WorkspaceId, objectType);
 
   if (isMeLoading && !me) {
-    return <p className="caption" role="status">Loading your workspaces…</p>;
+    return (
+      <p className="caption" role="status">
+        Loading your workspaces…
+      </p>
+    );
   }
 
   if (isMeError && !me) {
-    return <p className="mws-alert mws-alert--error" role="alert">We couldn’t load your access. Try again in a moment.</p>;
+    return (
+      <p className="mws-alert mws-alert--error" role="alert">
+        We couldn’t load your access. Try again in a moment.
+      </p>
+    );
   }
 
   if (adminMemberships.length === 0 || workspaceId === null) {
     return (
       <section className="mws-empty mws-empty--zero" aria-labelledby="no-access-heading">
-        <h1 id="no-access-heading" className="h2">Fields &amp; objects</h1>
-        <p className="body">You need to be a workspace admin to manage the field schema. Ask an admin to grant access.</p>
+        <h1 id="no-access-heading" className="h2">
+          Fields &amp; objects
+        </h1>
+        <p className="body">
+          You need to be a workspace admin to manage the field schema. Ask an admin to grant access.
+        </p>
       </section>
     );
   }
 
   const workspaceScopedFields = (schema?.fields ?? []).filter((field) => !field.isPlatformDefined);
   // System-provisioned rows render as a locked band above the editable list (Slice 25).
-  const systemProvisionedFields = workspaceScopedFields.filter((field) => field.isSystemProvisioned === true);
+  const systemProvisionedFields = workspaceScopedFields.filter(
+    (field) => field.isSystemProvisioned === true,
+  );
   const fields = workspaceScopedFields.filter((field) => field.isSystemProvisioned !== true);
   const availableFieldKeys = workspaceScopedFields.map((field) => field.fieldKey);
   const typeOptions = objectType === 'Task' ? TASK_FIELD_TYPE_OPTIONS : FIELD_TYPE_OPTIONS;
@@ -84,8 +106,13 @@ export function FieldsAdminPage() {
     <section aria-labelledby="fields-heading">
       <header className="fields-header">
         <div>
-          <h1 id="fields-heading" className="h2">Fields &amp; objects</h1>
-          <p className="body">Define the schema for each object type in this workspace.</p>
+          <p className="eyebrow fields-eyebrow">Workspace settings</p>
+          <h1 id="fields-heading" className="h2">
+            Fields &amp; objects
+          </h1>
+          <p className="body">
+            Define the fields analysts can add to requests and tasks in this workspace.
+          </p>
         </div>
         {s30Tab === 'fields' && (
           <Button onClick={() => setEditing({ field: null })}>
@@ -111,36 +138,61 @@ export function FieldsAdminPage() {
         </label>
       )}
 
-      <div className="mws-tabs" role="tablist" aria-label="Fields & objects section" data-ds="tab">
-        {S30_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            role="tab"
-            aria-selected={s30Tab === tab.value}
-            tabIndex={s30Tab === tab.value ? 0 : -1}
-            className={s30Tab === tab.value ? 'mws-tab mws-tab--active' : 'mws-tab'}
-            onClick={() => setS30Tab(tab.value)}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div
+        className="fields-tabbar"
+        role="tablist"
+        aria-label="Fields & objects section"
+        data-ds="tab"
+      >
+        {S30_TABS.map((tab) => {
+          const TabIcon = tab.Icon;
+          const isActive = s30Tab === tab.value;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              tabIndex={isActive ? 0 : -1}
+              className={
+                isActive ? 'fields-tabbar__tab fields-tabbar__tab--active' : 'fields-tabbar__tab'
+              }
+              onClick={() => setS30Tab(tab.value)}
+            >
+              <TabIcon size={16} aria-hidden /> {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {s30Tab === 'relationships' ? (
         <RelationshipsAdminTab workspaceId={workspaceId as WorkspaceId} />
+      ) : s30Tab === 'objects' ? (
+        <ObjectsAdminTab workspaceId={workspaceId as WorkspaceId} />
       ) : (
         <>
           <ObjectTypeTabs active={objectType} onChange={setObjectType} />
 
           {retireTarget && (
-            <div className="mws-alert mws-alert--warning" role="alertdialog" aria-label="Confirm retire">
+            <div
+              className="mws-alert mws-alert--warning"
+              role="alertdialog"
+              aria-label="Confirm retire"
+            >
               <p>
-                Retire <strong>{retireTarget.displayName}</strong>? It stays in the audit trail but is removed from the schema.
+                Retire <strong>{retireTarget.displayName}</strong>? It stays in the audit trail but
+                is removed from the schema.
               </p>
               <div className="fields-confirm-actions">
-                <Button variant="secondary" compact onClick={() => setRetireTarget(null)}>Cancel</Button>
-                <Button variant="destructive" compact disabled={retireField.isPending} onClick={confirmRetire}>
+                <Button variant="secondary" compact onClick={() => setRetireTarget(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  compact
+                  disabled={retireField.isPending}
+                  onClick={confirmRetire}
+                >
                   Retire field
                 </Button>
               </div>
@@ -148,28 +200,47 @@ export function FieldsAdminPage() {
           )}
 
           {retireField.isError && (
-            <p className="mws-alert mws-alert--error" role="alert">{problemMessage(retireField.error)}</p>
+            <p className="mws-alert mws-alert--error" role="alert">
+              {problemMessage(retireField.error)}
+            </p>
           )}
 
-          {isLoading && <p className="caption" role="status">Loading the field schema…</p>}
-          {isError && <p className="mws-alert mws-alert--error" role="alert">We couldn’t load the field schema. Try again in a moment.</p>}
-
-          {schema && !isLoading && (
-            <SystemProvisionedFieldBand fields={systemProvisionedFields} />
+          {isLoading && (
+            <p className="caption" role="status">
+              Loading the field schema…
+            </p>
+          )}
+          {isError && (
+            <p className="mws-alert mws-alert--error" role="alert">
+              We couldn’t load the field schema. Try again in a moment.
+            </p>
           )}
 
-          {schema && !isLoading && (
-            fields.length > 0 ? (
-              <FieldList fields={fields} onEdit={(field) => setEditing({ field })} onRetire={setRetireTarget} />
+          {schema && !isLoading && <SystemProvisionedFieldBand fields={systemProvisionedFields} />}
+
+          {schema &&
+            !isLoading &&
+            (fields.length > 0 ? (
+              <FieldList
+                fields={fields}
+                onEdit={(field) => setEditing({ field })}
+                onRetire={setRetireTarget}
+              />
             ) : (
               <div className="mws-empty mws-empty--filtered">
                 <p className="body">No fields defined for {objectType} yet.</p>
-                <Button variant="secondary" onClick={() => setEditing({ field: null })}>Add the first field</Button>
+                <Button variant="secondary" onClick={() => setEditing({ field: null })}>
+                  Add the first field
+                </Button>
               </div>
-            )
-          )}
+            ))}
 
-          {schema && <PlatformFieldBand platformFields={schema.platformFields} canManage={me?.isPlatformAdmin ?? false} />}
+          {schema && (
+            <PlatformFieldBand
+              platformFields={schema.platformFields}
+              canManage={me?.isPlatformAdmin ?? false}
+            />
+          )}
         </>
       )}
 

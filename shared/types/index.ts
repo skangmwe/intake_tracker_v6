@@ -20,3 +20,4 @@ export * from './home';
 // v2 additions (slice 25/29)
 export * from './relationships';
 export * from './toolkit';
+export * from './objects';

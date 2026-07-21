@@ -183,6 +183,12 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.SavedViews.ISavedView
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Toolkit.IToolkitService,
     McDermott.AiTracker.Api.Modules.Toolkit.ToolkitService>();
 
+// ─── Objects (Objects tab, S30) — the workspace's object types: five built-in objects composed as
+//     constants with live Records/Fields counts, plus admin-created custom objects in
+//     dbo.ObjectDefinition. Reads Viewer+, writes WorkspaceAdmin (gated in the controller) ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Objects.IObjectSchemaService,
+    McDermott.AiTracker.Api.Modules.Objects.ObjectSchemaService>();
+
 // ─── Seeded Dashboards (slice 23) — the S6/S14/S12/S15 fixed-layout dashboards. The service composes a
 //     dashboard's widgets, resolving each metric to the caller's entitlements via DashboardMetricResolver
 //     (one proc per metric). A dashboard never widens access; the read is gated on the dashboard's own

@@ -7,13 +7,16 @@ import { buildFieldDefinition, buildMe, buildMembership, renderWithProviders } f
 
 import * as api from '../api';
 import * as relationshipsApi from '@/features/relationships/api';
+import * as objectsApi from '@/features/objects/api';
 import { FieldsAdminPage } from './FieldsAdminPage';
 
 jest.mock('../api');
 jest.mock('@/features/relationships/api');
+jest.mock('@/features/objects/api');
 
 const mockedApi = api as jest.Mocked<typeof api>;
 const mockedRelationshipsApi = relationshipsApi as jest.Mocked<typeof relationshipsApi>;
+const mockedObjectsApi = objectsApi as jest.Mocked<typeof objectsApi>;
 
 function schema(fieldCount: number): WorkspaceFieldSchemaDto {
   return {
@@ -31,6 +34,7 @@ describe('FieldsAdminPage', () => {
     jest.clearAllMocks();
     mockedApi.fetchWorkspaceFields.mockResolvedValue(schema(1));
     mockedRelationshipsApi.fetchRelationships.mockResolvedValue([]);
+    mockedObjectsApi.fetchObjects.mockResolvedValue([]);
   });
 
   it('FieldsAdminPage — not a workspace admin — shows a no-access message', async () => {
@@ -139,6 +143,21 @@ describe('FieldsAdminPage', () => {
     // Assert — the "New relationship" button belongs to the RelationshipsAdminTab surface.
     expect(await screen.findByRole('button', { name: /new relationship/i })).toBeInTheDocument();
     // The Fields "Add field" primary button is hidden when the Relationships tab is active.
+    expect(screen.queryByRole('button', { name: /add field/i })).not.toBeInTheDocument();
+  });
+
+  it('FieldsAdminPage — clicking the Objects tab shows the objects admin surface', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    renderWithProviders(<FieldsAdminPage />, { seedMe: adminMe });
+    await screen.findByRole('table');
+
+    // Act
+    await user.click(screen.getByRole('tab', { name: /objects/i }));
+
+    // Assert — the "New object" button belongs to the ObjectsAdminTab surface.
+    expect(await screen.findByRole('button', { name: /new object/i })).toBeInTheDocument();
+    // The Fields "Add field" primary button is hidden when the Objects tab is active.
     expect(screen.queryByRole('button', { name: /add field/i })).not.toBeInTheDocument();
   });
 
