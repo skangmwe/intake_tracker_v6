@@ -4,7 +4,7 @@
 // EdgeStates, and Button primitives.
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { MagnifyingGlass, Plus, SquaresFour, ListBullets, Toolbox } from '@phosphor-icons/react';
+import { MagnifyingGlass, Plus, Toolbox } from '@phosphor-icons/react';
 
 import type {
   FilterClause,
@@ -24,6 +24,7 @@ import {
   type SortState,
   type TableColumn,
 } from '@/shared/components/Table';
+import { ViewModeToggle } from '@/shared/components/RecordViews';
 import { SEARCH_DEBOUNCE_MS } from '@/shared/constants';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useMe } from '@/features/users/useMe';
@@ -38,6 +39,9 @@ import { ToolkitList } from './ToolkitList';
 import '../toolkit.css';
 
 const PAGE_SIZE = 20;
+// The gallery drops pagination and scrolls the whole page, so it loads the full set in one request —
+// up to the API's maximum page size (100). Beyond that a catalog would need infinite scroll.
+const GALLERY_PAGE_SIZE = 100;
 
 const FILTER_TYPES: Record<string, FilterType> = {
   name: 'text',
@@ -78,7 +82,7 @@ export function ToolkitSurface() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [columnFilters, setColumnFilters] = useState<Record<string, FilterClause>>({});
-  const [viewMode, setViewMode] = useState<'gallery' | 'list'>('gallery');
+  const [viewMode, setViewMode] = useState<'gallery' | 'table'>('gallery');
   const [sort, setSort] = useState<SortState | undefined>({ column: 'lastModifiedAt', direction: 'desc' });
   const [page, setPage] = useState(1);
   const [openItemId, setOpenItemId] = useState<ToolkitItemId | null>(null);
@@ -91,11 +95,15 @@ export function ToolkitSurface() {
   }, [columnFilters, debouncedSearch]);
 
   const query = useMemo<ToolkitQuery>(() => {
-    const built: ToolkitQuery = { page, pageSize: PAGE_SIZE };
+    const isGallery = viewMode === 'gallery';
+    const built: ToolkitQuery = {
+      page: isGallery ? 1 : page,
+      pageSize: isGallery ? GALLERY_PAGE_SIZE : PAGE_SIZE,
+    };
     if (Object.keys(filters).length > 0) built.filters = filters;
     if (sort) built.sort = [{ column: sort.column, direction: sort.direction }];
     return built;
-  }, [page, filters, sort]);
+  }, [viewMode, page, filters, sort]);
 
   const { data, isLoading, isError } = useToolkitList(workspaceId, query);
   const rows = data?.items ?? [];
@@ -146,7 +154,10 @@ export function ToolkitSurface() {
   };
 
   return (
-    <main className="toolkit-surface list-surface" data-layout="wide">
+    <main
+      className={`toolkit-surface list-surface${viewMode === 'gallery' ? ' list-surface--flow' : ''}`}
+      data-layout="wide"
+    >
       <header className="toolkit-surface__head">
         <h1 className="h1">Toolkit</h1>
         <p className="toolkit-surface__lede">
@@ -171,27 +182,13 @@ export function ToolkitSurface() {
           />
         </span>
         <span className="toolkit-surface__spacer" />
-        <span className="tk-view-toggle" role="group" aria-label="View">
-          <button
-            type="button"
-            className="tk-view-toggle__btn"
-            aria-label="Gallery view"
-            aria-pressed={viewMode === 'gallery'}
-            onClick={() => setViewMode('gallery')}
-          >
-            <SquaresFour size={18} weight="regular" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="tk-view-toggle__btn"
-            aria-label="List view"
-            aria-pressed={viewMode === 'list'}
-            onClick={() => setViewMode('list')}
-          >
-            <ListBullets size={18} weight="regular" aria-hidden />
-          </button>
-        </span>
-        <span className="tk-count">{total} items</span>
+        <ViewModeToggle
+          available={['table', 'gallery']}
+          active={viewMode}
+          onChange={(kind) => setViewMode(kind === 'table' ? 'table' : 'gallery')}
+          label="Toolkit view"
+          iconOnly
+        />
         <Button variant="primary" onClick={() => setEditor({ editItemId: null })}>
           <Plus size={16} weight="regular" aria-hidden /> New item
         </Button>
@@ -230,9 +227,7 @@ export function ToolkitSurface() {
         ) : (
           <>
             {viewMode === 'gallery' ? (
-              <div className="list-surface__scroll">
-                <ToolkitGallery items={rows} onOpen={(id) => setOpenItemId(id)} />
-              </div>
+              <ToolkitGallery items={rows} onOpen={(id) => setOpenItemId(id)} />
             ) : (
               <ToolkitList
                 rows={rows}
@@ -245,16 +240,18 @@ export function ToolkitSurface() {
                 onOpen={(id) => setOpenItemId(id)}
               />
             )}
-            <TableFooter
-              page={page}
-              totalPages={totalPages}
-              total={total}
-              start={start}
-              end={end}
-              noun="items"
-              onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
-              onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-            />
+            {viewMode !== 'gallery' && (
+              <TableFooter
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                start={start}
+                end={end}
+                noun="items"
+                onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
+                onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              />
+            )}
           </>
         )}
       </div>

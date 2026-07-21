@@ -40,6 +40,7 @@ import {
   type ColumnOption,
 } from '@/features/saved-views';
 import { useExportView } from '@/features/import-export';
+import { useLifecycleConfig } from '@/features/lifecycle';
 
 import { useRequestsList } from '../useRequests';
 import { resolveActiveWorkspaceId } from '../workspace';
@@ -47,6 +48,10 @@ import { problemMessage } from '../problemMessage';
 import '../requestsList.css';
 
 const PAGE_SIZE = 25;
+// The board drops pagination and scrolls the whole page, so it loads the full set in one request —
+// up to the API's maximum page size (100) — grouped across all stages. Beyond that it would need
+// per-column paging.
+const BOARD_PAGE_SIZE = 100;
 const EM_DASH = '—';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -260,14 +265,19 @@ function slaBadges(sla: SlaStatus | undefined): RecordViewItem['badges'] {
   return undefined;
 }
 
-/** Row → normalised board item (Slice 24). Grouped by Stage into kanban columns. */
-function toViewItem(row: RequestListRow, onOpen: () => void): RecordViewItem {
+/** Row → normalised board item (Slice 24). Grouped by Stage; the group value is the stage's display
+ *  label (resolved from its key via the lifecycle) so the board column titles read properly. */
+function toViewItem(
+  row: RequestListRow,
+  stageLabel: (stageKey: string) => string,
+  onOpen: () => void,
+): RecordViewItem {
   const columns = row.columns;
   return {
     id: row.id,
     title: cellText(columns.name),
     subtitle: columns.desc ? cellText(columns.desc) : undefined,
-    groupValue: cellText(columns.stage),
+    groupValue: stageLabel(cellText(columns.stage)),
     badges: slaBadges(row.slaStatus),
     meta: [
       { label: 'ID', value: cellText(columns.id) },
@@ -276,20 +286,6 @@ function toViewItem(row: RequestListRow, onOpen: () => void): RecordViewItem {
     ],
     onOpen,
   };
-}
-
-/** Distinct stage values from the loaded rows, in first-seen order — the kanban column order. */
-function deriveStageOrder(rows: RequestListRow[]): string[] {
-  const order: string[] = [];
-  const seen = new Set<string>();
-  for (const row of rows) {
-    const stage = cellText(row.columns.stage);
-    if (!seen.has(stage)) {
-      seen.add(stage);
-      order.push(stage);
-    }
-  }
-  return order;
 }
 
 /** Repo URL rollup cell (slice 7) — the first task-level URL field, rendered as a monospace link. */
@@ -328,7 +324,23 @@ export function RequestsListPage() {
   );
 
   const { data: savedViews } = useSavedViews(workspaceId ?? undefined, 'Request');
+  const { data: lifecycleConfig } = useLifecycleConfig(workspaceId ?? undefined);
   const exportView = useExportView();
+
+  // Board columns come from the default lifecycle's ordered stages, so every stage shows as a column
+  // (even empty ones) and titles read as labels. Rows carry the stage key; we group by key → label.
+  const { boardStageOrder, stageLabelForKey } = useMemo(() => {
+    const lifecycles = lifecycleConfig?.lifecycles ?? [];
+    const defaultLifecycle = lifecycles.find((lifecycle) => lifecycle.isDefault) ?? lifecycles[0];
+    const stages = [...(defaultLifecycle?.stages ?? [])].sort(
+      (first, second) => first.sortOrder - second.sortOrder,
+    );
+    const labelByKey = new Map(stages.map((stage) => [stage.key, stage.label]));
+    return {
+      boardStageOrder: stages.map((stage) => stage.label),
+      stageLabelForKey: (stageKey: string) => labelByKey.get(stageKey) ?? stageKey,
+    };
+  }, [lifecycleConfig]);
 
   const [activeViewId, setActiveViewId] = useState('all');
   const [filters, setFilters] = useState<Record<string, FilterClause>>({});
@@ -341,11 +353,15 @@ export function RequestsListPage() {
   } | null>(null);
 
   const query = useMemo<PaginatedQuery>(() => {
-    const built: PaginatedQuery = { page, pageSize: PAGE_SIZE };
+    const isBoard = viewMode === 'kanban';
+    const built: PaginatedQuery = {
+      page: isBoard ? 1 : page,
+      pageSize: isBoard ? BOARD_PAGE_SIZE : PAGE_SIZE,
+    };
     if (Object.keys(filters).length > 0) built.filters = filters;
     if (sort) built.sort = [{ column: sort.column, direction: sort.direction }];
     return built;
-  }, [page, filters, sort]);
+  }, [viewMode, page, filters, sort]);
 
   const { data, isLoading, isError, error } = useRequestsList(workspaceId ?? undefined, query);
 
@@ -454,12 +470,13 @@ export function RequestsListPage() {
           {exportView.isPending ? 'Exporting…' : 'Export view'}
         </Button>
       }
-      layoutSlot={
+      trailingSlot={
         <ViewModeToggle
           available={REQUEST_VIEW_KINDS}
           active={viewMode}
           onChange={setViewMode}
           label="Requests layout"
+          iconOnly
         />
       }
       filters={activePills}
@@ -513,7 +530,10 @@ export function RequestsListPage() {
   };
 
   return (
-    <main className="requests-list-page list-surface" data-layout="wide">
+    <main
+      className={`requests-list-page list-surface${viewMode !== 'table' ? ' list-surface--flow' : ''}`}
+      data-layout="wide"
+    >
       <h1 className="h1 requests-list-page__title">Requests</h1>
       {viewBar}
       {rows.length === 0 ? (
@@ -545,24 +565,28 @@ export function RequestsListPage() {
               renderFilter={renderFilter}
             />
           ) : (
-            // Board renders the current page's rows grouped by stage. Pagination stays, so the board
-            // shows the same access-filtered page the table would.
+            // Board loads the full set (up to BOARD_PAGE_SIZE) and shows every lifecycle stage as a
+            // column — empty stages included — in the lifecycle's order. No pager: the page scrolls.
             <KanbanView
-              items={rows.map((row) => toViewItem(row, () => navigate(`/requests/${row.id}`)))}
-              groupOrder={deriveStageOrder(rows)}
+              items={rows.map((row) =>
+                toViewItem(row, stageLabelForKey, () => navigate(`/requests/${row.id}`)),
+              )}
+              groupOrder={boardStageOrder}
               caption="Requests by stage"
             />
           )}
-          <TableFooter
-            page={page}
-            totalPages={totalPages}
-            total={total}
-            start={start}
-            end={end}
-            noun="records"
-            onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
-            onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-          />
+          {viewMode === 'table' && (
+            <TableFooter
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              start={start}
+              end={end}
+              noun="records"
+              onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
+              onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            />
+          )}
         </div>
       )}
 

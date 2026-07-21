@@ -17,8 +17,10 @@ export interface ActiveFilterPill {
 interface ViewBarProps {
   viewPicker?: ReactNode;
   exportSlot?: ReactNode;
-  /** Layout switcher slot (Slice 24 — the advanced-view ViewModeToggle). */
+  /** Layout switcher slot (Slice 24 — the advanced-view ViewModeToggle). Renders on the left. */
   layoutSlot?: ReactNode;
+  /** Right-aligned slot rendered just before the primary action (e.g. a compact layout toggle). */
+  trailingSlot?: ReactNode;
   filters?: ActiveFilterPill[];
   onClearAll?: () => void;
   primaryAction?: ReactNode;
@@ -28,6 +30,7 @@ export function ViewBar({
   viewPicker,
   exportSlot,
   layoutSlot,
+  trailingSlot,
   filters = [],
   onClearAll,
   primaryAction,
@@ -65,6 +68,7 @@ export function ViewBar({
 
       <div className="ast-viewbar__spacer" />
 
+      {trailingSlot && <div className="ast-viewbar__slot">{trailingSlot}</div>}
       {primaryAction && <div className="ast-viewbar__slot">{primaryAction}</div>}
     </div>
   );

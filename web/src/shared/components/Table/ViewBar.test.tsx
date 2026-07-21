@@ -18,6 +18,18 @@ describe('ViewBar', () => {
     expect(screen.getByRole('button', { name: 'Create request' })).toBeInTheDocument();
   });
 
+  it('ViewBar — renders the trailingSlot before the primary action', () => {
+    render(
+      <ViewBar
+        trailingSlot={<button type="button">Layout</button>}
+        primaryAction={<button type="button">Create request</button>}
+      />,
+    );
+    const buttons = screen.getAllByRole('button').map((button) => button.textContent);
+    // The trailing slot renders on the right, just before the primary action.
+    expect(buttons).toEqual(['Layout', 'Create request']);
+  });
+
   it('ViewBar — hides filter pills and Clear all when no filters are active', () => {
     render(<ViewBar />);
     expect(screen.queryByLabelText('Active filters')).not.toBeInTheDocument();

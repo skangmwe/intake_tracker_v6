@@ -8,5 +8,8 @@
    later slices extend. */
 
 :root {
-  /* (no overrides yet) */
+  /* Standard text-button height — mirrors `.mws-btn` (36px) so controls placed beside a primary
+     button (e.g. the icon-only view-mode toggle) line up to the same height. Not a system --control-h
+     step (40/32); the button sits between them, so this override captures the exact value. */
+  --control-h-btn: 36px;
 }
