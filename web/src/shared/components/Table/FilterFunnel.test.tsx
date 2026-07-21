@@ -28,14 +28,14 @@ describe('FilterFunnel', () => {
       <Harness
         type="select"
         options={[
-          { value: 'build', label: 'Build', count: 12 },
-          { value: 'qa', label: 'QA', count: 3 },
+          { value: 'execution', label: 'Execution', count: 12 },
+          { value: 'validation', label: 'Validation', count: 3 },
         ]}
       />,
     );
 
     await user.click(screen.getByRole('button', { name: 'Filter Stage' }));
-    expect(screen.getByRole('checkbox', { name: /Build/ })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Execution/ })).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
   });
 
@@ -73,7 +73,7 @@ describe('FilterFunnel', () => {
   it('FilterFunnel — no axe violations when open', async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <Harness type="select" options={[{ value: 'build', label: 'Build', count: 2 }]} />,
+      <Harness type="select" options={[{ value: 'execution', label: 'Execution', count: 2 }]} />,
     );
     await user.click(screen.getByRole('button', { name: 'Filter Stage' }));
     expect(await axe(container)).toHaveNoViolations();

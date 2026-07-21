@@ -43,7 +43,7 @@ export function gateStatus(gate: ApprovalRequestDto): GateStatus {
   return 'open';
 }
 
-/** The target-stage label a gate renders under — matches the TaskPhase group (e.g. "QA"). */
+/** The target-stage label a gate renders under — matches the TaskPhase group (e.g. "Validation"). */
 export function gatePhaseLabel(gate: ApprovalRequestDto): string {
   return gate.toStage;
 }

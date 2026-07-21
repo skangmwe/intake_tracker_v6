@@ -36,7 +36,7 @@ const ME = {
 
 const STAGES = [
   { key: 'intake', label: 'Intake' },
-  { key: 'build', label: 'Build' },
+  { key: 'execution', label: 'Execution' },
 ];
 
 function field(overrides: Record<string, unknown>) {
@@ -92,7 +92,7 @@ const LIFECYCLE_CONFIG = {
         id: `st-${stage.key}`,
         key: stage.key,
         label: stage.label,
-        statusCategory: 'Build',
+        statusCategory: 'Execution',
         sortOrder: index,
       })),
       gates: [],
@@ -125,7 +125,7 @@ const RECORD = {
 };
 
 const SIMILAR = [
-  { id: 'AIS-00000042', name: 'Contract clause finder', stage: 'build', origin: 'AI Solutions' },
+  { id: 'AIS-00000042', name: 'Contract clause finder', stage: 'execution', origin: 'AI Solutions' },
 ];
 
 test.beforeEach(async ({ page }) => {

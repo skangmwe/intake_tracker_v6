@@ -21,7 +21,7 @@ function buildView(overrides: Partial<SavedViewDto> = {}): SavedViewDto {
     isDefault: false,
     columns: ['name', 'stage'],
     filters: {
-      stage: { kind: 'select', values: ['build', 'qa'] },
+      stage: { kind: 'select', values: ['execution', 'validation'] },
       name: { kind: 'text', contains: 'x' },
     },
     sort: [{ column: 'updatedAt', direction: 'desc' }],
@@ -57,7 +57,7 @@ describe('savedViewEditorModel', () => {
     expect(draft.name).toBe('My open work');
     expect(draft.columns).toEqual(['name', 'stage']);
     const stageRow = draft.filters.find((row) => row.column === 'stage');
-    expect(stageRow).toMatchObject({ comparator: 'is', value: 'build, qa' });
+    expect(stageRow).toMatchObject({ comparator: 'is', value: 'execution, validation' });
     const nameRow = draft.filters.find((row) => row.column === 'name');
     expect(nameRow).toMatchObject({ comparator: 'contains', value: 'x' });
     expect(draft.sort[0]).toMatchObject({ column: 'updatedAt', direction: 'desc' });
@@ -123,9 +123,9 @@ describe('savedViewEditorModel', () => {
       kind: 'text',
       contains: 'Acme',
     });
-    expect(filterRowToClause({ id: 'b', column: 'stage', comparator: 'is', value: 'build, , qa ' })).toEqual({
+    expect(filterRowToClause({ id: 'b', column: 'stage', comparator: 'is', value: 'execution, , validation ' })).toEqual({
       kind: 'select',
-      values: ['build', 'qa'],
+      values: ['execution', 'validation'],
     });
   });
 

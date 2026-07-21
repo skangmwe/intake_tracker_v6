@@ -35,7 +35,7 @@ const ME = {
 
 const STAGES = [
   { key: 'intake', label: 'Intake' },
-  { key: 'build', label: 'Build' },
+  { key: 'execution', label: 'Execution' },
 ];
 
 const SCHEMA = {

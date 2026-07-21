@@ -256,7 +256,7 @@ describe('IntakeFormPage', () => {
     const match: SimilarRequestDto = {
       id: 'AIS-00000009' as SimilarRequestDto['id'],
       name: 'Contract clause finder',
-      stage: 'build',
+      stage: 'execution',
       origin: 'AI Solutions',
     };
     mockHooks({ similar: [match] });

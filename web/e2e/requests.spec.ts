@@ -35,11 +35,11 @@ const ME = {
 
 const STAGES = [
   { key: 'intake', label: 'Intake' },
-  { key: 'discovery', label: 'Discovery' },
-  { key: 'build', label: 'Build' },
-  { key: 'qa', label: 'QA' },
-  { key: 'deploy', label: 'Deploy' },
-  { key: 'post-launch', label: 'Post-launch' },
+  { key: 'triage', label: 'Triage' },
+  { key: 'execution', label: 'Execution' },
+  { key: 'validation', label: 'Validation' },
+  { key: 'delivery', label: 'Delivery' },
+  { key: 'stabilization', label: 'Stabilization' },
 ];
 
 function field(overrides: Record<string, unknown>) {
@@ -99,7 +99,7 @@ const LIFECYCLE_CONFIG = {
         id: `st-${stage.key}`,
         key: stage.key,
         label: stage.label,
-        statusCategory: 'Build',
+        statusCategory: 'Execution',
         sortOrder: index,
       })),
       gates: [],

@@ -171,18 +171,18 @@ BEGIN
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
             N'Test', N'intake', N'{"stage":"intake"}', 0, N'seed', N'seed');
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'build', N'Build', N'Build', 2, 0, N'seed', N'seed');
+    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'execution', N'Execution', N'Execution', 2, 0, N'seed', N'seed');
 
     -- Act
     EXEC dbo.usp_SetRequestStage
         @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
-        @ToStage = N'build', @ActorUserId = N'actor';
+        @ToStage = N'execution', @ActorUserId = N'actor';
 
     -- Assert
     DECLARE @Stage NVARCHAR(64) = (SELECT Stage FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
     DECLARE @Mirror NVARCHAR(64) = (SELECT JSON_VALUE(FieldValues, N'$.stage') FROM dbo.Requests WHERE RecordId = N'AIS-00000001');
-    EXEC tSQLt.AssertEquals @Expected = N'build', @Actual = @Stage;
-    EXEC tSQLt.AssertEquals @Expected = N'build', @Actual = @Mirror;
+    EXEC tSQLt.AssertEquals @Expected = N'execution', @Actual = @Stage;
+    EXEC tSQLt.AssertEquals @Expected = N'execution', @Actual = @Mirror;
 END;
 GO
 
@@ -196,12 +196,12 @@ BEGIN
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
             N'Test', N'intake', '2020-01-01T00:00:00', N'{"stage":"intake"}', 0, N'seed', N'seed');
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'build', N'Build', N'Build', 2, 0, N'seed', N'seed');
+    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'execution', N'Execution', N'Execution', 2, 0, N'seed', N'seed');
 
     -- Act — advance to a different stage.
     EXEC dbo.usp_SetRequestStage
         @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
-        @ToStage = N'build', @ActorUserId = N'actor';
+        @ToStage = N'execution', @ActorUserId = N'actor';
 
     -- Assert — the clock reset: StageEnteredAt is now recent, not the 2020 seed value.
     DECLARE @Entered DATETIME2 = (SELECT StageEnteredAt FROM dbo.Requests WHERE RecordId = N'AIS-00000001');

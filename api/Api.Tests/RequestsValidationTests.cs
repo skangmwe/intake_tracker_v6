@@ -130,7 +130,7 @@ public sealed class RequestsValidationTests
         // Arrange — S2 grid keys stage/origin/analyst/name/priority/due → proc keys.
         var filters = Fields("""
         {
-          "stage": { "kind": "select", "values": ["intake", "build"] },
+          "stage": { "kind": "select", "values": ["intake", "execution"] },
           "origin": { "kind": "select", "values": ["Litigation"] },
           "analyst": { "kind": "select", "values": ["Priya Raman"] },
           "name": { "kind": "text", "contains": "extraction" },
@@ -242,7 +242,7 @@ public sealed class RequestsValidationTests
 
     [Theory]
     [InlineData("intake", "2026-07-01", "2026-07-06", 5)]   // five days in stage
-    [InlineData("build", "2026-07-06", "2026-07-06", 0)]    // entered today = 0 days
+    [InlineData("execution", "2026-07-06", "2026-07-06", 0)]    // entered today = 0 days
     public void ComputeTimeInStage_MeasuresWholeDays(string stage, string entered, string today, int expectedDays)
     {
         // Act

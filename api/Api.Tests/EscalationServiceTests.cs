@@ -112,7 +112,7 @@ public sealed class EscalationServiceTests
     public async Task EscalateAsync_AlreadyEscalated_ReturnsAlreadyEscalated()
     {
         // Arrange — the record already carries a bridge block (one-time, one-way, BS §6.6).
-        var bridge = new BridgeBlockDto(true, PgWorkspaceId, "Litigation", Guid.NewGuid(), DateTime.UtcNow, "Build", Array.Empty<string>());
+        var bridge = new BridgeBlockDto(true, PgWorkspaceId, "Litigation", Guid.NewGuid(), DateTime.UtcNow, "Execution", Array.Empty<string>());
         SetupRecord(PgRecord(bridge));
 
         // Act

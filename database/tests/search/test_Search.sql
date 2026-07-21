@@ -36,7 +36,7 @@ BEGIN
     -- Arrange — the two-token record ranks above the one-token record.
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, Name, Description, Stage, Origin, FieldValues, UpdatedAt, IsDeleted)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'Contract review helper', N'Summarise vendor contracts', N'intake', N'AI Solutions', N'{}', '2026-07-01', 0),
-           (N'AIS-00000002', '1A150000-0000-4000-8000-000000000001', N'Contract clause extraction', N'Extract clauses', N'build', N'AI Solutions', N'{}', '2026-07-02', 0);
+           (N'AIS-00000002', '1A150000-0000-4000-8000-000000000001', N'Contract clause extraction', N'Extract clauses', N'execution', N'AI Solutions', N'{}', '2026-07-02', 0);
 
     -- Act
     CREATE TABLE #Hits (RecordId NVARCHAR(20), Name NVARCHAR(400), Stage NVARCHAR(64), Origin NVARCHAR(200));

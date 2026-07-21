@@ -22,14 +22,14 @@ public sealed class LifecycleServiceTests
         SortOrder = 0,
         Stages = new[]
         {
-            new StageUpsertInput { Key = "build", Label = "Build", StatusCategory = "Build", SortOrder = 0 },
-            new StageUpsertInput { Key = "qa", Label = "QA", StatusCategory = "Review", SortOrder = 1 },
+            new StageUpsertInput { Key = "execution", Label = "Execution", StatusCategory = "Execution", SortOrder = 0 },
+            new StageUpsertInput { Key = "validation", Label = "Validation", StatusCategory = "Validation", SortOrder = 1 },
         },
         Gates = new[]
         {
             new GateUpsertInput
             {
-                Name = "QA readiness gate", FromStageKey = "build", ToStageKey = "qa", SortOrder = 0,
+                Name = "Validation readiness gate", FromStageKey = "execution", ToStageKey = "validation", SortOrder = 0,
                 Slots = new[] { new GateSlotUpsertInput { RoleLabel = "InfoSec" } },
             },
         },
@@ -94,7 +94,7 @@ public sealed class LifecycleServiceTests
         var lifecycle = StandardLifecycle();
         lifecycle.Gates = new[]
         {
-            new GateUpsertInput { Name = "Bad gate", FromStageKey = "build", ToStageKey = "nope", SortOrder = 0 },
+            new GateUpsertInput { Name = "Bad gate", FromStageKey = "execution", ToStageKey = "nope", SortOrder = 0 },
         };
         var request = RequestWith(lifecycle);
 
@@ -112,8 +112,8 @@ public sealed class LifecycleServiceTests
         var lifecycle = StandardLifecycle();
         lifecycle.Stages = new[]
         {
-            new StageUpsertInput { Key = "build", Label = "Build", StatusCategory = "Build", SortOrder = 0 },
-            new StageUpsertInput { Key = "build", Label = "Build again", StatusCategory = "Build", SortOrder = 1 },
+            new StageUpsertInput { Key = "execution", Label = "Execution", StatusCategory = "Execution", SortOrder = 0 },
+            new StageUpsertInput { Key = "execution", Label = "Execution again", StatusCategory = "Execution", SortOrder = 1 },
         };
         lifecycle.Gates = Array.Empty<GateUpsertInput>();
         var request = RequestWith(lifecycle);
@@ -141,7 +141,7 @@ public sealed class LifecycleServiceTests
         Assert.True(lifecycle.GetProperty("isDefault").GetBoolean());
         Assert.Equal(2, lifecycle.GetProperty("stages").GetArrayLength());
         var gate = Assert.Single(lifecycle.GetProperty("gates").EnumerateArray());
-        Assert.Equal("build", gate.GetProperty("fromStageKey").GetString());
+        Assert.Equal("execution", gate.GetProperty("fromStageKey").GetString());
         Assert.Equal("InfoSec", gate.GetProperty("slots")[0].GetProperty("roleLabel").GetString());
     }
 
@@ -158,10 +158,10 @@ public sealed class LifecycleServiceTests
         var lifecycles = new[] { new LifecycleRow { LifecycleId = lifecycleId, Name = "Standard", RequestType = "Full build", IsDefault = true, SortOrder = 0 } };
         var stages = new[]
         {
-            new StageDefinitionRow { StageDefinitionId = buildStageId, LifecycleId = lifecycleId, StageKey = "build", Label = "Build", StatusCategory = "Build", SortOrder = 0 },
-            new StageDefinitionRow { StageDefinitionId = qaStageId, LifecycleId = lifecycleId, StageKey = "qa", Label = "QA", StatusCategory = "Review", SortOrder = 1 },
+            new StageDefinitionRow { StageDefinitionId = buildStageId, LifecycleId = lifecycleId, StageKey = "execution", Label = "Execution", StatusCategory = "Execution", SortOrder = 0 },
+            new StageDefinitionRow { StageDefinitionId = qaStageId, LifecycleId = lifecycleId, StageKey = "validation", Label = "Validation", StatusCategory = "Validation", SortOrder = 1 },
         };
-        var gates = new[] { new GateDefinitionRow { GateDefinitionId = gateId, LifecycleId = lifecycleId, Name = "QA gate", FromStageId = buildStageId, ToStageId = qaStageId, JoinKind = "and", SortOrder = 0 } };
+        var gates = new[] { new GateDefinitionRow { GateDefinitionId = gateId, LifecycleId = lifecycleId, Name = "Validation gate", FromStageId = buildStageId, ToStageId = qaStageId, JoinKind = "and", SortOrder = 0 } };
         var slots = new[] { new GateSlotRow { GateDefinitionId = gateId, RoleLabel = "InfoSec", SlotIndex = 0, EligibleCount = 2 } };
         var roleLabels = new[] { new RoleLabelRow { RoleLabelId = Guid.NewGuid(), Label = "InfoSec", SortOrder = 0 } };
         var members = Array.Empty<ApproverTeamMemberRow>();

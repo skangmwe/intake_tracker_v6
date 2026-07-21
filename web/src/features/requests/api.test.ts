@@ -132,12 +132,12 @@ describe('requests api', () => {
 
   it('setRequestStage — POSTs the target stage', async () => {
     // Act
-    await setRequestStage(REC, 'QA');
+    await setRequestStage(REC, 'validation');
 
     // Assert
     expect(mockedFetch).toHaveBeenCalledWith(`/v1/requests/${REC}/stage`, {
       method: 'POST',
-      body: { toStage: 'QA' },
+      body: { toStage: 'validation' },
     });
   });
 

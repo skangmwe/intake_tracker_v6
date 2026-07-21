@@ -7,7 +7,7 @@
 --              carries no closure outcome (usp_CloseRequest writes $.outcome into FieldValues).
 --              Scoped WorkspaceId = @WorkspaceId AND IsDeleted = 0; access is enforced API-side.
 --              Emits one row per category present; the API pads to the fixed order
---              Intake, Build, Review, Deploy.
+--              Intake, Execution, Validation, Delivery.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_GetDashboardPipelineByCategory
     @WorkspaceId UNIQUEIDENTIFIER

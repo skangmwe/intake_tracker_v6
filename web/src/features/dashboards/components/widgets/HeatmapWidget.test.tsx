@@ -18,9 +18,9 @@ const heatmap: DashboardWidgetDto = {
   data: {
     columns: [
       { label: 'Intake', group: 'In flight' },
-      { label: 'Build' },
-      { label: 'Review' },
-      { label: 'Deploy' },
+      { label: 'Execution' },
+      { label: 'Validation' },
+      { label: 'Delivery' },
       { label: 'Live', group: 'Closed', groupStart: true },
       { label: 'Declined' },
       { label: 'Withdrawn' },

@@ -18,12 +18,12 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.StageDefinition (LifecycleId, StageKey, Label, StatusCategory, IsDeleted, WorkspaceId, CreatedBy, UpdatedBy)
-    VALUES (@Lc, N'build', N'Build', N'Build', 0, @Ws, N's', N's');
+    VALUES (@Lc, N'execution', N'Execution', N'Execution', 0, @Ws, N's', N's');
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, DeptPgClient, PriorityScore, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'Open one', N'build', N'Finance', 5, N'{}', 0, N's', N's'),
-           (N'AIS-2', @Ws, @Lc, N'Open two', N'build', N'Finance', 3, N'{}', 0, N's', N's'),
-           (N'AIS-3', @Ws, @Lc, N'Closed',   N'build', N'Finance', 1, N'{"outcome":"Live"}', 0, N's', N's');
+    VALUES (N'AIS-1', @Ws, @Lc, N'Open one', N'execution', N'Finance', 5, N'{}', 0, N's', N's'),
+           (N'AIS-2', @Ws, @Lc, N'Open two', N'execution', N'Finance', 3, N'{}', 0, N's', N's'),
+           (N'AIS-3', @Ws, @Lc, N'Closed',   N'execution', N'Finance', 1, N'{"outcome":"Live"}', 0, N's', N's');
 
     -- Act — capture the page (result set 1).
     CREATE TABLE #Page (Id NVARCHAR(64), Name NVARCHAR(400), Stage NVARCHAR(64), Origin NVARCHAR(200),
@@ -52,11 +52,11 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.StageDefinition (LifecycleId, StageKey, Label, StatusCategory, IsDeleted, WorkspaceId, CreatedBy, UpdatedBy)
-    VALUES (@Lc, N'deploy', N'Deploy', N'Deploy', 0, @Ws, N's', N's');
+    VALUES (@Lc, N'delivery', N'Delivery', N'Delivery', 0, @Ws, N's', N's');
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, DeptPgClient, PriorityScore, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'Open',       N'deploy', N'Finance', 5, N'{}', 0, N's', N's'),
-           (N'AIS-2', @Ws, @Lc, N'Live closed',N'deploy', N'Finance', 3, N'{"outcome":"Live"}', 0, N's', N's');
+    VALUES (N'AIS-1', @Ws, @Lc, N'Open',       N'delivery', N'Finance', 5, N'{}', 0, N's', N's'),
+           (N'AIS-2', @Ws, @Lc, N'Live closed',N'delivery', N'Finance', 3, N'{"outcome":"Live"}', 0, N's', N's');
 
     -- Act — outcome drill on Live.
     CREATE TABLE #Page (Id NVARCHAR(64), Name NVARCHAR(400), Stage NVARCHAR(64), Origin NVARCHAR(200),
@@ -85,12 +85,12 @@ BEGIN
     DECLARE @Lc UNIQUEIDENTIFIER = 'C1FE0000-0000-4000-8000-000000000001';
 
     INSERT INTO dbo.StageDefinition (LifecycleId, StageKey, Label, StatusCategory, IsDeleted, WorkspaceId, CreatedBy, UpdatedBy)
-    VALUES (@Lc, N'build', N'Build', N'Build', 0, @Ws, N's', N's');
+    VALUES (@Lc, N'execution', N'Execution', N'Execution', 0, @Ws, N's', N's');
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, PriorityScore, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-1', @Ws, @Lc, N'A', N'build', 5, N'{}', 0, N's', N's'),
-           (N'AIS-2', @Ws, @Lc, N'B', N'build', 4, N'{}', 0, N's', N's'),
-           (N'AIS-3', @Ws, @Lc, N'C', N'build', 3, N'{}', 0, N's', N's');
+    VALUES (N'AIS-1', @Ws, @Lc, N'A', N'execution', 5, N'{}', 0, N's', N's'),
+           (N'AIS-2', @Ws, @Lc, N'B', N'execution', 4, N'{}', 0, N's', N's'),
+           (N'AIS-3', @Ws, @Lc, N'C', N'execution', 3, N'{}', 0, N's', N's');
 
     -- Act — capture the count (result set 2), @Top=2 must not clip the total.
     CREATE TABLE #Cnt (TotalCount INT);

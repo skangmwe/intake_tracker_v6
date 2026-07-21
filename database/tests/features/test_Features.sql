@@ -65,7 +65,7 @@ BEGIN
     INSERT INTO dbo.PrefixRegistry (Prefix, WorkspaceId, WorkspaceNameAtMint, IsDeleted)
     VALUES (N'AIS', '1A150000-0000-4000-8000-000000000001', N'AI Solutions', 0);
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, Name, Stage, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000003', '1A150000-0000-4000-8000-000000000001', N'Source request', N'deploy', 0, N'seed', N'seed');
+    VALUES (N'AIS-00000003', '1A150000-0000-4000-8000-000000000001', N'Source request', N'delivery', 0, N'seed', N'seed');
 
     DECLARE @RecordId NVARCHAR(20);
     DECLARE @Actual SQL_VARIANT;

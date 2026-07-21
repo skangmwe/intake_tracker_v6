@@ -51,12 +51,12 @@ public sealed class CopyServiceTests
             LegacyId: null,
             LifecycleId: Guid.NewGuid(),
             Stages: Array.Empty<RequestStageRef>(),
-            Stage: "build",
+            Stage: "execution",
             StatusHold: RequestStatusHoldValue.InProgress,
             StatusHoldNote: null,
             Hold: new HoldState(false, null),
             Outcome: null,
-            DisplayStatus: "Build",
+            DisplayStatus: "Execution",
             SlaStatus: null,
             TimeInStage: null,
             Name: "Meeting-notes extractor",
@@ -107,7 +107,7 @@ public sealed class CopyServiceTests
     {
         // Arrange — a closed, held source; the copy must drop outcome/hold/stage and queue a re-pursuit link.
         SetupSource(Source(Fields("""
-            { "name": "Meeting-notes extractor", "stage": "deploy", "outcome": "Live", "holdBlocked": "true", "businessValue": 4 }
+            { "name": "Meeting-notes extractor", "stage": "delivery", "outcome": "Live", "holdBlocked": "true", "businessValue": 4 }
             """)));
         DraftSaveRequest? captured = null;
         _drafts

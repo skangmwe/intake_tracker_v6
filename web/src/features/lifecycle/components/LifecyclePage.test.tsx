@@ -70,7 +70,7 @@ describe('LifecyclePage', () => {
     render(<LifecyclePage />);
     expect(screen.getByRole('combobox', { name: 'Select lifecycle' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /standard.*default/i })).toBeInTheDocument();
-    expect(screen.getByLabelText('Stage 1 name')).toHaveValue('Build');
+    expect(screen.getByLabelText('Stage 1 name')).toHaveValue('Execution');
     expect(screen.getByDisplayValue('QA readiness gate')).toBeInTheDocument();
     // Approver teams roster surfaces every catalog role.
     const teams = screen.getByRole('list', { name: /infosec members/i });

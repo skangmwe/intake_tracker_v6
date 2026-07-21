@@ -95,7 +95,7 @@ describe('useTasks hooks', () => {
     const invalidate = jest.spyOn(client, 'invalidateQueries');
 
     const { result } = renderHook(() => useCreateTasks(RECORD), { wrapper: Wrapper });
-    await result.current.mutateAsync({ kind: 'single', title: 'New', phase: 'Build' });
+    await result.current.mutateAsync({ kind: 'single', title: 'New', phase: 'Execution' });
 
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: tasksKey(RECORD) }));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['requests'] });
@@ -106,7 +106,7 @@ describe('useTasks hooks', () => {
       id: 'task-1',
       parentRequestId: RECORD,
       title: 'A',
-      phase: 'Build',
+      phase: 'Execution',
       status: 'Done',
       createdAt: '2026-07-01T09:00:00Z',
     } as never);

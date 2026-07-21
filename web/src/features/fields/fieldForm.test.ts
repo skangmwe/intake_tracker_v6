@@ -46,7 +46,7 @@ describe('fieldForm', () => {
       derived: { kind: 'DerivedCategory', expression: null, defaultValue: '@stage' },
       rules: [
         { id: 'r1', action: 'ProduceValue', whenFieldKey: 'outcome', comparator: 'isSet', compareValue: null, produceValue: '@outcome', sortOrder: 1 },
-        { id: 'r2', action: 'Show', whenFieldKey: 'stage', comparator: 'eq', compareValue: 'build', produceValue: null, sortOrder: 2 },
+        { id: 'r2', action: 'Show', whenFieldKey: 'stage', comparator: 'eq', compareValue: 'execution', produceValue: null, sortOrder: 2 },
       ],
     });
 
@@ -142,11 +142,11 @@ describe('fieldForm', () => {
 
   it('formToRequest — trims a blank section to null and forwards non-empty visible stages', () => {
     const request = formToRequest(
-      baseForm({ fieldType: 'ShortText', section: '   ', visibleStages: ['build', 'qa'] }),
+      baseForm({ fieldType: 'ShortText', section: '   ', visibleStages: ['execution', 'validation'] }),
       'Request',
     );
     expect(request.section).toBeNull();
-    expect(request.visibleStages).toEqual(['build', 'qa']);
+    expect(request.visibleStages).toEqual(['execution', 'validation']);
   });
 
   it('formToRequest — a select option keeps a provided label', () => {
@@ -160,10 +160,10 @@ describe('fieldForm', () => {
   it('formToRequest — a comparator that needs a value keeps the trimmed value', () => {
     const form = baseForm({
       fieldType: 'ShortText',
-      rules: [{ id: 'r', action: 'Require', whenFieldKey: 'x', comparator: 'eq', compareValue: '  build  ' }],
+      rules: [{ id: 'r', action: 'Require', whenFieldKey: 'x', comparator: 'eq', compareValue: '  execution  ' }],
     });
     const request = formToRequest(form, 'Request');
-    expect(request.rules?.[0]?.compareValue).toBe('build');
+    expect(request.rules?.[0]?.compareValue).toBe('execution');
   });
 
   it('formToRequest — DerivedCategory field builds a DerivedCategory config', () => {

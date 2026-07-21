@@ -28,11 +28,11 @@ describe('ViewBar', () => {
     // Arrange
     const user = userEvent.setup();
     const onRemove = jest.fn();
-    const filters: ActiveFilterPill[] = [{ id: 'stage', label: 'Stage: Build', onRemove }];
+    const filters: ActiveFilterPill[] = [{ id: 'stage', label: 'Stage: Execution', onRemove }];
 
     // Act
     render(<ViewBar filters={filters} onClearAll={jest.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Remove filter Stage: Build' }));
+    await user.click(screen.getByRole('button', { name: 'Remove filter Stage: Execution' }));
 
     // Assert
     expect(onRemove).toHaveBeenCalledTimes(1);
@@ -41,7 +41,7 @@ describe('ViewBar', () => {
   it('ViewBar — Clear all fires its callback when filters are active', async () => {
     const user = userEvent.setup();
     const onClearAll = jest.fn();
-    const filters: ActiveFilterPill[] = [{ id: 'stage', label: 'Stage: Build', onRemove: jest.fn() }];
+    const filters: ActiveFilterPill[] = [{ id: 'stage', label: 'Stage: Execution', onRemove: jest.fn() }];
 
     render(<ViewBar filters={filters} onClearAll={onClearAll} />);
     await user.click(screen.getByRole('button', { name: 'Clear all' }));
@@ -49,7 +49,7 @@ describe('ViewBar', () => {
   });
 
   it('ViewBar — no axe violations', async () => {
-    const filters: ActiveFilterPill[] = [{ id: 'stage', label: 'Stage: Build', onRemove: jest.fn() }];
+    const filters: ActiveFilterPill[] = [{ id: 'stage', label: 'Stage: Execution', onRemove: jest.fn() }];
     const { container } = render(
       <ViewBar filters={filters} onClearAll={jest.fn()} primaryAction={<button type="button">Create</button>} />,
     );

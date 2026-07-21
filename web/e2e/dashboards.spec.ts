@@ -109,7 +109,7 @@ function dashboard(drilled: boolean) {
         {
           id: 'REQ-2',
           name: 'Beta',
-          stage: 'Build',
+          stage: 'Execution',
           origin: 'IP',
           analyst: 'S. Boyd',
           priority: 3,
@@ -139,7 +139,7 @@ function dashboard(drilled: boolean) {
           total: 2,
           segments: [
             { label: 'Intake', count: 1, percent: 50 },
-            { label: 'Build', count: 1, percent: 50 },
+            { label: 'Execution', count: 1, percent: 50 },
           ],
         },
       },

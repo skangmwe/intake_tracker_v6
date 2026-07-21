@@ -35,7 +35,7 @@ const ME = {
 
 const STAGES = [
   { key: 'intake', label: 'Intake' },
-  { key: 'build', label: 'Build' },
+  { key: 'execution', label: 'Execution' },
 ];
 
 const RECORD = {
@@ -48,9 +48,9 @@ const RECORD = {
   updatedBy: ME.user.id,
   lifecycleId: LIFECYCLE_ID,
   stages: STAGES,
-  stage: 'build',
+  stage: 'execution',
   hold: { held: false },
-  displayStatus: 'Build',
+  displayStatus: 'Execution',
   name: 'Meeting-notes action extraction',
   description: 'Pull action items out of meetings.',
   fields: { name: 'Meeting-notes action extraction' },
@@ -64,8 +64,8 @@ const BUNDLES = [
     id: 'bundle-drafting',
     name: 'Drafting assistant',
     tasks: [
-      { title: 'Define prompt + guardrails', phase: 'Build' },
-      { title: 'Reviewer QA on 20 drafts', phase: 'QA' },
+      { title: 'Define prompt + guardrails', phase: 'Execution' },
+      { title: 'Reviewer QA on 20 drafts', phase: 'Validation' },
     ],
   },
 ];

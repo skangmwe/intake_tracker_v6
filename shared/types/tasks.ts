@@ -5,8 +5,16 @@ import type { DraftId, FieldDefinitionId, IsoDate, IsoDateTime, RecordId, TaskId
 /** Task status transitions: Locked → Open → Done (or Cancelled). */
 export type TaskStatus = 'Locked' | 'Open' | 'Done' | 'Cancelled';
 
-/** Build phase — for the collapsible phase-grouped task list. */
-export type TaskPhase = 'Intake' | 'Discovery' | 'Build' | 'QA' | 'Deploy' | 'Post-launch' | 'Unphased';
+/** Lifecycle phase — for the collapsible phase-grouped task list. */
+export type TaskPhase =
+  | 'Intake'
+  | 'Triage'
+  | 'Execution'
+  | 'Validation'
+  | 'Delivery'
+  | 'Stabilization'
+  | 'Closure'
+  | 'Unphased';
 
 /** Type-aware structured field value on a Task. */
 export type TaskTypedFieldValue =

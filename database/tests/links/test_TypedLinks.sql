@@ -19,9 +19,9 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.TypedLinks';
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, Name, Stage, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', 'A1150000-0000-4000-8000-000000000001', N'Extractor',   N'build', 0, N'seed', N'seed'),
-           (N'AIS-00000002', 'A1150000-0000-4000-8000-000000000001', N'Summariser',  N'qa',    0, N'seed', N'seed'),
-           (N'BIZ-00000001', 'B0000000-0000-4000-8000-000000000002', N'Ops tracker', N'build', 0, N'seed', N'seed');
+    VALUES (N'AIS-00000001', 'A1150000-0000-4000-8000-000000000001', N'Extractor',   N'execution', 0, N'seed', N'seed'),
+           (N'AIS-00000002', 'A1150000-0000-4000-8000-000000000001', N'Summariser',  N'validation',    0, N'seed', N'seed'),
+           (N'BIZ-00000001', 'B0000000-0000-4000-8000-000000000002', N'Ops tracker', N'execution', 0, N'seed', N'seed');
 
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('A1150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);

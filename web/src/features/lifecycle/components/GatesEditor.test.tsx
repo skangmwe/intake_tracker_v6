@@ -23,8 +23,8 @@ describe('GatesEditor', () => {
   it('renders the gate name, transition selects and the live eligible count', () => {
     renderEditor();
     expect(screen.getByDisplayValue('QA readiness gate')).toBeInTheDocument();
-    expect(screen.getByLabelText('QA readiness gate — from stage')).toHaveValue('build');
-    expect(screen.getByLabelText('QA readiness gate — to stage')).toHaveValue('qa');
+    expect(screen.getByLabelText('QA readiness gate — from stage')).toHaveValue('execution');
+    expect(screen.getByLabelText('QA readiness gate — to stage')).toHaveValue('validation');
     expect(screen.getByText('2 eligible')).toBeInTheDocument();
   });
 
@@ -38,8 +38,8 @@ describe('GatesEditor', () => {
   it('dispatches a from-stage change', async () => {
     const dispatch = renderEditor();
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText('QA readiness gate — from stage'), 'qa');
-    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'GATE_UPDATE', patch: { fromStageKey: 'qa' } }));
+    await user.selectOptions(screen.getByLabelText('QA readiness gate — from stage'), 'validation');
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'GATE_UPDATE', patch: { fromStageKey: 'validation' } }));
   });
 
   it('adds a gate, adds an approving team, and removes a slot', async () => {

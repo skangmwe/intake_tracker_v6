@@ -33,11 +33,11 @@ describe('drillLabel', () => {
   });
 
   it('drillLabel — category — "Status · X"', () => {
-    expect(drillLabel({ type: 'category', value: 'Build' })).toBe('Status · Build');
+    expect(drillLabel({ type: 'category', value: 'Execution' })).toBe('Status · Execution');
   });
 
   it('drillLabel — cell — "origin × category"', () => {
-    expect(drillLabel({ type: 'cell', origin: 'IP', category: 'Review' })).toBe('IP × Review');
+    expect(drillLabel({ type: 'cell', origin: 'IP', category: 'Validation' })).toBe('IP × Validation');
   });
 
   it('drillLabel — closedCell — appends "(closed)"', () => {

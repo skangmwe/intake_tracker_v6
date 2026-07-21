@@ -76,7 +76,7 @@ public sealed class RequestsEndpointsTests : IClassFixture<WebApplicationFactory
     public async Task MoveStage_WithoutToken_Returns401()
     {
         var client = _factory.CreateClient();
-        var response = await client.PostAsync($"/api/v1/requests/{RecordId}/stage", Json("""{ "toStage": "build" }"""));
+        var response = await client.PostAsync($"/api/v1/requests/{RecordId}/stage", Json("""{ "toStage": "execution" }"""));
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 

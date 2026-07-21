@@ -35,7 +35,7 @@ BEGIN
 
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (NEWID(), 'C1000000-0000-4000-8000-000000000003', 'A1150000-0000-4000-8000-000000000001', N'intake',  N'Intake',  N'Intake', 0, 0, N'seed', N'seed'),
-           (NEWID(), 'C1000000-0000-4000-8000-000000000003', 'A1150000-0000-4000-8000-000000000001', N'build',   N'Build',   N'Build',  2, 0, N'seed', N'seed');
+           (NEWID(), 'C1000000-0000-4000-8000-000000000003', 'A1150000-0000-4000-8000-000000000001', N'execution',   N'Execution',   N'Execution',  2, 0, N'seed', N'seed');
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Origin, Name, Description, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'LIT-00000001', 'B0000000-0000-4000-8000-000000000002', 'D2000000-0000-4000-8000-000000000004',

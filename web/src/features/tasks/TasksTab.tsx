@@ -35,7 +35,7 @@ interface TasksTabProps {
   paused: boolean;
 }
 
-/** A gate's target-stage label (e.g. "QA") coerced to the phase group it renders under. */
+/** A gate's target-stage label (e.g. "Validation") coerced to the phase group it renders under. */
 function gateToPhase(gate: ApprovalRequestDto): TaskPhase {
   return (PHASE_ORDER as readonly string[]).includes(gate.toStage) ? (gate.toStage as TaskPhase) : 'Unphased';
 }

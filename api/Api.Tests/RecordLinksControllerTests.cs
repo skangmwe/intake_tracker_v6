@@ -47,7 +47,7 @@ public sealed class RecordLinksControllerTests
 
     private static RelationshipLinkDto SampleLink() => new(
         LinkId, RelationshipId, FromRecordId, ToRecordId,
-        "Extraction task", "build", "Out",
+        "Extraction task", "execution", "Out",
         CreatedAt: DateTime.UtcNow, CreatedBy: "seed");
 
     // ---------- List ----------

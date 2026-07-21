@@ -26,15 +26,15 @@ GO
 CREATE PROCEDURE GatesTests.[test_GetGateForTransitionReturnsGateOnGatedEdge]
 AS
 BEGIN
-    -- Arrange — record at 'build'; a gate guards build → qa.
+    -- Arrange — record at 'execution'; a gate guards execution → validation.
     EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
     EXEC tSQLt.FakeTable @TableName = 'dbo.GateDefinition';
     EXEC tSQLt.FakeTable @TableName = 'dbo.StageDefinition';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'build', N'{}', 0, N's', N's');
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'execution', N'{}', 0, N's', N's');
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('57A60000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'build', N'Build', N'Build', 2, 0, N's', N's'),
-           ('57A60000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'qa', N'QA', N'Review', 3, 0, N's', N's');
+    VALUES ('57A60000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'execution', N'Execution', N'Execution', 2, 0, N's', N's'),
+           ('57A60000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'validation', N'Validation', N'Validation', 3, 0, N's', N's');
     INSERT INTO dbo.GateDefinition (GateDefinitionId, LifecycleId, WorkspaceId, Name, FromStageId, ToStageId, JoinKind, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('6A7E0000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'QA readiness gate',
             '57A60000-0000-4000-8000-000000000003', '57A60000-0000-4000-8000-000000000004', N'and', 0, 0, N's', N's');
@@ -42,28 +42,28 @@ BEGIN
     -- Act
     CREATE TABLE #Gate (GateDefinitionId UNIQUEIDENTIFIER, GateName NVARCHAR(200), FromStageKey NVARCHAR(64), ToStageKey NVARCHAR(64), FromStageLabel NVARCHAR(120), ToStageLabel NVARCHAR(120));
     INSERT INTO #Gate
-    EXEC dbo.usp_GetGateForTransition @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001', @ToStage = N'qa';
+    EXEC dbo.usp_GetGateForTransition @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001', @ToStage = N'validation';
 
     -- Assert
     DECLARE @Count INT           = (SELECT COUNT(*) FROM #Gate);
     DECLARE @ToLabel NVARCHAR(120) = (SELECT ToStageLabel FROM #Gate);
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Count;
-    EXEC tSQLt.AssertEqualsString @Expected = N'QA', @Actual = @ToLabel;
+    EXEC tSQLt.AssertEqualsString @Expected = N'Validation', @Actual = @ToLabel;
 END;
 GO
 
 CREATE PROCEDURE GatesTests.[test_GetGateForTransitionUngatedEdgeReturnsNothing]
 AS
 BEGIN
-    -- Arrange — record at 'build'; the gate guards build → qa, but we ask for build → deploy.
+    -- Arrange — record at 'execution'; the gate guards execution → validation, but we ask for execution → delivery.
     EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
     EXEC tSQLt.FakeTable @TableName = 'dbo.GateDefinition';
     EXEC tSQLt.FakeTable @TableName = 'dbo.StageDefinition';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'build', N'{}', 0, N's', N's');
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'execution', N'{}', 0, N's', N's');
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('57A60000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'build', N'Build', N'Build', 2, 0, N's', N's'),
-           ('57A60000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'qa', N'QA', N'Review', 3, 0, N's', N's');
+    VALUES ('57A60000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'execution', N'Execution', N'Execution', 2, 0, N's', N's'),
+           ('57A60000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'validation', N'Validation', N'Validation', 3, 0, N's', N's');
     INSERT INTO dbo.GateDefinition (GateDefinitionId, LifecycleId, WorkspaceId, Name, FromStageId, ToStageId, JoinKind, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('6A7E0000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'QA readiness gate',
             '57A60000-0000-4000-8000-000000000003', '57A60000-0000-4000-8000-000000000004', N'and', 0, 0, N's', N's');
@@ -71,7 +71,7 @@ BEGIN
     -- Act
     CREATE TABLE #Gate (GateDefinitionId UNIQUEIDENTIFIER, GateName NVARCHAR(200), FromStageKey NVARCHAR(64), ToStageKey NVARCHAR(64), FromStageLabel NVARCHAR(120), ToStageLabel NVARCHAR(120));
     INSERT INTO #Gate
-    EXEC dbo.usp_GetGateForTransition @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001', @ToStage = N'deploy';
+    EXEC dbo.usp_GetGateForTransition @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001', @ToStage = N'delivery';
 
     -- Assert
     DECLARE @Count INT = (SELECT COUNT(*) FROM #Gate);
@@ -94,12 +94,12 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.Users';
     EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalRequests';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'build', N'{}', 0, N's', N's');
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'execution', N'{}', 0, N's', N's');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('57A60000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'build', N'Build', N'Build', 2, 0, N's', N's'),
-           ('57A60000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'qa', N'QA', N'Review', 3, 0, N's', N's');
+    VALUES ('57A60000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'execution', N'Execution', N'Execution', 2, 0, N's', N's'),
+           ('57A60000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'validation', N'Validation', N'Validation', 3, 0, N's', N's');
     INSERT INTO dbo.GateDefinition (GateDefinitionId, LifecycleId, WorkspaceId, Name, FromStageId, ToStageId, JoinKind, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('6A7E0000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'QA readiness gate',
             '57A60000-0000-4000-8000-000000000003', '57A60000-0000-4000-8000-000000000004', N'and', 0, 0, N's', N's');
@@ -126,7 +126,7 @@ BEGIN
         WHERE slot.slotIndex = 0);
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Count;
     EXEC tSQLt.AssertEqualsString @Expected = N'Pending', @Actual = @State;
-    EXEC tSQLt.AssertEqualsString @Expected = N'qa', @Actual = @ToKey;
+    EXEC tSQLt.AssertEqualsString @Expected = N'validation', @Actual = @ToKey;
     EXEC tSQLt.AssertEquals @Expected = '00000000-0000-4000-8000-0000000000cc', @Actual = @Member;
 END;
 GO
@@ -142,14 +142,14 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.GateApproverSlot';
     EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalRequests';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'build', N'{}', 0, N's', N's');
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'execution', N'{}', 0, N's', N's');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.GateDefinition (GateDefinitionId, LifecycleId, WorkspaceId, Name, FromStageId, ToStageId, JoinKind, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('6A7E0000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'QA readiness gate',
             '57A60000-0000-4000-8000-000000000003', '57A60000-0000-4000-8000-000000000004', N'and', 0, 0, N's', N's');
     INSERT INTO dbo.ApprovalRequests (ApprovalRequestId, RequestRecordId, WorkspaceId, GateDefinitionId, GateName, FromStageKey, ToStageKey, FromStageLabel, ToStageLabel, State, FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('7A000000-0000-4000-8000-000000000001', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '6A7E0000-0000-4000-8000-000000000001', N'QA readiness gate', N'build', N'qa', N'Build', N'QA', N'Pending', N'[]', 0, N's', N's');
+    VALUES ('7A000000-0000-4000-8000-000000000001', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '6A7E0000-0000-4000-8000-000000000001', N'QA readiness gate', N'execution', N'validation', N'Execution', N'Validation', N'Pending', N'[]', 0, N's', N's');
 
     -- Assert — a second open THROWs 50051 (→ 409 gate-already-open).
     EXEC tSQLt.ExpectException @ExpectedErrorNumber = 50051;
@@ -171,7 +171,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.GateApproverSlot';
     EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalRequests';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'build', N'{}', 0, N's', N's');
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'execution', N'{}', 0, N's', N's');
 
     -- Act
     EXEC dbo.usp_OpenGate @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
@@ -201,7 +201,7 @@ BEGIN
     DECLARE @Stage  NVARCHAR(64) = (SELECT Stage FROM dbo.Requests);
     DECLARE @Signer UNIQUEIDENTIFIER = (SELECT DecidedByUserId FROM dbo.ApprovalDecisions);
     EXEC tSQLt.AssertEqualsString @Expected = N'Resolved', @Actual = @State;
-    EXEC tSQLt.AssertEqualsString @Expected = N'qa', @Actual = @Stage;
+    EXEC tSQLt.AssertEqualsString @Expected = N'validation', @Actual = @Stage;
     EXEC tSQLt.AssertEquals @Expected = '00000000-0000-4000-8000-0000000000cc', @Actual = @Signer;
 END;
 GO
@@ -237,7 +237,7 @@ BEGIN
     DECLARE @State NVARCHAR(24) = (SELECT State FROM dbo.ApprovalRequests);
     DECLARE @Stage NVARCHAR(64) = (SELECT Stage FROM dbo.Requests);
     EXEC tSQLt.AssertEqualsString @Expected = N'ChangesRequested', @Actual = @State;
-    EXEC tSQLt.AssertEqualsString @Expected = N'build', @Actual = @Stage;
+    EXEC tSQLt.AssertEqualsString @Expected = N'execution', @Actual = @Stage;
 END;
 GO
 
@@ -309,7 +309,7 @@ BEGIN
     DECLARE @State1 NVARCHAR(24) = (SELECT State FROM dbo.ApprovalRequests);
     DECLARE @Stage1 NVARCHAR(64) = (SELECT Stage FROM dbo.Requests);
     EXEC tSQLt.AssertEqualsString @Expected = N'Pending', @Actual = @State1;
-    EXEC tSQLt.AssertEqualsString @Expected = N'build', @Actual = @Stage1;
+    EXEC tSQLt.AssertEqualsString @Expected = N'execution', @Actual = @Stage1;
 
     -- Act 2 — approve slot 1.
     EXEC dbo.usp_SubmitDecision @ApprovalRequestId = '7A000000-0000-4000-8000-000000000001',
@@ -320,7 +320,7 @@ BEGIN
     DECLARE @State2 NVARCHAR(24) = (SELECT State FROM dbo.ApprovalRequests);
     DECLARE @Stage2 NVARCHAR(64) = (SELECT Stage FROM dbo.Requests);
     EXEC tSQLt.AssertEqualsString @Expected = N'Resolved', @Actual = @State2;
-    EXEC tSQLt.AssertEqualsString @Expected = N'qa', @Actual = @Stage2;
+    EXEC tSQLt.AssertEqualsString @Expected = N'validation', @Actual = @Stage2;
 END;
 GO
 
@@ -384,7 +384,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalDecisions';
     EXEC tSQLt.FakeTable @TableName = 'dbo.Users';
     INSERT INTO dbo.ApprovalRequests (ApprovalRequestId, RequestRecordId, WorkspaceId, GateDefinitionId, GateName, FromStageKey, ToStageKey, FromStageLabel, ToStageLabel, State, FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('7A000000-0000-4000-8000-000000000001', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '6A7E0000-0000-4000-8000-000000000001', N'QA readiness gate', N'build', N'qa', N'Build', N'QA', N'Pending', N'[]', 0, N's', N's');
+    VALUES ('7A000000-0000-4000-8000-000000000001', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '6A7E0000-0000-4000-8000-000000000001', N'QA readiness gate', N'execution', N'validation', N'Execution', N'Validation', N'Pending', N'[]', 0, N's', N's');
 
     -- Act
     CREATE TABLE #Ar (ApprovalRequestId UNIQUEIDENTIFIER, RequestRecordId NVARCHAR(20), WorkspaceId UNIQUEIDENTIFIER,
@@ -413,7 +413,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalRequests';
     EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalDecisions';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'build', N'{"stage":"build"}', 0, N's', N's');
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'execution', N'{"stage":"execution"}', 0, N's', N's');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.ApproverTeamMembership (WorkspaceId, RoleLabel, UserId, IsDeleted, CreatedBy, UpdatedBy)
@@ -422,7 +422,7 @@ BEGIN
     VALUES ('00000000-0000-4000-8000-0000000000cc', N'Casey', N'casey@example.test', SYSUTCDATETIME(), 0, N's', N's'),
            ('00000000-0000-4000-8000-0000000000ee', N'Erin',  N'erin@example.test',  SYSUTCDATETIME(), 0, N's', N's');
     INSERT INTO dbo.ApprovalRequests (ApprovalRequestId, RequestRecordId, WorkspaceId, GateDefinitionId, GateName, FromStageKey, ToStageKey, FromStageLabel, ToStageLabel, State, FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('7A000000-0000-4000-8000-000000000001', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '6A7E0000-0000-4000-8000-000000000001', N'QA readiness gate', N'build', N'qa', N'Build', N'QA', N'Pending',
+    VALUES ('7A000000-0000-4000-8000-000000000001', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '6A7E0000-0000-4000-8000-000000000001', N'QA readiness gate', N'execution', N'validation', N'Execution', N'Validation', N'Pending',
             N'[{"slotIndex":0,"roleLabel":"GCO","displayLabel":"GCO","eligibleMembers":[{"userId":"00000000-0000-4000-8000-0000000000cc","displayName":"Casey"}]}]', 0, N's', N's');
 END;
 GO
@@ -437,7 +437,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalRequests';
     EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalDecisions';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'build', N'{"stage":"build"}', 0, N's', N's');
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'execution', N'{"stage":"execution"}', 0, N's', N's');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.ApproverTeamMembership (WorkspaceId, RoleLabel, UserId, IsDeleted, CreatedBy, UpdatedBy)
@@ -447,7 +447,7 @@ BEGIN
     VALUES ('00000000-0000-4000-8000-0000000000cc', N'Casey', N'casey@example.test', SYSUTCDATETIME(), 0, N's', N's'),
            ('00000000-0000-4000-8000-0000000000dd', N'Dana',  N'dana@example.test',  SYSUTCDATETIME(), 0, N's', N's');
     INSERT INTO dbo.ApprovalRequests (ApprovalRequestId, RequestRecordId, WorkspaceId, GateDefinitionId, GateName, FromStageKey, ToStageKey, FromStageLabel, ToStageLabel, State, FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('7A000000-0000-4000-8000-000000000001', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '6A7E0000-0000-4000-8000-000000000001', N'QA readiness gate', N'build', N'qa', N'Build', N'QA', N'Pending',
+    VALUES ('7A000000-0000-4000-8000-000000000001', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '6A7E0000-0000-4000-8000-000000000001', N'QA readiness gate', N'execution', N'validation', N'Execution', N'Validation', N'Pending',
             N'[{"slotIndex":0,"roleLabel":"GCO","displayLabel":"GCO","eligibleMembers":[{"userId":"00000000-0000-4000-8000-0000000000cc","displayName":"Casey"}]},{"slotIndex":1,"roleLabel":"InfoSec","displayLabel":"InfoSec","eligibleMembers":[{"userId":"00000000-0000-4000-8000-0000000000dd","displayName":"Dana"}]}]', 0, N's', N's');
 END;
 GO

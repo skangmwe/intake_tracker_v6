@@ -6,7 +6,7 @@ Slice 9 — Escalate modal (S18) + the escalated-record surface (S5, prototyped)
   `confirmPendingEdits=true`; on success the record query invalidates and refetches into the
   escalated variant.
 - `EscalatedIntakeNote` — the slim mirror note at the top of the Intake tab (origin, mirror status,
-  crossed-fields-locked-on-PG, Deploy/Post-launch → "Deployed").
+  crossed-fields-locked-on-PG, Delivery/Stabilization/Closure → "Delivered").
 - `useEscalate` — the escalate mutation; invalidates the record + lists on success.
 - `api.ts` — `escalateRequest(recordId, { confirmPendingEdits })`.
 

@@ -25,8 +25,8 @@ const WS = 'ws-1' as WorkspaceId;
 
 const SCOPE: ComposerScopeOptions = {
   deptOptions: ['Dept'],
-  stageOptions: [{ key: 'build', label: 'Build' }],
-  stageLabels: { build: 'Build' },
+  stageOptions: [{ key: 'execution', label: 'Execution' }],
+  stageLabels: { execution: 'Execution' },
   isLoading: false,
 };
 

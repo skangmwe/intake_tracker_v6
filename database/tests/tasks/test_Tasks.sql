@@ -22,14 +22,14 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.Tasks';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
-            N'Rec', N'build', N'{}', 0, N'seed', N'seed');
+            N'Rec', N'execution', N'{}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
 
     -- Act — two tasks; the second must get the next SortOrder.
     EXEC dbo.usp_CreateTask
         @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
-        @Author = '00000000-0000-4000-8000-0000000000aa', @Title = N'First task', @Phase = N'Discovery',
+        @Author = '00000000-0000-4000-8000-0000000000aa', @Title = N'First task', @Phase = N'Triage',
         @AssigneeUserId = '00000000-0000-4000-8000-0000000000aa',
         @FieldDefinitionId = NULL, @FieldLabel = NULL, @FieldType = NULL,
         @FieldValueUrl = NULL, @FieldValueText = NULL, @FieldValueNumber = NULL,
@@ -37,7 +37,7 @@ BEGIN
 
     EXEC dbo.usp_CreateTask
         @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
-        @Author = '00000000-0000-4000-8000-0000000000aa', @Title = N'Second task', @Phase = N'Build',
+        @Author = '00000000-0000-4000-8000-0000000000aa', @Title = N'Second task', @Phase = N'Execution',
         @AssigneeUserId = '00000000-0000-4000-8000-0000000000aa',
         @FieldDefinitionId = NULL, @FieldLabel = NULL, @FieldType = NULL,
         @FieldValueUrl = NULL, @FieldValueText = NULL, @FieldValueNumber = NULL,
@@ -64,7 +64,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.Tasks';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
-            N'Rec', N'build', N'{}', 0, N'seed', N'seed');
+            N'Rec', N'execution', N'{}', 0, N'seed', N'seed');
 
     -- Act
     CREATE TABLE #Created (TaskId UNIQUEIDENTIFIER, RecordId NVARCHAR(20), WorkspaceId UNIQUEIDENTIFIER,
@@ -76,7 +76,7 @@ BEGIN
     INSERT INTO #Created
     EXEC dbo.usp_CreateTask
         @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
-        @Author = '00000000-0000-4000-8000-0000000000bb', @Title = N'Sneaky', @Phase = N'Build',
+        @Author = '00000000-0000-4000-8000-0000000000bb', @Title = N'Sneaky', @Phase = N'Execution',
         @AssigneeUserId = NULL,
         @FieldDefinitionId = NULL, @FieldLabel = NULL, @FieldType = NULL,
         @FieldValueUrl = NULL, @FieldValueText = NULL, @FieldValueNumber = NULL,
@@ -99,14 +99,14 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.Tasks';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
-            N'Rec', N'build', N'{}', 0, N'seed', N'seed');
+            N'Rec', N'execution', N'{}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
 
     -- Act
     EXEC dbo.usp_CreateTask
         @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
-        @Author = '00000000-0000-4000-8000-0000000000aa', @Title = N'Create repo', @Phase = N'Build',
+        @Author = '00000000-0000-4000-8000-0000000000aa', @Title = N'Create repo', @Phase = N'Execution',
         @AssigneeUserId = '00000000-0000-4000-8000-0000000000aa',
         @FieldDefinitionId = '33333333-3333-4333-8333-333333333333', @FieldLabel = N'Repo URL', @FieldType = N'url',
         @FieldValueUrl = N'github.com/mws-ai/extract', @FieldValueText = NULL, @FieldValueNumber = NULL,
@@ -134,12 +134,12 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.Tasks';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
-            N'Rec', N'build', N'{}', 0, N'seed', N'seed');
+            N'Rec', N'execution', N'{}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.TaskBundleTemplate (TaskBundleTemplateId, WorkspaceId, TemplateKey, Name, TasksJson, IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('44444444-4444-4444-8444-444444444444', '1A150000-0000-4000-8000-000000000001', N'k', N'Bundle',
-            N'[{"title":"Alpha","phase":"Discovery"},{"title":"Beta","phase":"Build"}]', 0, N'seed', N'seed');
+            N'[{"title":"Alpha","phase":"Triage"},{"title":"Beta","phase":"Execution"}]', 0, N'seed', N'seed');
 
     -- Act
     EXEC dbo.usp_ApplyTaskBundle
@@ -154,7 +154,7 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = 2, @Actual = @Count;
     EXEC tSQLt.AssertEqualsString @Expected = N'Alpha', @Actual = @First;
     EXEC tSQLt.AssertEqualsString @Expected = N'Beta', @Actual = @Second;
-    EXEC tSQLt.AssertEqualsString @Expected = N'Build', @Actual = @BetaPhase;
+    EXEC tSQLt.AssertEqualsString @Expected = N'Execution', @Actual = @BetaPhase;
 END;
 GO
 
@@ -168,7 +168,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.Tasks';
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
-            N'Rec', N'build', N'{}', 0, N'seed', N'seed');
+            N'Rec', N'execution', N'{}', 0, N'seed', N'seed');
     INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
 
@@ -195,7 +195,7 @@ BEGIN
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('55555555-5555-4555-8555-555555555555', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            N'Do it', N'Build', N'Open', 1, 0, N'seed', N'seed');
+            N'Do it', N'Execution', N'Open', 1, 0, N'seed', N'seed');
 
     -- Act 1 — mark Done.
     EXEC dbo.usp_PatchTask
@@ -239,7 +239,7 @@ BEGIN
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('55555555-5555-4555-8555-555555555555', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            N'Original', N'Build', N'Open', 1, 0, N'seed', N'seed');
+            N'Original', N'Execution', N'Open', 1, 0, N'seed', N'seed');
 
     -- Act — set only Notes; Title/Status must be untouched.
     EXEC dbo.usp_PatchTask
@@ -268,7 +268,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.Tasks';
     INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES ('55555555-5555-4555-8555-555555555555', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001',
-            N'Original', N'Build', N'Open', 1, 0, N'seed', N'seed');
+            N'Original', N'Execution', N'Open', 1, 0, N'seed', N'seed');
 
     -- Act
     CREATE TABLE #Patched (TaskId UNIQUEIDENTIFIER, RecordId NVARCHAR(20), WorkspaceId UNIQUEIDENTIFIER,
@@ -306,8 +306,8 @@ BEGIN
     VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
     -- Insert a Done task before an Open task by SortOrder; the read must still float Open first.
     INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('11111111-1111-4111-8111-111111111111', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'DoneEarly', N'Build', N'Done', 1, 0, N'seed', N'seed'),
-           ('22222222-2222-4222-8222-222222222222', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'OpenLate', N'Build', N'Open', 2, 0, N'seed', N'seed');
+    VALUES ('11111111-1111-4111-8111-111111111111', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'DoneEarly', N'Execution', N'Done', 1, 0, N'seed', N'seed'),
+           ('22222222-2222-4222-8222-222222222222', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'OpenLate', N'Execution', N'Open', 2, 0, N'seed', N'seed');
 
     -- Act
     CREATE TABLE #Rows (rn INT IDENTITY(1,1), TaskId UNIQUEIDENTIFIER, RecordId NVARCHAR(20), WorkspaceId UNIQUEIDENTIFIER,
@@ -335,7 +335,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
     EXEC tSQLt.FakeTable @TableName = 'dbo.Tasks';
     INSERT INTO dbo.Tasks (TaskId, RecordId, WorkspaceId, Title, Phase, Status, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES ('11111111-1111-4111-8111-111111111111', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'Secret', N'Build', N'Open', 1, 0, N'seed', N'seed');
+    VALUES ('11111111-1111-4111-8111-111111111111', N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', N'Secret', N'Execution', N'Open', 1, 0, N'seed', N'seed');
 
     -- Act
     CREATE TABLE #Rows (TaskId UNIQUEIDENTIFIER, RecordId NVARCHAR(20), WorkspaceId UNIQUEIDENTIFIER,

@@ -47,7 +47,7 @@ BEGIN
         GateName, FromStageKey, ToStageKey, FromStageLabel, ToStageLabel, State, OpenedAt,
         FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (NEWID(), N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', NEWID(),
-        N'QA readiness', N'build', N'qa', N'Build', N'QA', N'Pending', '2026-07-01T10:00:00',
+        N'QA readiness', N'execution', N'validation', N'Execution', N'Validation', N'Pending', '2026-07-01T10:00:00',
         N'[{"slotIndex":0,"roleLabel":"AI Solutions Manager","displayLabel":"AI Solutions Manager","eligibleMembers":[{"userId":"00000000-0000-4000-8000-0000000000aa","displayName":"Ada"}]}]',
         0, N's', N's');
 
@@ -74,7 +74,7 @@ BEGIN
         GateName, FromStageKey, ToStageKey, FromStageLabel, ToStageLabel, State, OpenedAt,
         FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (@Ar, N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', NEWID(),
-        N'QA readiness', N'build', N'qa', N'Build', N'QA', N'Pending', '2026-07-01T10:00:00',
+        N'QA readiness', N'execution', N'validation', N'Execution', N'Validation', N'Pending', '2026-07-01T10:00:00',
         N'[{"slotIndex":0,"roleLabel":"AI Solutions Manager","displayLabel":"AI Solutions Manager","eligibleMembers":[{"userId":"00000000-0000-4000-8000-0000000000aa","displayName":"Ada"}]}]',
         0, N's', N's');
     INSERT INTO dbo.ApprovalDecisions (DecisionId, ApprovalRequestId, SlotIndex, Decision, DecidedByUserId, DecidedAt, SupersededAt, IsProxy, IsDeleted, CreatedBy, UpdatedBy)
@@ -102,11 +102,11 @@ BEGIN
         FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
     VALUES
         (NEWID(), N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', NEWID(),
-            N'QA', N'build', N'qa', N'Build', N'QA', N'Pending', '2026-07-01T10:00:00',
+            N'Validation', N'execution', N'validation', N'Execution', N'Validation', N'Pending', '2026-07-01T10:00:00',
             N'[{"slotIndex":0,"roleLabel":"GCO","displayLabel":"GCO","eligibleMembers":[{"userId":"00000000-0000-4000-8000-0000000000bb","displayName":"Ben"}]}]',
             0, N's', N's'),
         (NEWID(), N'AIS-00000002', '1A150000-0000-4000-8000-000000000001', NEWID(),
-            N'Deploy', N'qa', N'deploy', N'QA', N'Deploy', N'Resolved', '2026-07-01T11:00:00',
+            N'Delivery', N'validation', N'delivery', N'Validation', N'Delivery', N'Resolved', '2026-07-01T11:00:00',
             N'[{"slotIndex":0,"roleLabel":"AI Solutions Manager","displayLabel":"AI Solutions Manager","eligibleMembers":[{"userId":"00000000-0000-4000-8000-0000000000aa","displayName":"Ada"}]}]',
             0, N's', N's');
 
@@ -128,9 +128,9 @@ BEGIN
     -- Arrange — caller owns one open + one closed; another user owns a third.
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, DeptPgClient, Origin, AssignedAnalyst, DueDate, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES
-        (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Mine open', N'build', N'Finance', N'AI Solutions', N'Ada', '2026-07-20', N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
-        (N'AIS-00000002', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Mine closed', N'post-launch', N'Finance', N'AI Solutions', N'Ada', '2026-07-20', N'{"outcome":"Live"}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
-        (N'AIS-00000003', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Not mine', N'build', N'Finance', N'AI Solutions', N'Ben', '2026-07-20', N'{}', 0, N'00000000-0000-4000-8000-0000000000bb', N's');
+        (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Mine open', N'execution', N'Finance', N'AI Solutions', N'Ada', '2026-07-20', N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
+        (N'AIS-00000002', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Mine closed', N'stabilization', N'Finance', N'AI Solutions', N'Ada', '2026-07-20', N'{"outcome":"Live"}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
+        (N'AIS-00000003', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Not mine', N'execution', N'Finance', N'AI Solutions', N'Ben', '2026-07-20', N'{}', 0, N'00000000-0000-4000-8000-0000000000bb', N's');
 
     -- Act
     CREATE TABLE #Rows (RecordId NVARCHAR(20), Name NVARCHAR(400), StageLabel NVARCHAR(120), Origin NVARCHAR(200), DueDate DATE, DueSoonWindowDays INT, TotalCount INT);
@@ -150,14 +150,14 @@ AS
 BEGIN
     -- Arrange — overdue, due-soon (window 3), far-dated, undated (relative to the real clock).
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
-    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'build', N'Build phase', N'Build', 3, 0, N's', N's');
+    VALUES (NEWID(), '22222222-2222-4222-8222-222222222222', '1A150000-0000-4000-8000-000000000001', N'execution', N'Build phase', N'Execution', 3, 0, N's', N's');
 
     INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, DeptPgClient, AssignedAnalyst, DueDate, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
     VALUES
-        (N'AIS-00000010', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Far',      N'build', N'X', N'Ada', CAST(DATEADD(DAY, 30, SYSUTCDATETIME()) AS DATE), N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
-        (N'AIS-00000011', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'None',     N'build', N'X', N'Ada', NULL,                                            N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
-        (N'AIS-00000012', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Overdue',  N'build', N'X', N'Ada', CAST(DATEADD(DAY, -5, SYSUTCDATETIME()) AS DATE), N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
-        (N'AIS-00000013', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'DueSoon',  N'build', N'X', N'Ada', CAST(DATEADD(DAY, 1, SYSUTCDATETIME()) AS DATE),  N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's');
+        (N'AIS-00000010', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Far',      N'execution', N'X', N'Ada', CAST(DATEADD(DAY, 30, SYSUTCDATETIME()) AS DATE), N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
+        (N'AIS-00000011', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'None',     N'execution', N'X', N'Ada', NULL,                                            N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
+        (N'AIS-00000012', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'Overdue',  N'execution', N'X', N'Ada', CAST(DATEADD(DAY, -5, SYSUTCDATETIME()) AS DATE), N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's'),
+        (N'AIS-00000013', '1A150000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', N'DueSoon',  N'execution', N'X', N'Ada', CAST(DATEADD(DAY, 1, SYSUTCDATETIME()) AS DATE),  N'{}', 0, N'00000000-0000-4000-8000-0000000000aa', N's');
 
     -- Act — Seq (identity) preserves the proc's ORDER BY into the temp table.
     CREATE TABLE #Rows (Seq INT IDENTITY(1,1), RecordId NVARCHAR(20), Name NVARCHAR(400), StageLabel NVARCHAR(120), Origin NVARCHAR(200), DueDate DATE, DueSoonWindowDays INT, TotalCount INT);

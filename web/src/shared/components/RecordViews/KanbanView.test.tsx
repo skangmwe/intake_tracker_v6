@@ -10,12 +10,12 @@ const noop = () => undefined;
 function buildItems(): RecordViewItem[] {
   return [
     { id: 'r1', title: 'Alpha', groupValue: 'Triage', onOpen: noop },
-    { id: 'r2', title: 'Beta', groupValue: 'Build', badges: [{ label: 'Overdue', tone: 'error' }], onOpen: noop },
+    { id: 'r2', title: 'Beta', groupValue: 'Execution', badges: [{ label: 'Overdue', tone: 'error' }], onOpen: noop },
     { id: 'r3', title: 'Gamma', onOpen: noop },
   ];
 }
 
-const ORDER = ['Triage', 'Build', 'Done'];
+const ORDER = ['Triage', 'Execution', 'Done'];
 
 describe('KanbanView', () => {
   it('KanbanView — groups items into the ordered columns', () => {
@@ -24,7 +24,7 @@ describe('KanbanView', () => {
 
     // Assert — a column per group value, with counts
     expect(screen.getByRole('region', { name: 'Triage (1)' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Build (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Execution (1)' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Done (0)' })).toBeInTheDocument();
   });
 

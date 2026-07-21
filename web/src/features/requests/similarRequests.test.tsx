@@ -20,7 +20,7 @@ const WS = 'ws-1' as WorkspaceId;
 const MATCH: SimilarRequestDto = {
   id: 'AIS-00000009' as SimilarRequestDto['id'],
   name: 'Contract clause finder',
-  stage: 'build',
+  stage: 'execution',
   origin: 'AI Solutions',
 };
 

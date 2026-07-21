@@ -38,7 +38,7 @@ it('useComposerScopeOptions — derives dept options from deptPgClient and stage
     data: {
       lifecycles: [
         { isDefault: false, stages: [{ key: 'x', label: 'X' }] },
-        { isDefault: true, stages: [{ key: 'build', label: 'Build' }] },
+        { isDefault: true, stages: [{ key: 'execution', label: 'Execution' }] },
       ],
     },
     isLoading: false,
@@ -49,8 +49,8 @@ it('useComposerScopeOptions — derives dept options from deptPgClient and stage
 
   // Assert
   expect(result.current.deptOptions).toEqual(['Dept', 'PG']);
-  expect(result.current.stageOptions).toEqual([{ key: 'build', label: 'Build' }]);
-  expect(result.current.stageLabels).toEqual({ build: 'Build' });
+  expect(result.current.stageOptions).toEqual([{ key: 'execution', label: 'Execution' }]);
+  expect(result.current.stageLabels).toEqual({ execution: 'Execution' });
   expect(result.current.isLoading).toBe(false);
 });
 

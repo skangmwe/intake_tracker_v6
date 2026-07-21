@@ -3,8 +3,8 @@
 -- Create Date: 2026-07-06
 -- Description: Metric resolver — the Origin × status heatmap (S6 "Requests by Dept/PG/Client ×
 --              status"). Emits one row per (Origin, ColKey) cell with its count. Open records
---              contribute a cell under their StatusCategory (ColKey ∈ Intake, Build, Review,
---              Deploy); closed records contribute a cell under their Outcome (ColKey ∈ Live,
+--              contribute a cell under their StatusCategory (ColKey ∈ Intake, Execution, Validation,
+--              Delivery); closed records contribute a cell under their Outcome (ColKey ∈ Live,
 --              Declined, Withdrawn, Duplicate). Origin from Dept/PG/Client; NULL/'' → '— (unset)'.
 --              The API pivots to the fixed 8 columns and the distinct origins present ('— (unset)'
 --              always last). Scoped to @WorkspaceId AND IsDeleted = 0.
