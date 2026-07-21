@@ -22,9 +22,9 @@ public sealed class AnnouncementsControllerTests
 
     private static readonly AnnouncementAudience Everyone = new("everyone", null, null);
 
-    private static AnnouncementDto SampleDto(string status = "Draft") => new(
+    private static AnnouncementDto SampleDto(string status = "Active") => new(
         AnnouncementId, WorkspaceId, "Coverage news", "Body", Everyone, false, null, status, UserId,
-        DateTime.UtcNow, DateTime.UtcNow, null);
+        DateTime.UtcNow, DateTime.UtcNow, null, null, true, null);
 
     private static AnnouncementsController Build(
         Mock<IAnnouncementsService> service, Mock<IAccessGuard>? accessGuard = null)
@@ -93,7 +93,7 @@ public sealed class AnnouncementsControllerTests
     {
         // Arrange
         var service = new Mock<IAnnouncementsService>();
-        service.Setup(svc => svc.CreateAsync(WorkspaceId, It.IsAny<AnnouncementCreateRequest>(), UserId, It.IsAny<CancellationToken>()))
+        service.Setup(svc => svc.CreateAsync(WorkspaceId, It.IsAny<AnnouncementCreateRequest>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SampleDto());
         var request = new AnnouncementCreateRequest { Title = "T", Body = "B", Audience = Everyone };
 
@@ -116,7 +116,7 @@ public sealed class AnnouncementsControllerTests
 
         // Assert
         Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
-        service.Verify(svc => svc.CreateAsync(It.IsAny<Guid>(), It.IsAny<AnnouncementCreateRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        service.Verify(svc => svc.CreateAsync(It.IsAny<Guid>(), It.IsAny<AnnouncementCreateRequest>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class AnnouncementsControllerTests
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result);
-        service.Verify(svc => svc.CreateAsync(It.IsAny<Guid>(), It.IsAny<AnnouncementCreateRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        service.Verify(svc => svc.CreateAsync(It.IsAny<Guid>(), It.IsAny<AnnouncementCreateRequest>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class AnnouncementsControllerTests
     {
         // Arrange
         var service = new Mock<IAnnouncementsService>();
-        service.Setup(svc => svc.UpdateAsync(AnnouncementId, It.IsAny<AnnouncementPatchRequest>(), UserId, It.IsAny<CancellationToken>()))
+        service.Setup(svc => svc.UpdateAsync(AnnouncementId, It.IsAny<AnnouncementPatchRequest>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AnnouncementMutationResult(AnnouncementMutationOutcome.Success, SampleDto()));
         var request = new AnnouncementPatchRequest { Title = "T", Body = "B", Audience = Everyone };
 
@@ -182,7 +182,7 @@ public sealed class AnnouncementsControllerTests
     {
         // Arrange
         var service = new Mock<IAnnouncementsService>();
-        service.Setup(svc => svc.UpdateAsync(AnnouncementId, It.IsAny<AnnouncementPatchRequest>(), UserId, It.IsAny<CancellationToken>()))
+        service.Setup(svc => svc.UpdateAsync(AnnouncementId, It.IsAny<AnnouncementPatchRequest>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AnnouncementMutationResult(AnnouncementMutationOutcome.Forbidden, null));
         var request = new AnnouncementPatchRequest { Title = "T", Body = "B", Audience = Everyone };
 
@@ -198,7 +198,7 @@ public sealed class AnnouncementsControllerTests
     {
         // Arrange — a Retired announcement is immutable.
         var service = new Mock<IAnnouncementsService>();
-        service.Setup(svc => svc.UpdateAsync(AnnouncementId, It.IsAny<AnnouncementPatchRequest>(), UserId, It.IsAny<CancellationToken>()))
+        service.Setup(svc => svc.UpdateAsync(AnnouncementId, It.IsAny<AnnouncementPatchRequest>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AnnouncementMutationResult(AnnouncementMutationOutcome.InvalidState, null));
         var request = new AnnouncementPatchRequest { Title = "T", Body = "B", Audience = Everyone };
 
@@ -267,5 +267,67 @@ public sealed class AnnouncementsControllerTests
         // Act + Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             Build(service).Query(new AnnouncementQuery(), cts.Token));
+    }
+
+    [Fact]
+    public async Task Create_ScheduledWithoutDate_Returns400()
+    {
+        // Arrange — a Scheduled post must carry a publish time.
+        var service = new Mock<IAnnouncementsService>();
+        var request = new AnnouncementCreateRequest { Title = "T", Body = "B", Audience = Everyone, Status = "Scheduled" };
+
+        // Act
+        var result = await Build(service, AdminGuard(true)).Create(WorkspaceId, request, CancellationToken.None);
+
+        // Assert
+        Assert.IsType<BadRequestObjectResult>(result);
+        service.Verify(svc => svc.CreateAsync(It.IsAny<Guid>(), It.IsAny<AnnouncementCreateRequest>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Create_UnknownStatus_Returns400()
+    {
+        // Arrange — status must be Active or Scheduled.
+        var service = new Mock<IAnnouncementsService>();
+        var request = new AnnouncementCreateRequest { Title = "T", Body = "B", Audience = Everyone, Status = "Whenever" };
+
+        // Act
+        var result = await Build(service, AdminGuard(true)).Create(WorkspaceId, request, CancellationToken.None);
+
+        // Assert
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Create_ChosenAuthorNotMember_Returns400()
+    {
+        // Arrange — admin posts "on behalf of" someone who is not a workspace member.
+        var stranger = Guid.NewGuid();
+        var service = new Mock<IAnnouncementsService>();
+        var guard = AdminGuard(true); // actor is admin; the stranger's Viewer check defaults to false.
+        var request = new AnnouncementCreateRequest { Title = "T", Body = "B", Audience = Everyone, Author = stranger };
+
+        // Act
+        var result = await Build(service, guard).Create(WorkspaceId, request, CancellationToken.None);
+
+        // Assert
+        Assert.IsType<BadRequestObjectResult>(result);
+        service.Verify(svc => svc.CreateAsync(It.IsAny<Guid>(), It.IsAny<AnnouncementCreateRequest>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Update_InvalidAuthor_Returns400()
+    {
+        // Arrange — the service reports the chosen poster is not a member of the row's workspace.
+        var service = new Mock<IAnnouncementsService>();
+        service.Setup(svc => svc.UpdateAsync(AnnouncementId, It.IsAny<AnnouncementPatchRequest>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AnnouncementMutationResult(AnnouncementMutationOutcome.InvalidAuthor, null));
+        var request = new AnnouncementPatchRequest { Title = "T", Body = "B", Audience = Everyone };
+
+        // Act
+        var result = await Build(service).Update(AnnouncementId, request, CancellationToken.None);
+
+        // Assert
+        Assert.IsType<BadRequestObjectResult>(result);
     }
 }

@@ -28,10 +28,16 @@ BEGIN
         LEFT(a.Body, 280) AS BodySnippet,
         a.Pinned,
         a.PublishedAt,
+        a.ScheduledPublishAt,
+        a.AutoArchive,
+        a.AutoArchiveAt,
         a.Status,
         a.AuthorUserId,
+        u.DisplayName AS AuthorName,
+        COALESCE(a.PublishedAt, a.ScheduledPublishAt, a.CreatedAt) AS PostedAt,
         COUNT(*) OVER () AS TotalCount
     FROM dbo.Announcements AS a
+    LEFT JOIN dbo.Users AS u ON u.UserId = a.AuthorUserId
     WHERE a.IsDeleted = 0
       AND a.Status = N'Published'
       AND (a.ExpiresOn IS NULL OR a.ExpiresOn > @Today)
