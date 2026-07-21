@@ -19,7 +19,7 @@ namespace McDermott.AiTracker.Api.Modules.Dashboards;
 public sealed class DashboardMetricResolver
 {
     // Fixed category / outcome / bucket orders the widgets pad to (BS §10.2 — the layout is fixed).
-    private static readonly string[] StatusCategories = { "Intake", "Execution", "Validation", "Delivery" };
+    private static readonly string[] StatusCategories = { "Intake", "Triage", "Execution", "Validation", "Delivery", "Stabilization", "Closure" };
     private static readonly string[] ClosureOutcomes = { "Live", "Declined", "Withdrawn", "Duplicate" };
     private static readonly string[] AgingBuckets = { "0–2", "3–7", "8–14", "15–30", "30+" };
     private const string UnsetOrigin = "— (unset)";

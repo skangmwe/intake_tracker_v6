@@ -1,5 +1,5 @@
 // Heatmap-matrix card (S6 "Requests by Dept/PG/Client × status"). A CSS grid of Dept/PG/Client rows ×
-// [4 in-flight categories | 4 closed outcomes]. In-flight cells ramp on pale-blue and drill by cell;
+// [7 in-flight categories | 4 closed outcomes]. In-flight cells ramp on pale-blue and drill by cell;
 // closed cells ramp on the outcome palette and drill by closed-cell. Empty cells render an em-dash.
 // Cell counts come from the API; the colour ramps are computed here (token-only, per web-styling.md).
 

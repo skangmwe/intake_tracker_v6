@@ -48,7 +48,15 @@ export interface LifecycleDraft {
   gates: GateDraft[];
 }
 
-export const STATUS_CATEGORIES: readonly StatusCategory[] = ['Intake', 'Execution', 'Validation', 'Delivery'];
+export const STATUS_CATEGORIES: readonly StatusCategory[] = [
+  'Intake',
+  'Triage',
+  'Execution',
+  'Validation',
+  'Delivery',
+  'Stabilization',
+  'Closure',
+];
 
 const uid = (): string => crypto.randomUUID();
 
