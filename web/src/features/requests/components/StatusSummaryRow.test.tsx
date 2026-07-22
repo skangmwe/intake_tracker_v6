@@ -17,7 +17,7 @@ describe('StatusSummaryRow', () => {
     // Assert
     expect(screen.getByText('Submitted')).toBeInTheDocument();
     expect(screen.getByText('Lifecycle')).toBeInTheDocument();
-    expect(screen.getByText('Standard AI build')).toBeInTheDocument();
+    expect(screen.getByText('Standard delivery')).toBeInTheDocument();
     expect(screen.getByText('Status category')).toBeInTheDocument();
     expect(screen.getByText('Intake')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();

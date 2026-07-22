@@ -31,7 +31,7 @@ BEGIN
 
     INSERT INTO dbo.Lifecycle (LifecycleId, WorkspaceId, Name, RequestType, IsDefault, SortOrder, IsDeleted)
     VALUES ('C1000000-0000-4000-8000-000000000003', 'A1150000-0000-4000-8000-000000000001',
-            N'Standard AI build', N'Full build', 1, 0, 0);
+            N'Standard delivery', N'Full build', 1, 0, 0);
 
     INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
     VALUES (NEWID(), 'C1000000-0000-4000-8000-000000000003', 'A1150000-0000-4000-8000-000000000001', N'intake',  N'Intake',  N'Intake', 0, 0, N'seed', N'seed'),

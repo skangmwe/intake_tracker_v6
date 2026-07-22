@@ -86,7 +86,7 @@ export interface RequestDto {
   // Lifecycle
   /** The lifecycle this record runs on (chosen at intake by request type, else the default). */
   lifecycleId: LifecycleId;
-  /** The lifecycle's display name — shown on the S4 Status-tab summary row (e.g. "Standard AI build"). */
+  /** The lifecycle's display name — shown on the S4 Status-tab summary row (e.g. "Standard delivery"). */
   lifecycleName: string;
   /** The record's lifecycle's ordered stages — drives the S4 stepper without a second fetch. */
   stages: RequestStageRef[];

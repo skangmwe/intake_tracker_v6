@@ -228,7 +228,7 @@ export function buildRequestDto(overrides: Partial<RequestDto> = {}): RequestDto
     createdBy: '00000000-0000-0000-0000-000000000001' as UserId,
     updatedBy: '00000000-0000-0000-0000-000000000001' as UserId,
     lifecycleId: '00000000-0000-0000-0000-00000000010c' as LifecycleId,
-    lifecycleName: 'Standard AI build',
+    lifecycleName: 'Standard delivery',
     stages: [
       { key: 'intake', label: 'Intake', statusCategory: 'Intake' },
       { key: 'triage', label: 'Triage', statusCategory: 'Triage' },
