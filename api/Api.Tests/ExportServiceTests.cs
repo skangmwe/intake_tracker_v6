@@ -43,7 +43,7 @@ public sealed class ExportServiceTests
             new IoFieldSpec("name", "Name"),
         });
         ioObject
-            .Setup(item => item.BuildExportAsync(WorkspaceId, It.IsAny<CancellationToken>()))
+            .Setup(item => item.BuildExportAsync(WorkspaceId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ExportDataset(
                 ioObject.Object.ExportFields,
                 rows ?? new IReadOnlyDictionary<string, object?>[]
@@ -236,5 +236,33 @@ public sealed class ExportServiceTests
         var text = Encoding.UTF8.GetString(result.Content!, bom.Length, result.Content!.Length - bom.Length);
         Assert.Contains("Record ID", text);
         Assert.DoesNotContain("Name", text);
+    }
+
+    [Fact]
+    public async Task ExportObjectAsync_DescriptorDeniesAccess_ReturnsDenied()
+    {
+        // Arrange — the workspace Viewer gate passes, but the descriptor's own access boundary denies
+        // (e.g. a hub-scoped object the caller is not a member of) by returning a null dataset.
+        var ioObject = new Mock<IIoObject>();
+        ioObject.SetupGet(item => item.ObjectType).Returns("Feature");
+        ioObject.SetupGet(item => item.CanExport).Returns(true);
+        ioObject.SetupGet(item => item.ExportFields).Returns(new[]
+        {
+            new IoFieldSpec("id", "Record ID", AlwaysIncluded: true),
+        });
+        ioObject
+            .Setup(item => item.BuildExportAsync(WorkspaceId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ExportDataset?)null);
+        _registry.Setup(registry => registry.Find("Feature")).Returns(ioObject.Object);
+        _accessGuard
+            .Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        var result = await Build().ExportObjectAsync(
+            WorkspaceId, "Feature", System.Array.Empty<string>(), UserId, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(ExportOutcome.Denied, result.Outcome);
     }
 }

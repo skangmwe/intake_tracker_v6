@@ -49,6 +49,22 @@ const IO_OBJECTS = [
       { key: 'stage', label: 'Stage' },
     ],
   },
+  {
+    objectType: 'Feature',
+    label: 'Features',
+    canImport: true,
+    canExport: true,
+    importFields: [
+      { key: 'name', label: 'Name', required: true },
+      { key: 'featureType', label: 'Type', required: true },
+      { key: 'oneLiner', label: 'One-liner' },
+    ],
+    exportFields: [
+      { key: 'id', label: 'Record ID', alwaysIncluded: true },
+      { key: 'name', label: 'Name' },
+      { key: 'oneLiner', label: 'One-liner' },
+    ],
+  },
 ];
 
 const IMPORT_STATUS = {
@@ -129,6 +145,13 @@ test.beforeEach(async ({ page }) => {
       body: 'Record ID,Name\r\nAIS-00000001,Helper\r\n',
     }),
   );
+  await page.route(/\/api\/v1\/workspaces\/[^/]+\/exports\/object$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/csv',
+      body: 'Record ID,Name\r\nFEAT-00000001,Alpha\r\n',
+    }),
+  );
 
   await page.reload();
 });
@@ -159,8 +182,12 @@ test('admin steps the Import wizard, sees the per-row report, then exports a sav
   await expect(page.getByText(/Completed with issues/)).toBeVisible();
   await expect(page.getByText('A request name is required.')).toBeVisible();
 
-  // Switch to the Export tab and export the saved view.
+  // Switch to the Export tab. The object-export wizard is object-agnostic, so Feature lit up in its
+  // object picker alongside Request once the descriptor was registered.
   await page.getByRole('tab', { name: 'Export' }).click();
+  await expect(page.getByRole('option', { name: 'Features' })).toBeAttached();
+
+  // Export the saved view (the second entry point retained on the Export tab).
   await page.getByRole('button', { name: 'Export view' }).click();
   await expect(page.getByText('Your export has downloaded.')).toBeVisible();
 

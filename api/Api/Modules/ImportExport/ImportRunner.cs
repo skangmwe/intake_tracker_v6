@@ -1,20 +1,19 @@
-// Import runner (Slice 16 — BS §13). The per-job worker driven by ImportProcessor off the request
-// thread. It downloads the CSV blob, parses it (CsvHelper — RFC-4180 quoting/escaping handled for
-// us), and for each data row: maps columns to a create request (CsvRowMapper), resolves the Requestor
-// against the firm directory via SSO email (falling back to the importing admin WITH a flag — never
-// silent, BS §13), and creates the Request through the shared IRequestsService (create-only — import
-// never updates a live record). Each row's outcome is recorded; the job is stamped terminal at the
-// end. request.created fans no notification for a brand-new record (it has no watchers yet), so "no
-// per-record notifications during import" holds. A single bad row is flagged and skipped — it never
-// aborts the batch. CSV values / Requestor emails are Confidential/PII — never logged; only ids and
-// row indices appear in a log (api-pii-handling.md).
+// Import runner (Slice 16; object-aware S28 Slice 2 — BS §13). The per-job worker driven by
+// ImportProcessor off the request thread. It downloads the CSV blob, parses it (CsvHelper — RFC-4180
+// quoting/escaping handled for us), reduces each row to a field-key → value map (the wizard's explicit
+// column mapping, or the Request header-alias auto-match for the backward-compat no-mapping path), and
+// hands the row to the target object's descriptor (IIoImporter) resolved from the registry — the single
+// extension point. The descriptor owns create-from-row (create-only — import never updates a live
+// record) and any object-specific resolution (e.g. Request's Requestor SSO lookup). Each row's outcome
+// is recorded; the job is stamped terminal at the end. A single bad row is flagged and skipped — it
+// never aborts the batch. CSV values / Requestor emails are Confidential/PII — never logged; only ids
+// and row indices appear in a log (api-pii-handling.md).
 
 using System.Globalization;
 using System.Text.Json;
 using CsvHelper;
 using CsvHelper.Configuration;
 using McDermott.AiTracker.Api.Data;
-using McDermott.AiTracker.Api.Modules.Requests;
 using McDermott.AiTracker.Api.Shared.Storage;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -32,20 +31,29 @@ public sealed class ImportRunner : IImportRunner
 
     private readonly AppDbContext _db;
     private readonly IBlobStreamer _blob;
-    private readonly IRequestsService _requests;
+    private readonly IIoObjectRegistry _registry;
     private readonly ILogger<ImportRunner> _logger;
 
-    public ImportRunner(AppDbContext db, IBlobStreamer blob, IRequestsService requests, ILogger<ImportRunner> logger)
+    public ImportRunner(AppDbContext db, IBlobStreamer blob, IIoObjectRegistry registry, ILogger<ImportRunner> logger)
     {
         _db = db;
         _blob = blob;
-        _requests = requests;
+        _registry = registry;
         _logger = logger;
     }
 
     public async Task RunAsync(ImportJobMessage message, CancellationToken cancellationToken)
     {
-        var fallbackEmail = await ResolveFallbackEmailAsync(message.StartedByUserId, cancellationToken).ConfigureAwait(false);
+        // Resolve the target object's import descriptor. The controller only enqueues importable object
+        // types, but guard defensively — an unimportable/unknown type is a permanent failure, not a retry.
+        if (_registry.Find(message.ObjectType) is not IIoImporter importer)
+        {
+            await CompleteAsync(message.ImportId, "Failed", 0, 0, 0, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        var actorEmail = await ResolveActorEmailAsync(message.StartedByUserId, cancellationToken).ConfigureAwait(false);
+        var context = new ImportRowContext(message.WorkspaceId, message.StartedByUserId, actorEmail, message.OperationId);
 
         string[] headers;
         var records = new List<string?[]>();
@@ -87,12 +95,13 @@ public sealed class ImportRunner : IImportRunner
             cancellationToken.ThrowIfCancellationRequested();
             var rowIndex = index + 1;
             var (outcome, recordId, reasons) = await ProcessRowAsync(
-                message, headers, records[index], mapping, fallbackEmail, rowIndex, cancellationToken).ConfigureAwait(false);
+                importer, context, headers, records[index], mapping, message.ImportId, rowIndex, cancellationToken)
+                .ConfigureAwait(false);
 
             await RecordRowAsync(message, rowIndex, outcome, recordId, reasons, cancellationToken).ConfigureAwait(false);
 
             total++;
-            if (outcome == "Landed")
+            if (outcome == ImportRowResult.Landed)
             {
                 landed++;
             }
@@ -108,77 +117,35 @@ public sealed class ImportRunner : IImportRunner
     }
 
     private async Task<(string Outcome, string? RecordId, IReadOnlyList<ImportReasonDto> Reasons)> ProcessRowAsync(
-        ImportJobMessage message, string[] headers, string?[] values,
-        IReadOnlyList<ImportColumnMapping>? mapping, string fallbackEmail, int rowIndex,
-        CancellationToken cancellationToken)
+        IIoImporter importer, ImportRowContext context, string[] headers, string?[] values,
+        IReadOnlyList<ImportColumnMapping>? mapping, Guid importId, int rowIndex, CancellationToken cancellationToken)
     {
         try
         {
-            // Explicit wizard mapping when present; header-alias auto-match otherwise (backward-compat).
-            var mapped = mapping is not null
-                ? CsvRowMapper.MapFromMapping(mapping, values)
-                : CsvRowMapper.Map(headers, values);
-            var warnings = await ResolveRequestorAsync(mapped, fallbackEmail, cancellationToken).ConfigureAwait(false);
+            // Explicit wizard mapping when present; Request header-alias auto-match otherwise (backward-compat).
+            var fieldValues = mapping is not null
+                ? CsvRowMapper.MapValues(mapping, values)
+                : CsvRowMapper.AutoMatchValues(headers, values);
 
-            var result = await _requests
-                .CreateAsync(message.WorkspaceId, mapped.Create, message.StartedByUserId, message.OperationId, cancellationToken)
-                .ConfigureAwait(false);
-
-            return result.Outcome switch
-            {
-                RequestWriteOutcome.Success => ("Landed", result.Request!.Id, warnings),
-                RequestWriteOutcome.ValidationFailed => ("Flagged", null, ImportOutcomeMapper.FromValidationErrors(result.Errors!)),
-                _ => ("Flagged", null, ImportOutcomeMapper.GenericFailure()),
-            };
+            var result = await importer.ImportRowAsync(context, fieldValues, cancellationToken).ConfigureAwait(false);
+            return (result.Outcome, result.RecordId, result.Reasons);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             // One malformed row never aborts the batch — flag it and continue. Log the row index only
             // (no CSV content / PII).
-            _logger.LogWarning("Import {ImportId} row {RowIndex} failed to process and was flagged.", message.ImportId, rowIndex);
-            return ("Flagged", null, ImportOutcomeMapper.GenericFailure());
+            _logger.LogWarning("Import {ImportId} row {RowIndex} failed to process and was flagged.", importId, rowIndex);
+            return (ImportRowResult.Flagged, null, ImportOutcomeMapper.GenericFailure());
         }
     }
 
-    /// <summary>
-    /// Resolve the row's Requestor value to a firm user (SSO email). Found → keep the value; provided
-    /// but unresolved → default to the importing admin AND flag it (BS §13, never silent); absent →
-    /// nothing to resolve, no flag. Mutates the create request's Fields map in place.
-    /// </summary>
-    private async Task<IReadOnlyList<ImportReasonDto>> ResolveRequestorAsync(
-        MappedRow mapped, string fallbackEmail, CancellationToken cancellationToken)
+    /// <summary>Resolve the importing user's directory email — used by a descriptor as its fallback for
+    /// an unresolved row value (e.g. Request's Requestor). Resolved once per job, never per row.</summary>
+    private async Task<string> ResolveActorEmailAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var requestor = mapped.RequestorValue;
-        if (string.IsNullOrWhiteSpace(requestor))
-        {
-            return Array.Empty<ImportReasonDto>();
-        }
-
-        var fields = mapped.Create.Fields ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-
-        var match = await _db.Users.AsNoTracking()
-            .FirstOrDefaultAsync(user => user.Email == requestor && !user.IsDisabled, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (match is not null)
-        {
-            fields[CsvRowMapper.RequestorFieldKey] = JsonSerializer.SerializeToElement(requestor, JsonOptions);
-            return Array.Empty<ImportReasonDto>();
-        }
-
-        fields[CsvRowMapper.RequestorFieldKey] = JsonSerializer.SerializeToElement(fallbackEmail, JsonOptions);
-        return new[]
-        {
-            ImportOutcomeMapper.UnresolvedRequestor(CsvRowMapper.RequestorFieldKey),
-            ImportOutcomeMapper.RequestorFallback(CsvRowMapper.RequestorFieldKey),
-        };
-    }
-
-    private async Task<string> ResolveFallbackEmailAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        var admin = await _db.Users.AsNoTracking()
+        var actor = await _db.Users.AsNoTracking()
             .FirstOrDefaultAsync(user => user.UserId == userId, cancellationToken).ConfigureAwait(false);
-        return admin?.Email ?? userId.ToString();
+        return actor?.Email ?? userId.ToString();
     }
 
     /// <summary>Parse the wizard's column→field mapping. Empty/absent/malformed JSON returns null so the

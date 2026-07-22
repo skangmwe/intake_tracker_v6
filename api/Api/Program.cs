@@ -228,9 +228,12 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IImportR
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IExportService,
     McDermott.AiTracker.Api.Modules.ImportExport.ExportService>();
 // Object registry (S28 wizards) — one IIoObject per importable/exportable object type; the registry is
-// a thin lookup over them. Slice 1 registers Request; later slices add Feature/Task/Toolkit/Attachment.
+// a thin lookup over them, in registration order. Slice 1 registered Request; Slice 2 adds Feature;
+// later slices add Task/Toolkit/Attachment.
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IIoObject,
     McDermott.AiTracker.Api.Modules.ImportExport.RequestIoObject>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IIoObject,
+    McDermott.AiTracker.Api.Modules.ImportExport.FeatureIoObject>();
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IIoObjectRegistry,
     McDermott.AiTracker.Api.Modules.ImportExport.IoObjectRegistry>();
 builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.ImportExport.ImportProcessor>();
