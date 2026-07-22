@@ -102,13 +102,17 @@ export function AnnouncementsManageTable({
   });
 
   return (
-    <TableShell
-      caption="Announcements in this workspace"
-      columns={COLUMNS}
-      rows={tableRows}
-      sort={sort}
-      onSortChange={onSortChange}
-      renderFilter={renderFilter}
-    />
+    // .ann-boxed scopes the boxed-rows treatment (announcements.css) to this table only — each row
+    // reads as its own bordered card, so announcements stop blending into one another.
+    <div className="ann-boxed">
+      <TableShell
+        caption="Announcements in this workspace"
+        columns={COLUMNS}
+        rows={tableRows}
+        sort={sort}
+        onSortChange={onSortChange}
+        renderFilter={renderFilter}
+      />
+    </div>
   );
 }
