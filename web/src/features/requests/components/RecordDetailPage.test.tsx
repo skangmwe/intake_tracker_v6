@@ -292,20 +292,22 @@ describe('RecordDetailPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('RecordDetailPage — Status tab: picking a Closed outcome opens the Close-record confirm modal, pre-set', async () => {
-    // close/status cleanup — the grouped picker's Closed group runs the deliberate Close flow.
+  it('RecordDetailPage — Status tab: picking a Closed outcome reveals the inline Close panel in place', async () => {
+    // close/status cleanup — the grouped picker's Closed group runs the deliberate Close flow inline.
     // Arrange
     const user = userEvent.setup();
     renderPage();
 
     // Act
     await user.click(await screen.findByRole('tab', { name: 'Status' }));
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Status' }), 'Withdrawn');
+    const picker = await screen.findByRole('combobox', { name: 'Status' });
+    await user.selectOptions(picker, 'Withdrawn');
 
-    // Assert — the confirm modal opens, its Outcome pre-selected to the picked value.
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/Close this record/i)).toBeInTheDocument();
-    expect(within(dialog).getByRole('combobox', { name: 'Outcome' })).toHaveValue('Withdrawn');
+    // Assert — the inline panel appears in place (no pop-up); the picker reflects the picked outcome.
+    expect(await screen.findByText(/Record an outcome for/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close record' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(picker).toHaveValue('Withdrawn');
     // setStatusHold is NOT called — closing is the Close flow, not a hold write.
     expect(setStatusHoldMutate).not.toHaveBeenCalled();
   });
