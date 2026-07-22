@@ -179,3 +179,34 @@ it('ManageAnnouncementsPage — filter with no match — shows the filtered-to-z
   // Assert
   expect(await screen.findByText('No announcements match your filter')).toBeInTheDocument();
 });
+
+it('ManageAnnouncementsPage — archive now — opens the editor, confirms, and archives via the retire path', async () => {
+  // Arrange — open a live announcement, then archive it from the editor.
+  const detail: AnnouncementDto = {
+    id: 'a1' as AnnouncementDto['id'],
+    workspaceId: 'ws-1' as WorkspaceId,
+    title: 'Coverage news',
+    body: 'Existing body',
+    audience: { kind: 'everyone' },
+    pinned: false,
+    status: 'Active',
+    author: 'u2' as UserId,
+    createdAt: '2026-07-05T10:00:00Z',
+    updatedAt: '2026-07-05T10:00:00Z',
+    publishedAt: '2026-07-05T10:00:00Z',
+    autoArchive: true,
+  };
+  mockedApi.queryManagedAnnouncements.mockResolvedValue(page([row()]));
+  mockedApi.fetchAnnouncement.mockResolvedValue(detail);
+  mockedApi.retireAnnouncement.mockResolvedValue(detail as never);
+  const user = userEvent.setup();
+
+  // Act
+  renderWithProviders(<ManageAnnouncementsPage />, { seedMe: ADMIN_ME });
+  await user.click(await screen.findByText('Coverage news'));
+  await user.click(await screen.findByRole('button', { name: 'Archive now' }));
+  await user.click(await screen.findByRole('button', { name: 'Archive announcement' }));
+
+  // Assert
+  await waitFor(() => expect(mockedApi.retireAnnouncement).toHaveBeenCalledWith('a1'));
+});

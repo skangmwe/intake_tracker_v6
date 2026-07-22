@@ -40,6 +40,8 @@ interface AnnouncementEditorProps {
   errorMessage?: string | null;
   onSubmit: (value: EditorValue) => void;
   onClose: () => void;
+  /** Archive-now (edit mode only) — reuses the retire path. Omitted when archiving isn't offered. */
+  onArchive?: (() => void) | undefined;
 }
 
 const MS_PER_DAY = 86_400_000;
@@ -80,6 +82,7 @@ export function AnnouncementEditor({
   errorMessage,
   onSubmit,
   onClose,
+  onArchive,
 }: AnnouncementEditorProps) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [body, setBody] = useState(initial?.body ?? '');
@@ -129,6 +132,13 @@ export function AnnouncementEditor({
 
   const heading = mode === 'create' ? 'New announcement' : 'Edit announcement';
   const submitLabel = mode === 'create' ? 'Add' : 'Save changes';
+  // Archive-now is offered only when editing a live announcement (Active / Scheduled) — an already
+  // Archived (or legacy Retired) row is terminal and immutable.
+  const canArchive =
+    mode === 'edit' &&
+    Boolean(onArchive) &&
+    initial?.status !== 'Archived' &&
+    initial?.status !== 'Retired';
 
   return (
     <Modal
@@ -136,6 +146,13 @@ export function AnnouncementEditor({
       onClose={onClose}
       footer={
         <>
+          {canArchive && (
+            <span className="ann-editor__archive">
+              <Button variant="destructive" onClick={onArchive} disabled={submitting}>
+                Archive now
+              </Button>
+            </span>
+          )}
           <Button variant="secondary" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>

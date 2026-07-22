@@ -195,4 +195,38 @@ describe('AnnouncementEditor', () => {
     expect(within(errored.baseElement).getByRole('alert')).toBeInTheDocument();
     expect(await axe(errored.container)).toHaveNoViolations();
   });
+
+  it('AnnouncementEditor — edit a live announcement — offers Archive now and calls it', async () => {
+    // Arrange
+    const onArchive = jest.fn();
+    const user = userEvent.setup();
+    renderEditor({ mode: 'edit', initial: INITIAL, onArchive });
+
+    // Act
+    const archive = screen.getByRole('button', { name: 'Archive now' });
+    await user.click(archive);
+
+    // Assert
+    expect(onArchive).toHaveBeenCalled();
+  });
+
+  it('AnnouncementEditor — create mode — does not offer Archive now', () => {
+    // Arrange / Act
+    renderEditor({ onArchive: jest.fn() });
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Archive now' })).not.toBeInTheDocument();
+  });
+
+  it('AnnouncementEditor — editing an already-archived announcement — hides Archive now', () => {
+    // Arrange / Act
+    renderEditor({
+      mode: 'edit',
+      initial: { ...INITIAL, status: 'Archived' },
+      onArchive: jest.fn(),
+    });
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Archive now' })).not.toBeInTheDocument();
+  });
 });

@@ -29,6 +29,7 @@ import {
 } from '../useAnnouncements';
 import { AnnouncementEditor, type EditorValue } from './AnnouncementEditor';
 import { AnnouncementsManageTable } from './AnnouncementsManageTable';
+import { ArchiveAnnouncementDialog } from './ArchiveAnnouncementDialog';
 
 type EditorState = { mode: 'create' } | { mode: 'edit'; id: string } | null;
 
@@ -55,6 +56,7 @@ export function ManageAnnouncementsPage() {
   const [filters, setFilters] = useState<AnnouncementsFilters>(NO_FILTERS);
   const [page, setPage] = useState(1);
   const [editor, setEditor] = useState<EditorState>(null);
+  const [toArchive, setToArchive] = useState<{ id: string; title: string } | null>(null);
   const editingDetail = useAnnouncement(editor?.mode === 'edit' ? editor.id : undefined);
 
   const allRows = useMemo(() => list.data?.items ?? [], [list.data]);
@@ -267,8 +269,18 @@ export function ManageAnnouncementsPage() {
           errorMessage={mutationError}
           onSubmit={submitEditor}
           onClose={closeEditor}
+          onArchive={() => {
+            setToArchive({ id: editor.id, title: editingDetail.data?.title ?? '' });
+            closeEditor();
+          }}
         />
       )}
+
+      <ArchiveAnnouncementDialog
+        announcement={toArchive}
+        workspaceId={wsId}
+        onClose={() => setToArchive(null)}
+      />
     </div>
   );
 }
