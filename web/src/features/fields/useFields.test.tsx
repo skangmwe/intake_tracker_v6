@@ -18,6 +18,7 @@ import * as api from './api';
 import {
   useAddTaskLibraryField,
   useFieldCatalog,
+  usePlatformFieldCatalog,
   useRetireField,
   useSaveField,
   useTaskLibrary,
@@ -81,6 +82,24 @@ describe('useFields hooks', () => {
     const { result } = renderHook(() => useFieldCatalog(undefined), { wrapper });
     expect(result.current.fetchStatus).toBe('idle');
     expect(mockedApi.fetchFieldCatalog).not.toHaveBeenCalled();
+  });
+
+  it('usePlatformFieldCatalog — fetches the platform catalog when enabled', async () => {
+    // Arrange
+    mockedApi.fetchPlatformFieldCatalog.mockResolvedValue({ rows: [buildFieldCatalogRow()] });
+
+    // Act
+    const { result } = renderHook(() => usePlatformFieldCatalog(true), { wrapper });
+
+    // Assert
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.rows).toHaveLength(1);
+  });
+
+  it('usePlatformFieldCatalog — disabled when not a platform admin', () => {
+    const { result } = renderHook(() => usePlatformFieldCatalog(false), { wrapper });
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(mockedApi.fetchPlatformFieldCatalog).not.toHaveBeenCalled();
   });
 
   it('useSaveField — create — calls createField', async () => {

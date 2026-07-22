@@ -16,6 +16,7 @@ import {
   createField,
   createTaskLibraryField,
   fetchFieldCatalog,
+  fetchPlatformFieldCatalog,
   fetchPlatformFields,
   fetchTaskLibrary,
   fetchWorkspaceFields,
@@ -37,6 +38,8 @@ export const taskLibraryQueryKey = (workspaceId: WorkspaceId) =>
   ['task-fields', workspaceId] as const;
 
 export const PLATFORM_FIELDS_QUERY_KEY = ['platform-fields'] as const;
+
+export const PLATFORM_FIELD_CATALOG_QUERY_KEY = ['platform-field-catalog'] as const;
 
 export function useWorkspaceFields(
   workspaceId: WorkspaceId | undefined,
@@ -125,6 +128,15 @@ export function usePlatformFields(enabled = true) {
   });
 }
 
+/** The flat platform Fields-tab catalog (S34) behind the Platform Fields & objects screen. */
+export function usePlatformFieldCatalog(enabled = true) {
+  return useQuery({
+    queryKey: PLATFORM_FIELD_CATALOG_QUERY_KEY,
+    queryFn: ({ signal }) => fetchPlatformFieldCatalog(signal),
+    enabled,
+  });
+}
+
 interface PlatformFieldMutationInput {
   fieldKey: string;
   request: PlatformFieldPatchRequest;
@@ -135,6 +147,9 @@ export function useUpdatePlatformField() {
   return useMutation({
     mutationFn: ({ fieldKey, request }: PlatformFieldMutationInput) =>
       updatePlatformField(fieldKey, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PLATFORM_FIELDS_QUERY_KEY }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: PLATFORM_FIELDS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: PLATFORM_FIELD_CATALOG_QUERY_KEY });
+    },
   });
 }

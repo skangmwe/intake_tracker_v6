@@ -9,6 +9,7 @@ import {
   createField,
   createTaskLibraryField,
   fetchFieldCatalog,
+  fetchPlatformFieldCatalog,
   fetchPlatformFields,
   fetchTaskLibrary,
   fetchWorkspaceFields,
@@ -102,6 +103,19 @@ describe('fields api', () => {
   it('fetchFieldCatalog — GETs the flat field-catalog path', () => {
     fetchFieldCatalog(WS);
     expect(mockedFetch).toHaveBeenCalledWith('/v1/workspaces/ws-1/field-catalog', {});
+  });
+
+  it('fetchPlatformFieldCatalog — GETs the platform catalog path', () => {
+    fetchPlatformFieldCatalog();
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/platform/fields/catalog', {});
+  });
+
+  it('fetchPlatformFieldCatalog — passes the abort signal when provided', () => {
+    const controller = new AbortController();
+    fetchPlatformFieldCatalog(controller.signal);
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/platform/fields/catalog', {
+      signal: controller.signal,
+    });
   });
 
   it('fetchFieldCatalog — passes the abort signal when provided', () => {

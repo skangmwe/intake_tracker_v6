@@ -4,6 +4,7 @@ import type {
   FieldDefinitionDto,
   FieldDefinitionUpsertRequest,
   FieldObjectType,
+  PlatformFieldCatalogDto,
   PlatformFieldDto,
   PlatformFieldPatchRequest,
   TaskLibraryFieldDto,
@@ -92,6 +93,11 @@ export function createTaskLibraryField(
 
 export function fetchPlatformFields(signal?: AbortSignal): Promise<PlatformFieldDto[]> {
   return apiFetch<PlatformFieldDto[]>('/v1/platform/fields', signal ? { signal } : {});
+}
+
+/** The flat platform Fields-tab catalog (S34) — system, platform-defined, and Global fields. */
+export function fetchPlatformFieldCatalog(signal?: AbortSignal): Promise<PlatformFieldCatalogDto> {
+  return apiFetch<PlatformFieldCatalogDto>('/v1/platform/fields/catalog', signal ? { signal } : {});
 }
 
 export function updatePlatformField(

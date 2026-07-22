@@ -36,7 +36,9 @@ export function FieldReadOnlySheet({ row, onClose }: FieldReadOnlySheetProps) {
   const lockMessage =
     row.source === 'System'
       ? 'This is a system field, provisioned automatically on every object. It can’t be edited, archived, or deleted.'
-      : 'This is a global field owned by another workspace. It can only be changed from the workspace that created it.';
+      : row.source === 'Platform'
+        ? 'This is a platform-defined field managed centrally. It can’t be edited here.'
+        : 'This is a global field owned by a workspace. It can only be changed from the workspace that created it.';
 
   const rows: { label: string; value: string }[] = [
     { label: 'Field', value: row.displayName },

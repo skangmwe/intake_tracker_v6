@@ -24,14 +24,30 @@ describe('FieldReadOnlySheet', () => {
     expect(screen.getByText('Global')).toBeInTheDocument();
   });
 
-  it('FieldReadOnlySheet — foreign global row — shows the other-workspace lock message', () => {
+  it('FieldReadOnlySheet — global row — shows the workspace-owned lock message', () => {
     render(
       <FieldReadOnlySheet
         row={buildFieldCatalogRow({ source: 'User', location: 'Global', isReadOnly: true })}
         onClose={jest.fn()}
       />,
     );
-    expect(screen.getByText(/owned by another workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/owned by a workspace/i)).toBeInTheDocument();
+  });
+
+  it('FieldReadOnlySheet — platform row — shows the platform-defined lock message', async () => {
+    const { container } = render(
+      <FieldReadOnlySheet
+        row={buildFieldCatalogRow({
+          displayName: 'Origin',
+          source: 'Platform',
+          location: 'Global',
+          isReadOnly: true,
+        })}
+        onClose={jest.fn()}
+      />,
+    );
+    expect(screen.getByText(/platform-defined field managed centrally/i)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('FieldReadOnlySheet — Escape closes', async () => {

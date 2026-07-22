@@ -100,4 +100,109 @@ public sealed class FieldCatalogBuilderTests
         Assert.Equal("User", row.Source);
         Assert.True(row.IsReadOnly);
     }
+
+    // ─── BuildPlatformCatalogRows (Slice B1 — Platform Fields catalog) ──────────────────────────
+
+    private static PlatformFieldRow Platform(
+        string key, string display, string type = "Text", string category = "Platform", bool immutable = false) => new()
+    {
+        PlatformFieldId = Guid.NewGuid(),
+        FieldKey = key,
+        DisplayName = display,
+        FieldType = type,
+        Category = category,
+        IsSystemImmutable = immutable,
+        HasManualWritePath = true,
+        SelectOptionsJson = null,
+    };
+
+    [Fact]
+    public void BuildPlatformCatalogRows_SynthesisesSystemFieldsForGlobalObjectsOnly()
+    {
+        // Act
+        var rows = FieldSchemaService.BuildPlatformCatalogRows(
+            Array.Empty<FieldCatalogRow>(), Array.Empty<PlatformFieldRow>());
+
+        // Assert — only the two Global objects (Request, Task) × five system auto-fields = 10 rows.
+        var systemRows = rows.Where(row => row.Source == "System").ToList();
+        Assert.Equal(10, systemRows.Count);
+        Assert.All(systemRows, row =>
+        {
+            Assert.True(row.IsReadOnly);
+            Assert.Equal("Global", row.Location);
+            Assert.Contains(row.ObjectType, new[] { "Request", "Task" });
+        });
+        Assert.DoesNotContain(rows, row => row.ObjectType is "Attachment" or "Feature" or "ToolkitItem");
+    }
+
+    [Fact]
+    public void BuildPlatformCatalogRows_PlatformDefined_NonSystemOnRequestSystemSuppressed()
+    {
+        // Arrange — a System-category entry (record-id) must not duplicate the synthesised system rows;
+        // the Platform/Derived entries surface on Request, editable unless immutable.
+        var platformDefined = new[]
+        {
+            Platform("record-id", "Record ID", category: "System", immutable: true),      // suppressed
+            Platform("origin", "Origin", type: "Lookup", category: "Derived", immutable: true), // read-only
+            Platform("legacy-id", "Legacy ID", type: "Text", immutable: false),           // editable
+            Platform("ai-solutions-status", "AI Solutions Status", type: "Select", immutable: false),
+        };
+
+        // Act
+        var rows = FieldSchemaService.BuildPlatformCatalogRows(Array.Empty<FieldCatalogRow>(), platformDefined);
+
+        // Assert
+        Assert.DoesNotContain(rows, row => row.Source == "Platform" && row.FieldKey == "record-id");
+
+        var legacy = Assert.Single(rows, row => row.FieldKey == "legacy-id");
+        Assert.Equal("Platform", legacy.Source);
+        Assert.Equal("Request", legacy.ObjectType);
+        Assert.False(legacy.IsReadOnly);
+
+        var origin = Assert.Single(rows, row => row.FieldKey == "origin");
+        Assert.Equal("Platform", origin.Source);
+        Assert.True(origin.IsReadOnly);
+
+        var status = Assert.Single(rows, row => row.FieldKey == "ai-solutions-status");
+        Assert.Equal("SingleSelect", status.FieldType); // Select → SingleSelect
+    }
+
+    [Fact]
+    public void BuildPlatformCatalogRows_GlobalField_IsReadOnlyUserRow()
+    {
+        var rows = FieldSchemaService.BuildPlatformCatalogRows(
+            new[] { Stored("Task", "sharedField", location: "Global", isLocal: false) },
+            Array.Empty<PlatformFieldRow>());
+
+        var row = Assert.Single(rows, candidate => candidate.FieldKey == "sharedField");
+        Assert.Equal("User", row.Source);
+        Assert.Equal("Task", row.ObjectType);
+        Assert.True(row.IsReadOnly);
+    }
+
+    [Fact]
+    public void BuildPlatformCatalogRows_GlobalCollidingWithPlatformOnRequest_ResolvesToPlatform()
+    {
+        // A Global field sharing a key with a platform-defined field on Request de-dupes to one row.
+        var rows = FieldSchemaService.BuildPlatformCatalogRows(
+            new[] { Stored("Request", "legacy-id", location: "Global") },
+            new[] { Platform("legacy-id", "Legacy ID") });
+
+        var legacyRows = rows.Where(row => row.ObjectType == "Request" && row.FieldKey == "legacy-id").ToList();
+        Assert.Single(legacyRows);
+        Assert.Equal("Platform", legacyRows[0].Source);
+    }
+
+    [Fact]
+    public void BuildPlatformCatalogRows_GlobalKeyCollidingWithSystemAutoField_IsSkipped()
+    {
+        // A Global 'name' field must fold into the synthesised system row, not duplicate it.
+        var rows = FieldSchemaService.BuildPlatformCatalogRows(
+            new[] { Stored("Request", "name", location: "Global") },
+            Array.Empty<PlatformFieldRow>());
+
+        var nameRows = rows.Where(row => row.ObjectType == "Request" && row.FieldKey == "name").ToList();
+        Assert.Single(nameRows);
+        Assert.Equal("System", nameRows[0].Source);
+    }
 }

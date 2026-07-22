@@ -14,12 +14,18 @@ namespace McDermott.AiTracker.Api.Modules.PlatformAdmin;
 public sealed class PlatformFieldsController : ControllerBase
 {
     private readonly IPlatformFieldService _platformFields;
+    private readonly IFieldSchemaService _fieldSchema;
     private readonly IAccessGuard _accessGuard;
     private readonly ICurrentUser _currentUser;
 
-    public PlatformFieldsController(IPlatformFieldService platformFields, IAccessGuard accessGuard, ICurrentUser currentUser)
+    public PlatformFieldsController(
+        IPlatformFieldService platformFields,
+        IFieldSchemaService fieldSchema,
+        IAccessGuard accessGuard,
+        ICurrentUser currentUser)
     {
         _platformFields = platformFields;
+        _fieldSchema = fieldSchema;
         _accessGuard = accessGuard;
         _currentUser = currentUser;
     }
@@ -37,6 +43,22 @@ public sealed class PlatformFieldsController : ControllerBase
 
         var fields = await _platformFields.GetAllAsync(cancellationToken);
         return Ok(fields);
+    }
+
+    /// <summary>The flat platform Fields-tab catalog (S34): system auto-fields on the Global objects,
+    /// the platform-defined fields, and every Global field across all workspaces.</summary>
+    [HttpGet("catalog")]
+    [ProducesResponseType(typeof(PlatformFieldCatalogDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetPlatformFieldCatalog(CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.IsPlatformAdminAsync(_currentUser.UserId, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var catalog = await _fieldSchema.GetPlatformCatalogAsync(cancellationToken);
+        return Ok(catalog);
     }
 
     /// <summary>Edit a platform field's definition (name / options). System fields are immutable.</summary>

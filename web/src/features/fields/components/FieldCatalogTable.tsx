@@ -61,6 +61,22 @@ interface FieldCatalogTableProps {
   filters: CatalogFilters;
   onFilterChange: (column: CatalogColumnKey, value: FilterValue) => void;
   onOpen: (row: FieldCatalogRowDto) => void;
+  /** Accessible table caption. Defaults to the workspace Fields tab wording. */
+  caption?: string;
+}
+
+function sourceCell(source: FieldCatalogRowDto['source']): ReactNode {
+  if (source === 'System') {
+    return (
+      <span className="fields-cat__system">
+        <LockSimple size={12} aria-hidden /> System
+      </span>
+    );
+  }
+  if (source === 'Platform') {
+    return <span className="fields-cat__platform">Platform</span>;
+  }
+  return <span className="fields-cat__muted">User</span>;
 }
 
 export function FieldCatalogTable({
@@ -71,6 +87,7 @@ export function FieldCatalogTable({
   filters,
   onFilterChange,
   onOpen,
+  caption = 'Field definitions in this workspace',
 }: FieldCatalogTableProps) {
   const renderFilter = (column: TableColumn): ReactNode => {
     const key = column.key as CatalogColumnKey;
@@ -112,15 +129,7 @@ export function FieldCatalogTable({
           {EM_DASH}
         </span>
       ),
-      row.source === 'System' ? (
-        <span key="source" className="fields-cat__system">
-          <LockSimple size={12} aria-hidden /> System
-        </span>
-      ) : (
-        <span key="source" className="fields-cat__muted">
-          User
-        </span>
-      ),
+      <span key="source">{sourceCell(row.source)}</span>,
       <span key="status" className={statusClass(row.status)}>
         {row.status}
       </span>,
@@ -129,7 +138,7 @@ export function FieldCatalogTable({
 
   return (
     <TableShell
-      caption="Field definitions in this workspace"
+      caption={caption}
       columns={COLUMNS}
       rows={tableRows}
       sort={sort}

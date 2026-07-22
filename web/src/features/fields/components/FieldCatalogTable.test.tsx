@@ -87,6 +87,24 @@ describe('FieldCatalogTable', () => {
     expect(onSortChange).toHaveBeenCalledWith({ column: 'field', direction: 'asc' });
   });
 
+  it('FieldCatalogTable — a platform row shows the PLATFORM source', () => {
+    const platformRow = buildFieldCatalogRow({
+      id: 'p',
+      fieldKey: 'legacy-id',
+      displayName: 'Legacy ID',
+      source: 'Platform',
+    });
+    renderTable({ rows: [platformRow], allRows: [platformRow] });
+    expect(screen.getByText('Platform')).toBeInTheDocument();
+  });
+
+  it('FieldCatalogTable — uses the supplied caption as the table name', () => {
+    renderTable({ caption: 'Platform field definitions' });
+    expect(
+      screen.getByRole('table', { name: 'Platform field definitions' }),
+    ).toBeInTheDocument();
+  });
+
   it('FieldCatalogTable — no axe violations', async () => {
     const { container } = renderTable();
     expect(await axe(container)).toHaveNoViolations();

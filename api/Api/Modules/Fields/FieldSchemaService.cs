@@ -36,6 +36,8 @@ public interface IFieldSchemaService
 
     Task<WorkspaceFieldCatalogDto> GetCatalogAsync(Guid workspaceId, CancellationToken cancellationToken);
 
+    Task<PlatformFieldCatalogDto> GetPlatformCatalogAsync(CancellationToken cancellationToken);
+
     Task<FieldOperationResult> UpsertFieldAsync(
         Guid workspaceId, FieldDefinitionUpsertRequest request, bool isCreate, Guid actorUserId, string operationId, CancellationToken cancellationToken);
 
