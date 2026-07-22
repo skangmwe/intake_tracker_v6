@@ -84,7 +84,7 @@ const LIFECYCLE_CONFIG = {
   lifecycles: [
     {
       id: LIFECYCLE_ID,
-      name: 'Standard AI build',
+      name: 'Standard delivery',
       requestType: 'Full build',
       isDefault: true,
       sortOrder: 0,
@@ -103,7 +103,7 @@ const LIFECYCLE_CONFIG = {
 };
 
 // v2 (slice 27): the intake "Lifecycle" picker reads this lightweight list. One lifecycle → hidden.
-const LIFECYCLE_SUMMARIES = [{ id: LIFECYCLE_ID, name: 'Standard AI build', isDefault: true }];
+const LIFECYCLE_SUMMARIES = [{ id: LIFECYCLE_ID, name: 'Standard delivery', isDefault: true }];
 
 const RECORD = {
   id: RECORD_ID,

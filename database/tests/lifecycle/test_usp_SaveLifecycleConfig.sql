@@ -17,7 +17,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.GateApproverSlot';
     DECLARE @Ws UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
     DECLARE @Json NVARCHAR(MAX) = N'[
-        { "name": "Standard AI build", "requestType": "Full build", "isDefault": true, "sortOrder": 0,
+        { "name": "Standard delivery", "requestType": "Full build", "isDefault": true, "sortOrder": 0,
           "stages": [
             { "key": "execution", "label": "Execution", "statusCategory": "Execution", "sortOrder": 0 },
             { "key": "validation", "label": "Validation", "statusCategory": "Validation", "sortOrder": 1 } ],

@@ -532,7 +532,7 @@ describe('RecordDetailPage', () => {
 
     // Assert — summary row (Submitted / Lifecycle / Status category), SLA block, and the empty trail.
     expect(screen.getByText('Lifecycle')).toBeInTheDocument();
-    expect(screen.getByText('Standard AI build')).toBeInTheDocument();
+    expect(screen.getByText('Standard delivery')).toBeInTheDocument();
     expect(screen.getByText('Status category')).toBeInTheDocument();
     expect(screen.getByText('No due date')).toBeInTheDocument();
     expect(await screen.findByText(/No status changes yet/)).toBeInTheDocument();

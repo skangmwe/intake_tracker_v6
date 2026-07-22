@@ -61,7 +61,7 @@ public sealed class EscalationServiceTests
             UpdatedBy: "seed",
             LegacyId: null,
             LifecycleId: Guid.NewGuid(),
-            LifecycleName: "Standard AI build",
+            LifecycleName: "Standard delivery",
             Stages: Array.Empty<RequestStageRef>(),
             Stage: "intake",
             StatusHold: RequestStatusHoldValue.InProgress,

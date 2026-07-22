@@ -40,7 +40,7 @@ const CONFIG = {
   lifecycles: [
     {
       id: LIFECYCLE_ID,
-      name: 'Standard AI build',
+      name: 'Standard delivery',
       requestType: 'Full build',
       isDefault: true,
       sortOrder: 0,
@@ -97,7 +97,7 @@ test('a workspace admin sees the seeded lifecycle, its stages, gate and roster',
   await expect(page.getByRole('heading', { name: 'Lifecycle & gates', level: 1 })).toBeVisible();
   // The lifecycle dropdown selector (v2, slice 27) and its stage track render.
   await expect(page.getByRole('combobox', { name: 'Select lifecycle' })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Lifecycle name' })).toHaveValue('Standard AI build');
+  await expect(page.getByRole('textbox', { name: 'Lifecycle name' })).toHaveValue('Standard delivery');
   await expect(page.getByLabel('Stage 1 name')).toHaveValue('Execution');
   await expect(page.getByRole('textbox', { name: 'Gate name' })).toHaveValue('QA readiness gate');
   // The InfoSec roster shows the seeded member.
