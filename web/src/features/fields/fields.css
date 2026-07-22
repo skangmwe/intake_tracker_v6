@@ -130,8 +130,7 @@
 }
 
 .fields-option-list,
-.fields-rule-list,
-.fields-platform-list {
+.fields-rule-list {
   list-style: none;
   margin: 0 0 var(--space-2);
   padding: 0;
@@ -152,39 +151,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-}
-
-.fields-platform-band {
-  margin-top: var(--space-6);
-}
-
-.fields-platform-band__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.fields-platform-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.fields-platform-edit {
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.fields-platform-edit__form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-3);
 }
 
 .fields-sheet__footer-spacer {
@@ -300,6 +266,20 @@
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--color-pale-blue);
+  color: var(--color-navy);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* SOURCE = Platform pill — pale fill, navy text (theme-stable rule), distinct from the System pill. */
+.fields-cat__platform {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-pale-magenta);
   color: var(--color-navy);
   font-size: 11px;
   font-weight: 600;

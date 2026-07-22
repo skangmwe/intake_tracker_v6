@@ -294,8 +294,11 @@ export interface WorkspaceFieldSchemaDto {
   platformFields: PlatformFieldDto[];
 }
 
-/** The provenance of a catalog row: a synthesised system auto-field, or an analyst-defined field. */
-export type FieldSource = 'System' | 'User';
+/**
+ * The provenance of a catalog row: a synthesised system auto-field, an analyst-defined field, or a
+ * platform-defined field (the 'Platform' band only appears on the Platform Fields catalog, S34).
+ */
+export type FieldSource = 'System' | 'User' | 'Platform';
 
 /** Configuration status shown in the STATUS column. 'Draft' is reserved; not emitted today. */
 export type FieldStatus = 'Active' | 'Draft' | 'Archived';
@@ -325,6 +328,11 @@ export interface FieldCatalogRowDto {
 /** GET response for the flat Fields-tab catalog. */
 export interface WorkspaceFieldCatalogDto {
   workspaceId: WorkspaceId;
+  rows: FieldCatalogRowDto[];
+}
+
+/** GET response for the flat platform Fields-tab catalog (S34). */
+export interface PlatformFieldCatalogDto {
   rows: FieldCatalogRowDto[];
 }
 

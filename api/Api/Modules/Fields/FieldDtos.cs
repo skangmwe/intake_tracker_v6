@@ -50,9 +50,14 @@ public sealed record WorkspaceFieldCatalogDto(
     Guid WorkspaceId,
     IReadOnlyList<FieldCatalogRowDto> Rows);
 
+/// <summary>The flat platform field catalog behind the Platform Fields tab (S34) — system auto-fields
+/// on the Global objects, the platform-defined fields, and every Global field across all workspaces.</summary>
+public sealed record PlatformFieldCatalogDto(
+    IReadOnlyList<FieldCatalogRowDto> Rows);
+
 /// <summary>One row of the Fields tab table (FIELD · KEY · TYPE · OBJECT · LOCATION · REQUIRED ·
-/// SOURCE · STATUS). <c>Source</c> is "System" or "User"; <c>Status</c> is "Active" or "Archived".
-/// <c>ObjectLabel</c> is the display name ("Toolkit item"); <c>ObjectType</c> is the machine key.</summary>
+/// SOURCE · STATUS). <c>Source</c> is "System", "User", or "Platform"; <c>Status</c> is "Active" or
+/// "Archived". <c>ObjectLabel</c> is the display name ("Toolkit item"); <c>ObjectType</c> is the key.</summary>
 public sealed record FieldCatalogRowDto(
     string Id,
     string ObjectType,

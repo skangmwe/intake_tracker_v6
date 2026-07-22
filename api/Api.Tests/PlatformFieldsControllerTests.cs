@@ -17,7 +17,8 @@ public sealed class PlatformFieldsControllerTests
 {
     private static readonly Guid UserId = Guid.NewGuid();
 
-    private static PlatformFieldsController Build(Mock<IPlatformFieldService> service, bool isPlatformAdmin)
+    private static PlatformFieldsController Build(
+        Mock<IPlatformFieldService> service, bool isPlatformAdmin, Mock<IFieldSchemaService>? fieldSchema = null)
     {
         var accessGuard = new Mock<IAccessGuard>();
         accessGuard.Setup(guard => guard.IsPlatformAdminAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(isPlatformAdmin);
@@ -28,7 +29,8 @@ public sealed class PlatformFieldsControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Items[OperationIdMiddleware.HeaderName] = "op-abc";
 
-        return new PlatformFieldsController(service.Object, accessGuard.Object, currentUser.Object)
+        return new PlatformFieldsController(
+            service.Object, (fieldSchema ?? new Mock<IFieldSchemaService>()).Object, accessGuard.Object, currentUser.Object)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
         };
@@ -59,6 +61,36 @@ public sealed class PlatformFieldsControllerTests
         var result = await Build(service, isPlatformAdmin: false).GetPlatformFields(CancellationToken.None);
         var problem = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPlatformFieldCatalog_Admin_ReturnsOk()
+    {
+        // Arrange
+        var service = new Mock<IPlatformFieldService>();
+        var fieldSchema = new Mock<IFieldSchemaService>();
+        fieldSchema.Setup(candidate => candidate.GetPlatformCatalogAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PlatformFieldCatalogDto(Array.Empty<FieldCatalogRowDto>()));
+
+        // Act
+        var result = await Build(service, isPlatformAdmin: true, fieldSchema).GetPlatformFieldCatalog(CancellationToken.None);
+
+        // Assert
+        Assert.IsType<OkObjectResult>(result);
+        fieldSchema.Verify(candidate => candidate.GetPlatformCatalogAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPlatformFieldCatalog_NotAdmin_Returns403()
+    {
+        var service = new Mock<IPlatformFieldService>();
+        var fieldSchema = new Mock<IFieldSchemaService>();
+
+        var result = await Build(service, isPlatformAdmin: false, fieldSchema).GetPlatformFieldCatalog(CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        fieldSchema.Verify(candidate => candidate.GetPlatformCatalogAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
