@@ -50,6 +50,21 @@ describe('RowActionsMenu', () => {
     expect(within(menu).getByRole('menuitem', { name: 'Suspend member' })).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: 'Remove from workspace' })).toBeInTheDocument();
     expect(within(menu).queryByRole('menuitem', { name: 'Reactivate' })).not.toBeInTheDocument();
+
+    // Each action carries a one-line description below its label.
+    expect(within(menu).getByText('Change their access level.')).toBeInTheDocument();
+    expect(within(menu).getByText('Block access for now; they stay listed.')).toBeInTheDocument();
+    expect(within(menu).getByText('Take them off the roster; re-add to restore.')).toBeInTheDocument();
+  });
+
+  it('RowActionsMenu — the description is wired to its action as an accessible description', async () => {
+    // Arrange + Act
+    render(<RowActionsMenu {...baseProps} status="Active" />);
+    await openMenu();
+
+    // Assert — the accessible name stays the bare action; the description is linked via aria-describedby.
+    const edit = screen.getByRole('menuitem', { name: 'Edit details' });
+    expect(edit).toHaveAccessibleDescription('Change their access level.');
   });
 
   it('RowActionsMenu — Suspended member — offers Reactivate instead of Suspend', async () => {
@@ -62,6 +77,7 @@ describe('RowActionsMenu', () => {
     expect(within(menu).getByRole('menuitem', { name: 'Reactivate' })).toBeInTheDocument();
     expect(within(menu).queryByRole('menuitem', { name: 'Suspend member' })).not.toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: 'Remove from workspace' })).toBeInTheDocument();
+    expect(within(menu).getByText("Restore a suspended member's access.")).toBeInTheDocument();
   });
 
   it('RowActionsMenu — Invited row — offers only Cancel invitation', async () => {
@@ -72,6 +88,7 @@ describe('RowActionsMenu', () => {
     // Assert
     const menu = screen.getByRole('menu');
     expect(within(menu).getByRole('menuitem', { name: 'Cancel invitation' })).toBeInTheDocument();
+    expect(within(menu).getByText('Withdraw this pending invite.')).toBeInTheDocument();
     expect(within(menu).queryByRole('menuitem', { name: 'Edit details' })).not.toBeInTheDocument();
     expect(within(menu).queryByRole('menuitem', { name: 'Remove from workspace' })).not.toBeInTheDocument();
   });
@@ -178,5 +195,22 @@ describe('RowActionsMenu', () => {
     await openMenu();
     // Assert
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RowActionsMenu — no axe violations (Suspended and Invited open menus)', async () => {
+    // Arrange + Act — Suspended (Reactivate + destructive Remove)
+    const suspended = render(<RowActionsMenu {...baseProps} status="Suspended" />);
+    await openMenu();
+    // Assert
+    expect(await axe(suspended.container)).toHaveNoViolations();
+    suspended.unmount();
+
+    // Act — Invited (destructive Cancel invitation only)
+    const invited = render(
+      <RowActionsMenu {...baseProps} memberLabel="invitee@mws.ai" status="Invited" />,
+    );
+    await openMenu('Actions for invitee@mws.ai');
+    // Assert
+    expect(await axe(invited.container)).toHaveNoViolations();
   });
 });

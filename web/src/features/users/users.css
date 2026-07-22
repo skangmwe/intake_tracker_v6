@@ -99,13 +99,65 @@
 .users-access__row-menu {
   position: fixed;
   z-index: 60;
-  width: 220px;
+  width: 288px;
   max-width: calc(100vw - var(--space-5) * 2);
   padding: var(--space-2) 0;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
+}
+
+/* Row-action items carry a leading icon + a two-line body (bolded action, muted description),
+   so they align to the top rather than centre. Scoped to this menu — the shared .ast-menu__item
+   used by the account / bell menus stays single-line. */
+.users-access__row-menu .ast-menu__item {
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.users-access__menu-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--icon-default);
+}
+
+.users-access__menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.users-access__menu-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.users-access__menu-desc {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+/* The icon tracks the item's hover/focus accent (the label colour is handled by .ast-menu__item). */
+.users-access__row-menu .ast-menu__item:hover .users-access__menu-icon,
+.users-access__row-menu .ast-menu__item:focus-visible .users-access__menu-icon {
+  color: var(--accent-interactive);
+}
+
+/* Destructive rows (Remove, Cancel invitation) read in the error colour at rest and on hover —
+   the description stays muted for legibility. */
+.users-access__row-menu .ast-menu__item.users-access__menu-item--danger,
+.users-access__row-menu .ast-menu__item.users-access__menu-item--danger:hover,
+.users-access__row-menu .ast-menu__item.users-access__menu-item--danger:focus-visible,
+.users-access__row-menu .ast-menu__item.users-access__menu-item--danger .users-access__menu-icon,
+.users-access__row-menu .ast-menu__item.users-access__menu-item--danger:hover .users-access__menu-icon,
+.users-access__row-menu
+  .ast-menu__item.users-access__menu-item--danger:focus-visible
+  .users-access__menu-icon {
+  color: var(--color-error);
 }
 
 /* Row-action menu extras layered on the shared .ast-menu popover. */
