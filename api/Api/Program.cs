@@ -112,8 +112,6 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Fields.IFieldSchemaSe
     McDermott.AiTracker.Api.Modules.Fields.FieldSchemaService>();
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.PlatformAdmin.IPlatformFieldService,
     McDermott.AiTracker.Api.Modules.PlatformAdmin.PlatformFieldService>();
-builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.PlatformAdmin.IPlatformWorkspaceDirectory,
-    McDermott.AiTracker.Api.Modules.PlatformAdmin.PlatformWorkspaceDirectory>();
 
 // ─── Lifecycle & gates (slice 4) ────────────────────────────────────────────
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Lifecycle.ILifecycleService,

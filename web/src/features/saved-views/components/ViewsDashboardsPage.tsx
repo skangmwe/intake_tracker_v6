@@ -24,17 +24,15 @@ export function ViewsDashboardsPage() {
   const isAdmin = useMemo(
     () =>
       (me?.memberships ?? []).some(
-        (membership) => membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
+        (membership) =>
+          membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
       ),
     [me, workspaceId],
   );
 
-  const title = <h1 className="h1 views-admin__title">Views &amp; dashboards</h1>;
-
   if (meLoading) {
     return (
       <div className="views-admin">
-        {title}
         <p className="caption" role="status">
           Loading…
         </p>
@@ -45,7 +43,6 @@ export function ViewsDashboardsPage() {
   if (meError || !workspaceId) {
     return (
       <div className="views-admin">
-        {title}
         <p className="mws-alert mws-alert--error" role="alert">
           This page could not be loaded. Try again in a moment.
         </p>
@@ -56,10 +53,9 @@ export function ViewsDashboardsPage() {
   if (!isAdmin) {
     return (
       <div className="views-admin">
-        {title}
         <p className="mws-alert mws-alert--warning" role="alert">
-          Views &amp; dashboards is available to workspace admins. Ask a workspace admin if you need a
-          change.
+          Views &amp; dashboards is available to workspace admins. Ask a workspace admin if you need
+          a change.
         </p>
       </div>
     );
@@ -67,12 +63,6 @@ export function ViewsDashboardsPage() {
 
   return (
     <div className="views-admin">
-      {title}
-      <p className="views-admin__lead">
-        Manage the shared saved views on each list surface — promote a personal view to shared, set the
-        default, or retire one. Retiring a view never changes any records.
-      </p>
-
       {OBJECT_TYPES.map((objectType) => (
         <SavedViewsSection key={objectType} workspaceId={workspaceId} objectType={objectType} />
       ))}

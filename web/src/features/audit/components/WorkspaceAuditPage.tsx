@@ -16,7 +16,12 @@ import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
 import { useMe } from '@/features/users/useMe';
 import { useMembers } from '@/features/users/useMembers';
 
-import { AuditFilterBar, EMPTY_AUDIT_FILTERS, toAuditQuery, type AuditFilterValues } from './AuditFilterBar';
+import {
+  AuditFilterBar,
+  EMPTY_AUDIT_FILTERS,
+  toAuditQuery,
+  type AuditFilterValues,
+} from './AuditFilterBar';
 import { AuditLogTable } from './AuditLogTable';
 import { useWorkspaceAudit } from '../useWorkspaceAudit';
 
@@ -26,7 +31,8 @@ export function WorkspaceAuditPage() {
   const isAdmin = useMemo(
     () =>
       (me?.memberships ?? []).some(
-        (membership) => membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
+        (membership) =>
+          membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
       ),
     [me, workspaceId],
   );
@@ -38,7 +44,11 @@ export function WorkspaceAuditPage() {
 
   const members = useMembers(enabledWorkspace);
   const actorOptions = useMemo<SelectOption[]>(
-    () => (members.data?.members ?? []).map((member) => ({ value: member.userId, label: member.displayName })),
+    () =>
+      (members.data?.members ?? []).map((member) => ({
+        value: member.userId,
+        label: member.displayName,
+      })),
     [members.data],
   );
 
@@ -64,12 +74,9 @@ export function WorkspaceAuditPage() {
     setPage(1);
   };
 
-  const title = <h1 className="h1 audit-page__title">Audit log</h1>;
-
   if (meLoading) {
     return (
       <div className="audit-page">
-        {title}
         <p className="caption" role="status">
           Loading…
         </p>
@@ -80,7 +87,6 @@ export function WorkspaceAuditPage() {
   if (meError || !workspaceId) {
     return (
       <div className="audit-page">
-        {title}
         <p className="mws-alert mws-alert--error" role="alert">
           This page could not be loaded. Try again in a moment.
         </p>
@@ -91,10 +97,9 @@ export function WorkspaceAuditPage() {
   if (!isAdmin) {
     return (
       <div className="audit-page">
-        {title}
         <p className="mws-alert mws-alert--warning" role="alert">
-          The audit log is available to workspace admins. Ask a workspace admin if you need to review
-          activity.
+          The audit log is available to workspace admins. Ask a workspace admin if you need to
+          review activity.
         </p>
       </div>
     );
@@ -102,12 +107,6 @@ export function WorkspaceAuditPage() {
 
   return (
     <div className="audit-page">
-      {title}
-      <p className="audit-page__lead">
-        Every change in this workspace — field edits, stage moves, gate decisions, config changes, and
-        escalations — newest first. The trail is append-only and cannot be edited.
-      </p>
-
       <AuditFilterBar
         value={filters}
         actorOptions={actorOptions}
@@ -143,13 +142,23 @@ export function WorkspaceAuditPage() {
           <AuditLogTable rows={rows} />
           {pageCount > 1 && (
             <nav className="audit-page__pager" aria-label="Audit log pages">
-              <Button variant="secondary" compact disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <Button
+                variant="secondary"
+                compact
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
                 Previous
               </Button>
               <span className="caption">
                 Page {page} of {pageCount}
               </span>
-              <Button variant="secondary" compact disabled={page >= pageCount} onClick={() => setPage(page + 1)}>
+              <Button
+                variant="secondary"
+                compact
+                disabled={page >= pageCount}
+                onClick={() => setPage(page + 1)}
+              >
                 Next
               </Button>
             </nav>

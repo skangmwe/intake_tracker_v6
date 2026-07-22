@@ -1,7 +1,7 @@
 // Unit tests for PlatformSchemaController (S34 — Objects / Relationships tab reads). The Platform-
-// admin gate, the workspaceId validation, and delegation to the reused services (the services and
-// access guard are mocked). Covers each endpoint's happy path, the non-admin 403, the missing-
-// workspaceId 400, and cancellation propagation.
+// admin gate and delegation to the reused services (the services and access guard are mocked). Covers
+// each endpoint's happy path, the non-admin 403, and cancellation propagation. The Relationships tab
+// is the read-only system-seeded reference — no workspace picker, no workspaceId parameter.
 
 using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Modules.PlatformAdmin;
@@ -17,13 +17,11 @@ namespace McDermott.AiTracker.Api.Tests;
 public sealed class PlatformSchemaControllerTests
 {
     private static readonly Guid UserId = Guid.NewGuid();
-    private static readonly Guid WorkspaceId = Guid.NewGuid();
 
     private static PlatformSchemaController Build(
         bool isPlatformAdmin,
         Mock<IObjectSchemaService>? objects = null,
-        Mock<IRelationshipsService>? relationships = null,
-        Mock<IPlatformWorkspaceDirectory>? workspaces = null)
+        Mock<IRelationshipsService>? relationships = null)
     {
         var accessGuard = new Mock<IAccessGuard>();
         accessGuard.Setup(guard => guard.IsPlatformAdminAsync(UserId, It.IsAny<CancellationToken>()))
@@ -35,7 +33,6 @@ public sealed class PlatformSchemaControllerTests
         return new PlatformSchemaController(
             (objects ?? new Mock<IObjectSchemaService>()).Object,
             (relationships ?? new Mock<IRelationshipsService>()).Object,
-            (workspaces ?? new Mock<IPlatformWorkspaceDirectory>()).Object,
             accessGuard.Object,
             currentUser.Object)
         {
@@ -74,61 +71,21 @@ public sealed class PlatformSchemaControllerTests
     }
 
     [Fact]
-    public async Task GetWorkspaces_Admin_ReturnsOk()
-    {
-        // Arrange
-        var workspaces = new Mock<IPlatformWorkspaceDirectory>();
-        workspaces.Setup(directory => directory.ListAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { new PlatformWorkspaceDto(WorkspaceId, "AI Solutions", "ai-solutions") });
-
-        // Act
-        var result = await Build(isPlatformAdmin: true, workspaces: workspaces).GetWorkspaces(CancellationToken.None);
-
-        // Assert
-        Assert.IsType<OkObjectResult>(result);
-        workspaces.Verify(directory => directory.ListAsync(It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetWorkspaces_NotAdmin_Returns403()
-    {
-        var workspaces = new Mock<IPlatformWorkspaceDirectory>();
-
-        var result = await Build(isPlatformAdmin: false, workspaces: workspaces).GetWorkspaces(CancellationToken.None);
-
-        var problem = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
-        workspaces.Verify(directory => directory.ListAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task GetRelationships_Admin_ReturnsOkScopedToWorkspace()
+    public async Task GetRelationships_Admin_ReturnsOkWithSystemRelationships()
     {
         // Arrange
         var relationships = new Mock<IRelationshipsService>();
-        relationships.Setup(service => service.ListAsync(WorkspaceId, It.IsAny<CancellationToken>()))
+        relationships.Setup(service => service.ListPlatformSystemAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<RelationshipDto>());
 
         // Act
         var result = await Build(isPlatformAdmin: true, relationships: relationships)
-            .GetRelationships(WorkspaceId, CancellationToken.None);
+            .GetRelationships(CancellationToken.None);
 
         // Assert
         Assert.IsType<OkObjectResult>(result);
-        relationships.Verify(service => service.ListAsync(WorkspaceId, It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetRelationships_MissingWorkspaceId_Returns400()
-    {
-        var relationships = new Mock<IRelationshipsService>();
-
-        var result = await Build(isPlatformAdmin: true, relationships: relationships)
-            .GetRelationships(Guid.Empty, CancellationToken.None);
-
-        Assert.IsType<BadRequestObjectResult>(result);
         relationships.Verify(
-            service => service.ListAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+            service => service.ListPlatformSystemAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -137,24 +94,24 @@ public sealed class PlatformSchemaControllerTests
         var relationships = new Mock<IRelationshipsService>();
 
         var result = await Build(isPlatformAdmin: false, relationships: relationships)
-            .GetRelationships(WorkspaceId, CancellationToken.None);
+            .GetRelationships(CancellationToken.None);
 
         var problem = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
         relationships.Verify(
-            service => service.ListAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+            service => service.ListPlatformSystemAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task GetRelationships_CancellationPropagates()
     {
         var relationships = new Mock<IRelationshipsService>();
-        relationships.Setup(service => service.ListAsync(WorkspaceId, It.IsAny<CancellationToken>()))
+        relationships.Setup(service => service.ListPlatformSystemAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            Build(isPlatformAdmin: true, relationships: relationships).GetRelationships(WorkspaceId, cts.Token));
+            Build(isPlatformAdmin: true, relationships: relationships).GetRelationships(cts.Token));
     }
 }

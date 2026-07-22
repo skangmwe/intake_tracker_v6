@@ -1,8 +1,5 @@
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
-
-import type { PlatformWorkspaceDto, WorkspaceId } from '@shared/types';
 
 import { buildRelationship, renderWithProviders } from '@/test-utils';
 
@@ -12,96 +9,86 @@ import { PlatformRelationshipsTab } from './PlatformRelationshipsTab';
 jest.mock('../platformSchema');
 const mockedApi = api as jest.Mocked<typeof api>;
 
-const WORKSPACES: PlatformWorkspaceDto[] = [
-  { id: 'ws-1' as WorkspaceId, name: 'AI Solutions', kind: 'ai-solutions' },
-  { id: 'ws-2' as WorkspaceId, name: 'Litigation', kind: 'pg-dept' },
-];
-
 const RELATIONSHIPS = [
-  buildRelationship({ id: 'r1' as never, name: 'Request has Tasks', isSystem: true, sortOrder: 0 }),
+  buildRelationship({
+    id: 'r1' as never,
+    name: 'Request has Tasks',
+    isSystem: true,
+    sortOrder: 1,
+    fromObjectType: 'Request',
+    toObjectType: 'Task',
+    fromSideLabel: 'Tasks',
+    toSideLabel: 'Request',
+  }),
   buildRelationship({
     id: 'r2' as never,
-    name: 'Custom link',
-    isSystem: false,
-    isRetired: true,
-    sortOrder: 1,
+    name: 'Request has Attachments',
+    isSystem: true,
+    sortOrder: 0,
+    fromObjectType: 'Request',
+    toObjectType: 'Attachment',
+    fromSideLabel: 'Attachments',
+    toSideLabel: 'Request',
   }),
 ];
 
 describe('PlatformRelationshipsTab', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedApi.fetchPlatformWorkspaces.mockResolvedValue(WORKSPACES);
     mockedApi.fetchPlatformRelationships.mockResolvedValue(RELATIONSHIPS);
   });
 
-  it('PlatformRelationshipsTab — resolved — shows the picker and a read-only relationships table', async () => {
+  it('PlatformRelationshipsTab — resolved — shows a read-only, system-seeded relationships table', async () => {
     // Act
     const { container } = renderWithProviders(<PlatformRelationshipsTab />);
 
     // Assert
-    expect(await screen.findByRole('combobox', { name: /workspace/i })).toBeInTheDocument();
     expect(await screen.findByText('Request has Tasks')).toBeInTheDocument();
-    expect(screen.getByText('System')).toBeInTheDocument();
-    expect(screen.getByText('Retired')).toBeInTheDocument();
-    expect(screen.getByText('Active')).toBeInTheDocument();
-    // Read-only — no create / retire affordances.
+    expect(screen.getByText('Request has Attachments')).toBeInTheDocument();
+    // Origin is always System, one badge per row.
+    expect(screen.getAllByText('System')).toHaveLength(2);
+    // Read-only — no picker, no create / retire affordances.
+    expect(screen.queryByRole('combobox', { name: /workspace/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /new relationship/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /retire/i })).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('PlatformRelationshipsTab — picking another workspace re-scopes the list', async () => {
+  it('PlatformRelationshipsTab — while loading — shows the loading state', async () => {
     // Arrange
-    const user = userEvent.setup();
-    renderWithProviders(<PlatformRelationshipsTab />);
-    await screen.findByRole('combobox', { name: /workspace/i });
+    mockedApi.fetchPlatformRelationships.mockReturnValue(new Promise(() => {}));
 
     // Act
-    await user.selectOptions(screen.getByRole('combobox', { name: /workspace/i }), 'ws-2');
+    const { container } = renderWithProviders(<PlatformRelationshipsTab />);
 
     // Assert
-    expect(mockedApi.fetchPlatformRelationships).toHaveBeenCalledWith('ws-2', expect.anything());
-  });
-
-  it('PlatformRelationshipsTab — while workspaces load — shows the loading state', async () => {
-    mockedApi.fetchPlatformWorkspaces.mockReturnValue(new Promise(() => {}));
-    const { container } = renderWithProviders(<PlatformRelationshipsTab />);
-    expect(await screen.findByText(/loading workspaces/i)).toBeInTheDocument();
+    expect(await screen.findByText(/loading relationships/i)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('PlatformRelationshipsTab — workspace load failure — announces the error', async () => {
-    mockedApi.fetchPlatformWorkspaces.mockRejectedValue(new Error('boom'));
-    renderWithProviders(<PlatformRelationshipsTab />);
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /workspace list could not be loaded/i,
-    );
-  });
-
-  it('PlatformRelationshipsTab — no workspaces — shows the empty state', async () => {
-    mockedApi.fetchPlatformWorkspaces.mockResolvedValue([]);
-    renderWithProviders(<PlatformRelationshipsTab />);
-    expect(await screen.findByText(/no workspaces to show relationships for/i)).toBeInTheDocument();
-  });
-
-  it('PlatformRelationshipsTab — while relationships load — shows the loading state', async () => {
-    mockedApi.fetchPlatformRelationships.mockReturnValue(new Promise(() => {}));
-    renderWithProviders(<PlatformRelationshipsTab />);
-    expect(await screen.findByText(/loading relationships/i)).toBeInTheDocument();
-  });
-
-  it('PlatformRelationshipsTab — relationships load failure — announces the error', async () => {
+  it('PlatformRelationshipsTab — load failure — announces the error', async () => {
+    // Arrange
     mockedApi.fetchPlatformRelationships.mockRejectedValue(new Error('boom'));
-    renderWithProviders(<PlatformRelationshipsTab />);
+
+    // Act
+    const { container } = renderWithProviders(<PlatformRelationshipsTab />);
+
+    // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      /relationships could not be loaded/i,
+      /platform relationship list could not be loaded/i,
     );
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('PlatformRelationshipsTab — no relationships — shows the empty state', async () => {
+    // Arrange
     mockedApi.fetchPlatformRelationships.mockResolvedValue([]);
-    renderWithProviders(<PlatformRelationshipsTab />);
-    expect(await screen.findByText(/no relationships in this workspace/i)).toBeInTheDocument();
+
+    // Act
+    const { container } = renderWithProviders(<PlatformRelationshipsTab />);
+
+    // Assert
+    expect(await screen.findByText(/no inherited relationships yet/i)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

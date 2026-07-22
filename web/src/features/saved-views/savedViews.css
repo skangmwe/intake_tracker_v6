@@ -311,16 +311,6 @@
   max-width: min(100%, 1200px);
 }
 
-.views-admin__title {
-  margin-bottom: var(--space-2);
-}
-
-.views-admin__lead {
-  color: var(--text-secondary);
-  max-width: 72ch;
-  margin-bottom: var(--space-6);
-}
-
 .views-admin__section {
   margin-bottom: var(--space-6);
 }

@@ -94,6 +94,9 @@ describe('PlatformLayout', () => {
       'aria-current',
       'page',
     );
+    // The shared header shows the surface's header title, which differs from its short nav label
+    // ("Field schema" nav → "Fields & objects" header).
+    expect(screen.getByRole('heading', { name: 'Fields & objects' })).toBeInTheDocument();
     expect(screen.getByText('Field schema surface')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });

@@ -37,10 +37,7 @@ export function PlatformFieldsPage() {
 
   if (!isPlatformAdmin) {
     return (
-      <section className="mws-empty mws-empty--zero" aria-labelledby="platform-no-access">
-        <h1 id="platform-no-access" className="h2">
-          Fields &amp; objects
-        </h1>
+      <section className="mws-empty mws-empty--zero">
         <p className="body">
           You don’t have access to this. Ask a Platform admin if you need a change to the central
           field schema.
@@ -49,18 +46,10 @@ export function PlatformFieldsPage() {
     );
   }
 
+  // The surface title + lead render once in the shared SideNavLayout header (from the active nav
+  // item); this page composes only its tab bar and the active tab.
   return (
-    <section aria-labelledby="platform-fields-heading">
-      <header className="fields-header">
-        <div>
-          <p className="eyebrow fields-eyebrow">Platform settings</p>
-          <h1 id="platform-fields-heading" className="h2">
-            Fields &amp; objects
-          </h1>
-          <p className="body">Platform-level field definitions inherited by every workspace.</p>
-        </div>
-      </header>
-
+    <section aria-label="Fields and objects">
       <div
         className="fields-tabbar"
         role="tablist"

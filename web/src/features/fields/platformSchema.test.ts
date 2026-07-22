@@ -1,20 +1,12 @@
 // Tests for the platform schema api wrappers (S34 Objects / Relationships tabs). apiFetch is mocked
 // at the boundary; the URL each wrapper builds is what's under test.
 
-import type { WorkspaceId } from '@shared/types';
-
 import { apiFetch } from '@/shared/http/apiClient';
 
-import {
-  fetchPlatformObjects,
-  fetchPlatformRelationships,
-  fetchPlatformWorkspaces,
-} from './platformSchema';
+import { fetchPlatformObjects, fetchPlatformRelationships } from './platformSchema';
 
 jest.mock('@/shared/http/apiClient');
 const mockedApiFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
-
-const WORKSPACE = '1a150000-0000-4000-8000-000000000001' as WorkspaceId;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -30,22 +22,25 @@ describe('platformSchema api', () => {
     expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects', {});
   });
 
-  it('fetchPlatformWorkspaces — calls the platform workspaces endpoint', async () => {
+  it('fetchPlatformRelationships — calls the platform relationships endpoint', async () => {
     // Act
-    await fetchPlatformWorkspaces();
+    await fetchPlatformRelationships();
 
     // Assert
-    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/workspaces', {});
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/relationships', {});
   });
 
-  it('fetchPlatformRelationships — scopes the request to the workspace', async () => {
+  it('fetchPlatformRelationships — forwards an abort signal when given', async () => {
+    // Arrange
+    const controller = new AbortController();
+
     // Act
-    await fetchPlatformRelationships(WORKSPACE);
+    await fetchPlatformRelationships(controller.signal);
 
     // Assert
-    const [url] = mockedApiFetch.mock.calls[0] ?? [];
-    expect(url).toContain('/v1/platform/relationships');
-    expect(url).toContain(`workspaceId=${WORKSPACE}`);
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/relationships', {
+      signal: controller.signal,
+    });
   });
 
   it('fetchPlatformObjects — forwards an abort signal when given', async () => {

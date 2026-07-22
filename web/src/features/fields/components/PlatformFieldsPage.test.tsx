@@ -2,8 +2,6 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 
-import type { PlatformWorkspaceDto, WorkspaceId } from '@shared/types';
-
 import {
   buildFieldCatalogRow,
   buildMe,
@@ -21,10 +19,6 @@ jest.mock('../platformSchema');
 const mockedApi = api as jest.Mocked<typeof api>;
 const mockedSchemaApi = schemaApi as jest.Mocked<typeof schemaApi>;
 
-const WORKSPACES: PlatformWorkspaceDto[] = [
-  { id: 'ws-1' as WorkspaceId, name: 'AI Solutions', kind: 'ai-solutions' },
-];
-
 describe('PlatformFieldsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -33,7 +27,6 @@ describe('PlatformFieldsPage', () => {
     });
     mockedApi.fetchPlatformFields.mockResolvedValue([buildPlatformField()]);
     mockedSchemaApi.fetchPlatformObjects.mockResolvedValue([]);
-    mockedSchemaApi.fetchPlatformWorkspaces.mockResolvedValue(WORKSPACES);
     mockedSchemaApi.fetchPlatformRelationships.mockResolvedValue([]);
   });
 
@@ -70,7 +63,7 @@ describe('PlatformFieldsPage', () => {
     expect(mockedSchemaApi.fetchPlatformObjects).toHaveBeenCalled();
   });
 
-  it('PlatformFieldsPage — Relationships tab shows the workspace picker', async () => {
+  it('PlatformFieldsPage — Relationships tab shows the read-only system reference', async () => {
     // Arrange
     const user = userEvent.setup();
     renderWithProviders(<PlatformFieldsPage />, { seedMe: buildMe({ isPlatformAdmin: true }) });
@@ -79,8 +72,9 @@ describe('PlatformFieldsPage', () => {
     // Act
     await user.click(screen.getByRole('tab', { name: /relationships/i }));
 
-    // Assert
-    expect(await screen.findByRole('combobox', { name: /workspace/i })).toBeInTheDocument();
-    expect(mockedSchemaApi.fetchPlatformWorkspaces).toHaveBeenCalled();
+    // Assert — no picker; the system-seeded reference loaded (empty here).
+    expect(await screen.findByText(/system relationships are seeded/i)).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /workspace/i })).not.toBeInTheDocument();
+    expect(mockedSchemaApi.fetchPlatformRelationships).toHaveBeenCalled();
   });
 });

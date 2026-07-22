@@ -46,6 +46,7 @@ public sealed record RelationshipRetireResult(
 public interface IRelationshipsService
 {
     Task<IReadOnlyList<RelationshipDto>> ListAsync(Guid workspaceId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<RelationshipDto>> ListPlatformSystemAsync(CancellationToken cancellationToken);
     Task<RelationshipDto?> GetByIdAsync(Guid relationshipId, Guid workspaceId, CancellationToken cancellationToken);
     Task<RelationshipMutationResult> CreateAsync(
         Guid workspaceId, RelationshipCreateRequest request, Guid actorUserId, CancellationToken cancellationToken);
@@ -89,6 +90,21 @@ public sealed class RelationshipsService : IRelationshipsService
         var rows = await _db.Set<RelationshipRow>()
             .FromSqlRaw("EXEC dbo.usp_ListRelationships @WorkspaceId",
                 new SqlParameter("@WorkspaceId", workspaceId))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows.Select(Map).ToList();
+    }
+
+    public async Task<IReadOnlyList<RelationshipDto>> ListPlatformSystemAsync(
+        CancellationToken cancellationToken)
+    {
+        // The canonical system-seeded relationships every workspace inherits, de-duplicated across
+        // workspaces to one row per shape (S34 Relationships tab). Read-only reference — no workspace
+        // scope. Access is gated at the controller on the Platform-admin grant.
+        var rows = await _db.Set<RelationshipRow>()
+            .FromSqlRaw("EXEC dbo.usp_GetPlatformRelationships")
             .AsNoTracking()
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

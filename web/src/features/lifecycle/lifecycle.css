@@ -11,18 +11,14 @@
   margin-inline: auto;
 }
 
+/* Holds only the autosave indicator now (the surface title moved to the shared header) — keep it
+   aligned to the end of the row. */
 .lifecycle-header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-4);
-}
-
-.lifecycle-header__title {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
 }
 
 /* Autosave indicator (design-system .mws-status register). */

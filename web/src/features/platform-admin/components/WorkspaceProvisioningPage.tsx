@@ -110,7 +110,11 @@ function ProvisionSurface() {
             onChange={setPrefix}
             placeholder="LIT"
             hint="2–16 letters or digits, globally unique. Used for every record id (e.g. LIT-00000001)."
-            error={prefix.trim().length > 0 && !PREFIX_PATTERN.test(prefix.trim()) ? 'Prefix must be 2–16 letters or digits.' : undefined}
+            error={
+              prefix.trim().length > 0 && !PREFIX_PATTERN.test(prefix.trim())
+                ? 'Prefix must be 2–16 letters or digits.'
+                : undefined
+            }
           />
         </div>
       )}
@@ -172,12 +176,5 @@ function ProvisionSurface() {
 export function WorkspaceProvisioningPage() {
   const { isPlatformAdmin } = usePlatformAdmin();
 
-  return (
-    <PlatformGate
-      title="Workspace provisioning"
-      lead="Stand up a new PG/Dept workspace by cloning the template — name, prefix, and initial admin."
-    >
-      {isPlatformAdmin && <ProvisionSurface />}
-    </PlatformGate>
-  );
+  return <PlatformGate>{isPlatformAdmin && <ProvisionSurface />}</PlatformGate>;
 }
