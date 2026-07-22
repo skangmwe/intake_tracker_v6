@@ -1,28 +1,39 @@
-// Manage announcements (S23) — a workspace admin's authoring surface. Lists the workspace's
-// announcements across all statuses, creates new Drafts, edits until Retired, and publishes / retires.
+// Manage announcements (S23) — a workspace admin's authoring surface, reconciled to the prototype: an
+// ANNOUNCEMENT · POSTED BY · POSTED · STATUS table (funnel + sort + footer) plus a create/edit modal.
 // Resolves the active workspace from the caller's WorkspaceAdmin memberships (like the Lifecycle page),
 // with a selector when they administer more than one. Renders explicit loading / error / empty states
-// (web-component-architecture.md).
+// (web-component-architecture.md). The list is sorted / filtered / paginated client-side.
+//
+// Justification for exceeding the 200-line component guideline (web-component-architecture.md — route
+// components may extend to 250 lines): this is the route component that composes the table, the footer,
+// the editor modal, workspace resolution, the client-side view state, and the create/update wiring. The
+// presentational pieces (table, editor) are already extracted; what remains is orchestration.
 
 import { useMemo, useState } from 'react';
-import type { AnnouncementPatchRequest, WorkspaceId } from '@shared/types';
+import type { AnnouncementAudience, WorkspaceId } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
+import type { SelectOption } from '@/shared/components/Form';
+import { type FilterValue, type SortState, TableFooter } from '@/shared/components/Table';
 import { useMe } from '@/features/users/useMe';
+import { useMembers } from '@/features/users/useMembers';
 
 import { problemMessage } from '../problemMessage';
+import { type AnnouncementsFilters, selectAnnouncementsView } from '../announcementsView';
+import { MANAGE_ANNOUNCEMENTS_PAGE_SIZE } from '../constants';
 import {
   useAnnouncement,
   useCreateAnnouncement,
   useManagedAnnouncements,
-  usePublishAnnouncement,
-  useRetireAnnouncement,
   useUpdateAnnouncement,
 } from '../useAnnouncements';
-import { AnnouncementEditor } from './AnnouncementEditor';
-import { ManageAnnouncementRow } from './ManageAnnouncementRow';
+import { AnnouncementEditor, type EditorValue } from './AnnouncementEditor';
+import { AnnouncementsManageTable } from './AnnouncementsManageTable';
 
 type EditorState = { mode: 'create' } | { mode: 'edit'; id: string } | null;
+
+const EVERYONE_AUDIENCE: AnnouncementAudience = { kind: 'everyone' };
+const NO_FILTERS: AnnouncementsFilters = {};
 
 export function ManageAnnouncementsPage() {
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
@@ -35,49 +46,112 @@ export function ManageAnnouncementsPage() {
   const workspaceId = selectedWorkspaceId ?? adminMemberships[0]?.workspaceId ?? null;
   const wsId = (workspaceId ?? '') as WorkspaceId;
 
-  const list = useManagedAnnouncements(workspaceId ?? undefined, 1);
+  const list = useManagedAnnouncements(workspaceId ?? undefined);
+  const members = useMembers(workspaceId ?? undefined);
   const create = useCreateAnnouncement(wsId);
   const update = useUpdateAnnouncement(wsId);
-  const publish = usePublishAnnouncement(wsId);
-  const retire = useRetireAnnouncement(wsId);
 
+  const [sort, setSort] = useState<SortState | undefined>(undefined);
+  const [filters, setFilters] = useState<AnnouncementsFilters>(NO_FILTERS);
+  const [page, setPage] = useState(1);
   const [editor, setEditor] = useState<EditorState>(null);
   const editingDetail = useAnnouncement(editor?.mode === 'edit' ? editor.id : undefined);
 
-  const busy = create.isPending || update.isPending || publish.isPending || retire.isPending;
+  const allRows = useMemo(() => list.data?.items ?? [], [list.data]);
+  const view = useMemo(
+    () => selectAnnouncementsView(allRows, sort, filters, page, MANAGE_ANNOUNCEMENTS_PAGE_SIZE),
+    [allRows, sort, filters, page],
+  );
+  const authorOptions: SelectOption[] = useMemo(
+    () =>
+      (members.data?.members ?? [])
+        .filter((member) => member.userId && member.status !== 'Invited')
+        .map((member) => ({
+          value: member.userId as string,
+          label: member.displayName ?? member.email,
+        })),
+    [members.data],
+  );
+
+  const busy = create.isPending || update.isPending;
   const closeEditor = () => setEditor(null);
 
-  const submitEditor = (value: { title: string; body: string; audience: AnnouncementPatchRequest['audience']; pinned: boolean; expiresOn?: string }) => {
-    const expiry = value.expiresOn ? { expiresOn: value.expiresOn } : {};
+  const onSortChange = (next: SortState | undefined) => {
+    setSort(next);
+    setPage(1);
+  };
+  const onFilterChange = (value: FilterValue) => {
+    setFilters(value.contains?.trim() || value.values?.length ? { title: value } : NO_FILTERS);
+    setPage(1);
+  };
+  const clearFilters = () => {
+    setFilters(NO_FILTERS);
+    setPage(1);
+  };
+
+  const submitEditor = (value: EditorValue) => {
+    const optional = {
+      status: value.status,
+      autoArchive: value.autoArchive,
+      ...(value.author ? { author: value.author } : {}),
+      ...(value.scheduledPublishAt ? { scheduledPublishAt: value.scheduledPublishAt } : {}),
+    };
     if (editor?.mode === 'edit') {
+      const audience = editingDetail.data?.audience ?? EVERYONE_AUDIENCE;
       update.mutate(
-        { id: editor.id, request: { title: value.title, body: value.body, audience: value.audience, pinned: value.pinned, ...expiry } },
+        {
+          id: editor.id,
+          request: {
+            title: value.title,
+            body: value.body,
+            audience,
+            pinned: value.pinned,
+            ...optional,
+          },
+        },
         { onSuccess: closeEditor },
       );
     } else {
       create.mutate(
-        { title: value.title, body: value.body, audience: value.audience, pinned: value.pinned, ...expiry },
+        {
+          title: value.title,
+          body: value.body,
+          audience: EVERYONE_AUDIENCE,
+          pinned: value.pinned,
+          ...optional,
+        },
         { onSuccess: closeEditor },
       );
     }
   };
 
   if (isMeLoading && !me) {
-    return <p className="caption" role="status">Loading your workspaces…</p>;
+    return (
+      <p className="caption" role="status">
+        Loading your workspaces…
+      </p>
+    );
   }
   if (isMeError && !me) {
-    return <p className="mws-alert mws-alert--error" role="alert">We couldn’t load your access. Try again in a moment.</p>;
+    return (
+      <p className="mws-alert mws-alert--error" role="alert">
+        We couldn’t load your access. Try again in a moment.
+      </p>
+    );
   }
   if (adminMemberships.length === 0 || workspaceId === null) {
     return (
       <section className="mws-empty mws-empty--zero" aria-labelledby="ann-no-access">
-        <h1 id="ann-no-access" className="h2">Manage announcements</h1>
-        <p className="body">You need to be a workspace admin to post announcements. Ask an admin for access.</p>
+        <h1 id="ann-no-access" className="h2">
+          Manage announcements
+        </h1>
+        <p className="body">
+          You need to be a workspace admin to post announcements. Ask an admin for access.
+        </p>
       </section>
     );
   }
 
-  const items = list.data?.items ?? [];
   const mutationError = create.isError
     ? problemMessage(create.error)
     : update.isError
@@ -89,7 +163,9 @@ export function ManageAnnouncementsPage() {
       <header className="ann-page__header">
         <div>
           <h1 className="h2">Manage announcements</h1>
-          <p className="body">Post notices to your workspace. Published announcements appear in everyone’s bell.</p>
+          <p className="body">
+            Post notices to your workspace. Active announcements appear in everyone’s bell.
+          </p>
         </div>
         <Button onClick={() => setEditor({ mode: 'create' })} disabled={busy}>
           New announcement
@@ -114,40 +190,66 @@ export function ManageAnnouncementsPage() {
         </label>
       )}
 
-      {list.isLoading && <p className="caption" role="status">Loading announcements…</p>}
-      {list.isError && (
-        <p className="mws-alert mws-alert--error" role="alert">We couldn’t load announcements. Try again in a moment.</p>
+      {list.isLoading && (
+        <p className="caption" role="status">
+          Loading announcements…
+        </p>
       )}
-      {(publish.isError || retire.isError) && (
-        <p className="mws-alert mws-alert--error" role="alert">{problemMessage(publish.error ?? retire.error)}</p>
+      {list.isError && (
+        <p className="mws-alert mws-alert--error" role="alert">
+          We couldn’t load announcements. Try again in a moment.
+        </p>
       )}
 
-      {list.data && items.length === 0 && (
+      {list.data && allRows.length === 0 && (
         <section className="mws-empty mws-empty--zero" aria-labelledby="ann-empty">
-          <h2 id="ann-empty" className="h3">No announcements yet</h2>
+          <h2 id="ann-empty" className="h3">
+            No announcements yet
+          </h2>
           <p className="body">Create your first announcement to share news with your workspace.</p>
-          <Button onClick={() => setEditor({ mode: 'create' })}>Create your first announcement</Button>
+          <Button onClick={() => setEditor({ mode: 'create' })}>
+            Create your first announcement
+          </Button>
         </section>
       )}
 
-      {items.length > 0 && (
-        <ul className="ann-list">
-          {items.map((row) => (
-            <ManageAnnouncementRow
-              key={row.id}
-              row={row}
-              busy={busy}
-              onEdit={(id) => setEditor({ mode: 'edit', id })}
-              onPublish={(id) => publish.mutate(id)}
-              onRetire={(id) => retire.mutate(id)}
-            />
-          ))}
-        </ul>
+      {list.data && allRows.length > 0 && view.total === 0 && (
+        <div className="ann-no-matches">
+          <p className="ann-no-matches__title">No announcements match your filter</p>
+          <Button variant="secondary" compact onClick={clearFilters}>
+            Clear filter
+          </Button>
+        </div>
+      )}
+
+      {list.data && view.total > 0 && (
+        <>
+          <AnnouncementsManageTable
+            rows={view.rows}
+            sort={sort}
+            onSortChange={onSortChange}
+            filters={filters}
+            onFilterChange={onFilterChange}
+            onOpen={(row) => setEditor({ mode: 'edit', id: row.id })}
+          />
+          <TableFooter
+            page={Math.min(page, view.totalPages)}
+            totalPages={view.totalPages}
+            total={view.total}
+            start={view.start}
+            end={view.end}
+            noun="announcements"
+            onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
+            onNext={() => setPage((prev) => Math.min(view.totalPages, prev + 1))}
+          />
+        </>
       )}
 
       {editor?.mode === 'create' && (
         <AnnouncementEditor
           mode="create"
+          authorOptions={authorOptions}
+          defaultAuthor={me?.user.id}
           submitting={create.isPending}
           errorMessage={mutationError}
           onSubmit={submitEditor}
@@ -159,6 +261,8 @@ export function ManageAnnouncementsPage() {
           key={editor.id}
           mode="edit"
           initial={editingDetail.data}
+          authorOptions={authorOptions}
+          defaultAuthor={me?.user.id}
           submitting={update.isPending}
           errorMessage={mutationError}
           onSubmit={submitEditor}

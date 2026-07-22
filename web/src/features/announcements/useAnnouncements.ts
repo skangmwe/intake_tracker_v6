@@ -21,17 +21,18 @@ import {
   retireAnnouncement,
   updateAnnouncement,
 } from './api';
-import { ANNOUNCEMENTS_PAGE_SIZE } from './constants';
+import { ANNOUNCEMENTS_PAGE_SIZE, MANAGE_ANNOUNCEMENTS_FETCH_SIZE } from './constants';
 
 export const announcementsFeedKey = (page: number) => ['announcements', 'feed', page] as const;
 export const announcementKey = (id: string) => ['announcements', 'detail', id] as const;
-export const managedAnnouncementsKey = (workspaceId: WorkspaceId, page: number) =>
-  ['announcements', 'manage', workspaceId, page] as const;
+export const managedAnnouncementsKey = (workspaceId: WorkspaceId) =>
+  ['announcements', 'manage', workspaceId] as const;
 
 export function useAnnouncementsFeed(page: number) {
   return useQuery<PaginatedResponse<AnnouncementListRow>>({
     queryKey: announcementsFeedKey(page),
-    queryFn: ({ signal }) => queryAnnouncements({ page, pageSize: ANNOUNCEMENTS_PAGE_SIZE }, signal),
+    queryFn: ({ signal }) =>
+      queryAnnouncements({ page, pageSize: ANNOUNCEMENTS_PAGE_SIZE }, signal),
   });
 }
 
@@ -43,10 +44,19 @@ export function useAnnouncement(id: string | undefined) {
   });
 }
 
-export function useManagedAnnouncements(workspaceId: WorkspaceId | undefined, page: number) {
+/**
+ * The workspace's full announcement list (S23). Fetched in one large page — the manage table sorts,
+ * filters, and paginates client-side (like the Objects & Fields tabs).
+ */
+export function useManagedAnnouncements(workspaceId: WorkspaceId | undefined) {
   return useQuery<PaginatedResponse<AnnouncementListRow>>({
-    queryKey: managedAnnouncementsKey(workspaceId ?? ('' as WorkspaceId), page),
-    queryFn: ({ signal }) => queryManagedAnnouncements(workspaceId as WorkspaceId, { page, pageSize: ANNOUNCEMENTS_PAGE_SIZE }, signal),
+    queryKey: managedAnnouncementsKey(workspaceId ?? ('' as WorkspaceId)),
+    queryFn: ({ signal }) =>
+      queryManagedAnnouncements(
+        workspaceId as WorkspaceId,
+        { page: 1, pageSize: MANAGE_ANNOUNCEMENTS_FETCH_SIZE },
+        signal,
+      ),
     enabled: Boolean(workspaceId),
   });
 }
@@ -92,6 +102,9 @@ export function useRetireAnnouncement(workspaceId: WorkspaceId) {
   });
 }
 
-function invalidateManage(queryClient: ReturnType<typeof useQueryClient>, workspaceId: WorkspaceId) {
+function invalidateManage(
+  queryClient: ReturnType<typeof useQueryClient>,
+  workspaceId: WorkspaceId,
+) {
   return queryClient.invalidateQueries({ queryKey: ['announcements', 'manage', workspaceId] });
 }

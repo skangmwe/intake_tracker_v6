@@ -1,159 +1,198 @@
-// Tests for AnnouncementEditor — validation, audience-kind switching, the pin toggle, edit-mode
-// prefill, and the error alert. jest-axe on the default + role-scoped + error states (web-testing.md,
-// accessibility.md).
+// Tests for AnnouncementEditor (S23), reconciled to the prototype. Covers the field set (Title, Body,
+// Posted by, Status, Auto-archive, Pin), the Scheduled → date-time reveal, submit validation (required
+// title/body; a Scheduled announcement needs a future date), the create vs edit labels, the auto-archive
+// helper copy, and axe on the default / scheduled / error states.
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
 import type { AnnouncementDto, UserId, WorkspaceId } from '@shared/types';
 
+import type { SelectOption } from '@/shared/components/Form';
+
 import { AnnouncementEditor } from './AnnouncementEditor';
 
 expect.extend(toHaveNoViolations);
 
-const EDIT_INITIAL: AnnouncementDto = {
-  id: 'a1' as unknown as AnnouncementDto['id'],
-  workspaceId: 'w1' as WorkspaceId,
-  title: 'Existing notice',
+const AUTHOR_OPTIONS: SelectOption[] = [
+  { value: 'u1', label: 'Priya Raman' },
+  { value: 'u2', label: 'S. Boyd' },
+];
+const DEFAULT_AUTHOR = 'u1' as UserId;
+
+const INITIAL: AnnouncementDto = {
+  id: 'a1' as AnnouncementDto['id'],
+  workspaceId: 'ws-1' as WorkspaceId,
+  title: 'Coverage news',
   body: 'Existing body',
-  audience: { kind: 'role-scoped', roleLabels: ['Manager'] },
+  audience: { kind: 'everyone' },
   pinned: true,
-  status: 'Draft',
-  author: 'u1' as UserId,
+  status: 'Active',
+  author: 'u2' as UserId,
   createdAt: '2026-07-05T10:00:00Z',
   updatedAt: '2026-07-05T10:00:00Z',
+  publishedAt: '2026-07-05T10:00:00Z',
+  autoArchive: true,
 };
 
 function renderEditor(overrides: Partial<Parameters<typeof AnnouncementEditor>[0]> = {}) {
   const onSubmit = jest.fn();
   const onClose = jest.fn();
   const utils = render(
-    <AnnouncementEditor mode="create" submitting={false} onSubmit={onSubmit} onClose={onClose} {...overrides} />,
+    <AnnouncementEditor
+      mode="create"
+      authorOptions={AUTHOR_OPTIONS}
+      defaultAuthor={DEFAULT_AUTHOR}
+      submitting={false}
+      onSubmit={onSubmit}
+      onClose={onClose}
+      {...overrides}
+    />,
   );
   return { onSubmit, onClose, ...utils };
 }
 
-it('AnnouncementEditor — empty title and body — blocks submit with field errors', async () => {
-  // Arrange
-  const user = userEvent.setup();
-  const { onSubmit } = renderEditor();
+describe('AnnouncementEditor', () => {
+  it('AnnouncementEditor — create — renders the prototype field set with an Add action', () => {
+    // Arrange / Act
+    renderEditor();
 
-  // Act
-  await user.click(screen.getByRole('button', { name: 'Save draft' }));
+    // Assert
+    expect(screen.getByLabelText('Title')).toBeInTheDocument();
+    expect(screen.getByLabelText('Body')).toBeInTheDocument();
+    expect(screen.getByLabelText('Posted by')).toHaveValue('u1');
+    expect(screen.getByLabelText('Status')).toHaveValue('Active');
+    expect(screen.getByLabelText('Auto-archive after 30 days')).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
+    // Active hides the publish date-time field.
+    expect(screen.queryByLabelText('Publish date & time')).not.toBeInTheDocument();
+  });
 
-  // Assert
-  expect(onSubmit).not.toHaveBeenCalled();
-  expect(screen.getByText('Add a title so people know what this is about.')).toBeInTheDocument();
-  expect(screen.getByText('Add the announcement text.')).toBeInTheDocument();
-});
+  it('AnnouncementEditor — auto-archive helper reflects the toggle', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    renderEditor();
 
-it('AnnouncementEditor — valid everyone audience — submits the built value', async () => {
-  // Arrange
-  const user = userEvent.setup();
-  const { onSubmit } = renderEditor();
+    // Assert — on by default
+    expect(screen.getByText(/Automatically moves to Archived on/)).toBeInTheDocument();
 
-  // Act
-  await user.type(screen.getByLabelText('Title'), 'Coverage news');
-  await user.type(screen.getByLabelText('Body'), 'The details');
-  await user.click(screen.getByRole('button', { name: 'Save draft' }));
+    // Act — turn it off
+    await user.click(screen.getByLabelText('Auto-archive after 30 days'));
 
-  // Assert
-  expect(onSubmit).toHaveBeenCalledWith(
-    expect.objectContaining({ title: 'Coverage news', body: 'The details', audience: { kind: 'everyone' }, pinned: false }),
-  );
-});
+    // Assert
+    expect(screen.getByText('Stays visible until archived manually.')).toBeInTheDocument();
+  });
 
-it('AnnouncementEditor — role-scoped without roles — shows an audience error', async () => {
-  // Arrange
-  const user = userEvent.setup();
-  const { onSubmit } = renderEditor();
+  it('AnnouncementEditor — selecting Scheduled reveals the publish date-time field', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    renderEditor();
 
-  // Act
-  await user.type(screen.getByLabelText('Title'), 'For managers');
-  await user.type(screen.getByLabelText('Body'), 'Body');
-  await user.selectOptions(screen.getByLabelText('Audience'), 'role-scoped');
-  await user.click(screen.getByRole('button', { name: 'Save draft' }));
+    // Act
+    await user.selectOptions(screen.getByLabelText('Status'), 'Scheduled');
 
-  // Assert — the Roles field appeared and the audience error blocks submit.
-  expect(screen.getByLabelText('Roles')).toBeInTheDocument();
-  expect(screen.getByText('List at least one role for a role-scoped audience.')).toBeInTheDocument();
-  expect(onSubmit).not.toHaveBeenCalled();
-});
+    // Assert
+    expect(screen.getByLabelText('Publish date & time')).toBeInTheDocument();
+  });
 
-it('AnnouncementEditor — role-scoped with roles — submits the role list', async () => {
-  // Arrange
-  const user = userEvent.setup();
-  const { onSubmit } = renderEditor();
+  it('AnnouncementEditor — missing title and body block submit with field errors', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const { onSubmit } = renderEditor();
 
-  // Act
-  await user.type(screen.getByLabelText('Title'), 'For managers');
-  await user.type(screen.getByLabelText('Body'), 'Body');
-  await user.selectOptions(screen.getByLabelText('Audience'), 'role-scoped');
-  await user.type(screen.getByLabelText('Roles'), 'Manager, PG Lead');
-  await user.click(screen.getByRole('button', { name: 'Save draft' }));
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Add' }));
 
-  // Assert
-  expect(onSubmit).toHaveBeenCalledWith(
-    expect.objectContaining({ audience: { kind: 'role-scoped', roleLabels: ['Manager', 'PG Lead'] } }),
-  );
-});
+    // Assert
+    expect(screen.getByText('Add a title so people know what this is about.')).toBeInTheDocument();
+    expect(screen.getByText('Add the announcement text.')).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 
-it('AnnouncementEditor — pin toggle — carries into the submitted value', async () => {
-  // Arrange
-  const user = userEvent.setup();
-  const { onSubmit } = renderEditor();
+  it('AnnouncementEditor — Scheduled without a future date is rejected', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const { onSubmit } = renderEditor();
+    await user.type(screen.getByLabelText('Title'), 'Freeze');
+    await user.type(screen.getByLabelText('Body'), 'Body');
+    await user.selectOptions(screen.getByLabelText('Status'), 'Scheduled');
 
-  // Act
-  await user.type(screen.getByLabelText('Title'), 'Pinned notice');
-  await user.type(screen.getByLabelText('Body'), 'Body');
-  await user.click(screen.getByRole('checkbox'));
-  await user.click(screen.getByRole('button', { name: 'Save draft' }));
+    // Act — a past date fails the future check
+    await user.type(screen.getByLabelText('Publish date & time'), '2020-01-01T09:00');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
 
-  // Assert
-  expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ pinned: true }));
-});
+    // Assert
+    expect(screen.getByText('Pick a date and time in the future.')).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 
-it('AnnouncementEditor — edit mode — prefills from the initial announcement', () => {
-  // Arrange + Act
-  renderEditor({ mode: 'edit', initial: EDIT_INITIAL });
+  it('AnnouncementEditor — valid create emits the editor value', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const { onSubmit } = renderEditor();
 
-  // Assert
-  expect(screen.getByLabelText('Title')).toHaveValue('Existing notice');
-  expect(screen.getByLabelText('Roles')).toHaveValue('Manager');
-  expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument();
-});
+    // Act
+    await user.type(screen.getByLabelText('Title'), 'Fresh notice');
+    await user.type(screen.getByLabelText('Body'), 'Body text');
+    await user.selectOptions(screen.getByLabelText('Posted by'), 'u2');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
 
-it('AnnouncementEditor — cancel — calls onClose', async () => {
-  // Arrange
-  const user = userEvent.setup();
-  const { onClose } = renderEditor();
+    // Assert
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Fresh notice',
+        body: 'Body text',
+        author: 'u2',
+        status: 'Active',
+        autoArchive: true,
+        pinned: false,
+      }),
+    );
+  });
 
-  // Act
-  await user.click(screen.getByRole('button', { name: 'Cancel' }));
+  it('AnnouncementEditor — edit — prefills from the DTO and labels the action Save changes', () => {
+    // Arrange / Act
+    renderEditor({ mode: 'edit', initial: INITIAL });
 
-  // Assert
-  expect(onClose).toHaveBeenCalledTimes(1);
-});
+    // Assert
+    expect(screen.getByLabelText('Title')).toHaveValue('Coverage news');
+    expect(screen.getByLabelText('Posted by')).toHaveValue('u2');
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Pin to the top of Home/ })).toBeChecked();
+  });
 
-it('AnnouncementEditor — error message — renders an alert', () => {
-  // Arrange + Act
-  renderEditor({ errorMessage: 'A retired announcement cannot be published.' });
+  it('AnnouncementEditor — surfaces the API error message', () => {
+    // Arrange / Act
+    renderEditor({ errorMessage: 'That poster is not a member of this workspace.' });
 
-  // Assert
-  expect(screen.getByRole('alert')).toHaveTextContent('A retired announcement cannot be published.');
-});
+    // Assert
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'That poster is not a member of this workspace.',
+    );
+  });
 
-it('AnnouncementEditor — no axe violations (default, role-scoped, error)', async () => {
-  // Arrange
-  const user = userEvent.setup();
-  const { container, rerender } = renderEditor({ errorMessage: 'Something went wrong.' });
+  it('AnnouncementEditor — no axe violations across default, scheduled, and error states', async () => {
+    // Arrange / Act — default
+    const base = renderEditor();
+    // Assert
+    expect(await axe(base.container)).toHaveNoViolations();
+    base.unmount();
 
-  // Assert — error state
-  expect(await axe(container)).toHaveNoViolations();
+    // Act — scheduled (date-time revealed)
+    const user = userEvent.setup();
+    const scheduled = renderEditor();
+    await user.selectOptions(screen.getByLabelText('Status'), 'Scheduled');
+    // Assert
+    expect(await axe(scheduled.container)).toHaveNoViolations();
+    scheduled.unmount();
 
-  // Act + Assert — role-scoped state
-  rerender(<AnnouncementEditor mode="create" submitting={false} onSubmit={jest.fn()} onClose={jest.fn()} />);
-  await user.selectOptions(screen.getByLabelText('Audience'), 'role-scoped');
-  expect(await axe(container)).toHaveNoViolations();
+    // Act — error state
+    const errored = renderEditor({
+      errorMessage: 'Something went wrong on our end. Try again in a moment.',
+    });
+    // Assert
+    expect(within(errored.baseElement).getByRole('alert')).toBeInTheDocument();
+    expect(await axe(errored.container)).toHaveNoViolations();
+  });
 });
