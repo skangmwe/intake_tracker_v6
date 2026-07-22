@@ -36,7 +36,6 @@ import {
   CrossingMapPage,
   FirmWideAuditPage,
   PlatformLayout,
-  RoleLabelsPage,
   WorkspaceProvisioningPage,
 } from '@/features/platform-admin';
 import { UsersAccessPage } from '@/features/users';
@@ -103,7 +102,6 @@ export function App() {
                 <Route path="fields" element={<PlatformFieldsPage />} />
                 <Route path="crossing-map" element={<CrossingMapPage />} />
                 <Route path="access" element={<AccessPage />} />
-                <Route path="role-labels" element={<RoleLabelsPage />} />
                 <Route path="workspaces" element={<WorkspaceProvisioningPage />} />
                 <Route path="audit" element={<FirmWideAuditPage />} />
               </Route>

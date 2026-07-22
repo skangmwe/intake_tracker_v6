@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-// End-to-end for slice 19 (Platform admin — S35 Crossing map · S36 Access · S37 Role labels · S39
-// Firm-wide audit). Runs in dev mode (the SSO bypass); the API is mocked at the network boundary so
+// End-to-end for slice 19 (Platform admin — S35 Crossing map · S36 Access · S39 Firm-wide audit).
+// Runs in dev mode (the SSO bypass); the API is mocked at the network boundary so
 // the flows are deterministic without a seeded database. The signed-in user holds the Platform-admin
 // grant, so the Platform nav section renders and each surface is reachable.
 
@@ -42,8 +42,6 @@ const CROSSING_MAP = [
     targetFieldType: 'Number',
   },
 ];
-
-const ROLE_LABELS = [{ roleLabelId: '11111111-0000-4000-8000-000000000001', label: 'InfoSec', sortOrder: 0 }];
 
 const GRANTS = {
   grants: [
@@ -89,16 +87,6 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/v1/platform/crossing-map', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CROSSING_MAP) }),
   );
-  await page.route('**/api/v1/platform/role-labels', (route) => {
-    if (route.request().method() === 'POST') {
-      return route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({ roleLabelId: '11111111-0000-4000-8000-000000000009', label: 'Records Manager', sortOrder: 1 }),
-      });
-    }
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ROLE_LABELS) });
-  });
   await page.route('**/api/v1/platform/access', (route) => {
     if (route.request().method() === 'POST') {
       return route.fulfill({ status: 204, body: '' });
@@ -118,18 +106,6 @@ test('a platform admin reads the crossing map', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Crossing map' })).toBeVisible();
   await expect(page.getByText(/read-only in this release/i)).toBeVisible();
   await expect(page.getByRole('table', { name: /crossing map/i })).toBeVisible();
-});
-
-test('a platform admin manages the role-label catalog', async ({ page }) => {
-  await page.getByRole('link', { name: 'Role labels' }).click();
-  await expect(page).toHaveURL(/\/platform\/role-labels$/);
-  await expect(page.getByText('InfoSec')).toBeVisible();
-
-  const addForm = page.getByRole('form', { name: 'Add a role label' });
-  await addForm.getByRole('textbox').fill('Records Manager');
-  await addForm.getByRole('button', { name: 'Add role label' }).click();
-  // The list re-fetches after the add; the seeded list still renders (mock returns the same set).
-  await expect(page.getByText('InfoSec')).toBeVisible();
 });
 
 test('a platform admin reads the privileged-grants directory', async ({ page }) => {

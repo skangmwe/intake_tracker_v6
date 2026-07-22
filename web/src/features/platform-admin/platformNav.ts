@@ -32,11 +32,6 @@ export const PLATFORM_NAV: PlatformNavEntry[] = [
     lead: 'Who holds firm-wide Platform-admin access and which workspaces have admins.',
   },
   {
-    to: '/platform/role-labels',
-    label: 'Role labels',
-    lead: 'The catalog of gate role labels workspace admins pick from when configuring approver slots.',
-  },
-  {
     to: '/platform/workspaces',
     label: 'Workspaces',
     title: 'Workspace provisioning',
