@@ -21,6 +21,49 @@
   min-width: 0;
 }
 
+/* Boxed-rows treatment for the Manage announcements table (S23). Each announcement reads as its
+   own bordered card with a gap between rows instead of the shared grid's hairline row rules —
+   scoped under .ann-boxed so no other TableShell (Requests, Fields, …) is affected. Tokens only. */
+
+/* Pass-through slot: reproduce the flex sizing the .ast-grid had as a direct .ann-page child. */
+.ann-boxed {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Drop the outer frame + fill so each row-card sits on the page background and reads as separate. */
+.ann-boxed .ast-grid {
+  border: none;
+  background: transparent;
+}
+
+/* Header keeps its tint + bottom rule to anchor the column labels; transparent 1px side borders
+   match the borders the rows carry so the column tracks stay aligned with the header. */
+.ann-boxed .ast-grid__head {
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+}
+
+/* Each row → a card: full border, 2px radius, surface fill, and a gap to the next row. The full
+   border overrides the shared row's border-bottom-only rule (2-class scope wins on specificity). */
+.ann-boxed .ast-grid__row {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  margin-bottom: var(--space-3);
+}
+
+.ann-boxed .ast-grid__row:first-child {
+  margin-top: var(--space-3);
+}
+
+.ann-boxed .ast-grid__row:last-child {
+  margin-bottom: 0;
+}
+
 /* Manage table (S23) — cells composed on the shared TableShell grid. */
 .ann-table__title {
   display: inline-flex;
@@ -46,6 +89,68 @@
 
 .ann-table__muted {
   color: var(--text-secondary);
+}
+
+/* Reader announcements list (S22) — each notice is its own bordered card so announcements read as
+   separate items instead of blending into one stacked block. Composes the shared card defaults
+   (bg-surface, 1px border-light, 2px radius, space-5 padding). Tokens only. */
+.ann-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ann-row {
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.ann-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ann-row__title-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Card title in Georgia per the card-title convention (data-visualization / navigation type rules). */
+.ann-row__title {
+  font-family: var(--font-mix);
+  font-size: 18px;
+  line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.ann-row__pin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.ann-row__snippet {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 /* Filtered-to-zero (bordered surface, never a pale fill — loading-empty-and-error-states.md). */
