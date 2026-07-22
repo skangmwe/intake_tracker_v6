@@ -10,14 +10,69 @@
 // below) and clamped to the viewport. Keyboard: Up/Down + Home/End move focus, Enter/Space activate,
 // Escape closes.
 
-import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
-import { DotsThreeVertical } from '@phosphor-icons/react';
+import {
+  DotsThreeVertical,
+  PencilSimple,
+  Pause,
+  Play,
+  Trash,
+  XCircle,
+} from '@phosphor-icons/react';
 
 import type { MemberStatus } from '@shared/types';
 
-const MENU_WIDTH = 220;
+const MENU_WIDTH = 288;
 const VIEWPORT_MARGIN = 8;
+const ICON_SIZE = 16;
+
+// A single row-action: a leading Phosphor icon, the bolded action label, and a one-line
+// description below it (announced to screen readers via aria-describedby, so the accessible
+// name stays the bare action). `danger` styles destructive actions in the error colour at rest.
+function MenuItem({
+  icon,
+  label,
+  description,
+  danger = false,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  description: string;
+  danger?: boolean;
+  onClick: () => void;
+}) {
+  const descriptionId = useId();
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      className={`ast-menu__item${danger ? ' users-access__menu-item--danger' : ''}`}
+      aria-label={label}
+      aria-describedby={descriptionId}
+      onClick={onClick}
+    >
+      <span className="users-access__menu-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="users-access__menu-body">
+        <span className="users-access__menu-label">{label}</span>
+        <span id={descriptionId} className="users-access__menu-desc">
+          {description}
+        </span>
+      </span>
+    </button>
+  );
+}
 
 interface RowActionsMenuProps {
   /** Person the menu acts on — used to name the trigger and the menu accessibly. */
@@ -158,54 +213,46 @@ export function RowActionsMenu({
           >
             {status !== 'Invited' && (
               <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="ast-menu__item"
+                <MenuItem
+                  icon={<PencilSimple size={ICON_SIZE} weight="regular" />}
+                  label="Edit details"
+                  description="Change their access level."
                   onClick={() => runAction(onEditDetails)}
-                >
-                  Edit details
-                </button>
+                />
                 {status === 'Active' ? (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="ast-menu__item"
+                  <MenuItem
+                    icon={<Pause size={ICON_SIZE} weight="regular" />}
+                    label="Suspend member"
+                    description="Block access for now; they stay listed."
                     onClick={() => runAction(onSuspend)}
-                  >
-                    Suspend member
-                  </button>
+                  />
                 ) : (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="ast-menu__item"
+                  <MenuItem
+                    icon={<Play size={ICON_SIZE} weight="regular" />}
+                    label="Reactivate"
+                    description="Restore a suspended member's access."
                     onClick={() => runAction(onReactivate)}
-                  >
-                    Reactivate
-                  </button>
+                  />
                 )}
                 <span className="users-access__menu-sep" role="separator" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="ast-menu__item"
+                <MenuItem
+                  icon={<Trash size={ICON_SIZE} weight="regular" />}
+                  label="Remove from workspace"
+                  description="Take them off the roster; re-add to restore."
+                  danger
                   onClick={() => runAction(onRemove)}
-                >
-                  Remove from workspace
-                </button>
+                />
               </>
             )}
 
             {status === 'Invited' && (
-              <button
-                type="button"
-                role="menuitem"
-                className="ast-menu__item"
+              <MenuItem
+                icon={<XCircle size={ICON_SIZE} weight="regular" />}
+                label="Cancel invitation"
+                description="Withdraw this pending invite."
+                danger
                 onClick={() => runAction(onCancelInvitation)}
-              >
-                Cancel invitation
-              </button>
+              />
             )}
           </div>,
           document.body,
