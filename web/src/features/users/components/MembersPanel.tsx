@@ -128,21 +128,13 @@ export function MembersPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
   return (
     <div className="users-access__panel">
       <div className="users-access__toolbar">
-        <Button
-          onClick={() => setAddOpen((open) => !open)}
-          aria-expanded={addOpen}
-          aria-controls="users-access-add"
-        >
+        <Button onClick={() => setAddOpen(true)} aria-haspopup="dialog">
           <Plus size={16} weight="regular" aria-hidden />
           Add member
         </Button>
       </div>
 
-      {addOpen && (
-        <div id="users-access-add">
-          <AddMemberForm workspaceId={workspaceId} onClose={() => setAddOpen(false)} />
-        </div>
-      )}
+      {addOpen && <AddMemberForm workspaceId={workspaceId} onClose={() => setAddOpen(false)} />}
 
       {actionError != null && (
         <p className="mws-alert mws-alert--error users-access__level-error" role="alert">
