@@ -93,4 +93,48 @@ public sealed class CsvExportWriterTests
         Assert.Equal("customField", CsvExportWriter.LabelFor("customField"));
         Assert.Equal("Assigned Analyst", CsvExportWriter.LabelFor("analyst"));
     }
+
+    // ─── WriteDataset (object-export generic writer) ───────────────────────────
+
+    [Fact]
+    public void WriteDataset_RendersSpecLabelsAndLooksUpByKey()
+    {
+        // Arrange
+        var columns = new IoFieldSpec[]
+        {
+            new("id", "Record ID", AlwaysIncluded: true),
+            new("name", "Name"),
+        };
+        var rows = new IReadOnlyDictionary<string, object?>[]
+        {
+            new Dictionary<string, object?> { ["id"] = "AIS-00000001", ["name"] = "Helper" },
+        };
+
+        // Act
+        var csv = CsvExportWriter.WriteDataset(columns, rows);
+
+        // Assert
+        var lines = csv.Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
+        Assert.Equal("Record ID,Name", lines[0]);
+        Assert.Equal("AIS-00000001,Helper", lines[1]);
+    }
+
+    [Fact]
+    public void WriteDataset_EscapesAndNeutralizesAndFillsMissingKeys()
+    {
+        // Arrange — a value with a comma (escaped), a formula trigger (neutralized), a missing key (empty).
+        var columns = new IoFieldSpec[] { new("name", "Name"), new("note", "Note") };
+        var rows = new IReadOnlyDictionary<string, object?>[]
+        {
+            new Dictionary<string, object?> { ["name"] = "=1+2,3" },
+        };
+
+        // Act
+        var csv = CsvExportWriter.WriteDataset(columns, rows);
+
+        // Assert — leading '=' neutralized with a quote prefix, comma forces RFC-4180 quoting, note empty.
+        var lines = csv.Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
+        Assert.Equal("Name,Note", lines[0]);
+        Assert.Equal("\"'=1+2,3\",", lines[1]);
+    }
 }

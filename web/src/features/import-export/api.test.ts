@@ -6,7 +6,7 @@ import type { SavedViewId, WorkspaceId } from '@shared/types';
 
 import { apiFetch, apiFetchBlobPost } from '@/shared/http/apiClient';
 
-import { exportView, fetchImportStatus, startImport } from './api';
+import { exportObject, exportView, fetchImportStatus, fetchIoObjects, startImport } from './api';
 
 jest.mock('@/shared/http/apiClient');
 const mockedFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
@@ -57,6 +57,45 @@ describe('import-export api', () => {
     expect(mockedFetch).toHaveBeenCalledWith('/v1/imports/imp-1', {});
   });
 
+  it('startImport — includes objectType and serialized mapping when provided', async () => {
+    // Arrange
+    mockedFetch.mockResolvedValue({ importId: 'x', status: 'Processing' } as never);
+    const file = new File(['Name\nAlpha'], 'import.csv', { type: 'text/csv' });
+
+    // Act
+    await startImport(WORKSPACE, file, 'Request', [{ columnIndex: 0, fieldKey: 'name' }]);
+
+    // Assert
+    const body = (mockedFetch.mock.calls[0]![1] as { body: FormData }).body;
+    expect(body.get('objectType')).toBe('Request');
+    expect(body.get('mapping')).toBe('[{"columnIndex":0,"fieldKey":"name"}]');
+  });
+
+  it('startImport — omits mapping when the array is empty', async () => {
+    // Arrange
+    mockedFetch.mockResolvedValue({ importId: 'x', status: 'Processing' } as never);
+    const file = new File(['Name\nAlpha'], 'import.csv', { type: 'text/csv' });
+
+    // Act
+    await startImport(WORKSPACE, file, 'Request', []);
+
+    // Assert
+    const body = (mockedFetch.mock.calls[0]![1] as { body: FormData }).body;
+    expect(body.get('objectType')).toBe('Request');
+    expect(body.get('mapping')).toBeNull();
+  });
+
+  it('fetchIoObjects — GETs the workspace io-object catalog', async () => {
+    // Arrange
+    mockedFetch.mockResolvedValue([] as never);
+
+    // Act
+    await fetchIoObjects(WORKSPACE);
+
+    // Assert
+    expect(mockedFetch).toHaveBeenCalledWith(`/v1/workspaces/${WORKSPACE}/io/objects`, {});
+  });
+
   it('exportView — POSTs the saved-view id and reads back a Blob', async () => {
     // Arrange
     mockedBlobPost.mockResolvedValue(new Blob(['csv']));
@@ -66,5 +105,20 @@ describe('import-export api', () => {
 
     // Assert
     expect(mockedBlobPost).toHaveBeenCalledWith('/v1/exports', { savedViewId: VIEW }, undefined);
+  });
+
+  it('exportObject — POSTs the object + field keys and reads back a Blob', async () => {
+    // Arrange
+    mockedBlobPost.mockResolvedValue(new Blob(['csv']));
+
+    // Act
+    await exportObject(WORKSPACE, { objectType: 'Request', fieldKeys: ['name'] });
+
+    // Assert
+    expect(mockedBlobPost).toHaveBeenCalledWith(
+      `/v1/workspaces/${WORKSPACE}/exports/object`,
+      { objectType: 'Request', fieldKeys: ['name'] },
+      undefined,
+    );
   });
 });

@@ -9,15 +9,28 @@ import type { ImportStatusDto, SavedViewId } from '@shared/types';
 
 import { saveBlob } from '@/shared/http/download';
 
-import { exportView, fetchImportStatus } from './api';
-import { useExportView, useImportStatus } from './useImportExport';
+import type { WorkspaceId } from '@shared/types';
+
+import { exportObject, exportView, fetchImportStatus, fetchIoObjects, startImport } from './api';
+import {
+  useExportObject,
+  useExportView,
+  useImportStatus,
+  useIoObjects,
+  useStartImport,
+} from './useImportExport';
 
 jest.mock('./api');
 jest.mock('@/shared/http/download');
 
 const mockedExport = exportView as jest.MockedFunction<typeof exportView>;
+const mockedExportObject = exportObject as jest.MockedFunction<typeof exportObject>;
 const mockedStatus = fetchImportStatus as jest.MockedFunction<typeof fetchImportStatus>;
+const mockedIoObjects = fetchIoObjects as jest.MockedFunction<typeof fetchIoObjects>;
+const mockedStart = startImport as jest.MockedFunction<typeof startImport>;
 const mockedSave = saveBlob as jest.MockedFunction<typeof saveBlob>;
+
+const WORKSPACE = '1a150000-0000-4000-8000-000000000001' as WorkspaceId;
 
 function wrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -43,6 +56,70 @@ describe('useExportView', () => {
     // Assert
     expect(mockedExport).toHaveBeenCalledWith('5a5e0000-0000-4000-8000-000000000001');
     expect(mockedSave).toHaveBeenCalledWith(blob, 'requests-export.csv');
+  });
+});
+
+describe('useIoObjects', () => {
+  it('is disabled and never fetches when the workspace is undefined', () => {
+    const { result } = renderHook(() => useIoObjects(undefined), { wrapper: wrapper() });
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(mockedIoObjects).not.toHaveBeenCalled();
+  });
+
+  it('fetches the io-object catalog for a real workspace', async () => {
+    mockedIoObjects.mockResolvedValue([
+      {
+        objectType: 'Request',
+        label: 'Requests',
+        canImport: true,
+        canExport: true,
+        importFields: [],
+        exportFields: [],
+      },
+    ]);
+    const { result } = renderHook(() => useIoObjects(WORKSPACE), { wrapper: wrapper() });
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(mockedIoObjects).toHaveBeenCalledWith(WORKSPACE, expect.anything());
+  });
+});
+
+describe('useStartImport', () => {
+  it('passes the file, object type, and mapping to startImport', async () => {
+    // Arrange
+    mockedStart.mockResolvedValue({ importId: 'imp-9' as never, status: 'Processing' });
+    const file = new File(['Name\nA'], 'import.csv', { type: 'text/csv' });
+    const { result } = renderHook(() => useStartImport(WORKSPACE), { wrapper: wrapper() });
+
+    // Act
+    await result.current.mutateAsync({
+      file,
+      objectType: 'Request',
+      mapping: [{ columnIndex: 0, fieldKey: 'name' }],
+    });
+
+    // Assert
+    expect(mockedStart).toHaveBeenCalledWith(WORKSPACE, file, 'Request', [
+      { columnIndex: 0, fieldKey: 'name' },
+    ]);
+  });
+});
+
+describe('useExportObject', () => {
+  it('exports the object and saves the CSV under an object-named file', async () => {
+    // Arrange
+    const blob = new Blob(['csv']);
+    mockedExportObject.mockResolvedValue(blob);
+    const { result } = renderHook(() => useExportObject(WORKSPACE), { wrapper: wrapper() });
+
+    // Act
+    await result.current.mutateAsync({ objectType: 'Request', fieldKeys: ['name'] });
+
+    // Assert
+    expect(mockedExportObject).toHaveBeenCalledWith(WORKSPACE, {
+      objectType: 'Request',
+      fieldKeys: ['name'],
+    });
+    expect(mockedSave).toHaveBeenCalledWith(blob, 'request-export.csv');
   });
 });
 

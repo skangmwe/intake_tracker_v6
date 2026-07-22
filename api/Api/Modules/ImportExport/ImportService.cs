@@ -29,7 +29,8 @@ public sealed record ImportStartResult(ImportStartOutcome Outcome, Guid ImportId
 public interface IImportService
 {
     Task<ImportStartResult> StartAsync(
-        Guid workspaceId, string fileName, Stream content, Guid userId, string operationId, CancellationToken cancellationToken);
+        Guid workspaceId, string fileName, Stream content, Guid userId, string operationId,
+        string objectType, string? mappingJson, CancellationToken cancellationToken);
 
     /// <summary>Status + per-row report. Null → 403 (forbidden/non-existent import — never disclosed).</summary>
     Task<ImportStatusResponse?> GetStatusAsync(Guid importId, Guid userId, CancellationToken cancellationToken);
@@ -51,7 +52,8 @@ public sealed class ImportService : IImportService
     }
 
     public async Task<ImportStartResult> StartAsync(
-        Guid workspaceId, string fileName, Stream content, Guid userId, string operationId, CancellationToken cancellationToken)
+        Guid workspaceId, string fileName, Stream content, Guid userId, string operationId,
+        string objectType, string? mappingJson, CancellationToken cancellationToken)
     {
         var importId = Guid.NewGuid();
         var blobPath = $"imports/{workspaceId:D}/{importId:D}.csv";
@@ -92,7 +94,8 @@ public sealed class ImportService : IImportService
         }
 
         await _queue.EnqueueAsync(
-            new ImportJobMessage(importId, workspaceId, userId, blobPath, fileName, operationId), cancellationToken).ConfigureAwait(false);
+            new ImportJobMessage(importId, workspaceId, userId, blobPath, fileName, operationId, objectType, mappingJson),
+            cancellationToken).ConfigureAwait(false);
 
         return new ImportStartResult(ImportStartOutcome.Success, importId);
     }

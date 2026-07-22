@@ -48,6 +48,26 @@ public static class CsvExportWriter
         return builder.ToString();
     }
 
+    /// <summary>Render an object-export dataset as CSV: the column specs' labels as the header row, then
+    /// one line per row, each cell looked up by the column's field key. Same RFC-4180 escaping and
+    /// formula-injection guard as the saved-view path — the object registry's generic writer.</summary>
+    public static string WriteDataset(
+        IReadOnlyList<IoFieldSpec> columns, IReadOnlyList<IReadOnlyDictionary<string, object?>> rows)
+    {
+        var builder = new StringBuilder();
+
+        builder.AppendLine(string.Join(',', columns.Select(column => Escape(column.Label))));
+
+        foreach (var row in rows)
+        {
+            var cells = columns.Select(column =>
+                Escape(Neutralize(Format(row.TryGetValue(column.Key, out var value) ? value : null))));
+            builder.AppendLine(string.Join(',', cells));
+        }
+
+        return builder.ToString();
+    }
+
     /// <summary>
     /// CSV formula-injection guard (OWASP): a cell beginning with a formula trigger executes when the
     /// CSV is opened in a spreadsheet. Prefix a single quote so the value renders as text. Guards

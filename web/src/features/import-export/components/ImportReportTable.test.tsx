@@ -13,12 +13,22 @@ const ROWS: ImportFlaggedRow[] = [
     rowIndex: 2,
     reasons: [
       { code: 'missing-required', message: 'A request name is required.', field: 'name' },
-      { code: 'invalid-value', message: 'Business Value must be a whole number from 1 to 5.', field: 'businessValue' },
+      {
+        code: 'invalid-value',
+        message: 'Business Value must be a whole number from 1 to 5.',
+        field: 'businessValue',
+      },
     ],
   },
   {
     rowIndex: 4,
-    reasons: [{ code: 'requestor-fallback', message: 'Requestor defaulted to the importing admin.', field: 'requestor' }],
+    reasons: [
+      {
+        code: 'requestor-fallback',
+        message: 'Requestor defaulted to the importing admin.',
+        field: 'requestor',
+      },
+    ],
   },
 ];
 

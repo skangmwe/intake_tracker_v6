@@ -75,7 +75,9 @@ describe('ExportPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Export view' }));
 
     // Assert
-    await waitFor(() => expect(screen.getByText('Your export has downloaded.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Your export has downloaded.')).toBeInTheDocument(),
+    );
     expect(mockedExport).toHaveBeenCalledWith(VIEWS[1]!.id);
     expect(mockedSave).toHaveBeenCalled();
     expect(await axe(container)).toHaveNoViolations();

@@ -65,13 +65,27 @@ if (typeof globalThis.fetch === 'undefined') {
     Promise.reject(new Error('fetch not mocked in this test'))) as unknown as typeof fetch;
 }
 
+// jsdom's Blob/File lack async text(); the CSV import wizard reads a chosen file via file.text().
+if (typeof Blob !== 'undefined' && typeof Blob.prototype.text !== 'function') {
+  Blob.prototype.text = function text(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error ?? new Error('Failed to read blob'));
+      reader.readAsText(this);
+    });
+  };
+}
+
 // jsdom's crypto lacks randomUUID; client-side id generation (web-component-architecture.md) uses it.
 if (typeof globalThis.crypto === 'undefined') {
   globalThis.crypto = {} as Crypto;
 }
 if (typeof globalThis.crypto.randomUUID !== 'function') {
   let counter = 0;
-  (globalThis.crypto as { randomUUID: () => `${string}-${string}-${string}-${string}-${string}` }).randomUUID = () => {
+  (
+    globalThis.crypto as { randomUUID: () => `${string}-${string}-${string}-${string}-${string}` }
+  ).randomUUID = () => {
     counter += 1;
     const suffix = counter.toString(16).padStart(12, '0');
     return `00000000-0000-4000-8000-${suffix}` as `${string}-${string}-${string}-${string}-${string}`;

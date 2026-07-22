@@ -75,6 +75,9 @@ public sealed class ImportRunner : IImportRunner
             }
         }
 
+        // The wizard's explicit column→field mapping, or null to fall back to header-alias auto-match.
+        var mapping = ParseMapping(message.MappingJson);
+
         var total = 0;
         var landed = 0;
         var flagged = 0;
@@ -84,7 +87,7 @@ public sealed class ImportRunner : IImportRunner
             cancellationToken.ThrowIfCancellationRequested();
             var rowIndex = index + 1;
             var (outcome, recordId, reasons) = await ProcessRowAsync(
-                message, headers, records[index], fallbackEmail, rowIndex, cancellationToken).ConfigureAwait(false);
+                message, headers, records[index], mapping, fallbackEmail, rowIndex, cancellationToken).ConfigureAwait(false);
 
             await RecordRowAsync(message, rowIndex, outcome, recordId, reasons, cancellationToken).ConfigureAwait(false);
 
@@ -105,12 +108,16 @@ public sealed class ImportRunner : IImportRunner
     }
 
     private async Task<(string Outcome, string? RecordId, IReadOnlyList<ImportReasonDto> Reasons)> ProcessRowAsync(
-        ImportJobMessage message, string[] headers, string?[] values, string fallbackEmail, int rowIndex,
+        ImportJobMessage message, string[] headers, string?[] values,
+        IReadOnlyList<ImportColumnMapping>? mapping, string fallbackEmail, int rowIndex,
         CancellationToken cancellationToken)
     {
         try
         {
-            var mapped = CsvRowMapper.Map(headers, values);
+            // Explicit wizard mapping when present; header-alias auto-match otherwise (backward-compat).
+            var mapped = mapping is not null
+                ? CsvRowMapper.MapFromMapping(mapping, values)
+                : CsvRowMapper.Map(headers, values);
             var warnings = await ResolveRequestorAsync(mapped, fallbackEmail, cancellationToken).ConfigureAwait(false);
 
             var result = await _requests
@@ -172,6 +179,26 @@ public sealed class ImportRunner : IImportRunner
         var admin = await _db.Users.AsNoTracking()
             .FirstOrDefaultAsync(user => user.UserId == userId, cancellationToken).ConfigureAwait(false);
         return admin?.Email ?? userId.ToString();
+    }
+
+    /// <summary>Parse the wizard's column→field mapping. Empty/absent/malformed JSON returns null so the
+    /// runner falls back to header-alias auto-match rather than failing the batch.</summary>
+    private static IReadOnlyList<ImportColumnMapping>? ParseMapping(string? mappingJson)
+    {
+        if (string.IsNullOrWhiteSpace(mappingJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var mapping = JsonSerializer.Deserialize<List<ImportColumnMapping>>(mappingJson, JsonOptions);
+            return mapping is { Count: > 0 } ? mapping : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private async Task RecordRowAsync(

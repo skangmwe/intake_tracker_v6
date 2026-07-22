@@ -33,6 +33,12 @@ public sealed record ExportResult(ExportOutcome Outcome, byte[]? Content = null,
 public interface IExportService
 {
     Task<ExportResult> ExportAsync(Guid savedViewId, Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Export an object's chosen columns to CSV (the S28 export wizard). Columns follow the
+    /// caller's selection (identity columns always included); rows follow the caller's entitlements.</summary>
+    Task<ExportResult> ExportObjectAsync(
+        Guid workspaceId, string? objectType, IReadOnlyList<string>? fieldKeys, Guid userId,
+        CancellationToken cancellationToken);
 }
 
 public sealed class ExportService : IExportService
@@ -43,16 +49,59 @@ public sealed class ExportService : IExportService
     private readonly ISavedViewsService _savedViews;
     private readonly IRequestsService _requests;
     private readonly IAccessGuard _accessGuard;
+    private readonly IIoObjectRegistry _registry;
     private readonly ImportExportOptions _options;
 
     public ExportService(
         ISavedViewsService savedViews, IRequestsService requests, IAccessGuard accessGuard,
-        IOptions<ImportExportOptions> options)
+        IIoObjectRegistry registry, IOptions<ImportExportOptions> options)
     {
         _savedViews = savedViews;
         _requests = requests;
         _accessGuard = accessGuard;
+        _registry = registry;
         _options = options.Value;
+    }
+
+    public async Task<ExportResult> ExportObjectAsync(
+        Guid workspaceId, string? objectType, IReadOnlyList<string>? fieldKeys, Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var ioObject = _registry.Find(objectType);
+        if (ioObject is null || !ioObject.CanExport)
+        {
+            return new ExportResult(ExportOutcome.Unsupported);
+        }
+
+        // Viewer membership IS the row-level entitlement for the workspace's records, so the export can
+        // only ever contain rows the caller may already see (BS §22.4 — export never widens access).
+        if (!await _accessGuard.HasWorkspaceLevelAsync(userId, workspaceId, WorkspaceLevel.Viewer, cancellationToken).ConfigureAwait(false))
+        {
+            return new ExportResult(ExportOutcome.Denied);
+        }
+
+        // Every requested key must be one of the object's export fields — an unknown key is a 400.
+        var requested = new HashSet<string>(fieldKeys ?? Array.Empty<string>(), StringComparer.Ordinal);
+        var exportKeys = new HashSet<string>(ioObject.ExportFields.Select(field => field.Key), StringComparer.Ordinal);
+        if (!requested.IsSubsetOf(exportKeys))
+        {
+            return new ExportResult(ExportOutcome.Unsupported);
+        }
+
+        // Identity columns are always emitted (even if unchecked); order follows the object's field list.
+        var columns = ioObject.ExportFields
+            .Where(field => field.AlwaysIncluded || requested.Contains(field.Key))
+            .ToList();
+        if (columns.Count == 0)
+        {
+            return new ExportResult(ExportOutcome.Unsupported);
+        }
+
+        var dataset = await ioObject.BuildExportAsync(workspaceId, cancellationToken).ConfigureAwait(false);
+        var csv = CsvExportWriter.WriteDataset(columns, dataset.Rows);
+
+        // Neutral filename — never encode a matter / PII into the file name (standards §7).
+        return new ExportResult(ExportOutcome.Success, EncodeWithBom(csv), $"{ioObject.ObjectType.ToLowerInvariant()}-export.csv");
     }
 
     public async Task<ExportResult> ExportAsync(Guid savedViewId, Guid userId, CancellationToken cancellationToken)
@@ -84,14 +133,19 @@ public sealed class ExportService : IExportService
         var rows = await CollectRowsAsync(view, cancellationToken).ConfigureAwait(false);
         var csv = CsvExportWriter.Write(view.Columns, rows);
 
-        // Prepend a UTF-8 BOM so spreadsheet apps read accented characters correctly.
-        var bytes = new byte[Encoding.UTF8.GetPreamble().Length + Encoding.UTF8.GetByteCount(csv)];
+        // Neutral filename — never encode a view name / matter / PII into the file name (standards §7).
+        return new ExportResult(ExportOutcome.Success, EncodeWithBom(csv), "requests-export.csv");
+    }
+
+    /// <summary>Encode CSV text as UTF-8 with a leading BOM so spreadsheet apps read accented
+    /// characters correctly.</summary>
+    private static byte[] EncodeWithBom(string csv)
+    {
         var preamble = Encoding.UTF8.GetPreamble();
+        var bytes = new byte[preamble.Length + Encoding.UTF8.GetByteCount(csv)];
         preamble.CopyTo(bytes, 0);
         Encoding.UTF8.GetBytes(csv, 0, csv.Length, bytes, preamble.Length);
-
-        // Neutral filename — never encode a view name / matter / PII into the file name (standards §7).
-        return new ExportResult(ExportOutcome.Success, bytes, "requests-export.csv");
+        return bytes;
     }
 
     private async Task<IReadOnlyList<RequestListRow>> CollectRowsAsync(
