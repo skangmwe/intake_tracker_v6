@@ -33,6 +33,12 @@
   color: var(--accent-interactive);
 }
 
+/* Read-only intro line above a reference table (e.g. the platform Relationships tab). */
+.objects-tab__intro {
+  margin-bottom: var(--space-4);
+  color: var(--text-secondary);
+}
+
 .objects-tab__no-matches {
   display: flex;
   flex-direction: column;

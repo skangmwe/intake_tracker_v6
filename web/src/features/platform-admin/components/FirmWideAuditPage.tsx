@@ -81,13 +81,23 @@ function FirmWideAuditSurface() {
           <FirmWideAuditTable rows={rows} />
           {pageCount > 1 && (
             <nav className="platform-admin__pager" aria-label="Firm-wide audit pages">
-              <Button variant="secondary" compact disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <Button
+                variant="secondary"
+                compact
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
                 Previous
               </Button>
               <span className="caption">
                 Page {page} of {pageCount}
               </span>
-              <Button variant="secondary" compact disabled={page >= pageCount} onClick={() => setPage(page + 1)}>
+              <Button
+                variant="secondary"
+                compact
+                disabled={page >= pageCount}
+                onClick={() => setPage(page + 1)}
+              >
                 Next
               </Button>
             </nav>
@@ -101,12 +111,5 @@ function FirmWideAuditSurface() {
 export function FirmWideAuditPage() {
   const { isPlatformAdmin } = usePlatformAdmin();
 
-  return (
-    <PlatformGate
-      title="Firm-wide audit"
-      lead="Every change across every workspace — field edits, gate decisions, config changes, escalations, and platform edits — newest first. Append-only and uneditable."
-    >
-      {isPlatformAdmin && <FirmWideAuditSurface />}
-    </PlatformGate>
-  );
+  return <PlatformGate>{isPlatformAdmin && <FirmWideAuditSurface />}</PlatformGate>;
 }

@@ -77,12 +77,5 @@ function RoleLabelsSurface() {
 export function RoleLabelsPage() {
   const { isPlatformAdmin } = usePlatformAdmin();
 
-  return (
-    <PlatformGate
-      title="Role labels"
-      lead="The catalog of gate role labels workspace admins pick from when configuring approver slots."
-    >
-      {isPlatformAdmin && <RoleLabelsSurface />}
-    </PlatformGate>
-  );
+  return <PlatformGate>{isPlatformAdmin && <RoleLabelsSurface />}</PlatformGate>;
 }

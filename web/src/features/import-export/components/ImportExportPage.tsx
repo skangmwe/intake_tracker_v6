@@ -35,7 +35,6 @@ export function ImportExportPage() {
   if (isLoading) {
     return (
       <div className="import-export-page">
-        <h1 className="h1 import-export-page__title">Import &amp; export</h1>
         <p className="caption" role="status">
           Loading…
         </p>
@@ -46,7 +45,6 @@ export function ImportExportPage() {
   if (isError || !workspaceId) {
     return (
       <div className="import-export-page">
-        <h1 className="h1 import-export-page__title">Import &amp; export</h1>
         <p className="mws-alert mws-alert--error" role="alert">
           This page could not be loaded. Try again in a moment.
         </p>
@@ -57,7 +55,6 @@ export function ImportExportPage() {
   if (!isAdmin) {
     return (
       <div className="import-export-page">
-        <h1 className="h1 import-export-page__title">Import &amp; export</h1>
         <p className="mws-alert mws-alert--warning" role="alert">
           Import and export are available to workspace admins. Ask a workspace admin if you need to
           run one.
@@ -68,7 +65,6 @@ export function ImportExportPage() {
 
   return (
     <div className="import-export-page">
-      <h1 className="h1 import-export-page__title">Import &amp; export</h1>
       <Tabs tabs={TABS} value={tab} onChange={setTab} label="Import and export" />
 
       {tab === 'import' && (

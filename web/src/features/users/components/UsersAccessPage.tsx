@@ -2,7 +2,8 @@
 // §4.2 / §6.8). Resolves the active workspace + admin level from the signed-in user; the whole
 // surface is WorkspaceAdmin-only (the API enforces it too — the UI gate is a courtesy, not the
 // boundary). A Members / Approver teams tab bar switches the two panels; the three non-data states
-// (loading / error / empty) are rendered explicitly (web-component-architecture.md).
+// (loading / error / empty) are rendered explicitly (web-component-architecture.md). The surface
+// title + lead render once in the shared SideNavLayout header (from the active nav item).
 
 import { useMemo, useState } from 'react';
 
@@ -20,18 +21,16 @@ export function UsersAccessPage() {
   const isAdmin = useMemo(
     () =>
       (me?.memberships ?? []).some(
-        (membership) => membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
+        (membership) =>
+          membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
       ),
     [me, workspaceId],
   );
   const [tab, setTab] = useState<UsersAccessTab>('members');
 
-  const title = <h1 className="h1 users-access__title">Users &amp; access</h1>;
-
   if (meLoading) {
     return (
       <div className="users-access">
-        {title}
         <p className="caption" role="status">
           Loading…
         </p>
@@ -42,7 +41,6 @@ export function UsersAccessPage() {
   if (meError || !workspaceId) {
     return (
       <div className="users-access">
-        {title}
         <p className="mws-alert mws-alert--error" role="alert">
           This page could not be loaded. Try again in a moment.
         </p>
@@ -53,7 +51,6 @@ export function UsersAccessPage() {
   if (!isAdmin) {
     return (
       <div className="users-access">
-        {title}
         <p className="mws-alert mws-alert--warning" role="alert">
           Users &amp; access is available to workspace admins. Ask a workspace admin if you need a
           change.
@@ -64,11 +61,6 @@ export function UsersAccessPage() {
 
   return (
     <div className="users-access">
-      {title}
-      <p className="users-access__lead">
-        Manage who can see and act in this workspace, and what each access level can do.
-      </p>
-
       <Tabs
         tabs={USERS_ACCESS_TABS}
         value={tab}

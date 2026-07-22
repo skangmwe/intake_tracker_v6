@@ -74,12 +74,5 @@ function AccessSurface() {
 export function AccessPage() {
   const { isPlatformAdmin } = usePlatformAdmin();
 
-  return (
-    <PlatformGate
-      title="Access provisioning"
-      lead="Who holds firm-wide Platform-admin access and which workspaces have admins."
-    >
-      {isPlatformAdmin && <AccessSurface />}
-    </PlatformGate>
-  );
+  return <PlatformGate>{isPlatformAdmin && <AccessSurface />}</PlatformGate>;
 }

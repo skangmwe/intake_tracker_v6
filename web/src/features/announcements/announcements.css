@@ -9,16 +9,14 @@
   min-width: 0;
 }
 
+/* Holds only the New-announcement action now (the surface title moved to the shared header) — keep
+   it aligned to the end of the row. */
 .ann-page__header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-4);
-}
-
-.ann-page__header > div {
-  min-width: 0;
 }
 
 /* Boxed-rows treatment for the Manage announcements table (S23). Each announcement reads as its

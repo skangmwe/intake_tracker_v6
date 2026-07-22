@@ -143,10 +143,7 @@ export function ManageAnnouncementsPage() {
   }
   if (adminMemberships.length === 0 || workspaceId === null) {
     return (
-      <section className="mws-empty mws-empty--zero" aria-labelledby="ann-no-access">
-        <h1 id="ann-no-access" className="h2">
-          Manage announcements
-        </h1>
+      <section className="mws-empty mws-empty--zero">
         <p className="body">
           You need to be a workspace admin to post announcements. Ask an admin for access.
         </p>
@@ -162,13 +159,9 @@ export function ManageAnnouncementsPage() {
 
   return (
     <div className="ann-page">
+      {/* The surface title + lead render in the shared SideNavLayout header; the primary action
+          (New announcement) stays here, aligned to the end of its row. */}
       <header className="ann-page__header">
-        <div>
-          <h1 className="h2">Manage announcements</h1>
-          <p className="body">
-            Post notices to your workspace. Active announcements appear in everyone’s bell.
-          </p>
-        </div>
         <Button onClick={() => setEditor({ mode: 'create' })} disabled={busy}>
           New announcement
         </Button>

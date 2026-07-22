@@ -50,10 +50,7 @@ export function FieldsAdminPage() {
 
   if (adminMemberships.length === 0 || workspaceId === null) {
     return (
-      <section className="mws-empty mws-empty--zero" aria-labelledby="no-access-heading">
-        <h1 id="no-access-heading" className="h2">
-          Fields &amp; objects
-        </h1>
+      <section className="mws-empty mws-empty--zero">
         <p className="body">
           You need to be a workspace admin to manage the field schema. Ask an admin to grant access.
         </p>
@@ -61,20 +58,10 @@ export function FieldsAdminPage() {
     );
   }
 
+  // The surface title + lead render once in the shared SideNavLayout header (from the active nav
+  // item); this page composes only its workspace picker and the tab content.
   return (
-    <section aria-labelledby="fields-heading">
-      <header className="fields-header">
-        <div>
-          <p className="eyebrow fields-eyebrow">Workspace settings</p>
-          <h1 id="fields-heading" className="h2">
-            Fields &amp; objects
-          </h1>
-          <p className="body">
-            Define the fields analysts can add to requests and tasks in this workspace.
-          </p>
-        </div>
-      </header>
-
+    <section aria-label="Fields and objects">
       {adminMemberships.length > 1 && (
         <label className="mws-field">
           <span className="caption">Workspace</span>

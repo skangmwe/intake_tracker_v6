@@ -74,7 +74,9 @@ function CrossingMapSurface() {
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a horizontally-scrollable region must be keyboard-focusable (axe scrollable-region-focusable).
         <div className="platform-table-shell" tabIndex={0} role="region" aria-label="Crossing map">
           <table className="platform-table" data-ds="table">
-            <caption className="mws-sr-only">Crossing map — PG/Dept fields mapped to AI Solutions fields</caption>
+            <caption className="mws-sr-only">
+              Crossing map — PG/Dept fields mapped to AI Solutions fields
+            </caption>
             <thead>
               <tr>
                 <th scope="col">PG / Dept field</th>
@@ -128,12 +130,5 @@ function CrossingMapSurface() {
 export function CrossingMapPage() {
   const { isPlatformAdmin } = usePlatformAdmin();
 
-  return (
-    <PlatformGate
-      title="Crossing map"
-      lead="How PG/Dept request fields map to AI Solutions fields when a request is escalated. Propose a new mapping, then confirm it to make it live."
-    >
-      {isPlatformAdmin && <CrossingMapSurface />}
-    </PlatformGate>
-  );
+  return <PlatformGate>{isPlatformAdmin && <CrossingMapSurface />}</PlatformGate>;
 }

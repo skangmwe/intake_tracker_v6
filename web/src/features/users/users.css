@@ -8,15 +8,6 @@
   min-width: 0;
 }
 
-.users-access__title {
-  margin-bottom: var(--space-2);
-}
-
-.users-access__lead {
-  color: var(--text-secondary);
-  margin-bottom: var(--space-5);
-}
-
 /* Tab panels sit below the Members / Approver teams tab strip. */
 .users-access__panel {
   margin-top: var(--space-5);
@@ -153,7 +144,9 @@
 .users-access__row-menu .ast-menu__item.users-access__menu-item--danger:hover,
 .users-access__row-menu .ast-menu__item.users-access__menu-item--danger:focus-visible,
 .users-access__row-menu .ast-menu__item.users-access__menu-item--danger .users-access__menu-icon,
-.users-access__row-menu .ast-menu__item.users-access__menu-item--danger:hover .users-access__menu-icon,
+.users-access__row-menu
+  .ast-menu__item.users-access__menu-item--danger:hover
+  .users-access__menu-icon,
 .users-access__row-menu
   .ast-menu__item.users-access__menu-item--danger:focus-visible
   .users-access__menu-icon {
@@ -461,4 +454,3 @@
   color: var(--text-secondary);
   font-size: 13px;
 }
-

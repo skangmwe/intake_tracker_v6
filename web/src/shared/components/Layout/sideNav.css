@@ -1,14 +1,44 @@
-/* Settings-style side-list layout (SideNavLayout) — a vertical surface list beside the content on
-   desktop, a horizontal scroll strip above it below 768px. Shared by the Platform and workspace
-   Admin areas. Design-system tokens only (no raw hex / off-spec radii). */
+/* Settings-style side-list layout (SideNavLayout) — a full-width title header across the top, a
+   vertical surface list beside the content on desktop (a horizontal scroll strip above it below
+   768px). Shared by the Platform and workspace Admin areas. Design-system tokens only (no raw hex /
+   off-spec radii). */
 
 .side-nav-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'header'
+    'nav'
+    'content';
   min-width: 0;
 }
 
+/* Full-width title header — one per settings area, above the nav|content grid. The title/lead come
+   from the active surface (SideNavLayout derives them from the route), so pages don't self-title. */
+.side-nav-layout__header {
+  grid-area: header;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  min-width: 0;
+}
+
+.side-nav-layout__eyebrow {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.side-nav-layout__title {
+  margin: 0;
+}
+
+.side-nav-layout__lead {
+  color: var(--text-secondary);
+  max-width: 72ch;
+  margin: var(--space-2) 0 0;
+}
+
 .side-nav-layout__content {
+  grid-area: content;
   min-width: 0;
   padding: var(--space-4);
 }
@@ -23,6 +53,7 @@
 }
 
 .side-nav {
+  grid-area: nav;
   display: flex;
   flex-direction: row;
   overflow-x: auto;
@@ -61,6 +92,13 @@
 @media (min-width: 768px) {
   .side-nav-layout {
     grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-areas:
+      'header header'
+      'nav content';
+  }
+
+  .side-nav-layout__header {
+    padding: var(--space-6) var(--space-5) var(--space-5);
   }
 
   .side-nav {

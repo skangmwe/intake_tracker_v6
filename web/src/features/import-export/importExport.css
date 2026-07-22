@@ -6,10 +6,6 @@
   max-width: min(100%, 1200px);
 }
 
-.import-export-page__title {
-  margin-bottom: var(--space-5);
-}
-
 .import-export-page__panels {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));

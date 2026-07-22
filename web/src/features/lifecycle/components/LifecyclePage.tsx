@@ -10,7 +10,12 @@ import type { UserId, WorkspaceId } from '@shared/types';
 import { useMe } from '@/features/users/useMe';
 
 import { AUTOSAVE_DEBOUNCE_MS } from '../constants';
-import { draftFromConfig, draftToRequest, lifecycleDraftReducer, newLifecycle } from '../lifecycleDraft';
+import {
+  draftFromConfig,
+  draftToRequest,
+  lifecycleDraftReducer,
+  newLifecycle,
+} from '../lifecycleDraft';
 import { problemMessage } from '../problemMessage';
 import {
   useAddApproverMember,
@@ -24,7 +29,9 @@ import { Button } from '@/shared/components/Button';
 
 export function LifecyclePage() {
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
-  const adminMemberships = (me?.memberships ?? []).filter((membership) => membership.level === 'WorkspaceAdmin');
+  const adminMemberships = (me?.memberships ?? []).filter(
+    (membership) => membership.level === 'WorkspaceAdmin',
+  );
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<WorkspaceId | null>(null);
   const workspaceId = selectedWorkspaceId ?? adminMemberships[0]?.workspaceId ?? null;
@@ -72,23 +79,33 @@ export function LifecyclePage() {
   }, [requestJson, isDirty, workspaceId]);
 
   const eligibleByRole = useMemo(
-    () => new Map((config?.approverTeams ?? []).map((team) => [team.roleLabel, team.members.length])),
+    () =>
+      new Map((config?.approverTeams ?? []).map((team) => [team.roleLabel, team.members.length])),
     [config],
   );
 
   if (isMeLoading && !me) {
-    return <p className="caption" role="status">Loading your workspaces…</p>;
+    return (
+      <p className="caption" role="status">
+        Loading your workspaces…
+      </p>
+    );
   }
 
   if (isMeError && !me) {
-    return <p className="mws-alert mws-alert--error" role="alert">We couldn’t load your access. Try again in a moment.</p>;
+    return (
+      <p className="mws-alert mws-alert--error" role="alert">
+        We couldn’t load your access. Try again in a moment.
+      </p>
+    );
   }
 
   if (adminMemberships.length === 0 || workspaceId === null) {
     return (
-      <section className="mws-empty mws-empty--zero" aria-labelledby="no-access-heading">
-        <h1 id="no-access-heading" className="h2">Lifecycle &amp; gates</h1>
-        <p className="body">You need to be a workspace admin to configure lifecycles. Ask an admin to grant access.</p>
+      <section className="mws-empty mws-empty--zero">
+        <p className="body">
+          You need to be a workspace admin to configure lifecycles. Ask an admin to grant access.
+        </p>
       </section>
     );
   }
@@ -127,15 +144,15 @@ export function LifecyclePage() {
 
   return (
     <div className="lifecycle-page">
+      {/* The surface title + lead render in the shared SideNavLayout header; the autosave indicator
+          for the lifecycle editor stays here, aligned to the end of its row. */}
       <header className="lifecycle-header">
-        <div className="lifecycle-header__title">
-          <h1 className="h2">Lifecycle &amp; gates</h1>
-          <p className="body">
-            Each request type follows a lifecycle — its own stages and approval gates. A request picks its lifecycle at
-            intake.
-          </p>
-        </div>
-        {config && <AutosaveStatus state={saveState} error={saveState === 'error' ? problemMessage(saveConfig.error) : null} />}
+        {config && (
+          <AutosaveStatus
+            state={saveState}
+            error={saveState === 'error' ? problemMessage(saveConfig.error) : null}
+          />
+        )}
       </header>
 
       {adminMemberships.length > 1 && (
@@ -159,15 +176,26 @@ export function LifecyclePage() {
         </label>
       )}
 
-      {isLoading && <p className="caption" role="status">Loading the lifecycle configuration…</p>}
+      {isLoading && (
+        <p className="caption" role="status">
+          Loading the lifecycle configuration…
+        </p>
+      )}
       {isError && (
-        <p className="mws-alert mws-alert--error" role="alert">We couldn’t load the lifecycle configuration. Try again in a moment.</p>
+        <p className="mws-alert mws-alert--error" role="alert">
+          We couldn’t load the lifecycle configuration. Try again in a moment.
+        </p>
       )}
 
       {config && draft.length === 0 && (
         <section className="mws-empty mws-empty--zero" aria-labelledby="no-lifecycle-heading">
-          <h2 id="no-lifecycle-heading" className="h3">No lifecycles yet</h2>
-          <p className="body">Create a lifecycle to define the stages and gates requests in this workspace move through.</p>
+          <h2 id="no-lifecycle-heading" className="h3">
+            No lifecycles yet
+          </h2>
+          <p className="body">
+            Create a lifecycle to define the stages and gates requests in this workspace move
+            through.
+          </p>
           <Button onClick={addNewLifecycle}>Create your first lifecycle</Button>
         </section>
       )}
