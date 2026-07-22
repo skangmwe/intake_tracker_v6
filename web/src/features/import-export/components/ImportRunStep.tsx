@@ -1,10 +1,11 @@
-// Import panel (S28) — CSV upload area, live status, and the per-row validation report. Import is
-// create-only and never updates a live record (BS §13). The status self-polls (useImportStatus) until
-// the job is terminal; the summary always renders the three non-data states (loading / error / result).
+// Import wizard final step (S28) — review + run. Fires the mapped, object-typed import, then self-polls
+// the job status (useImportStatus) until it is terminal and renders the per-row report. Import is
+// create-only; each row becomes a new record (BS §13). Always renders the three non-data states
+// (idle before run / status line / report). File names + CSV values are Confidential — never logged.
 
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useState } from 'react';
 
-import type { ImportStatusDto, WorkspaceId } from '@shared/types';
+import type { ImportColumnMapping, ImportStatusDto, WorkspaceId } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { problemMessage } from '@/shared/http/problemMessage';
@@ -40,49 +41,43 @@ function statusKind(job: ImportStatusDto): 'pending' | 'success' | 'warning' | '
   }
 }
 
-export function ImportPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
-  const [file, setFile] = useState<File | null>(null);
+interface ImportRunStepProps {
+  workspaceId: WorkspaceId;
+  file: File;
+  objectType: string;
+  objectLabel: string;
+  mapping: ImportColumnMapping[];
+}
+
+export function ImportRunStep({
+  workspaceId,
+  file,
+  objectType,
+  objectLabel,
+  mapping,
+}: ImportRunStepProps) {
   const [importId, setImportId] = useState<string | null>(null);
   const start = useStartImport(workspaceId);
   const status = useImportStatus(importId);
   const job = status.data;
 
-  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setFile(event.target.files?.[0] ?? null);
-    setImportId(null);
-  };
-
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!file) return;
-    start.mutate(file, { onSuccess: (result) => setImportId(result.importId) });
+  const onRun = () => {
+    start.mutate(
+      { file, objectType, mapping },
+      { onSuccess: (result) => setImportId(result.importId) },
+    );
   };
 
   return (
-    <section className="ie-panel" aria-labelledby="ie-import-heading">
-      <h2 id="ie-import-heading" className="ie-panel__title">
-        Import records
-      </h2>
-      <p className="caption ie-panel__lead">
-        Upload a CSV to create records. Import never updates existing records; each row becomes a new
-        request.
+    <div className="ie-wizard__step">
+      <p className="caption">
+        Importing <strong>{file.name}</strong> as <strong>{objectLabel}</strong> — {mapping.length}{' '}
+        {mapping.length === 1 ? 'column' : 'columns'} mapped. Each row becomes a new record.
       </p>
 
-      <form className="ie-import__form" onSubmit={onSubmit}>
-        <label className="ie-import__label" htmlFor="ie-file">
-          CSV file
-        </label>
-        <input
-          id="ie-file"
-          className="ie-import__file"
-          type="file"
-          accept=".csv,text/csv"
-          onChange={onFileChange}
-        />
-        <Button type="submit" disabled={!file || start.isPending}>
-          {start.isPending ? 'Uploading…' : 'Import CSV'}
-        </Button>
-      </form>
+      <Button onClick={onRun} disabled={start.isPending || importId !== null}>
+        {start.isPending ? 'Uploading…' : 'Run import'}
+      </Button>
 
       {start.isError && (
         <p className="mws-alert mws-alert--error ie-panel__alert" role="alert">
@@ -97,7 +92,9 @@ export function ImportPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
               Couldn’t read the import status. It may still be processing.
             </span>
           ) : job ? (
-            <span className={`ie-status__line ie-status--${statusKind(job)}`}>{statusLabel(job)}</span>
+            <span className={`ie-status__line ie-status--${statusKind(job)}`}>
+              {statusLabel(job)}
+            </span>
           ) : (
             <span className="ie-status__line ie-status--pending">Starting import…</span>
           )}
@@ -105,6 +102,6 @@ export function ImportPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
       )}
 
       {job && <ImportReportTable rows={job.flaggedRows} />}
-    </section>
+    </div>
   );
 }

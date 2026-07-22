@@ -26,9 +26,32 @@ public sealed class ExportServiceTests
     private readonly Mock<ISavedViewsService> _savedViews = new();
     private readonly Mock<IRequestsService> _requests = new();
     private readonly Mock<IAccessGuard> _accessGuard = new();
+    private readonly Mock<IIoObjectRegistry> _registry = new();
 
     private ExportService Build() =>
-        new(_savedViews.Object, _requests.Object, _accessGuard.Object, Options.Create(new ImportExportOptions()));
+        new(_savedViews.Object, _requests.Object, _accessGuard.Object, _registry.Object, Options.Create(new ImportExportOptions()));
+
+    /// <summary>Register a Request-like export object with id (always) + name columns and the given rows.</summary>
+    private void SetupExportObject(bool canExport = true, IReadOnlyList<IReadOnlyDictionary<string, object?>>? rows = null)
+    {
+        var ioObject = new Mock<IIoObject>();
+        ioObject.SetupGet(item => item.ObjectType).Returns("Request");
+        ioObject.SetupGet(item => item.CanExport).Returns(canExport);
+        ioObject.SetupGet(item => item.ExportFields).Returns(new[]
+        {
+            new IoFieldSpec("id", "Record ID", AlwaysIncluded: true),
+            new IoFieldSpec("name", "Name"),
+        });
+        ioObject
+            .Setup(item => item.BuildExportAsync(WorkspaceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExportDataset(
+                ioObject.Object.ExportFields,
+                rows ?? new IReadOnlyDictionary<string, object?>[]
+                {
+                    new Dictionary<string, object?> { ["id"] = "AIS-00000001", ["name"] = "Alpha" },
+                }));
+        _registry.Setup(registry => registry.Find("Request")).Returns(ioObject.Object);
+    }
 
     private static SavedViewResponse View(
         string objectType = "Request", string scope = "shared", Guid? owner = null,
@@ -134,5 +157,84 @@ public sealed class ExportServiceTests
         cts.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => Build().ExportAsync(ViewId, UserId, cts.Token));
+    }
+
+    // ─── ExportObjectAsync (S28 export wizard) ─────────────────────────────────
+
+    [Fact]
+    public async Task ExportObjectAsync_UnknownObject_ReturnsUnsupported()
+    {
+        _registry.Setup(registry => registry.Find("Widget")).Returns((IIoObject?)null);
+
+        var result = await Build().ExportObjectAsync(
+            WorkspaceId, "Widget", new[] { "name" }, UserId, CancellationToken.None);
+
+        Assert.Equal(ExportOutcome.Unsupported, result.Outcome);
+    }
+
+    [Fact]
+    public async Task ExportObjectAsync_NonViewer_ReturnsDenied()
+    {
+        SetupExportObject();
+        _accessGuard
+            .Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var result = await Build().ExportObjectAsync(
+            WorkspaceId, "Request", new[] { "name" }, UserId, CancellationToken.None);
+
+        Assert.Equal(ExportOutcome.Denied, result.Outcome);
+    }
+
+    [Fact]
+    public async Task ExportObjectAsync_UnknownFieldKey_ReturnsUnsupported()
+    {
+        SetupExportObject();
+        AllowMembership();
+
+        var result = await Build().ExportObjectAsync(
+            WorkspaceId, "Request", new[] { "bogus" }, UserId, CancellationToken.None);
+
+        Assert.Equal(ExportOutcome.Unsupported, result.Outcome);
+    }
+
+    [Fact]
+    public async Task ExportObjectAsync_HappyPath_IncludesIdentityColumnAndSelectedFields()
+    {
+        // Arrange — select only "name"; "id" is AlwaysIncluded so it must still appear.
+        SetupExportObject();
+        AllowMembership();
+
+        // Act
+        var result = await Build().ExportObjectAsync(
+            WorkspaceId, "Request", new[] { "name" }, UserId, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(ExportOutcome.Success, result.Outcome);
+        Assert.Equal("request-export.csv", result.FileName);
+        Assert.NotNull(result.Content);
+        var bom = Encoding.UTF8.GetPreamble();
+        var text = Encoding.UTF8.GetString(result.Content!, bom.Length, result.Content!.Length - bom.Length);
+        Assert.Contains("Record ID,Name", text);
+        Assert.Contains("AIS-00000001,Alpha", text);
+    }
+
+    [Fact]
+    public async Task ExportObjectAsync_IdentityOnly_StillExports()
+    {
+        // Arrange — no fields selected; the always-included identity column carries the export.
+        SetupExportObject();
+        AllowMembership();
+
+        // Act
+        var result = await Build().ExportObjectAsync(
+            WorkspaceId, "Request", System.Array.Empty<string>(), UserId, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(ExportOutcome.Success, result.Outcome);
+        var bom = Encoding.UTF8.GetPreamble();
+        var text = Encoding.UTF8.GetString(result.Content!, bom.Length, result.Content!.Length - bom.Length);
+        Assert.Contains("Record ID", text);
+        Assert.DoesNotContain("Name", text);
     }
 }

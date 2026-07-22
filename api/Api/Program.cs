@@ -225,6 +225,12 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IImportR
     McDermott.AiTracker.Api.Modules.ImportExport.ImportRunner>();
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IExportService,
     McDermott.AiTracker.Api.Modules.ImportExport.ExportService>();
+// Object registry (S28 wizards) — one IIoObject per importable/exportable object type; the registry is
+// a thin lookup over them. Slice 1 registers Request; later slices add Feature/Task/Toolkit/Attachment.
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IIoObject,
+    McDermott.AiTracker.Api.Modules.ImportExport.RequestIoObject>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IIoObjectRegistry,
+    McDermott.AiTracker.Api.Modules.ImportExport.IoObjectRegistry>();
 builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.ImportExport.ImportProcessor>();
 
 // ─── Audit (slice 18) — the S33 Workspace audit-log read. Reads the append-only dbo.AuditEntry

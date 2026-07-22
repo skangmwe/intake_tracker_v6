@@ -105,6 +105,70 @@ public static class CsvRowMapper
         return new MappedRow(create, requestor);
     }
 
+    /// <summary>Field key the wizard maps a column to for the request name.</summary>
+    public const string NameFieldKey = "name";
+
+    /// <summary>Field key the wizard maps a column to for the request description.</summary>
+    public const string DescriptionFieldKey = "description";
+
+    /// <summary>
+    /// Map one row from an explicit column→field mapping (the import wizard's Map-columns step) instead
+    /// of the header-alias auto-match. Each mapping entry names a source column index and the target
+    /// field key. <c>name</c>/<c>description</c> populate the DTO's own fields; <c>requestor</c> is
+    /// extracted for SSO resolution; every other key rides the open Fields map. Blank cells and
+    /// out-of-range indices are skipped; the first mapping to a given field wins. No IO — pure.
+    /// </summary>
+    public static MappedRow MapFromMapping(
+        IReadOnlyList<ImportColumnMapping> mapping, IReadOnlyList<string?> values)
+    {
+        string? name = null;
+        string? description = null;
+        string? requestor = null;
+        var fields = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+
+        foreach (var entry in mapping)
+        {
+            if (entry.ColumnIndex < 0 || entry.ColumnIndex >= values.Count || string.IsNullOrWhiteSpace(entry.FieldKey))
+            {
+                continue;
+            }
+
+            var value = values[entry.ColumnIndex]?.Trim();
+            if (string.IsNullOrEmpty(value))
+            {
+                continue;
+            }
+
+            switch (entry.FieldKey)
+            {
+                case NameFieldKey:
+                    name ??= value;
+                    break;
+                case DescriptionFieldKey:
+                    description ??= value;
+                    break;
+                case RequestorFieldKey:
+                    requestor ??= value;
+                    break;
+                default:
+                    if (!fields.ContainsKey(entry.FieldKey))
+                    {
+                        fields[entry.FieldKey] = JsonSerializer.SerializeToElement(value, JsonOptions);
+                    }
+
+                    break;
+            }
+        }
+
+        var create = new RequestCreateRequest
+        {
+            Name = name,
+            Description = description,
+            Fields = fields,
+        };
+        return new MappedRow(create, requestor);
+    }
+
     /// <summary>Lower-case + strip every non-alphanumeric so header spelling/spacing doesn't matter.</summary>
     public static string Normalise(string? header)
     {

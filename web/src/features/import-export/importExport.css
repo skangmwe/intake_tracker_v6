@@ -183,3 +183,144 @@
   color: var(--text-primary);
   font-size: 16px;
 }
+
+/* ─── Tabs + wizards (S28 tabs + wizards) ─────────────────────────────────── */
+.import-export-page__panel {
+  margin-top: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.ie-wizard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.ie-wizard__step {
+  margin-top: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.ie-wizard__nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+/* Column-mapping table + CSV preview */
+.ie-map,
+.ie-preview {
+  overflow-x: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ie-map__table,
+.ie-preview__table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ie-map__caption {
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: var(--space-2);
+}
+
+.ie-map__table th,
+.ie-preview__table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.ie-map__table td,
+.ie-preview__table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: top;
+}
+
+.ie-map__col {
+  font-weight: 500;
+}
+
+.ie-map__sample,
+.ie-map__muted {
+  color: var(--text-secondary);
+}
+
+.ie-map__error {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.ie-map__hint {
+  color: var(--text-secondary);
+}
+
+/* Export field checklist */
+.ie-fieldpicker {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.ie-fieldpicker__legend {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  padding: 0 var(--space-2);
+}
+
+.ie-fieldpicker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+
+.ie-fieldpicker__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.ie-fieldpicker__checkbox {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--accent-interactive);
+}
+
+.ie-fieldpicker__note {
+  color: var(--text-secondary);
+  font-size: 13px;
+}

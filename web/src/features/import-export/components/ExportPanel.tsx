@@ -19,8 +19,7 @@ export function ExportPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
 
   const list = views ?? [];
   const effective = (list.find((view) => view.id === selectedId)?.id ?? list[0]?.id) as
-    | SavedViewId
-    | undefined;
+    SavedViewId | undefined;
 
   const onExport = () => {
     if (effective) exportMutation.mutate(effective);
@@ -32,8 +31,8 @@ export function ExportPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
         Export a view
       </h2>
       <p className="caption ie-panel__lead">
-        Download a saved request view as CSV. The columns follow the view; you only ever export rows you
-        can already see.
+        Download a saved request view as CSV. The columns follow the view; you only ever export rows
+        you can already see.
       </p>
 
       {isLoading && (
@@ -71,7 +70,11 @@ export function ExportPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
               </option>
             ))}
           </select>
-          <Button variant="secondary" onClick={onExport} disabled={!effective || exportMutation.isPending}>
+          <Button
+            variant="secondary"
+            onClick={onExport}
+            disabled={!effective || exportMutation.isPending}
+          >
             {exportMutation.isPending ? 'Preparing…' : 'Export view'}
           </Button>
         </div>
@@ -79,7 +82,10 @@ export function ExportPanel({ workspaceId }: { workspaceId: WorkspaceId }) {
 
       {exportMutation.isError && (
         <p className="mws-alert mws-alert--error ie-panel__alert" role="alert">
-          {problemMessage(exportMutation.error, 'The export could not be prepared. Try again in a moment.')}
+          {problemMessage(
+            exportMutation.error,
+            'The export could not be prepared. Try again in a moment.',
+          )}
         </p>
       )}
 

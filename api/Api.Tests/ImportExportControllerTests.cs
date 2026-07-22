@@ -24,14 +24,29 @@ public sealed class ImportExportControllerTests
 
     private readonly Mock<IImportService> _imports = new();
     private readonly Mock<IExportService> _exports = new();
+    private readonly Mock<IIoObjectRegistry> _registry = new();
     private readonly Mock<IAccessGuard> _accessGuard = new();
+
+    public ImportExportControllerTests()
+    {
+        // A Request descriptor the controller can resolve: importable, with one required import field.
+        var request = new Mock<IIoObject>();
+        request.SetupGet(item => item.ObjectType).Returns("Request");
+        request.SetupGet(item => item.Label).Returns("Requests");
+        request.SetupGet(item => item.CanImport).Returns(true);
+        request.SetupGet(item => item.CanExport).Returns(true);
+        request.SetupGet(item => item.ImportFields).Returns(new[] { new IoFieldSpec("name", "Name", Required: true) });
+        request.SetupGet(item => item.ExportFields).Returns(new[] { new IoFieldSpec("id", "Record ID", AlwaysIncluded: true) });
+        _registry.Setup(registry => registry.Find("Request")).Returns(request.Object);
+        _registry.SetupGet(registry => registry.All).Returns(new[] { request.Object });
+    }
 
     private ImportExportController Build()
     {
         var currentUser = new Mock<ICurrentUser>();
         currentUser.SetupGet(user => user.UserId).Returns(UserId);
         return new ImportExportController(
-            _imports.Object, _exports.Object, _accessGuard.Object, currentUser.Object,
+            _imports.Object, _exports.Object, _registry.Object, _accessGuard.Object, currentUser.Object,
             Options.Create(new ImportExportOptions()))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
@@ -62,12 +77,12 @@ public sealed class ImportExportControllerTests
             .ReturnsAsync(false);
 
         // Act
-        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), CancellationToken.None);
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), null, null, CancellationToken.None);
 
         // Assert
         Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
         _imports.Verify(
-            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -75,7 +90,7 @@ public sealed class ImportExportControllerTests
     public async Task ImportCsv_NoFile_Returns400()
     {
         AllowAdmin();
-        var result = await Build().ImportCsv(WorkspaceId, null, CancellationToken.None);
+        var result = await Build().ImportCsv(WorkspaceId, null, null, null, CancellationToken.None);
         Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
     }
 
@@ -83,7 +98,7 @@ public sealed class ImportExportControllerTests
     public async Task ImportCsv_DisallowedContentType_Returns400()
     {
         AllowAdmin();
-        var result = await Build().ImportCsv(WorkspaceId, CsvFile(contentType: "application/pdf"), CancellationToken.None);
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(contentType: "application/pdf"), null, null, CancellationToken.None);
         Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
     }
 
@@ -92,7 +107,7 @@ public sealed class ImportExportControllerTests
     {
         AllowAdmin();
         // A declared length beyond the 5 MB default limit — rejected before streaming.
-        var result = await Build().ImportCsv(WorkspaceId, CsvFile(overrideLength: 6_000_000), CancellationToken.None);
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(overrideLength: 6_000_000), null, null, CancellationToken.None);
         Assert.Equal(StatusCodes.Status413RequestEntityTooLarge, Assert.IsType<ObjectResult>(result).StatusCode);
     }
 
@@ -102,11 +117,11 @@ public sealed class ImportExportControllerTests
         // Arrange
         AllowAdmin();
         _imports
-            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ImportStartResult(ImportStartOutcome.Success, ImportId));
 
         // Act
-        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), CancellationToken.None);
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), null, null, CancellationToken.None);
 
         // Assert
         var accepted = Assert.IsType<AcceptedResult>(result);
@@ -120,10 +135,10 @@ public sealed class ImportExportControllerTests
     {
         AllowAdmin();
         _imports
-            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ImportStartResult(ImportStartOutcome.BlobFailed));
 
-        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), CancellationToken.None);
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), null, null, CancellationToken.None);
         Assert.Equal(StatusCodes.Status502BadGateway, Assert.IsType<ObjectResult>(result).StatusCode);
     }
 
@@ -213,11 +228,148 @@ public sealed class ImportExportControllerTests
     {
         AllowAdmin();
         _imports
-            .Setup(service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => Build().ImportCsv(WorkspaceId, CsvFile(), cts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => Build().ImportCsv(WorkspaceId, CsvFile(), null, null, cts.Token));
+    }
+
+    [Fact]
+    public async Task ImportCsv_UnknownObject_Returns400AndNeverStarts()
+    {
+        // Arrange — admin, but the object isn't registered.
+        AllowAdmin();
+        _registry.Setup(registry => registry.Find("Widget")).Returns((IIoObject?)null);
+
+        // Act
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), "Widget", null, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
+        _imports.Verify(
+            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ImportCsv_MappingMissingRequiredField_Returns400()
+    {
+        // Arrange — admin, valid object, but the mapping omits the required "name" field.
+        AllowAdmin();
+        const string mapping = "[{\"columnIndex\":0,\"fieldKey\":\"description\"}]";
+
+        // Act
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), "Request", mapping, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
+        _imports.Verify(
+            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ImportCsv_ValidMapping_PassesObjectTypeAndMappingToService()
+    {
+        // Arrange — admin, valid object, a mapping that includes the required "name" field.
+        AllowAdmin();
+        const string mapping = "[{\"columnIndex\":0,\"fieldKey\":\"name\"}]";
+        _imports
+            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), "Request", mapping, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ImportStartResult(ImportStartOutcome.Success, ImportId));
+
+        // Act
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), "Request", mapping, CancellationToken.None);
+
+        // Assert — the resolved object type + mapping reached the service verbatim.
+        Assert.IsType<AcceptedResult>(result);
+        _imports.Verify(
+            service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), "Request", mapping, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task GetIoObjects_NonViewer_Returns403()
+    {
+        _accessGuard
+            .Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var result = await Build().GetIoObjects(WorkspaceId, CancellationToken.None);
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task GetIoObjects_Viewer_ReturnsRegistryAsDtos()
+    {
+        _accessGuard
+            .Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await Build().GetIoObjects(WorkspaceId, CancellationToken.None);
+
+        var objects = Assert.IsAssignableFrom<IReadOnlyList<IoObjectDto>>(Assert.IsType<OkObjectResult>(result).Value);
+        var request = Assert.Single(objects);
+        Assert.Equal("Request", request.ObjectType);
+        Assert.True(request.CanImport);
+        Assert.True(request.CanExport);
+        Assert.Contains(request.ImportFields, field => field.Key == "name" && field.Required == true);
+        Assert.Contains(request.ExportFields, field => field.Key == "id" && field.AlwaysIncluded == true);
+    }
+
+    [Fact]
+    public async Task ExportObject_EmptyObjectType_Returns400AndNeverExports()
+    {
+        var result = await Build().ExportObject(
+            WorkspaceId, new ObjectExportRequestBody { ObjectType = " ", FieldKeys = new[] { "name" } }, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
+        _exports.Verify(
+            service => service.ExportObjectAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ExportObject_Success_ReturnsCsvFile()
+    {
+        var bytes = Encoding.UTF8.GetBytes("Record ID,Name\r\nAIS-00000001,Helper\r\n");
+        _exports
+            .Setup(service => service.ExportObjectAsync(WorkspaceId, "Request", It.IsAny<IReadOnlyList<string>>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExportResult(ExportOutcome.Success, bytes, "request-export.csv"));
+
+        var result = await Build().ExportObject(
+            WorkspaceId, new ObjectExportRequestBody { ObjectType = "Request", FieldKeys = new[] { "name" } }, CancellationToken.None);
+
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("text/csv", file.ContentType);
+        Assert.Equal("request-export.csv", file.FileDownloadName);
+    }
+
+    [Fact]
+    public async Task ExportObject_Denied_Returns403()
+    {
+        _exports
+            .Setup(service => service.ExportObjectAsync(WorkspaceId, "Request", It.IsAny<IReadOnlyList<string>>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExportResult(ExportOutcome.Denied));
+
+        var result = await Build().ExportObject(
+            WorkspaceId, new ObjectExportRequestBody { ObjectType = "Request", FieldKeys = new[] { "name" } }, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task ExportObject_Unsupported_Returns400()
+    {
+        _exports
+            .Setup(service => service.ExportObjectAsync(WorkspaceId, "Request", It.IsAny<IReadOnlyList<string>>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExportResult(ExportOutcome.Unsupported));
+
+        var result = await Build().ExportObject(
+            WorkspaceId, new ObjectExportRequestBody { ObjectType = "Request", FieldKeys = new[] { "bogus" } }, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
     }
 }

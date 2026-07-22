@@ -20,6 +20,9 @@ export const SEARCH_RESULTS_PAGE_SIZE = 20;
 /** Poll interval for a CSV import's status while it is still Processing (S28, BS §13). */
 export const IMPORT_POLL_INTERVAL_MS = 2000;
 
+/** Rows the import wizard previews from a chosen CSV (header + first N data rows) before mapping. */
+export const CSV_PREVIEW_ROW_LIMIT = 10;
+
 /** Page size for the S33 workspace audit log (BS §12). */
 export const AUDIT_LOG_PAGE_SIZE = 25;
 
