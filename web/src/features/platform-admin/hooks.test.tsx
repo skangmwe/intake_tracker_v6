@@ -6,15 +6,13 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
-import { fetchAccessGrants, fetchCrossingMap, fetchRoleLabels, queryFirmWideAudit } from './api';
+import { fetchAccessGrants, fetchCrossingMap, queryFirmWideAudit } from './api';
 import { useAccessGrants } from './useAccessGrants';
 import { useCrossingMap } from './useCrossingMap';
 import { useFirmWideAudit } from './useFirmWideAudit';
-import { useRoleLabels } from './useRoleLabels';
 
 jest.mock('./api');
 const mockedCrossing = fetchCrossingMap as jest.MockedFunction<typeof fetchCrossingMap>;
-const mockedRoleLabels = fetchRoleLabels as jest.MockedFunction<typeof fetchRoleLabels>;
 const mockedGrants = fetchAccessGrants as jest.MockedFunction<typeof fetchAccessGrants>;
 const mockedAudit = queryFirmWideAudit as jest.MockedFunction<typeof queryFirmWideAudit>;
 
@@ -32,12 +30,6 @@ describe('platform-admin hooks — enabled gate', () => {
     const { result } = renderHook(() => useCrossingMap(false), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.fetchStatus).toBe('idle'));
     expect(mockedCrossing).not.toHaveBeenCalled();
-  });
-
-  it('useRoleLabels(false) — does not fetch', async () => {
-    const { result } = renderHook(() => useRoleLabels(false), { wrapper: wrapper() });
-    await waitFor(() => expect(result.current.fetchStatus).toBe('idle'));
-    expect(mockedRoleLabels).not.toHaveBeenCalled();
   });
 
   it('useAccessGrants(false) — does not fetch', async () => {

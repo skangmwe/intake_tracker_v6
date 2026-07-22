@@ -1,4 +1,4 @@
-// Platform-admin feature API calls (S35 Crossing map · S36 Access · S37 Role labels · S39 Firm-wide
+// Platform-admin feature API calls (S35 Crossing map · S36 Access · S39 Firm-wide
 // audit — api-contracts.md §19). Thin apiFetch wrappers; the /api prefix is added inside apiFetch.
 // Every endpoint is Platform-admin-gated server-side (403 for non-admins — the API is the boundary).
 
@@ -11,9 +11,6 @@ import type {
   PaginatedResponse,
   PlatformAdminGrantRequest,
   PrivilegedGrantsListDto,
-  RoleLabelCreateRequest,
-  RoleLabelDto,
-  RoleLabelRenameRequest,
   UserId,
   WorkspaceProvisionRequest,
   WorkspaceProvisionResult,
@@ -40,24 +37,6 @@ export function proposeCrossingMap(body: CrossingMapProposeRequest): Promise<Cro
 
 export function confirmCrossingMap(crossingMapId: string): Promise<CrossingMapRowDto> {
   return apiFetch<CrossingMapRowDto>(`/v1/platform/crossing-map/${crossingMapId}`, { method: 'PATCH' });
-}
-
-/* ── S37 Role-label catalog ───────────────────────────────────────────────── */
-
-export function fetchRoleLabels(signal?: AbortSignal): Promise<RoleLabelDto[]> {
-  return apiFetch<RoleLabelDto[]>('/v1/platform/role-labels', signal ? { signal } : {});
-}
-
-export function createRoleLabel(body: RoleLabelCreateRequest): Promise<RoleLabelDto> {
-  return apiFetch<RoleLabelDto>('/v1/platform/role-labels', { method: 'POST', body });
-}
-
-export function renameRoleLabel(roleLabelId: string, body: RoleLabelRenameRequest): Promise<RoleLabelDto> {
-  return apiFetch<RoleLabelDto>(`/v1/platform/role-labels/${roleLabelId}`, { method: 'PATCH', body });
-}
-
-export function retireRoleLabel(roleLabelId: string): Promise<void> {
-  return apiFetch<void>(`/v1/platform/role-labels/${roleLabelId}`, { method: 'DELETE' });
 }
 
 /* ── S36 Access provisioning ──────────────────────────────────────────────── */

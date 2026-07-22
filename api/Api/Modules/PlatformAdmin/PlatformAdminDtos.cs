@@ -49,12 +49,14 @@ public sealed record CrossingCandidatesResponse(
     IReadOnlyList<CrossingCandidateResponse> PgFields,
     IReadOnlyList<CrossingCandidateResponse> AiFields);
 
-/* ── S37 Role-label catalog ───────────────────────────────────────────────── */
+/* ── Role-label / approver-team catalog ───────────────────────────────────── */
+// The role-label catalog is edited through the workspace Approver-teams surface
+// (LifecycleController — a "team" IS a role label, BS §7.2). These contracts back that endpoint.
 
 /// <summary>One platform-scope role label (mirrors RoleLabelDto).</summary>
 public sealed record RoleLabelResponse(Guid RoleLabelId, string Label, int SortOrder);
 
-/// <summary>Body for POST /platform/role-labels — add a label.</summary>
+/// <summary>Body for POST /workspaces/{id}/approver-teams/labels — add an approver team (role label).</summary>
 public sealed class RoleLabelCreateRequest
 {
     [Required]
@@ -62,7 +64,7 @@ public sealed class RoleLabelCreateRequest
     public string? Label { get; set; }
 }
 
-/// <summary>Body for PATCH /platform/role-labels/{id} — rename (forward-only, BS §7.2).</summary>
+/// <summary>Body for PATCH /workspaces/{id}/approver-teams/labels/{id} — rename (forward-only, BS §7.2).</summary>
 public sealed class RoleLabelRenameRequest
 {
     [Required]
