@@ -31,7 +31,7 @@ import { TasksTab } from '@/features/tasks';
 import { useMe } from '@/features/users/useMe';
 import { EscalateModal, EscalatedIntakeNote } from '@/features/escalation';
 import { AddToCatalogButton } from '@/features/features';
-import { CloseRecordModal, CLOSE_OUTCOME_OPTIONS, type CloseOutcomeValue } from '@/features/closure';
+import { CloseRecordInline, CLOSE_OUTCOME_OPTIONS, type CloseOutcomeValue } from '@/features/closure';
 import { RelationshipsCard } from '@/features/typed-links';
 import { AttachmentsCard } from '@/features/attachments';
 import { WatchersCard } from '@/features/watchers';
@@ -80,7 +80,7 @@ const BASE_TABS: { id: string; label: string }[] = [
 
 // The unified record-status picker (close/status cleanup). One control, two groups:
 //   Active  — the working state (In progress / On hold), written via setStatusHold.
-//   Closed  — a terminal Outcome; picking one opens the Close-record confirm flow (CloseRecordModal).
+//   Closed  — a terminal Outcome; picking one reveals the inline Close-record panel (CloseRecordInline).
 // 'Abandoned' was retired: dropping a record is now a Close · Withdrawn / Not pursued.
 const STATUS_PICKER_GROUPS = [
   {
@@ -355,7 +355,7 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
   const [pickerValue, setPickerValue] = useState<string>(closed ? closed.value : currentStatusHold);
   const [note, setNote] = useState(request.statusHoldNote ?? '');
   const [toStage, setToStage] = useState(request.stage ?? request.stages[0]?.key ?? '');
-  const [closePreset, setClosePreset] = useState<CloseOutcomeValue | null>(null);
+  const [closingOutcome, setClosingOutcome] = useState<CloseOutcomeValue | null>(null);
 
   const activeSelected = isActiveStatus(pickerValue);
   const noteRequired = pickerValue === 'OnHold';
@@ -364,12 +364,19 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
   const stageGuard = useHoldGuard(request.statusHold);
 
   const onPickStatus = (value: string) => {
+    setPickerValue(value);
     if (isActiveStatus(value)) {
-      setPickerValue(value);
+      // Back to an active state — drop any in-progress close.
+      setClosingOutcome(null);
     } else {
-      // A Closed outcome — run the deliberate Close flow (confirm + reason + duplicate-of).
-      setClosePreset(value as CloseOutcomeValue);
+      // A Closed outcome — reveal the inline Close panel (confirm + reason + duplicate-of) in place.
+      setClosingOutcome(value as CloseOutcomeValue);
     }
+  };
+
+  const cancelClose = () => {
+    setClosingOutcome(null);
+    setPickerValue(closed ? closed.value : currentStatusHold);
   };
 
   const updateStatus = () => {
@@ -411,7 +418,7 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
             error={noteMissing ? 'Add a reason for placing this record on hold.' : undefined}
           />
         )}
-        {currentStatusHold === 'OnHold' && (
+        {activeSelected && currentStatusHold === 'OnHold' && (
           <p className="mws-alert mws-alert--pending" role="status">
             <StatusHoldPill statusHold={currentStatusHold} /> Task completion and gate approvals are
             paused while this record is on hold. Set it back to <strong>In progress</strong> to
@@ -426,6 +433,17 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
           >
             Update status
           </Button>
+        )}
+        {/* Picking a "Closed" outcome reveals the close panel in place (not a pop-up) — like the
+            on-hold note above. The picker chose the outcome; here we take notes and confirm. */}
+        {closingOutcome && (
+          <CloseRecordInline
+            recordId={request.id as RecordId}
+            recordName={request.name}
+            outcome={closingOutcome}
+            onCancel={cancelClose}
+            onClosed={() => setClosingOutcome(null)}
+          />
         )}
       </section>
 
@@ -472,16 +490,6 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
         recordId={request.id as RecordId}
         workspaceId={request.workspaceId as WorkspaceId}
       />
-
-      {/* Closing is now part of the Status picker's "Closed" group — a Closed pick opens this modal. */}
-      {closePreset && (
-        <CloseRecordModal
-          recordId={request.id as RecordId}
-          recordName={request.name}
-          initialOutcome={closePreset}
-          onClose={() => setClosePreset(null)}
-        />
-      )}
     </div>
   );
 }

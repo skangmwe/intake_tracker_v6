@@ -1,9 +1,25 @@
-/* Close-with-Outcome modal (S4/S5). Tokens only (design-conformance). Layout only — the modal
-   chrome comes from the shared Modal primitive. */
+/* Close-with-Outcome inline panel (S4/S5). Tokens only (design-conformance). Renders in place inside
+   the Status card (like the on-hold note), so it stacks its own children rather than relying on the
+   card's gap. */
 
-.closure-modal__lead {
+.closure-inline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+}
+
+.closure-inline__lead {
   margin: 0;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.5;
+}
+
+.closure-inline__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
