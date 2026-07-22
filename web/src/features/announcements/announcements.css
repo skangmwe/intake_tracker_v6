@@ -73,6 +73,12 @@
   gap: var(--space-4);
 }
 
+/* Archive-now sits on the left of the editor footer; Cancel / Save stay right (footer is flex-end). */
+.ann-editor__archive {
+  margin-right: auto;
+  display: inline-flex;
+}
+
 .ann-check {
   display: flex;
   align-items: flex-start;
