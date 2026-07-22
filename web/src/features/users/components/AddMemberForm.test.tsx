@@ -36,7 +36,7 @@ describe('AddMemberForm', () => {
 
     // Act
     await user.type(email, '  colleague@mws.ai  ');
-    await user.selectOptions(screen.getByLabelText(/^level$/i), 'WorkspaceAdmin');
+    await user.selectOptions(screen.getByLabelText(/access level/i), 'WorkspaceAdmin');
     await user.click(screen.getByRole('button', { name: /add member/i }));
 
     // Assert
@@ -47,6 +47,26 @@ describe('AddMemberForm', () => {
       }),
     );
     await waitFor(() => expect(email).toHaveValue(''));
+  });
+
+  it('submits on Enter from the email field (implicit form submission)', async () => {
+    // Arrange
+    mockedUpsert.mockResolvedValue({ outcome: 'Member' });
+    const onClose = jest.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<AddMemberForm workspaceId={WORKSPACE} onClose={onClose} />);
+
+    // Act — pressing Enter in the email field submits the form without clicking the button.
+    await user.type(screen.getByLabelText(/member email/i), 'colleague@mws.ai{Enter}');
+
+    // Assert
+    await waitFor(() =>
+      expect(mockedUpsert).toHaveBeenCalledWith(WORKSPACE, {
+        email: 'colleague@mws.ai',
+        level: 'Member',
+      }),
+    );
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it('renders a Cancel button and closes on a successful add when onClose is provided', async () => {

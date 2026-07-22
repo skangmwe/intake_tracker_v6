@@ -29,28 +29,13 @@
   margin-bottom: var(--space-4);
 }
 
-/* Add-member card */
-.users-access__add {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  padding: var(--space-5);
-  margin-bottom: var(--space-6);
-}
-
-.users-access__add-fields {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
+/* Add-member modal — fields stack in a single column (forms-and-input.md). */
+.users-access__add-form {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
-  align-items: start;
 }
 
-.users-access__add-actions {
-  margin-top: var(--space-4);
-}
-
-.users-access__add-error,
-.users-access__add-notice,
 .users-access__level-error {
   margin-top: var(--space-4);
 }
@@ -425,8 +410,3 @@
   font-size: 13px;
 }
 
-@media (max-width: 640px) {
-  .users-access__add-fields {
-    grid-template-columns: 1fr;
-  }
-}

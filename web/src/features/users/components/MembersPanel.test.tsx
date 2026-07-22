@@ -79,7 +79,7 @@ describe('MembersPanel', () => {
     expect(await screen.findByText(/member list could not be loaded/i)).toBeInTheDocument();
   });
 
-  it('MembersPanel — ADD MEMBER toggles the add form open and closed', async () => {
+  it('MembersPanel — ADD MEMBER opens the add-member modal and closes it', async () => {
     // Arrange
     mockedFetchMembers.mockResolvedValue({ members: [] });
     const user = userEvent.setup();
@@ -90,17 +90,18 @@ describe('MembersPanel', () => {
     // Act — open
     await user.click(toggle);
 
-    // Assert — form visible, toggle expanded
+    // Assert — the add-member dialog is shown; the trigger declares its dialog popup
+    const dialog = await screen.findByRole('dialog', { name: /add member/i });
     expect(screen.getByRole('form', { name: /add a member/i })).toBeInTheDocument();
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(toggle).toHaveAttribute('aria-haspopup', 'dialog');
     expect(await axe(container)).toHaveNoViolations();
 
     // Act — close via Cancel
     await user.click(screen.getByRole('button', { name: /cancel/i }));
 
-    // Assert — form gone
+    // Assert — the dialog is gone
+    expect(dialog).not.toBeInTheDocument();
     expect(screen.queryByRole('form', { name: /add a member/i })).not.toBeInTheDocument();
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('MembersPanel — Remove then Cancel — closes the dialog without removing', async () => {
