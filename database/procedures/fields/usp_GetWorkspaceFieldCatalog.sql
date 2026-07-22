@@ -7,9 +7,11 @@
 --              object type, without the option/rule/derived children (the table does not show
 --              them; the editor loads them per object type on open).
 --
---              Scope: the workspace's own fields UNION every Global field (Location = 'Global')
---              of any workspace. A local field wins over a foreign-global field of the same
---              (object type, key) — IsLocal-first — so a key is never listed twice.
+--              Scope: this workspace's own fields only — its Local fields and any Global fields
+--              it owns (WorkspaceId = @WorkspaceId). Fields owned by other workspaces and
+--              platform-defined fields (IsPlatformDefined = 1) are excluded here — those surface
+--              on the Platform Fields & objects screen (S34), not the workspace one. A same-key
+--              collision within the workspace still resolves to one row (IsLocal-first).
 --
 --              The five read-only system auto-fields (Record ID / Name / Date created / Last
 --              updated / Created by) are NOT returned here — they are synthesised per object in
@@ -46,7 +48,8 @@ BEGIN
                 ORDER BY CASE WHEN d.WorkspaceId = @WorkspaceIdLocal THEN 0 ELSE 1 END) AS RowRank
         FROM dbo.FieldDefinition AS d
         WHERE d.IsDeleted = 0
-          AND (d.WorkspaceId = @WorkspaceIdLocal OR d.Location = N'Global')
+          AND d.WorkspaceId = @WorkspaceIdLocal
+          AND d.IsPlatformDefined = 0
     )
     SELECT
         s.FieldDefinitionId    AS FieldDefinitionId,
