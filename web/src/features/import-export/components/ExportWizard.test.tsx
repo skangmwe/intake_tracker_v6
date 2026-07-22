@@ -31,6 +31,19 @@ const REQUEST: IoObjectDto = {
   ],
 };
 
+const FEATURE: IoObjectDto = {
+  objectType: 'Feature',
+  label: 'Features',
+  canImport: true,
+  canExport: true,
+  importFields: [],
+  exportFields: [
+    { key: 'id', label: 'Record ID', alwaysIncluded: true },
+    { key: 'name', label: 'Name' },
+    { key: 'oneLiner', label: 'One-liner' },
+  ],
+};
+
 function mockObjects(state: { data?: IoObjectDto[]; isLoading?: boolean; isError?: boolean }) {
   mockedIoObjects.mockReturnValue({
     data: state.data,
@@ -93,6 +106,26 @@ describe('ExportWizard', () => {
 
     // Assert — identity id is implicit; the chosen "name" is sent.
     expect(mutate).toHaveBeenCalledWith({ objectType: 'Request', fieldKeys: ['name'] });
+  });
+
+  it('ExportWizard — Feature lights up from the catalog — exports Feature columns', async () => {
+    // Arrange — the catalog carries both Request and Feature; the wizard is object-agnostic, so Feature
+    // is selectable with its own fields once the descriptor is registered.
+    const mutate = jest.fn();
+    mockObjects({ data: [REQUEST, FEATURE] });
+    mockExport({ mutate } as Partial<ReturnType<typeof useExportObject>>);
+    const { container } = render(<ExportWizard workspaceId={WORKSPACE} />);
+
+    // Act — choose Feature, step to its fields, pick "One-liner", download.
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Object to export' }), 'Feature');
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await axe(container)).toHaveNoViolations(); // Feature fields step
+    await userEvent.click(screen.getByRole('checkbox', { name: 'One-liner' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    // Assert — the Feature object + its chosen column are sent (identity id is implicit).
+    expect(mutate).toHaveBeenCalledWith({ objectType: 'Feature', fieldKeys: ['oneLiner'] });
   });
 
   it('ExportWizard — export success — shows the downloaded note', async () => {

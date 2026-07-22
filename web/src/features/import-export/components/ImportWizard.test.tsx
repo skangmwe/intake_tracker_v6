@@ -31,6 +31,19 @@ const REQUEST: IoObjectDto = {
   exportFields: [],
 };
 
+const FEATURE: IoObjectDto = {
+  objectType: 'Feature',
+  label: 'Features',
+  canImport: true,
+  canExport: true,
+  importFields: [
+    { key: 'name', label: 'Name', required: true },
+    { key: 'featureType', label: 'Type', required: true },
+    { key: 'oneLiner', label: 'One-liner' },
+  ],
+  exportFields: [],
+};
+
 function mockObjects(state: { data?: IoObjectDto[]; isLoading?: boolean; isError?: boolean }) {
   mockedIoObjects.mockReturnValue({
     data: state.data,
@@ -108,6 +121,26 @@ describe('ImportWizard', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     // Assert — the run step is showing.
+    expect(screen.getByRole('button', { name: 'Run import' })).toBeInTheDocument();
+  });
+
+  it('ImportWizard — Feature lights up from the catalog — maps Feature fields to the run step', async () => {
+    // Arrange — the catalog carries both Request and Feature; selecting Feature drives the mapper from
+    // Feature's own import fields (name + type), proving the wizard is object-agnostic.
+    mockObjects({ data: [REQUEST, FEATURE] });
+    render(<ImportWizard workspaceId={WORKSPACE} />);
+
+    // Act — choose Feature, upload a CSV whose headers match Feature's fields.
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Object to import' }), 'Feature');
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.upload(screen.getByLabelText('CSV file'), csvFile('Name,Type\nClause finder,Functional\n'));
+    await screen.findByText(/Preview — first 1 row/);
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    // Assert — the Feature-specific "Type" column auto-maps to featureType, and both required fields
+    // being satisfied lets the flow reach the run step.
+    expect(screen.getByRole('combobox', { name: /Map column Type/ })).toHaveValue('featureType');
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.getByRole('button', { name: 'Run import' })).toBeInTheDocument();
   });
 

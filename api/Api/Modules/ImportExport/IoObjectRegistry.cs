@@ -38,8 +38,40 @@ public interface IIoObject
     IReadOnlyList<IoFieldSpec> ExportFields { get; }
 
     /// <summary>Project the object's already-access-filtered rows into an export dataset. The caller
-    /// (ExportService) has already gated workspace access; the descriptor only reads.</summary>
-    Task<ExportDataset> BuildExportAsync(Guid workspaceId, CancellationToken cancellationToken);
+    /// (ExportService) has already gated workspace access, but an object may enforce its own access
+    /// boundary (e.g. a firm-hub object scoped by the caller's membership rather than the passed
+    /// workspace) — return <c>null</c> when the caller is not entitled to the object at all, which the
+    /// caller maps to a 403 (never a silent empty file). <paramref name="userId"/> is the caller, so a
+    /// descriptor whose query is user-filtered (not workspace-filtered) can gate on it.</summary>
+    Task<ExportDataset?> BuildExportAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken);
+}
+
+/// <summary>Per-job context for an object-aware CSV import. <c>ActorEmail</c> is the importing user's
+/// directory email, resolved once per job by the runner so a descriptor's requestor fallback does not
+/// re-query it per row (api-performance.md — no queries in a loop).</summary>
+public sealed record ImportRowContext(Guid WorkspaceId, Guid ActorUserId, string ActorEmail, string OperationId);
+
+/// <summary>The outcome of importing one CSV row through a descriptor. <c>Outcome</c> is
+/// <see cref="Landed"/> (a record was created) or <see cref="Flagged"/> (nothing created, or created
+/// with a caveat). A landed row may still carry <c>Reasons</c> — e.g. a requestor-fallback warning —
+/// which the runner tallies as flagged for the report (BS §13, never silent).</summary>
+public sealed record ImportRowResult(string Outcome, string? RecordId, IReadOnlyList<ImportReasonDto> Reasons)
+{
+    public const string Landed = "Landed";
+    public const string Flagged = "Flagged";
+}
+
+/// <summary>Import capability for a registered object. Only descriptors that can create a record from a
+/// CSV row implement this (export-only objects — Toolkit, Attachment — do not). The registry is the
+/// single extension point: the runner resolves the object by type, casts to this, and dispatches the
+/// row — later slices add descriptors, not runner branches.</summary>
+public interface IIoImporter
+{
+    /// <summary>Create one record from a row's mapped values (keyed by the object's import field keys,
+    /// already column-mapped and trimmed). Blank/absent required values are the descriptor's own
+    /// concern — it returns a Flagged result rather than throwing for expected validation failures.</summary>
+    Task<ImportRowResult> ImportRowAsync(
+        ImportRowContext context, IReadOnlyDictionary<string, string?> fieldValues, CancellationToken cancellationToken);
 }
 
 public interface IIoObjectRegistry

@@ -1,20 +1,26 @@
 // Request import/export descriptor (S28 tabs + wizards). The registry entry for the core Request
 // object: it declares the fields a CSV column can map to on import and the columns that can be
-// emitted on export, and projects the access-filtered Requests query into an export dataset. Export
-// fields are exactly the keys RequestListRow.Columns already carries (id/name/desc/…), so a row's
-// Columns map IS the dataset row — no re-shaping. Import fields mirror the CsvRowMapper alias targets
-// so the explicit-mapping path can set the same fields the auto-match default does. Row values are
-// Confidential — written to the response, never logged (api-pii-handling.md).
+// emitted on export, projects the access-filtered Requests query into an export dataset, and creates
+// one Request per import row (resolving the row's Requestor against the firm directory, falling back
+// to the importing admin WITH a flag — never silent, BS §13). Export fields are exactly the keys
+// RequestListRow.Columns already carries (id/name/desc/…), so a row's Columns map IS the dataset row —
+// no re-shaping. Row values / Requestor emails are Confidential/PII — written to the response, never
+// logged (api-pii-handling.md).
 
+using System.Text.Json;
+using McDermott.AiTracker.Api.Data;
 using McDermott.AiTracker.Api.Modules.Requests;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace McDermott.AiTracker.Api.Modules.ImportExport;
 
-public sealed class RequestIoObject : IIoObject
+public sealed class RequestIoObject : IIoObject, IIoImporter
 {
     /// <summary>Page the access-gated Requests query at the pagination max (api/CLAUDE.md).</summary>
     private const int ExportPageSize = 100;
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     // Export columns == RequestListRow.Columns keys, in file order. "id" is the identity column and is
     // always emitted (BS §13 — every exported record is identifiable).
@@ -49,11 +55,13 @@ public sealed class RequestIoObject : IIoObject
     ];
 
     private readonly IRequestsService _requests;
+    private readonly AppDbContext _db;
     private readonly ImportExportOptions _options;
 
-    public RequestIoObject(IRequestsService requests, IOptions<ImportExportOptions> options)
+    public RequestIoObject(IRequestsService requests, AppDbContext db, IOptions<ImportExportOptions> options)
     {
         _requests = requests;
+        _db = db;
         _options = options.Value;
     }
 
@@ -69,8 +77,10 @@ public sealed class RequestIoObject : IIoObject
 
     public IReadOnlyList<IoFieldSpec> ExportFields => ExportFieldSpecs;
 
-    public async Task<ExportDataset> BuildExportAsync(Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<ExportDataset?> BuildExportAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
     {
+        // Request rows are workspace-scoped; ExportService's Viewer gate on this workspace IS the
+        // entitlement (the query is not further user-filtered), so userId is unused here.
         var rows = new List<IReadOnlyDictionary<string, object?>>();
         var page = 1;
 
@@ -105,5 +115,58 @@ public sealed class RequestIoObject : IIoObject
             : rows;
 
         return new ExportDataset(ExportFieldSpecs, trimmed);
+    }
+
+    public async Task<ImportRowResult> ImportRowAsync(
+        ImportRowContext context, IReadOnlyDictionary<string, string?> fieldValues, CancellationToken cancellationToken)
+    {
+        var mapped = CsvRowMapper.BuildRequestCreate(fieldValues);
+        var reasons = await ResolveRequestorAsync(mapped, context.ActorEmail, cancellationToken).ConfigureAwait(false);
+
+        var result = await _requests
+            .CreateAsync(context.WorkspaceId, mapped.Create, context.ActorUserId, context.OperationId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.Outcome switch
+        {
+            RequestWriteOutcome.Success => new ImportRowResult(ImportRowResult.Landed, result.Request!.Id, reasons),
+            RequestWriteOutcome.ValidationFailed =>
+                new ImportRowResult(ImportRowResult.Flagged, null, ImportOutcomeMapper.FromValidationErrors(result.Errors!)),
+            _ => new ImportRowResult(ImportRowResult.Flagged, null, ImportOutcomeMapper.GenericFailure()),
+        };
+    }
+
+    /// <summary>
+    /// Resolve the row's Requestor value to a firm user (SSO email). Found → keep the value; provided
+    /// but unresolved → default to the importing admin AND flag it (BS §13, never silent); absent →
+    /// nothing to resolve, no flag. Mutates the create request's Fields map in place.
+    /// </summary>
+    private async Task<IReadOnlyList<ImportReasonDto>> ResolveRequestorAsync(
+        MappedRow mapped, string fallbackEmail, CancellationToken cancellationToken)
+    {
+        var requestor = mapped.RequestorValue;
+        if (string.IsNullOrWhiteSpace(requestor))
+        {
+            return Array.Empty<ImportReasonDto>();
+        }
+
+        var fields = mapped.Create.Fields ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+
+        var match = await _db.Users.AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Email == requestor && !user.IsDisabled, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (match is not null)
+        {
+            fields[CsvRowMapper.RequestorFieldKey] = JsonSerializer.SerializeToElement(requestor, JsonOptions);
+            return Array.Empty<ImportReasonDto>();
+        }
+
+        fields[CsvRowMapper.RequestorFieldKey] = JsonSerializer.SerializeToElement(fallbackEmail, JsonOptions);
+        return new[]
+        {
+            ImportOutcomeMapper.UnresolvedRequestor(CsvRowMapper.RequestorFieldKey),
+            ImportOutcomeMapper.RequestorFallback(CsvRowMapper.RequestorFieldKey),
+        };
     }
 }

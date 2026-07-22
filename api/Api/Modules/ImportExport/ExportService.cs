@@ -97,7 +97,15 @@ public sealed class ExportService : IExportService
             return new ExportResult(ExportOutcome.Unsupported);
         }
 
-        var dataset = await ioObject.BuildExportAsync(workspaceId, cancellationToken).ConfigureAwait(false);
+        // The descriptor may enforce its own access boundary (e.g. a hub-scoped object gated by the
+        // caller's membership rather than the passed workspace) — null means the caller is not entitled
+        // to the object at all → 403, never a silent empty file.
+        var dataset = await ioObject.BuildExportAsync(workspaceId, userId, cancellationToken).ConfigureAwait(false);
+        if (dataset is null)
+        {
+            return new ExportResult(ExportOutcome.Denied);
+        }
+
         var csv = CsvExportWriter.WriteDataset(columns, dataset.Rows);
 
         // Neutral filename — never encode a matter / PII into the file name (standards §7).
