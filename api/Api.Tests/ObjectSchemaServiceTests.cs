@@ -82,4 +82,19 @@ public sealed class ObjectSchemaServiceTests
         Assert.Equal("LocalWorkspace", byName["Feature"].Location);
         Assert.Equal("LocalWorkspace", byName["Toolkit item"].Location);
     }
+
+    [Fact]
+    public void GetGlobalSystemObjects_ReturnsRequestAndTaskOnly_ReadOnlyReferenceNoCounts()
+    {
+        // Act — the platform Objects tab (S34): only the Global built-ins, no workspace, no counts.
+        var objects = ObjectSchemaService.GetGlobalSystemObjects();
+
+        // Assert
+        Assert.Equal(new[] { "Request", "Task" }, objects.Select(o => o.Name).ToArray());
+        Assert.All(objects, o => Assert.Equal("Global", o.Location));
+        Assert.All(objects, o => Assert.True(o.IsSystem));
+        Assert.All(objects, o => Assert.Equal(Guid.Empty, o.WorkspaceId));
+        Assert.All(objects, o => Assert.Equal(0, o.RecordsCount));
+        Assert.All(objects, o => Assert.Equal(0, o.FieldsCount));
+    }
 }

@@ -31,6 +31,10 @@ public sealed record ObjectMutationResult(
 public interface IObjectSchemaService
 {
     Task<IReadOnlyList<ObjectDefinitionDto>> ListAsync(Guid workspaceId, CancellationToken cancellationToken);
+
+    /// <summary>The Global built-in object types (Request, Task) for the platform Objects tab (S34) —
+    /// a read-only reference with no workspace scope and no counts. Pure (no I/O).</summary>
+    IReadOnlyList<ObjectDefinitionDto> GetGlobalObjects();
     Task<ObjectDefinitionDto?> GetByIdAsync(Guid objectId, Guid workspaceId, CancellationToken cancellationToken);
     Task<ObjectMutationResult> CreateAsync(
         Guid workspaceId, ObjectDefinitionCreateRequest request, Guid actorUserId, CancellationToken cancellationToken);
@@ -205,6 +209,30 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         }
 
         return new ObjectMutationResult(ObjectMutationOutcome.Success, null, null);
+    }
+
+    public IReadOnlyList<ObjectDefinitionDto> GetGlobalObjects() => GetGlobalSystemObjects();
+
+    /// <summary>Composes the Global built-in object DTOs (Request, Task) for the platform Objects tab
+    /// (S34) — no workspace scope, no counts (a read-only reference). Pure — no I/O — so it is
+    /// unit-testable without a database.</summary>
+    public static IReadOnlyList<ObjectDefinitionDto> GetGlobalSystemObjects()
+    {
+        return SystemObjects
+            .Where(spec => spec.Location == "Global")
+            .Select(spec => new ObjectDefinitionDto(
+                spec.Id,
+                Guid.Empty,
+                spec.Name,
+                spec.PluralLabel,
+                spec.Location,
+                spec.Description,
+                ShowInSidebar: true,
+                SidebarCategory: null,
+                RecordsCount: 0,
+                FieldsCount: 0,
+                IsSystem: true))
+            .ToList();
     }
 
     /// <summary>Composes the five built-in object DTOs from a workspace's live counts. Pure — no I/O —

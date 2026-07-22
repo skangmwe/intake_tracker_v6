@@ -124,6 +124,19 @@ export interface WorkspaceProvisionResult {
   prefix: string;
 }
 
+/* ── S34 Platform Fields & objects — Objects / Relationships tabs ─────────── */
+
+/**
+ * One workspace in the platform-admin workspace picker (S34 Relationships tab). This is the firm-wide
+ * list of every workspace, not the caller's memberships — so, unlike `WorkspaceListItem`, it carries
+ * no per-caller access `level` (a Platform admin need not be a member of the workspace they inspect).
+ */
+export interface PlatformWorkspaceDto {
+  id: WorkspaceId;
+  name: string;
+  kind: WorkspaceKind;
+}
+
 /* ── S39 Firm-wide audit (BS §12 / §4.3) ─────────────────────────────────── */
 
 /** One firm-wide audit row — a workspace audit row plus the workspace name (cross-workspace feed). */
