@@ -142,11 +142,9 @@ function seedDefaults() {
     );
   jest.mocked(fieldsApi.fetchWorkspaceFields).mockResolvedValue(SCHEMA);
   // Default membership: the record's own workspace as the AI Solutions hub — escalation is not offered.
-  jest
-    .mocked(useMeModule.useMe)
-    .mockReturnValue({
-      data: buildMe({ memberships: [buildMembership()] }),
-    } as unknown as ReturnType<typeof useMeModule.useMe>);
+  jest.mocked(useMeModule.useMe).mockReturnValue({
+    data: buildMe({ memberships: [buildMembership()] }),
+  } as unknown as ReturnType<typeof useMeModule.useMe>);
 }
 
 const PG_WORKSPACE = 'ws-pg' as WorkspaceId;
@@ -270,6 +268,10 @@ describe('RecordDetailPage', () => {
     // Assert
     const nameInput = await screen.findByLabelText('Name');
     expect(nameInput).toHaveValue('Meeting notes');
+    // Record metadata (Submitted / Lifecycle) lives in the Intake tab's read-only block.
+    expect(screen.getByText('Submitted')).toBeInTheDocument();
+    expect(screen.getByText('Lifecycle')).toBeInTheDocument();
+    expect(screen.getByText('Standard delivery')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -359,18 +361,16 @@ describe('RecordDetailPage', () => {
 
   it('RecordDetailPage — a non-403 error renders the generic error alert', async () => {
     // Arrange — a 500 is not a forbidden case, so the no-access surface must not appear.
-    jest
-      .mocked(useRequests.useRequest)
-      .mockReturnValue(
-        errorResult(
-          new ApiError(500, {
-            type: 'about:blank',
-            title: 'Server error',
-            status: 500,
-            detail: 'Server exploded.',
-          }),
-        ),
-      );
+    jest.mocked(useRequests.useRequest).mockReturnValue(
+      errorResult(
+        new ApiError(500, {
+          type: 'about:blank',
+          title: 'Server error',
+          status: 500,
+          detail: 'Server exploded.',
+        }),
+      ),
+    );
 
     // Act
     const { container } = renderPage();
@@ -432,18 +432,16 @@ describe('RecordDetailPage', () => {
 
   it('RecordDetailPage — a 403 renders the no-access surface and hides the record name', async () => {
     // Arrange
-    jest
-      .mocked(useRequests.useRequest)
-      .mockReturnValue(
-        errorResult(
-          new ApiError(403, {
-            type: 'about:blank',
-            title: 'Forbidden',
-            status: 403,
-            detail: 'Forbidden.',
-          }),
-        ),
-      );
+    jest.mocked(useRequests.useRequest).mockReturnValue(
+      errorResult(
+        new ApiError(403, {
+          type: 'about:blank',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'Forbidden.',
+        }),
+      ),
+    );
 
     // Act
     const { container } = renderPage();
@@ -579,36 +577,33 @@ describe('RecordDetailPage', () => {
     ]);
   });
 
-  it('RecordDetailPage — Status tab shows the summary row and SLA block', async () => {
-    // Arrange — default record: no due date. (Status history now lives only in the Activity tab.)
+  it('RecordDetailPage — Status tab shows the SLA block (no summary row)', async () => {
+    // Arrange — default record: no due date. Submitted / Lifecycle now live on the Intake tab.
     const user = userEvent.setup();
 
     // Act
     const { container } = renderPage();
     await user.click(await screen.findByRole('tab', { name: 'Status' }));
 
-    // Assert — summary row (Submitted / Lifecycle) and the SLA block. Status category was dropped.
-    expect(screen.getByText('Lifecycle')).toBeInTheDocument();
-    expect(screen.getByText('Standard delivery')).toBeInTheDocument();
-    expect(screen.queryByText('Status category')).not.toBeInTheDocument();
+    // Assert — the SLA block is present; Submitted / Lifecycle / Status category are not on this tab.
     expect(screen.getByText('No due date')).toBeInTheDocument();
+    expect(screen.queryByText('Lifecycle')).not.toBeInTheDocument();
+    expect(screen.queryByText('Status category')).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it('RecordDetailPage — Watchers tab Active alerts composes SLA + hold signals', async () => {
     // Arrange — an overdue, on-hold record surfaces two composed alerts on the Watchers tab.
     const user = userEvent.setup();
-    jest
-      .mocked(useRequests.useRequest)
-      .mockReturnValue(
-        queryResult(
-          buildRequestDto({
-            slaStatus: 'Overdue',
-            statusHold: 'OnHold',
-            statusHoldNote: 'Waiting on client',
-          }),
-        ),
-      );
+    jest.mocked(useRequests.useRequest).mockReturnValue(
+      queryResult(
+        buildRequestDto({
+          slaStatus: 'Overdue',
+          statusHold: 'OnHold',
+          statusHoldNote: 'Waiting on client',
+        }),
+      ),
+    );
 
     // Act
     renderPage();
