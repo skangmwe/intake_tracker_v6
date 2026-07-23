@@ -1,6 +1,6 @@
 // Unit tests for ClosureService (Slice 10 — Closure, BS §8). The pure Validate() and the pre-persist
 // branches are covered here; the usp_CloseRequest happy path is covered by tSQLt + the LocalDB
-// round-trip (api-testing-guidelines.md). Covers: Duplicate-needs-target validation, 403 when the
+// round-trip (api-testing-guidelines.md). Covers: notes-required-unless-Live validation, 403 when the
 // record isn't visible / caller isn't Member+, and cancellation propagation.
 
 using System.Text.Json;
@@ -53,35 +53,45 @@ public sealed class ClosureServiceTests
             Name: "Extractor", Description: "desc", Fields: new Dictionary<string, JsonElement>(StringComparer.Ordinal),
             Bridge: null, ETag: "AAAAAAAAAGQ=");
 
-    private static RequestCloseRequest CloseWith(string kind, string value, string? duplicateOf = null) =>
-        new() { Outcome = new OutcomeInput { Kind = kind, Value = value, DuplicateOfRecordId = duplicateOf } };
+    private static RequestCloseRequest CloseWith(string kind, string value, string? notes = null) =>
+        new() { Outcome = new OutcomeInput { Kind = kind, Value = value, Notes = notes } };
 
     [Fact]
-    public void Validate_DuplicateWithoutTarget_ReportsError()
+    public void Validate_NonLiveWithoutNotes_ReportsError()
     {
-        // Arrange + Act
-        var errors = ClosureService.Validate(CloseWith("local", "Duplicate"));
+        // Arrange + Act — a non-Live close must record why.
+        var errors = ClosureService.Validate(CloseWith("local", "Withdrawn"));
 
         // Assert
-        Assert.True(errors.ContainsKey("outcome.duplicateOfRecordId"));
+        Assert.True(errors.ContainsKey("outcome.notes"));
     }
 
     [Fact]
-    public void Validate_DuplicateWithTarget_Passes()
+    public void Validate_NonLiveWithNotes_Passes()
     {
         // Arrange + Act
-        var errors = ClosureService.Validate(CloseWith("local", "Duplicate", "AIS-00000002"));
+        var errors = ClosureService.Validate(CloseWith("local", "Withdrawn", "Requester withdrew the ask."));
 
         // Assert
         Assert.Empty(errors);
     }
 
     [Fact]
-    public async Task CloseAsync_DuplicateWithoutTarget_ReturnsValidationFailed()
+    public void Validate_LiveWithoutNotes_Passes()
+    {
+        // Arrange + Act — Live (delivered) is the one outcome whose notes stay optional.
+        var errors = ClosureService.Validate(CloseWith("delivery", "Live"));
+
+        // Assert
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public async Task CloseAsync_NonLiveWithoutNotes_ReturnsValidationFailed()
     {
         // Arrange — validation runs before any read, so no record setup is needed.
         // Act
-        var result = await Build().CloseAsync(RecordId, CloseWith("local", "Duplicate"), ActorId, "op-1", CancellationToken.None);
+        var result = await Build().CloseAsync(RecordId, CloseWith("local", "Withdrawn"), ActorId, "op-1", CancellationToken.None);
 
         // Assert
         Assert.Equal(CloseOutcome.ValidationFailed, result.Outcome);

@@ -107,7 +107,9 @@ public sealed class ClosureService : IClosureService
         return new CloseResult(CloseOutcome.Success, fresh);
     }
 
-    /// <summary>Cross-field close validation the DTO annotations can't express — Duplicate needs a target.</summary>
+    /// <summary>Cross-field close validation the DTO annotations can't express — every close except
+    /// Live (delivered) must record why. The "duplicates" relationship is captured as a linked record,
+    /// not on the close, so no duplicate-target is required here.</summary>
     public static Dictionary<string, string[]> Validate(RequestCloseRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
@@ -123,11 +125,10 @@ public sealed class ClosureService : IClosureService
         {
             errors["outcome.value"] = new[] { "Choose an outcome to close this record." };
         }
-
-        if (string.Equals(outcome.Value, "Duplicate", StringComparison.Ordinal)
-            && string.IsNullOrWhiteSpace(outcome.DuplicateOfRecordId))
+        else if (!string.Equals(outcome.Value, "Live", StringComparison.Ordinal)
+            && string.IsNullOrWhiteSpace(outcome.Notes))
         {
-            errors["outcome.duplicateOfRecordId"] = new[] { "Name the record this duplicates." };
+            errors["outcome.notes"] = new[] { "Add a note explaining this outcome." };
         }
 
         return errors;

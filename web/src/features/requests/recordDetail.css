@@ -125,12 +125,30 @@
   background: var(--bg-surface);
   border-top: 1px solid var(--border-light);
   border-bottom: 1px solid var(--border-light);
-  padding: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
   margin: 0 calc(-1 * var(--space-4));
-  padding-left: var(--space-4);
-  padding-right: var(--space-4);
   overflow-x: auto;
   min-width: 0;
+}
+
+/* Status + Stage sit side by side — Status on the left half, Stage on the right — on wider
+   viewports; they stack to a single column below --bp-md. Each card fills its half. */
+.record-status__split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  align-items: start;
+  min-width: 0;
+}
+
+.record-status__split > .record-card {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .record-status__split {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── Tab row + save indicator ─── */

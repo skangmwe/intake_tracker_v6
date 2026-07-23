@@ -20,10 +20,7 @@ export function SlaBlock({ slaStatus }: { slaStatus: SlaStatus | undefined }) {
   const StateIcon = STATE_ICONS[sla.iconKey];
   return (
     <section className="record-card" aria-label="SLA">
-      <span className="record-chip">
-        <Timer size={15} aria-hidden />
-        SLA
-      </span>
+      <span className="record-chip">SLA</span>
       <div className="record-sla">
         <span className="record-sla__icon" data-tone={sla.tone} aria-hidden>
           <StateIcon size={20} />

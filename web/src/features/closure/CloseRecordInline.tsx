@@ -1,15 +1,16 @@
 // Close-with-Outcome inline panel (S4/S5 — BS §8). Reached from the record's Status tab: picking a
 // "Closed" outcome from the Status picker reveals this panel in place (like the on-hold note), not a
-// pop-up. The outcome itself comes from the picker; here the user adds optional notes, names the
-// duplicated record (for Duplicate), and confirms. On success the record refetches into its closed
-// state (Display Status shows the outcome).
+// pop-up. The outcome itself comes from the picker; here the user adds the outcome notes and confirms.
+// Notes are mandatory for every outcome except Live (delivered) — a non-delivery close must say why.
+// The "duplicates" relationship is captured separately as a linked record, not here. On success the
+// record refetches into its closed state (Display Status shows the outcome).
 
 import { useState } from 'react';
 
 import type { DeliveryOutcome, LocalOutcome, Outcome, RecordId } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
-import { TextArea, TextField } from '@/shared/components/Form';
+import { TextArea } from '@/shared/components/Form';
 import { problemMessage } from '@/shared/http/problemMessage';
 
 import { useCloseRecord } from './useClose';
@@ -34,12 +35,15 @@ const OUTCOME_CHOICES: OutcomeChoice[] = [
 ];
 
 /** {value,label} options for the closable outcomes — reused by the S4 Status picker's Closed group. */
-export const CLOSE_OUTCOME_OPTIONS = OUTCOME_CHOICES.map((choice) => ({ value: choice.value, label: choice.label }));
+export const CLOSE_OUTCOME_OPTIONS = OUTCOME_CHOICES.map((choice) => ({
+  value: choice.value,
+  label: choice.label,
+}));
 
 interface CloseRecordInlineProps {
   recordId: RecordId;
   recordName: string;
-  /** The outcome picked in the Status picker's Closed group — drives kind and the Duplicate branch. */
+  /** The outcome picked in the Status picker's Closed group — drives kind and whether notes are required. */
   outcome: CloseOutcomeValue;
   /** Abandon the close and restore the picker to its active state. */
   onCancel: () => void;
@@ -47,47 +51,42 @@ interface CloseRecordInlineProps {
   onClosed: () => void;
 }
 
-export function CloseRecordInline({ recordId, recordName, outcome, onCancel, onClosed }: CloseRecordInlineProps) {
+export function CloseRecordInline({
+  recordId,
+  recordName,
+  outcome,
+  onCancel,
+  onClosed,
+}: CloseRecordInlineProps) {
   const [notes, setNotes] = useState('');
-  const [duplicateOf, setDuplicateOf] = useState('');
-  const [submitted, setSubmitted] = useState(false);
   const close = useCloseRecord(recordId);
 
-  const isDuplicate = outcome === 'Duplicate';
-  const duplicateMissing = isDuplicate && duplicateOf.trim() === '';
+  // Every close except Live (delivered) must record why — mirrors the API's close validation.
+  const notesRequired = outcome !== 'Live';
+  const notesMissing = notesRequired && notes.trim() === '';
 
   const onConfirm = () => {
-    setSubmitted(true);
-    if (duplicateMissing) return;
+    if (notesMissing) return;
     // `outcome` is always one of OUTCOME_CHOICES (the value the Status picker's Closed group offers).
     const choice = OUTCOME_CHOICES.find((entry) => entry.value === outcome) ?? OUTCOME_CHOICES[0]!;
-    const built: Outcome = {
-      kind: choice.kind,
-      value: choice.value,
-      notes: notes.trim(),
-      ...(isDuplicate ? { duplicateOfRecordId: duplicateOf.trim() as RecordId } : {}),
-    };
+    const built: Outcome = { kind: choice.kind, value: choice.value, notes: notes.trim() };
     close.mutate({ outcome: built }, { onSuccess: () => onClosed() });
   };
 
   return (
     <div className="closure-inline">
       <p className="closure-inline__lead">
-        Record an outcome for “{recordName}”. This sets the record’s final status; you can still read it
-        afterward.
+        Record an outcome for “{recordName}”. This sets the record’s final status; you can still
+        read it afterward.
       </p>
 
-      {isDuplicate && (
-        <TextField
-          label="Duplicate of"
-          value={duplicateOf}
-          onChange={setDuplicateOf}
-          hint="The record ID this one duplicates."
-          error={submitted && duplicateMissing ? 'Name the record this duplicates.' : undefined}
-        />
-      )}
-
-      <TextArea label="Notes" value={notes} onChange={setNotes} optional />
+      <TextArea
+        label="Notes"
+        value={notes}
+        onChange={setNotes}
+        optional={outcome === 'Live'}
+        error={notesMissing ? 'Add a note explaining this outcome.' : undefined}
+      />
 
       {close.isError && (
         <p className="mws-alert mws-alert--error" role="alert">
@@ -99,7 +98,7 @@ export function CloseRecordInline({ recordId, recordName, outcome, onCancel, onC
         <Button variant="secondary" onClick={onCancel} disabled={close.isPending}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={onConfirm} disabled={close.isPending}>
+        <Button variant="primary" onClick={onConfirm} disabled={close.isPending || notesMissing}>
           {close.isPending ? 'Closing…' : 'Close record'}
         </Button>
       </div>

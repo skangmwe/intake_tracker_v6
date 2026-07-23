@@ -9,7 +9,13 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 
 import type { RequestDto, WorkspaceFieldSchemaDto, WorkspaceId } from '@shared/types';
 
-import { buildFieldDefinition, buildMe, buildMembership, buildRequestDto, renderWithProviders } from '@/test-utils';
+import {
+  buildFieldDefinition,
+  buildMe,
+  buildMembership,
+  buildRequestDto,
+  renderWithProviders,
+} from '@/test-utils';
 import { ApiError } from '@/shared/http/apiClient';
 import * as fieldsApi from '@/features/fields/api';
 import * as useMeModule from '@/features/users/useMe';
@@ -47,10 +53,9 @@ jest.mock('@/features/watchers/api', () => ({
   watchRecord: jest.fn(),
   unwatchRecord: jest.fn(),
 }));
-// The Status tab hosts the Status-history trail (record-detail reconciliation), which reads the
-// activity thread; the Watchers tab's Active-alerts card reads the record's gates. Mock both hooks
-// to synchronous empty results so no background query settles after assertions (avoids act warnings).
-// ActivityTab is stubbed (its own tab is never opened in these tests).
+// ActivityTab (which reads the activity thread) is stubbed — its tab is never opened here; the
+// Watchers tab's Active-alerts card reads the record's gates. Mock both hooks to synchronous empty
+// results so no background query settles after assertions (avoids act warnings).
 jest.mock('@/features/comments', () => ({
   ActivityTab: () => null,
   useThread: jest.fn(() => ({ data: [], isLoading: false, isError: false })),
@@ -81,7 +86,13 @@ const SCHEMA: WorkspaceFieldSchemaDto = {
   objectType: 'Request',
   platformFields: [],
   fields: [
-    buildFieldDefinition({ fieldKey: 'name', displayName: 'Name', fieldType: 'ShortText', isRequired: true, sortOrder: 1 }),
+    buildFieldDefinition({
+      fieldKey: 'name',
+      displayName: 'Name',
+      fieldType: 'ShortText',
+      isRequired: true,
+      sortOrder: 1,
+    }),
     buildFieldDefinition({
       id: '00000000-0000-0000-0000-0000000000f2' as ReturnType<typeof buildFieldDefinition>['id'],
       fieldKey: 'description',
@@ -94,7 +105,9 @@ const SCHEMA: WorkspaceFieldSchemaDto = {
 };
 
 function queryResult(data: RequestDto) {
-  return { data, isLoading: false, isError: false, error: null } as unknown as ReturnType<typeof useRequests.useRequest>;
+  return { data, isLoading: false, isError: false, error: null } as unknown as ReturnType<
+    typeof useRequests.useRequest
+  >;
 }
 
 function errorResult(error: unknown) {
@@ -114,7 +127,9 @@ function seedDefaults() {
   jest.mocked(useRequests.useRequest).mockReturnValue(queryResult(buildRequestDto()));
   jest
     .mocked(useRequests.usePatchRequest)
-    .mockReturnValue(asMutation(patchMutate) as unknown as ReturnType<typeof useRequests.usePatchRequest>);
+    .mockReturnValue(
+      asMutation(patchMutate) as unknown as ReturnType<typeof useRequests.usePatchRequest>,
+    );
   jest
     .mocked(useRequests.useSetStatusHold)
     .mockReturnValue(
@@ -122,12 +137,16 @@ function seedDefaults() {
     );
   jest
     .mocked(useRequests.useSetStage)
-    .mockReturnValue(asMutation(setStageMutate) as unknown as ReturnType<typeof useRequests.useSetStage>);
+    .mockReturnValue(
+      asMutation(setStageMutate) as unknown as ReturnType<typeof useRequests.useSetStage>,
+    );
   jest.mocked(fieldsApi.fetchWorkspaceFields).mockResolvedValue(SCHEMA);
   // Default membership: the record's own workspace as the AI Solutions hub — escalation is not offered.
   jest
     .mocked(useMeModule.useMe)
-    .mockReturnValue({ data: buildMe({ memberships: [buildMembership()] }) } as unknown as ReturnType<typeof useMeModule.useMe>);
+    .mockReturnValue({
+      data: buildMe({ memberships: [buildMembership()] }),
+    } as unknown as ReturnType<typeof useMeModule.useMe>);
 }
 
 const PG_WORKSPACE = 'ws-pg' as WorkspaceId;
@@ -186,9 +205,13 @@ describe('RecordDetailPage', () => {
 
   it('RecordDetailPage — time-in-stage shows in the meta strip and the SLA pill reflects Overdue', async () => {
     // Arrange — an overdue record parked five days in its current stage.
-    jest.mocked(useRequests.useRequest).mockReturnValue(
-      queryResult(buildRequestDto({ slaStatus: 'Overdue', timeInStage: { stageKey: 'intake', days: 5 } })),
-    );
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(
+        queryResult(
+          buildRequestDto({ slaStatus: 'Overdue', timeInStage: { stageKey: 'intake', days: 5 } }),
+        ),
+      );
 
     // Act
     const { container } = renderPage();
@@ -201,9 +224,13 @@ describe('RecordDetailPage', () => {
 
   it('RecordDetailPage — a Due-soon SLA renders the "Due soon" pill and singular/Today time-in-stage', async () => {
     // Arrange — due soon, entered the stage today (0 days → "Today").
-    jest.mocked(useRequests.useRequest).mockReturnValue(
-      queryResult(buildRequestDto({ slaStatus: 'DueSoon', timeInStage: { stageKey: 'intake', days: 0 } })),
-    );
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(
+        queryResult(
+          buildRequestDto({ slaStatus: 'DueSoon', timeInStage: { stageKey: 'intake', days: 0 } }),
+        ),
+      );
 
     // Act
     renderPage();
@@ -229,9 +256,13 @@ describe('RecordDetailPage', () => {
 
   it('RecordDetailPage — Intake tab renders editable fields seeded from the record', async () => {
     // Arrange
-    jest.mocked(useRequests.useRequest).mockReturnValue(
-      queryResult(buildRequestDto({ fields: { name: 'Meeting notes', description: 'Existing summary' } })),
-    );
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(
+        queryResult(
+          buildRequestDto({ fields: { name: 'Meeting notes', description: 'Existing summary' } }),
+        ),
+      );
 
     // Act
     const { container } = renderPage();
@@ -244,9 +275,9 @@ describe('RecordDetailPage', () => {
 
   it('RecordDetailPage — editing a field debounces one patch and shows the saved indicator', async () => {
     // Arrange
-    jest.mocked(useRequests.useRequest).mockReturnValue(
-      queryResult(buildRequestDto({ fields: { name: 'Meeting notes' } })),
-    );
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(queryResult(buildRequestDto({ fields: { name: 'Meeting notes' } })));
     const { container } = renderPage();
     const nameInput = await screen.findByLabelText('Name');
 
@@ -276,10 +307,7 @@ describe('RecordDetailPage', () => {
 
     // Act
     await user.click(await screen.findByRole('tab', { name: 'Status' }));
-    await user.selectOptions(
-      await screen.findByRole('combobox', { name: 'Status' }),
-      'OnHold',
-    );
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Status' }), 'OnHold');
     await user.type(screen.getByLabelText('Note'), 'Waiting on client');
     await user.click(screen.getByRole('button', { name: 'Update status' }));
 
@@ -331,9 +359,18 @@ describe('RecordDetailPage', () => {
 
   it('RecordDetailPage — a non-403 error renders the generic error alert', async () => {
     // Arrange — a 500 is not a forbidden case, so the no-access surface must not appear.
-    jest.mocked(useRequests.useRequest).mockReturnValue(
-      errorResult(new ApiError(500, { type: 'about:blank', title: 'Server error', status: 500, detail: 'Server exploded.' })),
-    );
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(
+        errorResult(
+          new ApiError(500, {
+            type: 'about:blank',
+            title: 'Server error',
+            status: 500,
+            detail: 'Server exploded.',
+          }),
+        ),
+      );
 
     // Act
     const { container } = renderPage();
@@ -345,7 +382,7 @@ describe('RecordDetailPage', () => {
   });
 
   it('RecordDetailPage — Status tab: Move stage calls setStage with the chosen stage', async () => {
-    // Arrange
+    // Arrange — the Stage card sits beside the Status card in the Status tab.
     const user = userEvent.setup();
     const { container } = renderPage();
 
@@ -395,11 +432,18 @@ describe('RecordDetailPage', () => {
 
   it('RecordDetailPage — a 403 renders the no-access surface and hides the record name', async () => {
     // Arrange
-    jest.mocked(useRequests.useRequest).mockReturnValue(
-      errorResult(
-        new ApiError(403, { type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Forbidden.' }),
-      ),
-    );
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(
+        errorResult(
+          new ApiError(403, {
+            type: 'about:blank',
+            title: 'Forbidden',
+            status: 403,
+            detail: 'Forbidden.',
+          }),
+        ),
+      );
 
     // Act
     const { container } = renderPage();
@@ -448,7 +492,9 @@ describe('RecordDetailPage', () => {
       .mocked(useRequests.useRequest)
       .mockReturnValue(queryResult(buildRequestDto({ workspaceId: PG_WORKSPACE })));
     jest.mocked(useMeModule.useMe).mockReturnValue({
-      data: buildMe({ memberships: [buildMembership({ workspaceId: PG_WORKSPACE, workspaceKind: 'pg-dept' })] }),
+      data: buildMe({
+        memberships: [buildMembership({ workspaceId: PG_WORKSPACE, workspaceKind: 'pg-dept' })],
+      }),
     } as unknown as ReturnType<typeof useMeModule.useMe>);
 
     // Act
@@ -471,7 +517,9 @@ describe('RecordDetailPage', () => {
     await user.click(await screen.findByRole('tab', { name: 'Status' }));
 
     // Assert
-    expect(screen.queryByRole('button', { name: 'Escalate to AI Solutions' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Escalate to AI Solutions' }),
+    ).not.toBeInTheDocument();
   });
 
   it('RecordDetailPage — admin-authored relationship injects a tab; system relationships do not', async () => {
@@ -521,34 +569,46 @@ describe('RecordDetailPage', () => {
     const labels = within(tablist)
       .getAllByRole('tab')
       .map((tab) => tab.textContent);
-    expect(labels).toEqual(['Status', 'Intake', 'Tasks & gates', 'Attachments', 'Activity', 'Watchers & alerts']);
+    expect(labels).toEqual([
+      'Status',
+      'Intake',
+      'Tasks & gates',
+      'Attachments',
+      'Activity',
+      'Watchers & alerts',
+    ]);
   });
 
-  it('RecordDetailPage — Status tab shows the summary row, SLA block, and the empty status-history trail', async () => {
-    // Arrange — default record: no due date, no status-hold events.
+  it('RecordDetailPage — Status tab shows the summary row and SLA block', async () => {
+    // Arrange — default record: no due date. (Status history now lives only in the Activity tab.)
     const user = userEvent.setup();
 
     // Act
     const { container } = renderPage();
     await user.click(await screen.findByRole('tab', { name: 'Status' }));
 
-    // Assert — summary row (Submitted / Lifecycle / Status category), SLA block, and the empty trail.
+    // Assert — summary row (Submitted / Lifecycle) and the SLA block. Status category was dropped.
     expect(screen.getByText('Lifecycle')).toBeInTheDocument();
     expect(screen.getByText('Standard delivery')).toBeInTheDocument();
-    expect(screen.getByText('Status category')).toBeInTheDocument();
+    expect(screen.queryByText('Status category')).not.toBeInTheDocument();
     expect(screen.getByText('No due date')).toBeInTheDocument();
-    expect(await screen.findByText(/No status changes yet/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it('RecordDetailPage — Watchers tab Active alerts composes SLA + hold signals', async () => {
     // Arrange — an overdue, on-hold record surfaces two composed alerts on the Watchers tab.
     const user = userEvent.setup();
-    jest.mocked(useRequests.useRequest).mockReturnValue(
-      queryResult(
-        buildRequestDto({ slaStatus: 'Overdue', statusHold: 'OnHold', statusHoldNote: 'Waiting on client' }),
-      ),
-    );
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(
+        queryResult(
+          buildRequestDto({
+            slaStatus: 'Overdue',
+            statusHold: 'OnHold',
+            statusHoldNote: 'Waiting on client',
+          }),
+        ),
+      );
 
     // Act
     renderPage();
