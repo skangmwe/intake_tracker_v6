@@ -1,7 +1,7 @@
 // Tests for the Close-with-Outcome inline panel (S4/S5). The API boundary is mocked; renderWithProviders
 // hosts the mutation. The outcome comes from a prop (the Status picker chose it), so these cover: render,
-// Cancel, the Duplicate-requires-target branch, a successful close (sends the outcome + calls onClosed),
-// and the error state — each rendered state under jest-axe.
+// Cancel, the notes-required-unless-Live rule (non-Live blocks until a note is entered), a successful
+// close (sends the outcome + calls onClosed), and the error state — each rendered state under jest-axe.
 
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -63,29 +63,53 @@ describe('CloseRecordInline', () => {
     expect(mockedApi.closeRecord).not.toHaveBeenCalled();
   });
 
-  it('CloseRecordInline — Duplicate reveals a target field and blocks submit until it is filled', async () => {
+  it('CloseRecordInline — there is no Duplicate-of field (the link lives as a linked record)', () => {
+    // Arrange / Act — even for the Duplicate outcome, no target field is collected here.
+    renderPanel('Duplicate');
+
+    // Assert
+    expect(screen.queryByRole('textbox', { name: 'Duplicate of' })).not.toBeInTheDocument();
+  });
+
+  it('CloseRecordInline — a non-Live outcome requires a note before it can close', async () => {
     // Arrange
     const user = userEvent.setup();
-    const { container, onClosed } = renderPanel('Duplicate');
+    const { container, onClosed } = renderPanel('Withdrawn');
 
-    // Act — a Duplicate outcome shows the target field; submit with no target.
-    expect(screen.getByRole('textbox', { name: 'Duplicate of' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Close record' }));
-
-    // Assert — a validation error shows and no API call was made.
-    expect(await screen.findByText('Name the record this duplicates.')).toBeInTheDocument();
+    // Act / Assert — with no note, Close is blocked and the required-note error shows.
+    const closeButton = screen.getByRole('button', { name: 'Close record' });
+    expect(closeButton).toBeDisabled();
+    expect(screen.getByText('Add a note explaining this outcome.')).toBeInTheDocument();
+    await user.click(closeButton);
     expect(mockedApi.closeRecord).not.toHaveBeenCalled();
     expect(onClosed).not.toHaveBeenCalled();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('CloseRecordInline — a Live close sends the delivery outcome and calls onClosed', async () => {
+  it('CloseRecordInline — a non-Live outcome sends the note once entered', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    mockedApi.closeRecord.mockResolvedValue(buildRequestDto());
+    const { onClosed } = renderPanel('Withdrawn');
+
+    // Act — entering a note unblocks the close.
+    await user.type(screen.getByRole('textbox', { name: 'Notes' }), 'Requester withdrew the ask.');
+    await user.click(screen.getByRole('button', { name: 'Close record' }));
+
+    // Assert
+    expect(mockedApi.closeRecord).toHaveBeenCalledWith(RECORD, {
+      outcome: { kind: 'local', value: 'Withdrawn', notes: 'Requester withdrew the ask.' },
+    });
+    await waitFor(() => expect(onClosed).toHaveBeenCalledTimes(1));
+  });
+
+  it('CloseRecordInline — a Live close sends the delivery outcome with no note required', async () => {
     // Arrange
     const user = userEvent.setup();
     mockedApi.closeRecord.mockResolvedValue(buildRequestDto());
     const { onClosed } = renderPanel('Live');
 
-    // Act
+    // Act — Live is the one outcome whose notes stay optional.
     await user.click(screen.getByRole('button', { name: 'Close record' }));
 
     // Assert
@@ -99,7 +123,12 @@ describe('CloseRecordInline', () => {
     // Arrange
     const user = userEvent.setup();
     mockedApi.closeRecord.mockRejectedValue(
-      new ApiError(403, { type: 'about:blank', title: 'Forbidden', status: 403, detail: 'You do not have access to this request.' }),
+      new ApiError(403, {
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'You do not have access to this request.',
+      }),
     );
     const { container, onClosed } = renderPanel('Live');
 
@@ -107,7 +136,9 @@ describe('CloseRecordInline', () => {
     await user.click(screen.getByRole('button', { name: 'Close record' }));
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent('You do not have access to this request.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'You do not have access to this request.',
+    );
     expect(onClosed).not.toHaveBeenCalled();
     expect(await axe(container)).toHaveNoViolations();
   });

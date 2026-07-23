@@ -2,7 +2,7 @@
 // status-category derivation, and the submitted-date formatter — no React, no I/O
 // (web-file-structure.md). Unit-tested directly in statusPresentation.test.ts.
 
-import type { RequestDto, SlaStatus } from '@shared/types';
+import type { SlaStatus } from '@shared/types';
 
 /** `5 Jul 2026` long-form submitted/eventtimestamp; em-dash when unparseable. */
 export function formatSubmitted(iso: string): string {
@@ -32,18 +32,25 @@ export function slaPresentation(slaStatus?: SlaStatus): SlaPresentation {
     case 'Overdue':
       return { tone: 'error', iconKey: 'overdue', label: 'Overdue', detail: 'Past the due date.' };
     case 'DueSoon':
-      return { tone: 'warning', iconKey: 'dueSoon', label: 'Due soon', detail: 'Approaching the due date.' };
+      return {
+        tone: 'warning',
+        iconKey: 'dueSoon',
+        label: 'Due soon',
+        detail: 'Approaching the due date.',
+      };
     case 'OnTrack':
-      return { tone: 'success', iconKey: 'onTrack', label: 'On track', detail: 'Within the due-date window.' };
+      return {
+        tone: 'success',
+        iconKey: 'onTrack',
+        label: 'On track',
+        detail: 'Within the due-date window.',
+      };
     default:
-      return { tone: 'muted', iconKey: 'none', label: 'No due date', detail: 'Set a due date to track SLA.' };
+      return {
+        tone: 'muted',
+        iconKey: 'none',
+        label: 'No due date',
+        detail: 'Set a due date to track SLA.',
+      };
   }
-}
-
-/**
- * The record's current status category — the dashboard bucket (BS §10.6) of the stage whose `key`
- * matches `request.stage`. Undefined when the current stage can't be resolved (defensive).
- */
-export function statusCategoryOf(request: RequestDto): string | undefined {
-  return request.stages.find((stage) => stage.key === request.stage)?.statusCategory;
 }

@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowsLeftRight, CaretRight, CloudCheck, FlagBanner } from '@phosphor-icons/react';
+import { ArrowsLeftRight, CaretRight, CloudCheck } from '@phosphor-icons/react';
 
 import type {
   FieldDefinitionDto,
@@ -31,26 +31,21 @@ import { TasksTab } from '@/features/tasks';
 import { useMe } from '@/features/users/useMe';
 import { EscalateModal, EscalatedIntakeNote } from '@/features/escalation';
 import { AddToCatalogButton } from '@/features/features';
-import { CloseRecordInline, CLOSE_OUTCOME_OPTIONS, type CloseOutcomeValue } from '@/features/closure';
+import {
+  CloseRecordInline,
+  CLOSE_OUTCOME_OPTIONS,
+  type CloseOutcomeValue,
+} from '@/features/closure';
 import { RelationshipsCard } from '@/features/typed-links';
 import { AttachmentsCard } from '@/features/attachments';
 import { WatchersCard } from '@/features/watchers';
-import {
-  GenericRelatedRecordsTab,
-  useRelationshipTabs,
-} from '@/features/relationships';
+import { GenericRelatedRecordsTab, useRelationshipTabs } from '@/features/relationships';
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { SlaBlock } from './SlaBlock';
-import { StatusHistoryTrail } from './StatusHistoryTrail';
 import { StatusSummaryRow } from './StatusSummaryRow';
 import { formatSubmitted } from '../statusPresentation';
-import {
-  useRequest,
-  usePatchRequest,
-  useSetStage,
-  useSetStatusHold,
-} from '../useRequests';
+import { useRequest, usePatchRequest, useSetStage, useSetStatusHold } from '../useRequests';
 import {
   computePriorityScore,
   evaluateFieldConditions,
@@ -360,7 +355,7 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
   const activeSelected = isActiveStatus(pickerValue);
   const noteRequired = pickerValue === 'OnHold';
   const noteMissing = noteRequired && note.trim() === '';
-  const stageOptions = request.stages.map((s) => ({ value: s.key, label: s.label }));
+  const stageOptions = request.stages.map((stage) => ({ value: stage.key, label: stage.label }));
   const stageGuard = useHoldGuard(request.statusHold);
 
   const onPickStatus = (value: string) => {
@@ -392,85 +387,90 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
     <div className="record-status">
       <StatusSummaryRow request={request} />
 
-      <section className="record-card" aria-label="Record status">
-        <span className="record-chip">
-          <FlagBanner size={15} aria-hidden />
-          Status
-        </span>
-        <Select
-          label="Status"
-          value={pickerValue}
-          onChange={onPickStatus}
-          groups={STATUS_PICKER_GROUPS}
-          disabled={closed != null}
-        />
-        {closed && (
-          <p className="caption">
-            Closed · {closed.value}
-            {closed.notes ? ` — ${closed.notes}` : ''}
-          </p>
-        )}
-        {noteRequired && (
-          <TextArea
-            label="Note"
-            value={note}
-            onChange={setNote}
-            error={noteMissing ? 'Add a reason for placing this record on hold.' : undefined}
+      <div className="record-status__split">
+        <section className="record-card" aria-label="Record status">
+          <span className="record-chip">Status</span>
+          <Select
+            label="Status"
+            value={pickerValue}
+            onChange={onPickStatus}
+            groups={STATUS_PICKER_GROUPS}
+            disabled={closed != null}
           />
-        )}
-        {activeSelected && currentStatusHold === 'OnHold' && (
-          <p className="mws-alert mws-alert--pending" role="status">
-            <StatusHoldPill statusHold={currentStatusHold} /> Task completion and gate approvals are
-            paused while this record is on hold. Set it back to <strong>In progress</strong> to
-            continue.
-          </p>
-        )}
-        {activeSelected && (
+          {closed && (
+            <p className="caption">
+              Closed · {closed.value}
+              {closed.notes ? ` — ${closed.notes}` : ''}
+            </p>
+          )}
+          {noteRequired && (
+            <TextArea
+              label="Note"
+              value={note}
+              onChange={setNote}
+              error={noteMissing ? 'Add a reason for placing this record on hold.' : undefined}
+            />
+          )}
+          {activeSelected && currentStatusHold === 'OnHold' && (
+            <p className="mws-alert mws-alert--pending" role="status">
+              <StatusHoldPill statusHold={currentStatusHold} /> Task completion and gate approvals
+              are paused while this record is on hold. Set it back to <strong>In progress</strong>{' '}
+              to continue.
+            </p>
+          )}
+          {activeSelected && (
+            <Button
+              variant="secondary"
+              onClick={updateStatus}
+              disabled={setStatusHold.isPending || noteMissing}
+            >
+              Update status
+            </Button>
+          )}
+          {/* Picking a "Closed" outcome reveals the close panel in place (not a pop-up) — like the
+            on-hold note above. The picker chose the outcome; here we take notes and confirm. */}
+          {closingOutcome && (
+            <CloseRecordInline
+              recordId={request.id as RecordId}
+              recordName={request.name}
+              outcome={closingOutcome}
+              onCancel={cancelClose}
+              onClosed={() => setClosingOutcome(null)}
+            />
+          )}
+        </section>
+
+        <section className="record-card" aria-label="Move stage">
+          <span className="record-chip">Stage</span>
+          <Select label="Stage" value={toStage} onChange={setToStage} options={stageOptions} />
           <Button
             variant="secondary"
-            onClick={updateStatus}
-            disabled={setStatusHold.isPending || noteMissing}
+            onClick={() => setStage.mutate(toStage)}
+            disabled={setStage.isPending || stageGuard.disable}
+            title={stageGuard.reason ?? undefined}
           >
-            Update status
+            Move stage
           </Button>
-        )}
-        {/* Picking a "Closed" outcome reveals the close panel in place (not a pop-up) — like the
-            on-hold note above. The picker chose the outcome; here we take notes and confirm. */}
-        {closingOutcome && (
-          <CloseRecordInline
-            recordId={request.id as RecordId}
-            recordName={request.name}
-            outcome={closingOutcome}
-            onCancel={cancelClose}
-            onClosed={() => setClosingOutcome(null)}
-          />
-        )}
-      </section>
+          {stageGuard.blocked && (
+            <p className="caption" role="status">
+              {stageGuard.reason}
+            </p>
+          )}
+          {setStage.data && !setStage.data.advanced && (
+            <p className="mws-alert mws-alert--info" role="status">
+              {setStage.data.gateOpened.gateName} opened — approve it on the Tasks &amp; gates tab
+              to advance.
+            </p>
+          )}
+        </section>
+      </div>
+
+      <RelationshipsCard
+        recordId={request.id as RecordId}
+        workspaceId={request.workspaceId as WorkspaceId}
+      />
 
       <SlaBlock slaStatus={request.slaStatus} />
-
-      <StatusHistoryTrail recordId={request.id} />
-
-      <section className="record-card" aria-label="Move stage">
-        <Select label="Stage" value={toStage} onChange={setToStage} options={stageOptions} />
-        <Button
-          variant="secondary"
-          onClick={() => setStage.mutate(toStage)}
-          disabled={setStage.isPending || stageGuard.disable}
-          title={stageGuard.reason ?? undefined}
-        >
-          Move stage
-        </Button>
-        {stageGuard.blocked && (
-          <p className="caption" role="status">{stageGuard.reason}</p>
-        )}
-        {setStage.data && !setStage.data.advanced && (
-          <p className="mws-alert mws-alert--info" role="status">
-            {setStage.data.gateOpened.gateName} opened — approve it on the Tasks &amp; gates tab to
-            advance.
-          </p>
-        )}
-      </section>
 
       {canEscalate && (
         <section className="record-card" aria-label="Escalate to AI Solutions">
@@ -485,11 +485,6 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
           </Button>
         </section>
       )}
-
-      <RelationshipsCard
-        recordId={request.id as RecordId}
-        workspaceId={request.workspaceId as WorkspaceId}
-      />
     </div>
   );
 }

@@ -10,24 +10,25 @@ import { StatusSummaryRow } from './StatusSummaryRow';
 expect.extend(toHaveNoViolations);
 
 describe('StatusSummaryRow', () => {
-  it('StatusSummaryRow — renders submitted, lifecycle name, and the current status category', async () => {
-    // Arrange / Act — default record sits at the intake stage (category "Intake").
+  it('StatusSummaryRow — renders submitted and lifecycle name', async () => {
+    // Arrange / Act
     const { container } = render(<StatusSummaryRow request={buildRequestDto()} />);
 
-    // Assert
+    // Assert — Status category was dropped (it echoed the Display-status pill + stepper).
     expect(screen.getByText('Submitted')).toBeInTheDocument();
     expect(screen.getByText('Lifecycle')).toBeInTheDocument();
     expect(screen.getByText('Standard delivery')).toBeInTheDocument();
-    expect(screen.getByText('Status category')).toBeInTheDocument();
-    expect(screen.getByText('Intake')).toBeInTheDocument();
+    expect(screen.queryByText('Status category')).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('StatusSummaryRow — an unresolved status category renders an em-dash', async () => {
-    // Arrange / Act — a stage not in the lifecycle's list yields no category.
-    const { container } = render(<StatusSummaryRow request={buildRequestDto({ stage: 'ghost-stage' })} />);
+  it('StatusSummaryRow — an empty lifecycle name renders an em-dash', async () => {
+    // Arrange / Act
+    const { container } = render(
+      <StatusSummaryRow request={buildRequestDto({ lifecycleName: '' })} />,
+    );
 
-    // Assert — Submitted + Lifecycle still resolve, so the only em-dash is the category slot.
+    // Assert
     expect(screen.getByText('—')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });

@@ -15,7 +15,9 @@ public sealed class RequestCloseRequest
 
 /// <summary>
 /// The Outcome captured at closure (BS §8). <c>Kind</c> disambiguates delivery vs PG-local; <c>Value</c>
-/// is the terminal state. <c>DuplicateOfRecordId</c> is required by validation when Value = 'Duplicate'.
+/// is the terminal state. <c>Notes</c> are required by validation for every outcome except Live. The
+/// "duplicates" relationship is captured as a linked record, so <c>DuplicateOfRecordId</c> is optional and
+/// no longer collected by the close flow (retained for backward compatibility with stored outcomes).
 /// </summary>
 public sealed class OutcomeInput
 {
