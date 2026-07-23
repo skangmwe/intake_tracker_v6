@@ -43,7 +43,6 @@ import { GenericRelatedRecordsTab, useRelationshipTabs } from '@/features/relati
 
 import { RequestFieldControl } from './RequestFieldControl';
 import { SlaBlock } from './SlaBlock';
-import { StatusSummaryRow } from './StatusSummaryRow';
 import { formatSubmitted } from '../statusPresentation';
 import { useRequest, usePatchRequest, useSetStage, useSetStatusHold } from '../useRequests';
 import {
@@ -323,6 +322,8 @@ function IntakeTab({
         </span>
         <span className="record-intake__ro-label">Submitted</span>
         <span className="record-intake__ro-value">{formatSubmitted(request.createdAt)}</span>
+        <span className="record-intake__ro-label">Lifecycle</span>
+        <span className="record-intake__ro-value">{request.lifecycleName || '—'}</span>
       </div>
 
       {patch.isError && (
@@ -385,8 +386,6 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
 
   return (
     <div className="record-status">
-      <StatusSummaryRow request={request} />
-
       <div className="record-status__split">
         <section className="record-card" aria-label="Record status">
           <span className="record-chip">Status</span>
