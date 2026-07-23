@@ -142,7 +142,7 @@ export function AddToCatalogPage() {
 
   return (
     <main className="add-to-catalog-page">
-      <h1 className="h1 atc-title">{heading}</h1>
+      <h1 className="h2 atc-title">{heading}</h1>
       {draftId && (
         <p className="atc-lede">
           Prefilled from the source request. Add a one-liner and reuse notes, then save it to the

@@ -98,7 +98,7 @@ export function SearchResultsPage() {
   const rangeEnd = Math.min(total, page * SEARCH_RESULTS_PAGE_SIZE);
 
   return (
-    <div className="search-page">
+    <div className="search-page" data-layout="wide">
       <header className="search-page__header">
         <h1 className="h2">Search results</h1>
         <p className="body">Across records, comments, and attachment names in your workspace.</p>

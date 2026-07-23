@@ -17,14 +17,11 @@
    from the active surface (SideNavLayout derives them from the route), so pages don't self-title. */
 .side-nav-layout__header {
   grid-area: header;
-  padding: var(--space-5) var(--space-4) var(--space-4);
+  /* No top/side padding — the app-shell main gutter already owns both offsets, so the screen name
+     starts at the exact same top-left position as a plain page title (e.g. Requests, Home). */
+  padding: 0 0 var(--space-3);
   border-bottom: 1px solid var(--border-light);
   min-width: 0;
-}
-
-.side-nav-layout__eyebrow {
-  color: var(--text-secondary);
-  margin-bottom: var(--space-2);
 }
 
 .side-nav-layout__title {
@@ -33,8 +30,16 @@
 
 .side-nav-layout__lead {
   color: var(--text-secondary);
-  max-width: 72ch;
-  margin: var(--space-2) 0 0;
+  /* Secondary helper size (13px, per forms-and-input.md) — the description is a subtitle, not body
+     copy, so it stays compact and doesn't cost the header vertical space. */
+  font-size: 13px;
+  /* Single line — the detail text never wraps; on narrow viewports it ellipsises rather than
+     reflowing to a second line. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin: var(--space-1) 0 0;
 }
 
 .side-nav-layout__content {
@@ -98,7 +103,7 @@
   }
 
   .side-nav-layout__header {
-    padding: var(--space-6) var(--space-5) var(--space-5);
+    padding: 0 0 var(--space-4);
   }
 
   .side-nav {

@@ -46,7 +46,6 @@ export function SideNavLayout({ navLabel, items }: SideNavLayoutProps) {
     // data-dense subsections (members, fields, views, audit) use the full canvas (app-shell-and-headers.md).
     <div className="side-nav-layout" data-layout="wide">
       <header className="side-nav-layout__header">
-        <p className="eyebrow side-nav-layout__eyebrow">{navLabel}</p>
         <h1 className="h2 side-nav-layout__title">{active?.title ?? active?.label}</h1>
         {active?.lead != null && <p className="body side-nav-layout__lead">{active.lead}</p>}
       </header>

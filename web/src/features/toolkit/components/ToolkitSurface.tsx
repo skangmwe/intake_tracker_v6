@@ -18,6 +18,7 @@ import { Button } from '@/shared/components/Button';
 import { EmptyListFilteredToZero, EmptyListZeroData } from '@/shared/components/EdgeStates';
 import {
   FilterFunnel,
+  GalleryFilterBar,
   TableFooter,
   type FilterType,
   type FilterValue,
@@ -49,6 +50,14 @@ const FILTER_TYPES: Record<string, FilterType> = {
   status: 'select',
   maintainer: 'select',
 };
+
+// Gallery has no column headers, so its facet funnels move into the GalleryFilterBar. Free-text
+// (name) is already served by the toolbar search, so only the select facets appear here.
+const GALLERY_FACET_COLUMNS: TableColumn[] = [
+  { key: 'kind', label: 'Type' },
+  { key: 'status', label: 'Status' },
+  { key: 'maintainer', label: 'Maintainer' },
+];
 
 type EditorState = { editItemId: ToolkitItemId | null } | null;
 
@@ -159,11 +168,7 @@ export function ToolkitSurface() {
       data-layout="wide"
     >
       <header className="toolkit-surface__head">
-        <h1 className="h1">Toolkit</h1>
-        <p className="toolkit-surface__lede">
-          Playbooks, plugins, and prompt templates the team reaches for during delivery. Reuse a vetted
-          asset instead of starting from scratch.
-        </p>
+        <h1 className="h2">Toolkit</h1>
       </header>
 
       <div className="toolkit-surface__toolbar">
@@ -193,6 +198,19 @@ export function ToolkitSurface() {
           <Plus size={16} weight="regular" aria-hidden /> New item
         </Button>
       </div>
+
+      {viewMode === 'gallery' && (
+        // Gallery has no column headers for the funnels; the toolbar already carries the search, so
+        // the facet funnels move into the GalleryFilterBar. Same columnFilters state as the table.
+        <GalleryFilterBar
+          ariaLabel="Filter toolkit"
+          facets={GALLERY_FACET_COLUMNS.map((column) => ({
+            key: column.key,
+            label: column.label,
+            control: renderFilter(column),
+          }))}
+        />
+      )}
 
       <div className="toolkit-surface__body list-surface__body">
         {isLoading ? (

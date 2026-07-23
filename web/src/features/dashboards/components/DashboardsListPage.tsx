@@ -58,14 +58,14 @@ export function DashboardsListPage() {
   }
 
   const title = (
-    <h1 id="dash-list-heading" className="h1 dash-list__title">
+    <h1 id="dash-list-heading" className="h2 dash-list__title">
       Dashboards
     </h1>
   );
 
   if (meLoading || (workspaceId && list.isLoading)) {
     return (
-      <section className="dash-list" aria-labelledby="dash-list-heading">
+      <section className="dash-list" data-layout="wide" aria-labelledby="dash-list-heading">
         {title}
         <p className="caption" role="status">
           Loading dashboards…
@@ -76,7 +76,7 @@ export function DashboardsListPage() {
 
   if (meError || list.isError || !workspaceId) {
     return (
-      <section className="dash-list" aria-labelledby="dash-list-heading">
+      <section className="dash-list" data-layout="wide" aria-labelledby="dash-list-heading">
         {title}
         <p className="mws-alert mws-alert--error" role="alert">
           Dashboards could not be loaded. Try again in a moment.
@@ -88,12 +88,8 @@ export function DashboardsListPage() {
   const items = list.data?.items ?? [];
 
   return (
-    <section className="dash-list" aria-labelledby="dash-list-heading">
+    <section className="dash-list" data-layout="wide" aria-labelledby="dash-list-heading">
       {title}
-      <p className="dash-list__lead">
-        The dashboards shared in this workspace. Open one to explore its metrics and drill into the
-        records behind them.
-      </p>
 
       {items.length === 0 ? (
         <EmptyListZeroData

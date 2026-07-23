@@ -12,6 +12,7 @@ import type { FilterClause, PaginatedQuery, RequestListRow, SavedViewDto, SlaSta
 import { Button } from '@/shared/components/Button';
 import {
   FilterFunnel,
+  GalleryFilterBar,
   SavedViewPicker,
   TableFooter,
   TableShell,
@@ -492,7 +493,7 @@ export function RequestsListPage() {
   if (isMeLoading || isLoading) {
     return (
       <main className="requests-list-page list-surface" data-layout="wide">
-        <h1 className="h1 requests-list-page__title">Requests</h1>
+        <h1 className="h2 requests-list-page__title">Requests</h1>
         <p className="caption" role="status">
           Loading requests…
         </p>
@@ -503,7 +504,7 @@ export function RequestsListPage() {
   if (isMeError || isError || !workspaceId) {
     return (
       <main className="requests-list-page list-surface" data-layout="wide">
-        <h1 className="h1 requests-list-page__title">Requests</h1>
+        <h1 className="h2 requests-list-page__title">Requests</h1>
         <p className="mws-alert mws-alert--error" role="alert">
           {problemMessage(error, 'Requests could not be loaded. Try again in a moment.')}
         </p>
@@ -534,8 +535,25 @@ export function RequestsListPage() {
       className={`requests-list-page list-surface${viewMode !== 'table' ? ' list-surface--flow' : ''}`}
       data-layout="wide"
     >
-      <h1 className="h1 requests-list-page__title">Requests</h1>
+      <h1 className="h2 requests-list-page__title">Requests</h1>
       {viewBar}
+      {viewMode !== 'table' && (
+        // The board has no column headers to host the funnels, so filtering moves into the shared
+        // GalleryFilterBar: a name search (bound to the `name` text filter) + the remaining facets
+        // as labeled funnels. Same filter state/query as the table — switching keeps filters.
+        <GalleryFilterBar
+          ariaLabel="Filter requests"
+          search={{
+            value: clauseToFilterValue(filters['name'])?.contains ?? '',
+            onChange: (value) => applyFilter('name', { kind: 'text', contains: value }),
+            placeholder: 'Search the requests',
+            label: 'Search the requests',
+          }}
+          facets={COLUMNS.filter((column) => FILTER_TYPES[column.key] && column.key !== 'name').map(
+            (column) => ({ key: column.key, label: column.label, control: renderFilter(column) }),
+          )}
+        />
+      )}
       {rows.length === 0 ? (
         <div className="requests-list-page__grid list-surface__body">
           {hasFilters ? (

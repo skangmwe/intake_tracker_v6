@@ -175,7 +175,7 @@ export function FeatureDetailPage() {
 
       <header className="fd-header">
         <div className="fd-header__heading">
-          <h1 className="h1 fd-title">{feature.name}</h1>
+          <h1 className="h2 fd-title">{feature.name}</h1>
           <MaturityBadge maturity={feature.maturity} />
         </div>
         {canEdit && <MaturityActions feature={feature} />}

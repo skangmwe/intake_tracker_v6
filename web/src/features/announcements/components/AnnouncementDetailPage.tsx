@@ -69,7 +69,7 @@ export function AnnouncementDetailPage() {
     <article className="ann-page ann-detail">
       {backLink}
       <div className="ann-detail__head">
-        <h1 className="h1">{announcement.title}</h1>
+        <h1 className="h2">{announcement.title}</h1>
         <AnnouncementStatusBadge status={announcement.status} />
       </div>
       <p className="caption ann-detail__meta">

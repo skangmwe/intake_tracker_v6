@@ -119,7 +119,7 @@ export function IntakeFormPage() {
   if (isMeLoading && !me) {
     return (
       <main className="requests-page">
-        <h1 className="h1">New request</h1>
+        <h1 className="h2">New request</h1>
         <p className="caption" role="status">Loading the intake form…</p>
       </main>
     );
@@ -128,7 +128,7 @@ export function IntakeFormPage() {
   if (isMeError || !workspaceId) {
     return (
       <main className="requests-page">
-        <h1 className="h1">New request</h1>
+        <h1 className="h2">New request</h1>
         <p className="mws-alert mws-alert--error" role="alert">
           We couldn’t open the intake form. You need a workspace to create a request — ask an admin for access, then try again.
         </p>
@@ -139,7 +139,7 @@ export function IntakeFormPage() {
   if (schemaQuery.isLoading || lifecycleQuery.isLoading || (Boolean(draftId) && draftQuery.isLoading)) {
     return (
       <main className="requests-page">
-        <h1 className="h1">New request</h1>
+        <h1 className="h2">New request</h1>
         <p className="caption" role="status">Loading the intake form…</p>
       </main>
     );
@@ -148,7 +148,7 @@ export function IntakeFormPage() {
   if (schemaQuery.isError || lifecycleQuery.isError || !schemaQuery.data || !lifecycleQuery.data) {
     return (
       <main className="requests-page">
-        <h1 className="h1">New request</h1>
+        <h1 className="h2">New request</h1>
         <p className="mws-alert mws-alert--error" role="alert">
           {problemMessage(
             schemaQuery.error ?? lifecycleQuery.error,
@@ -238,7 +238,7 @@ export function IntakeFormPage() {
 
   return (
     <main className="requests-page">
-      <h1 className="h1">New request</h1>
+      <h1 className="h2">New request</h1>
 
       <div className="ast-intake">
         <form className="ast-intake__form" onSubmit={handleSubmit} noValidate aria-label="New request">
