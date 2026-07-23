@@ -48,10 +48,12 @@ export function HomeView() {
       {home.data && (
         <>
           <PinnedStrip announcements={home.data.pinnedAnnouncements} />
-          <DecisionsPanel items={home.data.decisions} count={home.data.decisionCount} />
-          <WorkPanel items={home.data.work} count={home.data.workCount} />
-          <ActivityPanel items={home.data.activity} sinceLastSeenAt={home.data.sinceLastSeenAt} />
-          <TriagePanel items={home.data.triage} count={home.data.triageCount} />
+          <div className="home__grid">
+            <DecisionsPanel items={home.data.decisions} count={home.data.decisionCount} />
+            <WorkPanel items={home.data.work} count={home.data.workCount} />
+            <ActivityPanel items={home.data.activity} sinceLastSeenAt={home.data.sinceLastSeenAt} />
+            <TriagePanel items={home.data.triage} count={home.data.triageCount} />
+          </div>
         </>
       )}
     </section>
