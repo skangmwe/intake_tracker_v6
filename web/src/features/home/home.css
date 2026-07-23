@@ -16,6 +16,28 @@
   gap: var(--space-3);
 }
 
+/* Four viewer-scoped panels as a 2×2 grid — two on top, two below. Mobile-first
+   (responsive-and-mobile.md — min-width queries only): a single column is the base, and the two
+   columns come in at the tablet breakpoint. Each cell keeps its natural height (align-items: start),
+   so a short panel never stretches to fill an empty column. min-width: 0 on the cells lets the panel
+   content shrink inside the grid track instead of forcing overflow. */
+.home__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.home__grid > * {
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .home__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .home__title {
   font-family: var(--font-mix);
   font-size: 32px;
