@@ -16,7 +16,7 @@ export function PlatformLayout() {
   if (isLoading) {
     return (
       <div className="platform-admin">
-        <h1 className="h1 platform-admin__title">Platform</h1>
+        <h1 className="h2 platform-admin__title">Platform</h1>
         <p className="caption" role="status">
           Loading…
         </p>
@@ -27,7 +27,7 @@ export function PlatformLayout() {
   if (isError) {
     return (
       <div className="platform-admin">
-        <h1 className="h1 platform-admin__title">Platform</h1>
+        <h1 className="h2 platform-admin__title">Platform</h1>
         <p className="mws-alert mws-alert--error" role="alert">
           This area could not be loaded. Try again in a moment.
         </p>
@@ -38,7 +38,7 @@ export function PlatformLayout() {
   if (!isPlatformAdmin) {
     return (
       <div className="platform-admin">
-        <h1 className="h1 platform-admin__title">Platform</h1>
+        <h1 className="h2 platform-admin__title">Platform</h1>
         <p className="mws-alert mws-alert--warning" role="alert">
           This area is available to platform admins. Ask the AI Solutions Lead if you need access.
         </p>

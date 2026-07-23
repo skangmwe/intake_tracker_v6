@@ -21,7 +21,7 @@ export function HomeView() {
   const home = useHome(workspaceId);
 
   return (
-    <section className="home" aria-labelledby="home-heading">
+    <section className="home" data-layout="wide" aria-labelledby="home-heading">
       <div className="home__heading">
         <h1 id="home-heading" className="home__title">
           Home

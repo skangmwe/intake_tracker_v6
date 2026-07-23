@@ -14,11 +14,6 @@ jest.mock('@/features/users/useMe');
 jest.mock('../useFeatures');
 // The gallery layout's thumbnails fetch via the authenticated client; mock it so cards render placeholders.
 jest.mock('@/shared/http/apiClient', () => ({ apiFetchBlob: jest.fn(() => Promise.resolve(new Blob())) }));
-jest.mock('@/features/saved-views', () => ({
-  useSavedViews: () => ({ data: [] }),
-  toPickerView: (view: unknown) => view,
-  SavedViewEditor: () => null,
-}));
 
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
@@ -133,9 +128,9 @@ describe('FeatureCatalogPage', () => {
     expect(screen.getByText('Loading features…')).toBeInTheDocument();
   });
 
-  it('FeatureCatalogPage — an empty result under the default Published filter shows filtered-to-zero', async () => {
-    // Arrange — the default "Published catalog" view carries a maturity filter, so an empty result
-    // is a filtered-to-zero state (a bordered card + Clear filters), never the zero-data ceremony.
+  it('FeatureCatalogPage — an empty catalog with no filters shows the zero-data ceremony', async () => {
+    // Arrange — no saved-view default filter any more, so an empty result with no active filter is
+    // the zero-data ceremony (Add your first feature), not the filtered-to-zero card.
     mockHooks({ data: page([]) });
 
     // Act
@@ -143,10 +138,24 @@ describe('FeatureCatalogPage', () => {
       route: '/feature-catalog',
     });
 
+    // Assert
+    expect(screen.getByText('No features in the catalog yet')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add your first feature' })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('FeatureCatalogPage — searching to an empty result shows filtered-to-zero', async () => {
+    // Arrange — an active filter (a name search) turns an empty result into filtered-to-zero.
+    mockHooks({ data: page([]) });
+    const user = userEvent.setup();
+    renderWithProviders(<FeatureCatalogPage />, { route: '/feature-catalog' });
+
+    // Act — type into the toolbar search
+    await user.type(screen.getByRole('searchbox', { name: 'Search the feature catalog' }), 'zzz');
+
     // Assert — the shared EmptyListFilteredToZero (S42).
     expect(screen.getByText('No matches for these filters')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
-    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('FeatureCatalogPage — renders the error state', () => {

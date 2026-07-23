@@ -1,13 +1,13 @@
 // S9 Feature catalog — the access-respecting items-grid over the Feature Catalog (AI Solutions
-// hub). Reuses the shared Table primitives (TableShell, ViewBar, SavedViewPicker, FilterFunnel) over
-// useFeaturesList, and wires the saved-view picker to the real S24 editor. The "Gallery view" toggle
-// is present but disabled — the gallery (S11) arrives in a later iteration. Prototype-styled.
+// hub). A Toolkit-style surface: a persistent search toolbar + a table/gallery view toggle, with
+// column-header filter funnels in the table and the shared GalleryFilterBar in the gallery. Saved
+// views are intentionally NOT offered here — they live only on the Requests surface. Prototype-styled.
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cards, Plus } from '@phosphor-icons/react';
+import { Cards, MagnifyingGlass, Plus } from '@phosphor-icons/react';
 
-import type { FeatureListRow, FilterClause, PaginatedQuery, SavedViewDto } from '@shared/types';
+import type { FeatureListRow, FilterClause, PaginatedQuery } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { EmptyListFilteredToZero, EmptyListZeroData } from '@/shared/components/EdgeStates';
@@ -19,26 +19,15 @@ import {
 } from '@/shared/components/RecordViews';
 import {
   FilterFunnel,
-  SavedViewPicker,
+  GalleryFilterBar,
   TableFooter,
   TableShell,
-  ViewBar,
-  type ActiveFilterPill,
   type FilterType,
   type FilterValue,
-  type SavedView,
   type SortState,
   type TableColumn,
   type TableRow,
 } from '@/shared/components/Table';
-import { useMe } from '@/features/users/useMe';
-import { resolveActiveWorkspaceId } from '@/features/requests/workspace';
-import {
-  SavedViewEditor,
-  toPickerView,
-  useSavedViews,
-  type ColumnOption,
-} from '@/features/saved-views';
 
 import { useFeaturesList } from '../useFeatures';
 import '../features.css';
@@ -67,18 +56,6 @@ const FILTER_TYPES: Record<string, FilterType> = {
   maturity: 'select',
 };
 
-const EDITOR_COLUMNS: ColumnOption[] = COLUMNS.map((column) => ({
-  key: column.key,
-  label: column.label,
-}));
-const DEFAULT_COLUMN_KEYS = COLUMNS.map((column) => column.key);
-
-/** The seeded "Published catalog" default view (BS §18.7) — client preset, always present. */
-const PUBLISHED_VIEW_ID = 'published';
-const PUBLISHED_FILTERS: Record<string, FilterClause> = {
-  maturity: { kind: 'select', values: ['Published'] },
-};
-
 function filterValueToClause(value: FilterValue): FilterClause | undefined {
   if (value.kind === 'select') {
     return value.values && value.values.length > 0
@@ -98,12 +75,6 @@ function clauseToFilterValue(clause: FilterClause | undefined): FilterValue | un
   if (clause.kind === 'select') return { kind: 'select', values: clause.values };
   if (clause.kind === 'text') return { kind: 'text', contains: clause.contains };
   return undefined;
-}
-
-function summarizeClause(label: string, clause: FilterClause): string {
-  if (clause.kind === 'text') return `${label}: "${clause.contains}"`;
-  if (clause.kind === 'select') return `${label}: ${clause.values.join(', ')}`;
-  return label;
 }
 
 function cellText(value: unknown): string {
@@ -183,31 +154,13 @@ function toGalleryItem(row: FeatureListRow, onOpen: () => void): RecordViewItem 
   };
 }
 
-type EditorState = {
-  editingView: SavedViewDto | null;
-  initialTab: 'filters' | 'fields' | 'sort';
-} | null;
-
 export function FeatureCatalogPage() {
   const navigate = useNavigate();
-  const { data: me } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
-  const isAdmin = useMemo(
-    () =>
-      (me?.memberships ?? []).some(
-        (m) => m.workspaceKind === 'ai-solutions' && m.level === 'WorkspaceAdmin',
-      ),
-    [me],
-  );
 
-  const { data: savedViews } = useSavedViews(workspaceId ?? undefined, 'Feature');
-
-  const [activeViewId, setActiveViewId] = useState(PUBLISHED_VIEW_ID);
-  const [filters, setFilters] = useState<Record<string, FilterClause>>(PUBLISHED_FILTERS);
+  const [filters, setFilters] = useState<Record<string, FilterClause>>({});
   const [sort, setSort] = useState<SortState | undefined>({ column: 'updated', direction: 'desc' });
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<RecordViewKind>('table');
-  const [editor, setEditor] = useState<EditorState>(null);
 
   const query = useMemo<PaginatedQuery>(() => {
     const isGallery = viewMode === 'gallery';
@@ -225,19 +178,6 @@ export function FeatureCatalogPage() {
   const total = data?.totalCount ?? 0;
   const hasFilters = Object.keys(filters).length > 0;
 
-  const pickerViews: SavedView[] = useMemo(() => {
-    const preset: SavedView = {
-      id: PUBLISHED_VIEW_ID,
-      name: 'Published catalog',
-      scope: 'shared',
-      isDefault: true,
-      tag: 'Default',
-    };
-    return [preset, ...(savedViews ?? []).map(toPickerView)];
-  }, [savedViews]);
-
-  const activeSavedView = (savedViews ?? []).find((view) => view.id === activeViewId) ?? null;
-
   const applyFilter = (key: string, value: FilterValue) => {
     const clause = filterValueToClause(value);
     setFilters((prev) => {
@@ -249,87 +189,43 @@ export function FeatureCatalogPage() {
     setPage(1);
   };
 
-  const selectView = (viewId: string) => {
-    setActiveViewId(viewId);
-    setPage(1);
-    if (viewId === PUBLISHED_VIEW_ID) {
-      setFilters(PUBLISHED_FILTERS);
-      setSort({ column: 'updated', direction: 'desc' });
-      return;
-    }
-    const view = (savedViews ?? []).find((entry) => entry.id === viewId);
-    setFilters(view ? { ...view.filters } : {});
-    setSort(
-      view && view.sort[0]
-        ? { column: view.sort[0].column, direction: view.sort[0].direction }
-        : undefined,
-    );
-  };
-
-  const columnLabel = (key: string) => COLUMNS.find((column) => column.key === key)?.label ?? key;
-  const activePills: ActiveFilterPill[] = Object.entries(filters).map(([key, clause]) => ({
-    id: key,
-    label: summarizeClause(columnLabel(key), clause),
-    onRemove: () => {
-      setFilters((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-      setPage(1);
-    },
-  }));
-
-  const openEditor = (initialTab: 'filters' | 'fields' | 'sort', editing: SavedViewDto | null) =>
-    setEditor({ editingView: editing, initialTab });
-
-  const countFor = (viewId: string): ReactNode => (
-    <span className="fc-count">{viewId === activeViewId ? total : EM_DASH}</span>
-  );
-
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const end = Math.min(page * PAGE_SIZE, total);
 
-  const viewBar = (
-    <ViewBar
-      viewPicker={
-        <SavedViewPicker
-          views={pickerViews}
-          activeViewId={activeViewId}
-          onSelect={selectView}
-          countFor={countFor}
-          onModifyColumns={() => openEditor('fields', activeSavedView)}
-          onEditView={() => openEditor('filters', activeSavedView)}
-          onSaveAsNew={() => openEditor('filters', null)}
+  // A Toolkit-style toolbar: persistent name search on the left, layout toggle + New feature on the
+  // right. Filtering by facet lives in the table column funnels / the gallery's GalleryFilterBar.
+  const toolbar = (
+    <div className="fc-toolbar">
+      <span className="fc-search">
+        <MagnifyingGlass size={16} weight="regular" aria-hidden className="fc-search__icon" />
+        <input
+          type="search"
+          className="fc-search__input"
+          placeholder="Search the feature catalog"
+          aria-label="Search the feature catalog"
+          value={clauseToFilterValue(filters['name'])?.contains ?? ''}
+          onChange={(event) => applyFilter('name', { kind: 'text', contains: event.target.value })}
         />
-      }
-      trailingSlot={
-        <ViewModeToggle
-          available={FEATURE_VIEW_KINDS}
-          active={viewMode}
-          onChange={setViewMode}
-          label="Feature catalog layout"
-          iconOnly
-        />
-      }
-      filters={activePills}
-      onClearAll={() => {
-        setFilters({});
-        setPage(1);
-      }}
-      primaryAction={
-        <Button variant="primary" onClick={() => navigate('/feature-catalog/new')}>
-          <Plus size={16} weight="regular" aria-hidden /> New feature
-        </Button>
-      }
-    />
+      </span>
+      <span className="fc-toolbar__spacer" />
+      <ViewModeToggle
+        available={FEATURE_VIEW_KINDS}
+        active={viewMode}
+        onChange={setViewMode}
+        label="Feature catalog layout"
+        iconOnly
+      />
+      <Button variant="primary" onClick={() => navigate('/feature-catalog/new')}>
+        <Plus size={16} weight="regular" aria-hidden /> New feature
+      </Button>
+    </div>
   );
 
   if (isLoading) {
     return (
       <main className="feature-catalog-page list-surface" data-layout="wide">
-        <h1 className="h1 feature-catalog-page__title">Feature Catalog</h1>
+        <h1 className="h2 feature-catalog-page__title">Feature Catalog</h1>
         <p className="caption" role="status">
           Loading features…
         </p>
@@ -340,7 +236,7 @@ export function FeatureCatalogPage() {
   if (isError) {
     return (
       <main className="feature-catalog-page list-surface" data-layout="wide">
-        <h1 className="h1 feature-catalog-page__title">Feature Catalog</h1>
+        <h1 className="h2 feature-catalog-page__title">Feature Catalog</h1>
         <p className="mws-alert mws-alert--error" role="alert">
           The catalog could not be loaded. Try again in a moment.
         </p>
@@ -372,8 +268,18 @@ export function FeatureCatalogPage() {
       className={`feature-catalog-page list-surface${viewMode === 'gallery' ? ' list-surface--flow' : ''}`}
       data-layout="wide"
     >
-      <h1 className="h1 feature-catalog-page__title">Feature Catalog</h1>
-      {viewBar}
+      <h1 className="h2 feature-catalog-page__title">Feature Catalog</h1>
+      {toolbar}
+      {viewMode === 'gallery' && (
+        // Gallery has no column headers to host the funnels; the toolbar already carries the search,
+        // so the facet funnels move into the shared GalleryFilterBar. Same filter state as the table.
+        <GalleryFilterBar
+          ariaLabel="Filter features"
+          facets={COLUMNS.filter((column) => FILTER_TYPES[column.key] && column.key !== 'name').map(
+            (column) => ({ key: column.key, label: column.label, control: renderFilter(column) }),
+          )}
+        />
+      )}
       <div className="feature-catalog-page__grid list-surface__body">
         {rows.length === 0 ? (
           hasFilters ? (
@@ -434,20 +340,6 @@ export function FeatureCatalogPage() {
           </>
         )}
       </div>
-
-      {editor && workspaceId && (
-        <SavedViewEditor
-          workspaceId={workspaceId}
-          objectType="Feature"
-          availableColumns={EDITOR_COLUMNS}
-          defaultColumns={DEFAULT_COLUMN_KEYS}
-          editingView={editor.editingView}
-          initialTab={editor.initialTab}
-          canShare={isAdmin}
-          onClose={() => setEditor(null)}
-          onSaved={(view) => selectView(view.id)}
-        />
-      )}
     </main>
   );
 }

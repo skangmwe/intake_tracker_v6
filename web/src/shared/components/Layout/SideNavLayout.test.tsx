@@ -35,8 +35,8 @@ describe('SideNavLayout', () => {
     // Arrange + Act
     const { container } = renderLayout();
 
-    // Assert — the header shows the eyebrow (nav label), the active item title, and its lead.
-    expect(screen.getByText('Area sections')).toBeInTheDocument();
+    // Assert — the header shows the active item title and its lead (the nav label is the landmark's
+    // accessible name, checked below, not a visible eyebrow).
     expect(screen.getByRole('heading', { name: 'Section one' })).toBeInTheDocument();
     expect(screen.getByText('The first surface in the area.')).toBeInTheDocument();
 

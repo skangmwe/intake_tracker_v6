@@ -2,8 +2,6 @@
    radii. Reading-width column of stacked panels. Theme-stable rule: text on pale fills is navy. */
 
 .home {
-  max-width: min(100%, 1200px);
-  margin-inline: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-6);

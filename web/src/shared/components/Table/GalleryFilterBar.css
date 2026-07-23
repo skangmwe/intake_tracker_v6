@@ -1,0 +1,56 @@
+/* Gallery/board filter bar — funnels normally live in table column headers, but header-less views
+   (gallery, board) have none, so filtering moves into this bar: an optional search box + the facets
+   as labeled funnels. Tokens only; navy + pale + accent. */
+
+.gallery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  min-width: 0;
+}
+
+.gallery-filters__search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.gallery-filters__search-icon {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.gallery-filters__search-input {
+  width: min(100%, 280px);
+  height: var(--control-h);
+  padding: 0 var(--space-3) 0 var(--space-7);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 14px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.gallery-filters__search-input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.gallery-filters__facet {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.gallery-filters__facet-label {
+  font-weight: 500;
+}

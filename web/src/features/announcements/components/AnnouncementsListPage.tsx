@@ -14,7 +14,7 @@ export function AnnouncementsListPage() {
   const items = feed.data?.items ?? [];
 
   return (
-    <div className="ann-page">
+    <div className="ann-page" data-layout="wide">
       <header className="ann-page__header">
         <div>
           <h1 className="h2">Announcements</h1>

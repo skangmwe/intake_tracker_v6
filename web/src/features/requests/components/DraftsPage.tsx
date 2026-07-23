@@ -31,7 +31,7 @@ export function DraftsPage() {
   if (isMeLoading || isLoading) {
     return (
       <main className="requests-page">
-        <h1 className="h1">Drafts</h1>
+        <h1 className="h2">Drafts</h1>
         <p className="caption" role="status">
           Loading your drafts…
         </p>
@@ -42,7 +42,7 @@ export function DraftsPage() {
   if (isMeError || isError || !workspaceId) {
     return (
       <main className="requests-page">
-        <h1 className="h1">Drafts</h1>
+        <h1 className="h2">Drafts</h1>
         <p className="mws-alert mws-alert--error" role="alert">
           {problemMessage(error, 'Your drafts could not be loaded. Try again in a moment.')}
         </p>
@@ -55,7 +55,7 @@ export function DraftsPage() {
   return (
     <main className="requests-page">
       <div className="requests-page__head">
-        <h1 className="h1">Drafts</h1>
+        <h1 className="h2">Drafts</h1>
         <Button variant="primary" onClick={() => navigate('/requests/new')}>
           New request
         </Button>

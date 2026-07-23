@@ -7,4 +7,6 @@ export { SavedViewPicker } from './SavedViewPicker';
 export type { SavedView } from './SavedViewPicker';
 export { FilterFunnel } from './FilterFunnel';
 export type { FilterType, FilterOption, FilterValue } from './FilterFunnel';
+export { GalleryFilterBar } from './GalleryFilterBar';
+export type { GalleryFilterFacet, GalleryFilterSearch } from './GalleryFilterBar';
 export { TableFooter } from './TableFooter';
