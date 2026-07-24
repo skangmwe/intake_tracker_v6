@@ -29,7 +29,7 @@ export const ADMIN_NAV: SideNavItem[] = [
   },
   {
     to: '/admin/announcements',
-    label: 'Manage announcements',
+    label: 'Announcements',
     lead: 'Post notices to your workspace. Active announcements appear in everyone’s bell.',
   },
   { to: '/admin/import-export', label: 'Import & export' },
