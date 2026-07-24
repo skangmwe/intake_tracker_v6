@@ -137,10 +137,10 @@ export function fieldTypeLabel(fieldType: string): string {
  */
 export function lockMessageForSource(source: FieldSource): string {
   if (source === 'System') {
-    return "This is a system field, provisioned automatically on every object. It can't be edited, archived, or deleted.";
+    return 'This is a system field, provisioned automatically on every object. It can’t be edited, archived, or deleted.';
   }
   if (source === 'Platform') {
-    return "This is a platform-defined field managed centrally. It can't be edited here.";
+    return 'This is a platform-defined field managed centrally. It can’t be edited here.';
   }
-  return "This is a global field owned by a workspace. It can only be changed from the workspace that created it.";
+  return 'This is a global field owned by a workspace. It can only be changed from the workspace that created it.';
 }
