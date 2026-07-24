@@ -42,6 +42,7 @@ import {
 } from '@/features/saved-views';
 import { useExportView } from '@/features/import-export';
 import { useLifecycleConfig } from '@/features/lifecycle';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 import { useRequestsList } from '../useRequests';
 import { resolveActiveWorkspaceId } from '../workspace';
@@ -54,7 +55,6 @@ const PAGE_SIZE = 25;
 // per-column paging.
 const BOARD_PAGE_SIZE = 100;
 const EM_DASH = '—';
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** Grid columns in render order. Cells are built in this exact order per row. */
 const COLUMNS: TableColumn[] = [
@@ -184,14 +184,16 @@ function agingSuffix(sla: SlaStatus | undefined): string {
   return '';
 }
 
-/** ISO date → `16 Jul`, with an aging suffix so colour is never the sole signal. */
+/** ISO date → a locale date (`07/16/2026`), with an aging suffix so colour is never the sole signal. */
 function formatDue(raw: unknown, sla: SlaStatus | undefined): string {
   if (typeof raw !== 'string' || !raw) return EM_DASH;
   const [yearPart, monthPart, dayPart] = raw.slice(0, 10).split('-');
+  const year = Number(yearPart);
   const month = Number(monthPart);
   const day = Number(dayPart);
-  if (!yearPart || !month || !day || month < 1 || month > 12) return EM_DASH;
-  return `${day} ${MONTHS[month - 1] ?? ''}${agingSuffix(sla)}`;
+  if (!year || !month || !day || month < 1 || month > 12) return EM_DASH;
+  // Local-midnight Date from parsed parts (not `new Date(raw)`) keeps the day stable across time zones.
+  return `${formatDate(new Date(year, month - 1, day))}${agingSuffix(sla)}`;
 }
 
 /** Distinct select options from the loaded rows (per-view live counts arrive in slice 14). */
