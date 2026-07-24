@@ -4,6 +4,8 @@
 
 import type { ApprovalDecisionDto, ApprovalRequestDto, FrozenApproverSlot } from '@shared/types';
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 export type SlotStatus = 'pending' | 'approved' | 'rejected';
 
 export interface SlotView {
@@ -55,7 +57,7 @@ export function formatSignedAt(iso: string | undefined): string {
   const date = new Date(normalised);
   return Number.isNaN(date.getTime())
     ? ''
-    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    : formatDate(date);
 }
 
 /** Name/value options for a slot's "Select your name" dropdown (frozen eligible members). */

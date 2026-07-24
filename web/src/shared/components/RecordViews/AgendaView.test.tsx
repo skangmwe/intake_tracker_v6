@@ -2,6 +2,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 import { AgendaView } from './AgendaView';
 import type { RecordViewItem } from './types';
 
@@ -20,8 +22,8 @@ describe('AgendaView', () => {
     // Arrange + Act
     render(<AgendaView items={buildItems()} caption="Requests agenda" />);
 
-    // Assert — the 1 Jul group holds two records
-    const group = screen.getByRole('region', { name: '1 Jul 2026' });
+    // Assert — the Jul 1 group holds two records
+    const group = screen.getByRole('region', { name: formatDate(new Date(2026, 6, 1)) });
     expect(within(group).getByText('Alpha')).toBeInTheDocument();
     expect(within(group).getByText('Beta')).toBeInTheDocument();
   });

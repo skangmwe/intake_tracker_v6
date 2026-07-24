@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { Megaphone, PushPin } from '@phosphor-icons/react';
 
 import { EmptyListZeroData } from '@/shared/components/EdgeStates';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 import { useAnnouncementsFeed } from '../useAnnouncements';
 
@@ -39,7 +40,7 @@ export function AnnouncementsListPage() {
         <ul className="ann-list">
           {items.map((row) => {
             const published = row.publishedAt
-              ? new Date(row.publishedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+              ? formatDate(row.publishedAt)
               : '';
             return (
               <li key={row.id} className="ann-row" data-ds="card">

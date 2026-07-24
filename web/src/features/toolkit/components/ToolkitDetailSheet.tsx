@@ -11,6 +11,7 @@ import type { ToolkitItemDto, ToolkitItemId } from '@shared/types';
 import { Button } from '@/shared/components/Button';
 import { SideSheet } from '@/shared/components/Disclosure/SideSheet';
 import { saveBlob } from '@/shared/http/download';
+import { formatDate as formatIsoDate } from '@/shared/utils/dateFormat';
 
 import { kindIcon, kindPillClass, statusBadgeClass } from '../toolkitFormat';
 import { downloadToolkitAttachment } from '../api';
@@ -28,7 +29,7 @@ function formatDate(iso: string): string {
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime())
     ? iso
-    : parsed.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    : formatIsoDate(parsed);
 }
 
 export function ToolkitDetailSheet({ itemId, onClose, onEdit }: ToolkitDetailSheetProps) {

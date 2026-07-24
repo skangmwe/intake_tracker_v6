@@ -8,6 +8,7 @@ import type { DraftId, WorkspaceId } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { useMe } from '@/features/users/useMe';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 import { useDeleteDraft, useDrafts } from '../useDrafts';
 import { resolveActiveWorkspaceId } from '../workspace';
@@ -17,7 +18,7 @@ function formatEdited(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? '—'
-    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    : formatDate(date);
 }
 
 export function DraftsPage() {

@@ -7,6 +7,7 @@ import type { PrivilegedGrantDto } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { StatusPill } from '@/shared/components/Feedback';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 const EM_DASH = '—';
 
@@ -14,7 +15,7 @@ function formatWhen(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? EM_DASH
-    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    : formatDate(date);
 }
 
 interface PrivilegedGrantsTableProps {

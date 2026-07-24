@@ -4,18 +4,20 @@
 
 import type { DashboardDrillFilter, DashboardWidgetDto } from '@shared/types';
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 export const EM_DASH = '—';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** ISO `YYYY-MM-DD` → `28 Jun` (matches the prototype's dateLabel). Null / malformed → em-dash. */
+/** ISO `YYYY-MM-DD` → a locale date with year (`06/28/2026`). Null / malformed → em-dash. */
 export function formatDashDate(iso: string | null | undefined): string {
   if (!iso) return EM_DASH;
-  const [, monthPart, dayPart] = iso.slice(0, 10).split('-');
+  const [yearPart, monthPart, dayPart] = iso.slice(0, 10).split('-');
+  const year = Number(yearPart);
   const month = Number(monthPart);
   const day = Number(dayPart);
-  if (!month || !day || month < 1 || month > 12) return EM_DASH;
-  return `${day} ${MONTHS[month - 1] ?? ''}`;
+  if (!year || !month || !day || month < 1 || month > 12) return EM_DASH;
+  // Local-midnight Date from parsed parts (not `new Date(iso)`) keeps the day stable across time zones.
+  return formatDate(new Date(year, month - 1, day));
 }
 
 /** The drill-through pill label for the embedded records grid (prototype `dashFilterLabel`). */

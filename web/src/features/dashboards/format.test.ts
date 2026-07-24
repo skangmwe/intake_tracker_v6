@@ -3,15 +3,17 @@
 
 import type { DashboardWidgetDto } from '@shared/types';
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 import { cellCount, drillLabel, EM_DASH, formatDashDate, widgetData } from './format';
 
 describe('formatDashDate', () => {
-  it('formatDashDate — full ISO date — renders day and short month', () => {
+  it('formatDashDate — full ISO date — renders numeric date with year', () => {
     // Arrange / Act
     const result = formatDashDate('2026-06-28');
 
     // Assert
-    expect(result).toBe('28 Jun');
+    expect(result).toBe(formatDate(new Date(2026, 5, 28)));
   });
 
   it('formatDashDate — null — renders an em-dash', () => {

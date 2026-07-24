@@ -1,3 +1,5 @@
+import { formatDate } from '@/shared/utils/dateFormat';
+
 import { groupByDate, formatDayLabel, NO_DATE } from './groupByDate';
 import type { RecordViewItem } from './types';
 
@@ -45,7 +47,7 @@ describe('groupByDate', () => {
 
   it('formatDayLabel — ISO day — renders a human day label', () => {
     // Act + Assert
-    expect(formatDayLabel('2026-07-16')).toBe('16 Jul 2026');
+    expect(formatDayLabel('2026-07-16')).toBe(formatDate(new Date(2026, 6, 16)));
   });
 
   it('formatDayLabel — unparseable input — returns the raw string', () => {

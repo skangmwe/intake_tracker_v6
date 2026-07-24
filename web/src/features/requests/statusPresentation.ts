@@ -4,12 +4,14 @@
 
 import type { SlaStatus } from '@shared/types';
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 /** `5 Jul 2026` long-form submitted/eventtimestamp; em-dash when unparseable. */
 export function formatSubmitted(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? '—'
-    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    : formatDate(date);
 }
 
 export type SlaTone = 'error' | 'warning' | 'success' | 'muted';

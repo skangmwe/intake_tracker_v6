@@ -25,6 +25,7 @@ import { Stepper, StatusPill, StatusHoldPill, Tabs } from '@/shared/components/F
 import { NoAccessPage } from '@/shared/components/EdgeStates';
 import { useHoldGuard } from '@/shared/hooks/useHoldGuard';
 import { ApiError } from '@/shared/http/apiClient';
+import { formatDate } from '@/shared/utils/dateFormat';
 import { fetchWorkspaceFields } from '@/features/fields/api';
 import { ActivityTab } from '@/features/comments';
 import { TasksTab } from '@/features/tasks';
@@ -111,7 +112,7 @@ function formatDayMonth(value: unknown): string {
     : new Date(raw);
   return Number.isNaN(date.getTime())
     ? '—'
-    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    : formatDate(date);
 }
 
 // SLA Status (BS §17.2) — the API derives it authoritatively from Due Date and the workspace's

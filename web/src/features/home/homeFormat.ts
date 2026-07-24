@@ -22,6 +22,7 @@ import {
 // importing it here would drag that whole tree into the Home graph (and its module-load order breaks
 // rendering under test). These are stateless functions — the leaf import is the right dependency.
 import { eventGroup, eventTypeLabel } from '@/features/audit/constants';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 type IconComponent = ComponentType<IconProps>;
 
@@ -46,7 +47,7 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
   const days = Math.floor(deltaMs / MS_PER_DAY);
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days} days ago`;
-  return then.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return formatDate(then);
 }
 
 /** "Waiting 2 days" / "Waiting 5 hours" for an open gate, from when it opened. */
@@ -71,7 +72,12 @@ export function formatSince(iso: string | null): string {
   if (!iso) return 'your last visit';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return 'your last visit';
-  return date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  return date.toLocaleDateString(undefined, {
+    weekday: 'short',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
 }
 
 /** The due-badge tint class for a work item, from its SLA state. Null → no badge (plain due text). */
@@ -87,7 +93,11 @@ export function dueBadgeClass(slaStatus: string | null): string | null {
 }
 
 /** Human due label for a work item — "Overdue", "Due today", "Due 6 Jul", or "No due date". */
-export function formatDue(dueDate: string | null, slaStatus: string | null, now: Date = new Date()): string {
+export function formatDue(
+  dueDate: string | null,
+  slaStatus: string | null,
+  now: Date = new Date(),
+): string {
   if (!dueDate) return 'No due date';
   const due = new Date(`${dueDate}T00:00:00`);
   if (Number.isNaN(due.getTime())) return 'No due date';
@@ -95,7 +105,7 @@ export function formatDue(dueDate: string | null, slaStatus: string | null, now:
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
   if (dueDay.getTime() === today.getTime()) return 'Due today';
-  return `Due ${due.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+  return `Due ${formatDate(due)}`;
 }
 
 /** The icon + plain-language label for an activity row, from its audit event type (reuses the audit map). */
@@ -117,9 +127,7 @@ export function activityPresentation(eventType: string): { Icon: IconComponent; 
     case 'config':
       return { Icon: Gear, label };
     case 'record':
-      return eventType === 'request.closed'
-        ? { Icon: Archive, label }
-        : { Icon: FileText, label };
+      return eventType === 'request.closed' ? { Icon: Archive, label } : { Icon: FileText, label };
     default:
       return { Icon: ClockCounterClockwise, label };
   }
