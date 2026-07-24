@@ -801,6 +801,10 @@ public sealed class AnnouncementRow
     public DateTime? PublishedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>Set on the per-workspace copies fanned out from one platform broadcast (all copies share
+    /// it); NULL on workspace-authored announcements.</summary>
+    public Guid? BroadcastId { get; set; }
 }
 
 /// <summary>A browse/manage row from usp_QueryAnnouncements(ForManage) (slice 13; reconciled 2026-07-21).
@@ -822,6 +826,44 @@ public sealed class AnnouncementListRowEntity
     public string? AuthorName { get; set; }
     public DateTime? PostedAt { get; set; }
     public int TotalCount { get; set; }
+}
+
+/// <summary>A grouped broadcast row from usp_QueryPlatformAnnouncements — one per BroadcastId, aggregated
+/// across the per-workspace copies. WorkspaceCount is how many workspaces the broadcast fanned out to;
+/// TotalCount is the windowed COUNT(*) OVER() (number of distinct broadcasts).</summary>
+public sealed class PlatformAnnouncementRowEntity
+{
+    public Guid BroadcastId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public bool Pinned { get; set; }
+    public DateTime? PublishedAt { get; set; }
+    public DateTime? ScheduledPublishAt { get; set; }
+    public bool AutoArchive { get; set; }
+    public DateTime? AutoArchiveAt { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public Guid AuthorUserId { get; set; }
+    public string? AuthorName { get; set; }
+    public DateTime? PostedAt { get; set; }
+    public int WorkspaceCount { get; set; }
+    public int TotalCount { get; set; }
+}
+
+/// <summary>A workspace a platform admin may broadcast to, from usp_ListPlatformWorkspaces.</summary>
+public sealed class PlatformWorkspaceRow
+{
+    public Guid WorkspaceId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+}
+
+/// <summary>One per-workspace copy of a broadcast, from usp_GetBroadcastCopies — used to fan out the bell
+/// event per copy when a Scheduled broadcast is published early via edit.</summary>
+public sealed class BroadcastCopyRow
+{
+    public Guid AnnouncementId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string Status { get; set; } = string.Empty;
 }
 
 /// <summary>A newly-published row returned by usp_TickAnnouncements (Announcements scheduler, slice 2).

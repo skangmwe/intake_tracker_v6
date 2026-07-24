@@ -112,6 +112,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<AnnouncementListRowEntity>().HasNoKey().ToView((string?)null);
         // Announcements scheduler (slice 2) — the newly-published rows returned by usp_TickAnnouncements.
         modelBuilder.Entity<AnnouncementTickRow>().HasNoKey().ToView((string?)null);
+        // Platform broadcast — grouped list + the workspace target picker read.
+        modelBuilder.Entity<PlatformAnnouncementRowEntity>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<PlatformWorkspaceRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<BroadcastCopyRow>().HasNoKey().ToView((string?)null);
 
         // Slice 14 (Feature Catalog + Saved views) — keyless projections read via stored procedures.
         modelBuilder.Entity<FeatureRow>().HasNoKey().ToView((string?)null);

@@ -32,6 +32,11 @@ export const PLATFORM_NAV: PlatformNavEntry[] = [
     lead: 'Who holds firm-wide Platform-admin access and which workspaces have admins.',
   },
   {
+    to: '/platform/announcements',
+    label: 'Announcements',
+    lead: 'Post a notice to every workspace or specific ones. Each targeted workspace receives it in its members’ bell.',
+  },
+  {
     to: '/platform/workspaces',
     label: 'Workspaces',
     title: 'Workspace provisioning',

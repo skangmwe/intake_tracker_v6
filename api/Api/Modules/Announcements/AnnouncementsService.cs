@@ -64,6 +64,28 @@ public interface IAnnouncementsService
     /// published, so scheduled publishes fan out identically to manual publishes and are never duplicated.</summary>
     Task EmitPublishedAsync(
         Guid announcementId, Guid workspaceId, Guid actorUserId, string operationId, CancellationToken cancellationToken);
+
+    /// <summary>The workspaces a platform admin may broadcast to (every non-deleted, non-template workspace).</summary>
+    Task<IReadOnlyList<PlatformWorkspaceDto>> ListPlatformWorkspacesAsync(CancellationToken cancellationToken);
+
+    /// <summary>Fan out one normal per-workspace announcement (audience everyone, posted by the acting admin)
+    /// per target workspace, all tied by one new BroadcastId. Each created-Published copy fans out on the
+    /// bell through the same event-spine path a manual publish uses. Returns the BroadcastId + copy count.</summary>
+    Task<PlatformAnnouncementCreatedDto> CreatePlatformBroadcastAsync(
+        PlatformAnnouncementCreateRequest request, IReadOnlyList<Guid> targetWorkspaceIds,
+        Guid actorUserId, string operationId, CancellationToken cancellationToken);
+
+    /// <summary>The platform manage list — every broadcast grouped to one row (WorkspaceAdmin-wide).</summary>
+    Task<PaginatedResponse<PlatformAnnouncementRow>> QueryPlatformAsync(
+        int page, int pageSize, CancellationToken cancellationToken);
+
+    /// <summary>Edit a broadcast's content across every copy. InvalidState when no editable copy matched.</summary>
+    Task<AnnouncementMutationResult> UpdateBroadcastAsync(
+        Guid broadcastId, PlatformAnnouncementPatchRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken);
+
+    /// <summary>Retire (archive) every copy of a broadcast. InvalidState when the broadcast is unknown.</summary>
+    Task<AnnouncementMutationResult> RetireBroadcastAsync(
+        Guid broadcastId, Guid actorUserId, CancellationToken cancellationToken);
 }
 
 public sealed class AnnouncementsService : IAnnouncementsService
@@ -417,4 +439,173 @@ public sealed class AnnouncementsService : IAnnouncementsService
 
     private static DateTime? AsUtc(DateTime? value) =>
         value is null ? null : DateTime.SpecifyKind(value.Value, DateTimeKind.Utc);
+
+    // ─── Platform broadcast ─────────────────────────────────────────────────────
+
+    private static readonly AnnouncementAudience EveryoneAudience = new("everyone", null, null);
+
+    public async Task<IReadOnlyList<PlatformWorkspaceDto>> ListPlatformWorkspacesAsync(CancellationToken cancellationToken)
+    {
+        var rows = await _db.Set<PlatformWorkspaceRow>()
+            .FromSqlRaw("EXEC dbo.usp_ListPlatformWorkspaces")
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        return rows
+            .Select(row => new PlatformWorkspaceDto(row.WorkspaceId, row.Name, row.Kind))
+            .ToList();
+    }
+
+    public async Task<PlatformAnnouncementCreatedDto> CreatePlatformBroadcastAsync(
+        PlatformAnnouncementCreateRequest request, IReadOnlyList<Guid> targetWorkspaceIds,
+        Guid actorUserId, string operationId, CancellationToken cancellationToken)
+    {
+        var broadcastId = Guid.NewGuid();
+        var storedStatus = ToStoredStatus(request.Status);
+        var audienceJson = JsonSerializer.Serialize(EveryoneAudience, JsonOptions);
+        var count = 0;
+
+        foreach (var workspaceId in targetWorkspaceIds)
+        {
+            var idParameter = new SqlParameter("@AnnouncementId", SqlDbType.UniqueIdentifier)
+            {
+                Direction = ParameterDirection.Output,
+            };
+
+            await _db.Database.ExecuteSqlRawAsync(
+                "EXEC dbo.usp_CreateAnnouncement @WorkspaceId, @AuthorUserId, @Title, @Body, @Audience, @Pinned, @ExpiresOn, @Status, @ScheduledPublishAt, @AutoArchive, @CreatedBy, @AnnouncementId OUTPUT, @BroadcastId",
+                new[]
+                {
+                    new SqlParameter("@WorkspaceId", workspaceId),
+                    new SqlParameter("@AuthorUserId", actorUserId),
+                    new SqlParameter("@Title", request.Title),
+                    new SqlParameter("@Body", request.Body),
+                    new SqlParameter("@Audience", audienceJson),
+                    new SqlParameter("@Pinned", request.Pinned),
+                    new SqlParameter("@ExpiresOn", DBNull.Value),
+                    new SqlParameter("@Status", storedStatus),
+                    new SqlParameter("@ScheduledPublishAt", (object?)request.ScheduledPublishAt ?? DBNull.Value),
+                    new SqlParameter("@AutoArchive", request.AutoArchive),
+                    new SqlParameter("@CreatedBy", actorUserId.ToString()),
+                    idParameter,
+                    new SqlParameter("@BroadcastId", broadcastId),
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            // Created Published → fan out this copy now through the same event-spine path manual publish uses.
+            if (string.Equals(storedStatus, PublishedStatus, StringComparison.Ordinal) && idParameter.Value is Guid newId)
+            {
+                await EmitPublishedAsync(newId, workspaceId, actorUserId, operationId, cancellationToken).ConfigureAwait(false);
+            }
+
+            count++;
+        }
+
+        return new PlatformAnnouncementCreatedDto(broadcastId, count);
+    }
+
+    public async Task<PaginatedResponse<PlatformAnnouncementRow>> QueryPlatformAsync(
+        int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var normalizedPage = page < 1 ? 1 : page;
+        var normalizedSize = pageSize < 1 ? 20 : pageSize > 100 ? 100 : pageSize;
+
+        var rows = await _db.Set<PlatformAnnouncementRowEntity>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_QueryPlatformAnnouncements @Page, @PageSize",
+                new SqlParameter("@Page", normalizedPage),
+                new SqlParameter("@PageSize", normalizedSize))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        var items = rows.Select(row =>
+        {
+            var scheduledPublishAt = AsUtc(row.ScheduledPublishAt);
+            var autoArchiveAt = AsUtc(row.AutoArchiveAt);
+            return new PlatformAnnouncementRow(
+                row.BroadcastId,
+                row.Title,
+                row.Body,
+                row.Pinned,
+                DeriveDisplayStatus(row.Status, scheduledPublishAt, autoArchiveAt),
+                row.AuthorUserId,
+                row.AuthorName,
+                AsUtc(row.PostedAt),
+                scheduledPublishAt,
+                row.AutoArchive,
+                autoArchiveAt,
+                row.WorkspaceCount);
+        }).ToList();
+
+        var totalCount = rows.Count > 0 ? rows[0].TotalCount : 0;
+        return new PaginatedResponse<PlatformAnnouncementRow>(items, totalCount, normalizedPage, normalizedSize);
+    }
+
+    public async Task<AnnouncementMutationResult> UpdateBroadcastAsync(
+        Guid broadcastId, PlatformAnnouncementPatchRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken)
+    {
+        // Read the copies first so we can fan out the bell per copy on a Scheduled→Published edit (the
+        // scheduled→published tick fans out per copy on time; an early manual publish must match it).
+        var copies = await ReadBroadcastCopiesAsync(broadcastId, cancellationToken).ConfigureAwait(false);
+        var wasPublished = copies.Count > 0 && string.Equals(copies[0].Status, PublishedStatus, StringComparison.Ordinal);
+        var storedStatus = ToStoredStatus(request.Status);
+
+        var foundParameter = BitOutput("@Found");
+        await _db.Database.ExecuteSqlRawAsync(
+            "EXEC dbo.usp_UpdateBroadcast @BroadcastId, @Title, @Body, @Pinned, @Status, @ScheduledPublishAt, @AutoArchive, @ExpiresOn, @UpdatedBy, @Found OUTPUT",
+            new[]
+            {
+                new SqlParameter("@BroadcastId", broadcastId),
+                new SqlParameter("@Title", request.Title),
+                new SqlParameter("@Body", request.Body),
+                new SqlParameter("@Pinned", request.Pinned),
+                new SqlParameter("@Status", storedStatus),
+                new SqlParameter("@ScheduledPublishAt", (object?)request.ScheduledPublishAt ?? DBNull.Value),
+                new SqlParameter("@AutoArchive", request.AutoArchive),
+                new SqlParameter("@ExpiresOn", DBNull.Value),
+                new SqlParameter("@UpdatedBy", actorUserId.ToString()),
+                foundParameter,
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        if (foundParameter.Value is not bool found || !found)
+        {
+            return new AnnouncementMutationResult(AnnouncementMutationOutcome.InvalidState, null);
+        }
+
+        if (!wasPublished && string.Equals(storedStatus, PublishedStatus, StringComparison.Ordinal))
+        {
+            foreach (var copy in copies)
+            {
+                await EmitPublishedAsync(copy.AnnouncementId, copy.WorkspaceId, actorUserId, operationId, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return new AnnouncementMutationResult(AnnouncementMutationOutcome.Success, null);
+    }
+
+    public async Task<AnnouncementMutationResult> RetireBroadcastAsync(
+        Guid broadcastId, Guid actorUserId, CancellationToken cancellationToken)
+    {
+        var foundParameter = BitOutput("@Found");
+        await _db.Database.ExecuteSqlRawAsync(
+            "EXEC dbo.usp_RetireBroadcast @BroadcastId, @UpdatedBy, @Found OUTPUT",
+            new[]
+            {
+                new SqlParameter("@BroadcastId", broadcastId),
+                new SqlParameter("@UpdatedBy", actorUserId.ToString()),
+                foundParameter,
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        if (foundParameter.Value is not bool found || !found)
+        {
+            return new AnnouncementMutationResult(AnnouncementMutationOutcome.InvalidState, null);
+        }
+
+        return new AnnouncementMutationResult(AnnouncementMutationOutcome.Success, null);
+    }
+
+    private async Task<IReadOnlyList<BroadcastCopyRow>> ReadBroadcastCopiesAsync(Guid broadcastId, CancellationToken cancellationToken) =>
+        await _db.Set<BroadcastCopyRow>()
+            .FromSqlRaw("EXEC dbo.usp_GetBroadcastCopies @BroadcastId", new SqlParameter("@BroadcastId", broadcastId))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
 }

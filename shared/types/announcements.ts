@@ -112,3 +112,66 @@ export interface AnnouncementListRow {
   /** Published → else scheduled → else created (manage table POSTED column). */
   postedAt?: IsoDateTime;
 }
+
+/* ── Platform broadcast (platform-admin only) ──────────────────────────────── */
+
+/** A platform broadcast targets every workspace (`all`) or an explicit set (`specific`). */
+export type PlatformAnnouncementTargetKind = 'all' | 'specific';
+
+export interface PlatformAnnouncementTarget {
+  kind: PlatformAnnouncementTargetKind;
+  /** Required (non-empty) when kind = 'specific'; ignored for 'all'. */
+  workspaceIds?: WorkspaceId[];
+}
+
+/**
+ * POST /platform/announcements — post to all or specific workspaces. The API fans out one normal
+ * per-workspace announcement (audience everyone, posted by the acting admin) per target, tied by one
+ * BroadcastId. Content fields mirror the workspace create form minus "posted by" and audience.
+ */
+export interface PlatformAnnouncementCreateRequest {
+  title: string;
+  body: string;
+  pinned?: boolean;
+  /** Publish now (`'Active'`) or hold for `scheduledPublishAt` (`'Scheduled'`). Omitted → `'Active'`. */
+  status?: AnnouncementWriteStatus;
+  scheduledPublishAt?: IsoDateTime;
+  /** Auto-archive 30 days after publish. Defaults to true when omitted. */
+  autoArchive?: boolean;
+  target: PlatformAnnouncementTarget;
+}
+
+/** PATCH /platform/announcements/{broadcastId} — edits content across every copy. Targets are fixed. */
+export interface PlatformAnnouncementPatchRequest {
+  title: string;
+  body: string;
+  pinned: boolean;
+  status?: AnnouncementWriteStatus;
+  scheduledPublishAt?: IsoDateTime;
+  autoArchive?: boolean;
+}
+
+/** POST /platform/announcements → the created broadcast summary. */
+export interface PlatformAnnouncementCreatedDto {
+  broadcastId: string;
+  /** How many per-workspace copies were fanned out. */
+  workspaceCount: number;
+}
+
+/** One grouped broadcast row on the platform manage list (one entry per BroadcastId). Carries the full
+ * body (all copies share it) so the editor can pre-fill it; the table truncates for display. */
+export interface PlatformAnnouncementRow {
+  broadcastId: string;
+  title: string;
+  body: string;
+  pinned: boolean;
+  status: AnnouncementStatus;
+  author: UserId;
+  authorName?: string;
+  postedAt?: IsoDateTime;
+  scheduledPublishAt?: IsoDateTime;
+  autoArchive?: boolean;
+  autoArchiveAt?: IsoDateTime;
+  /** Number of workspaces this broadcast fanned out to. */
+  workspaceCount: number;
+}

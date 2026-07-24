@@ -87,9 +87,9 @@ describe('PlatformLayout', () => {
     // Act
     const { container } = renderLayout({ seedMe: me });
 
-    // Assert — the side list (five links) plus the active surface in the content column
+    // Assert — the side list (six links) plus the active surface in the content column
     const nav = screen.getByRole('navigation', { name: 'Platform settings' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(5);
+    expect(within(nav).getAllByRole('link')).toHaveLength(6);
     expect(screen.getByRole('link', { name: 'Field schema' })).toHaveAttribute(
       'aria-current',
       'page',

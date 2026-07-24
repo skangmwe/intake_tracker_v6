@@ -23,7 +23,9 @@ CREATE OR ALTER PROCEDURE dbo.usp_CreateAnnouncement
     @ScheduledPublishAt DATETIME2,
     @AutoArchive        BIT,
     @CreatedBy          NVARCHAR(256),
-    @AnnouncementId     UNIQUEIDENTIFIER OUTPUT
+    @AnnouncementId     UNIQUEIDENTIFIER OUTPUT,
+    -- Set on platform-broadcast copies (all copies from one post share it); NULL for workspace posts.
+    @BroadcastId        UNIQUEIDENTIFIER = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -40,6 +42,7 @@ BEGIN
     DECLARE @Sched DATETIME2        = @ScheduledPublishAt;
     DECLARE @AA    BIT              = ISNULL(@AutoArchive, 1);
     DECLARE @By    NVARCHAR(256)    = @CreatedBy;
+    DECLARE @Bc    UNIQUEIDENTIFIER = @BroadcastId;
     DECLARE @Now   DATETIME2        = SYSUTCDATETIME();
     DECLARE @NewId UNIQUEIDENTIFIER;
 
@@ -56,12 +59,12 @@ BEGIN
 
         INSERT INTO dbo.Announcements
             (WorkspaceId, AuthorUserId, Title, Body, Audience, Pinned, ExpiresOn, Status,
-             ScheduledPublishAt, AutoArchive, AutoArchiveAt, PublishedAt,
+             ScheduledPublishAt, AutoArchive, AutoArchiveAt, PublishedAt, BroadcastId,
              CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
         OUTPUT inserted.AnnouncementId INTO @Inserted
         VALUES
             (@Ws, @Author, @T, @B, @Aud, @Pin, @Exp, @St,
-             @SchedStamp, @AA, @AutoArchiveAt, @PublishedAt,
+             @SchedStamp, @AA, @AutoArchiveAt, @PublishedAt, @Bc,
              @Now, @Now, @By, @By);
 
         SELECT @NewId = AnnouncementId FROM @Inserted;

@@ -124,6 +124,15 @@ export interface WorkspaceProvisionResult {
   prefix: string;
 }
 
+/* ── Platform broadcast target picker ────────────────────────────────────── */
+
+/** A workspace a platform admin may broadcast to (GET /platform/workspaces — excludes the template). */
+export interface PlatformWorkspaceDto {
+  id: WorkspaceId;
+  name: string;
+  kind: WorkspaceKind;
+}
+
 /* ── S39 Firm-wide audit (BS §12 / §4.3) ─────────────────────────────────── */
 
 /** One firm-wide audit row — a workspace audit row plus the workspace name (cross-workspace feed). */

@@ -6,15 +6,20 @@
 
 import type { FilterValue, SortState } from '@/shared/components/Table';
 
-import type { AnnouncementListRow } from '@shared/types';
+/** The minimal shape the view needs — title (funnel) + postedAt (sort). Both the workspace manage row
+ * (AnnouncementListRow) and the platform broadcast row (PlatformAnnouncementRow) satisfy it. */
+export interface AnnouncementViewRow {
+  title: string;
+  postedAt?: string;
+}
 
 /** The one filterable column (text) and the one sortable column, per the prototype. */
 export type AnnouncementColumnKey = 'title';
 
 export type AnnouncementsFilters = Partial<Record<AnnouncementColumnKey, FilterValue>>;
 
-export interface AnnouncementsView {
-  rows: AnnouncementListRow[];
+export interface AnnouncementsView<T extends AnnouncementViewRow = AnnouncementViewRow> {
+  rows: T[];
   total: number;
   totalPages: number;
   start: number;
@@ -28,25 +33,25 @@ export function isFilterActive(value: FilterValue | undefined): boolean {
 }
 
 /** Milliseconds for the POSTED value; rows without a posted timestamp sort last. */
-function postedMs(row: AnnouncementListRow): number {
+function postedMs(row: AnnouncementViewRow): number {
   if (!row.postedAt) return Number.NEGATIVE_INFINITY;
   const parsed = Date.parse(row.postedAt);
   return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
 }
 
-function matchesTitle(row: AnnouncementListRow, value: FilterValue): boolean {
+function matchesTitle(row: AnnouncementViewRow, value: FilterValue): boolean {
   const query = (value.contains ?? '').trim().toLowerCase();
   if (query === '') return true;
   return row.title.toLowerCase().includes(query);
 }
 
-export function selectAnnouncementsView(
-  announcements: AnnouncementListRow[],
+export function selectAnnouncementsView<T extends AnnouncementViewRow>(
+  announcements: T[],
   sort: SortState | undefined,
   filters: AnnouncementsFilters,
   page: number,
   pageSize: number,
-): AnnouncementsView {
+): AnnouncementsView<T> {
   const titleFilter = filters.title;
   const filtered =
     titleFilter && isFilterActive(titleFilter)
