@@ -77,6 +77,12 @@ public interface ITasksService
     /// <summary>The workspace's bundle templates for the composer's "Add bundle" picker.</summary>
     Task<IReadOnlyList<TaskBundleTemplateDto>> GetBundlesAsync(Guid workspaceId, CancellationToken cancellationToken);
 
+    /// <summary>Every task in a workspace, paginated — the read behind the Task CSV export. Access is
+    /// the caller's Viewer membership on the workspace, gated upstream by ExportService before this is
+    /// called (the workspace scope IS the row-level entitlement; export never widens access).</summary>
+    Task<IReadOnlyList<WorkspaceTaskExportRow>> QueryWorkspaceTasksAsync(
+        Guid workspaceId, int page, int pageSize, CancellationToken cancellationToken);
+
     /// <summary>Promote a task to its own Request (BS §5) — copies the parent to a fresh draft with a
     /// queued <c>related</c> link back and cancels the task. Returns the new draft id.</summary>
     Task<PromoteResult> PromoteToRequestAsync(
@@ -197,6 +203,20 @@ public sealed class TasksService : ITasksService
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         return rows.Select(row => new TaskBundleTemplateDto(row.TaskBundleTemplateId, row.Name, ParseBundleTasks(row.TasksJson))).ToList();
+    }
+
+    public async Task<IReadOnlyList<WorkspaceTaskExportRow>> QueryWorkspaceTasksAsync(
+        Guid workspaceId, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        // Workspace-scoped read; ExportService has already gated the caller's Viewer membership on
+        // @WorkspaceId (BS §22.4 — export never widens access). No further per-user filter here.
+        return await _db.Set<WorkspaceTaskExportRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_GetTasksForWorkspace @WorkspaceId, @Page, @PageSize",
+                new SqlParameter("@WorkspaceId", workspaceId),
+                new SqlParameter("@Page", page),
+                new SqlParameter("@PageSize", pageSize))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<PromoteResult> PromoteToRequestAsync(

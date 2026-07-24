@@ -553,6 +553,22 @@ public sealed class TaskFieldRow
     public string FieldType { get; set; } = string.Empty;
 }
 
+/// <summary>One task row from usp_GetTasksForWorkspace — the workspace-wide export projection.
+/// Carries the parent Request id plus the assignee's resolved display name (LEFT-joined, so an
+/// unassigned task still exports). Title / Notes are Confidential — never logged.</summary>
+public sealed class WorkspaceTaskExportRow
+{
+    public Guid TaskId { get; set; }
+    public string RecordId { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Phase { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? Notes { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public Guid? AssigneeUserId { get; set; }
+    public string? AssigneeName { get; set; }
+}
+
 // ─── Slice 10 (Closure, Copy, Typed links) — keyless read projections ──────────────────
 // TypedLinks are read/written through stored procedures (access-respecting far-side resolution,
 // soft-delete, queued-link stamping in usp_CreateRequest → api-data-access.md). The API never

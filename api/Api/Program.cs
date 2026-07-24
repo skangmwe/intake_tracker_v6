@@ -232,6 +232,8 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IIoObjec
     McDermott.AiTracker.Api.Modules.ImportExport.RequestIoObject>();
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IIoObject,
     McDermott.AiTracker.Api.Modules.ImportExport.FeatureIoObject>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IIoObject,
+    McDermott.AiTracker.Api.Modules.ImportExport.TaskIoObject>();
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.ImportExport.IIoObjectRegistry,
     McDermott.AiTracker.Api.Modules.ImportExport.IoObjectRegistry>();
 builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.ImportExport.ImportProcessor>();
