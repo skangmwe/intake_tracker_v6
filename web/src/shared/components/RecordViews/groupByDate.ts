@@ -2,28 +2,30 @@
 // (day granularity), returns the day groups in ascending chronological order, and collects items with no
 // date into a trailing "No date" group. Pure — unit-tested independently of the renderers.
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 import type { RecordViewItem } from './types';
 
 export const NO_DATE = 'No date';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 export interface DateGroup {
   /** `YYYY-MM-DD` for a real day, or NO_DATE. Stable React key. */
   key: string;
-  /** Human label — `16 Jul 2026`, or "No date". */
+  /** Human label — a locale date (`07/16/2026`), or "No date". */
   label: string;
   items: RecordViewItem[];
 }
 
-/** ISO date (`2026-07-16` or a full timestamp) → `16 Jul 2026`. Returns the raw string when unparseable. */
+/** ISO date (`2026-07-16` or a full timestamp) → a locale date (`07/16/2026`). Raw string when unparseable. */
 export function formatDayLabel(isoDay: string): string {
   const [yearPart, monthPart, dayPart] = isoDay.slice(0, 10).split('-');
   const year = Number(yearPart);
   const month = Number(monthPart);
   const day = Number(dayPart);
   if (!year || !month || !day || month < 1 || month > 12) return isoDay;
-  return `${day} ${MONTHS[month - 1]} ${year}`;
+  // Build a local-midnight Date from the parsed parts (never `new Date(isoDay)`, which parses as UTC)
+  // so the label never shifts a day across time zones; formatDate renders it in the viewer's locale.
+  return formatDate(new Date(year, month - 1, day));
 }
 
 export function groupByDate(items: RecordViewItem[]): DateGroup[] {

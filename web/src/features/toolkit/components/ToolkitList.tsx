@@ -12,6 +12,7 @@ import {
   type TableColumn,
   type TableRow,
 } from '@/shared/components/Table';
+import { formatDate as formatIsoDate } from '@/shared/utils/dateFormat';
 
 import { kindIcon, statusBadgeClass } from '../toolkitFormat';
 
@@ -32,7 +33,7 @@ function formatDate(iso: string): string {
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime())
     ? iso
-    : parsed.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    : formatIsoDate(parsed);
 }
 
 function toTableRow(row: ToolkitItemListRow, onOpen: () => void): TableRow {

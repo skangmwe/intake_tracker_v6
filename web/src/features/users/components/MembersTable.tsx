@@ -19,6 +19,7 @@ import {
   type TableColumn,
   TableShell,
 } from '@/shared/components/Table';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 import { LEVEL_OPTIONS } from '../constants';
 import type { MemberColumnKey, MembersFilters } from '../membersView';
@@ -61,7 +62,7 @@ function formatLastActive(iso: string | null): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? EM_DASH
-    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    : formatDate(date);
 }
 
 interface MembersTableProps {

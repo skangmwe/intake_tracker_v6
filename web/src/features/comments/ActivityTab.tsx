@@ -19,6 +19,7 @@ import { Button } from '@/shared/components/Button';
 import { TextArea } from '@/shared/components/Form';
 import { parseMentions } from '@/shared/text/mentions';
 import { problemMessage } from '@/shared/http/problemMessage';
+import { formatDateTime } from '@/shared/utils/dateFormat';
 import { useMe } from '@/features/users/useMe';
 
 import { useThread, usePostComment } from './useComments';
@@ -32,7 +33,7 @@ function formatWhen(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? ''
-    : date.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+    : formatDateTime(date);
 }
 
 /** Slice-6 actor display. A user directory lands with slice 12; until then names don't resolve. */

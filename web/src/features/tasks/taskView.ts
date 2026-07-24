@@ -3,6 +3,8 @@
 
 import type { TaskDto, TaskLibraryFieldType, TaskPhase, TaskStatus, TaskTypedFieldValue } from '@shared/types';
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 /** Canonical build-phase order for the collapsible phase groups; 'Unphased' always trails. */
 export const PHASE_ORDER: readonly TaskPhase[] = [
   'Intake',
@@ -54,7 +56,7 @@ export function formatCompleted(iso: string | undefined): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? ''
-    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    : formatDate(date);
 }
 
 /**

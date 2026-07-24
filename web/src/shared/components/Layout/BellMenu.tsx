@@ -12,6 +12,7 @@ import { Bell, Megaphone } from '@phosphor-icons/react';
 import type { NotificationDto } from '@shared/types';
 
 import { IconButton } from '@/shared/components/Button/IconButton';
+import { formatDate } from '@/shared/utils/dateFormat';
 import { useDismissable } from '@/shared/hooks/useDismissable';
 import {
   useMarkAllRead,
@@ -31,7 +32,7 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
   if (diffHours < 24) return `${diffHours}h`;
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) return `${diffDays}d`;
-  return new Date(then).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return formatDate(then);
 }
 
 export function BellMenu() {

@@ -9,12 +9,10 @@ import { ArrowLeft } from '@phosphor-icons/react';
 
 import { NoAccessPage } from '@/shared/components/EdgeStates';
 import { ApiError } from '@/shared/http/apiClient';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 import { useAnnouncement } from '../useAnnouncements';
 import { AnnouncementStatusBadge } from './AnnouncementStatusBadge';
-
-const formatDate = (iso?: string): string =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
 export function AnnouncementDetailPage() {
   const { id } = useParams<{ id: string }>();

@@ -8,6 +8,7 @@
 import type { AuditLogRowDto } from '@shared/types';
 
 import { StatusPill } from '@/shared/components/Feedback';
+import { formatDateTime } from '@/shared/utils/dateFormat';
 
 import { eventGroup, eventTypeLabel, type EventGroup } from '../constants';
 
@@ -31,13 +32,7 @@ function formatWhen(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? EM_DASH
-    : date.toLocaleString(undefined, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
+    : formatDateTime(date);
 }
 
 /** Pretty-print the payload JSON; fall back to the raw string if it doesn't parse. */

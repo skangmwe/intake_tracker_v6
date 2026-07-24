@@ -16,6 +16,7 @@ import {
   TextArea,
   TextField,
 } from '@/shared/components/Form';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 import { AUTO_ARCHIVE_DAYS, STATUS_WRITE_SELECT } from '../constants';
 
@@ -62,11 +63,7 @@ function localInputToIso(local: string): string {
 }
 
 function formatArchiveDate(baseMs: number): string {
-  return new Date(baseMs + AUTO_ARCHIVE_DAYS * MS_PER_DAY).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatDate(new Date(baseMs + AUTO_ARCHIVE_DAYS * MS_PER_DAY));
 }
 
 function initialStatus(initial: AnnouncementDto | undefined): AnnouncementWriteStatus {

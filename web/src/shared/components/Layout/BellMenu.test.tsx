@@ -11,6 +11,7 @@ import { useLocation } from 'react-router-dom';
 import type { AnnouncementId, NotificationDto, PaginatedResponse, RecordId } from '@shared/types';
 
 import { renderWithProviders } from '@/test-utils';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 import * as api from '@/features/notifications/api';
 import { BellMenu, relativeTime } from './BellMenu';
@@ -68,7 +69,7 @@ describe('relativeTime', () => {
   });
   it('relativeTime — a week or more — falls back to a short date', () => {
     const iso = '2026-06-20T12:00:00Z';
-    const expected = new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    const expected = formatDate(iso);
     expect(relativeTime(iso, now)).toBe(expected);
   });
   it('relativeTime — invalid — empty string', () => {

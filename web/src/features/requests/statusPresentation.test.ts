@@ -3,7 +3,7 @@
 import { formatSubmitted, slaPresentation } from './statusPresentation';
 
 describe('formatSubmitted', () => {
-  it('formatSubmitted — valid ISO — long-form day/month/year', () => {
+  it('formatSubmitted — valid ISO — locale numeric date with year', () => {
     // Arrange / Act
     const result = formatSubmitted('2026-07-03T13:00:00Z');
 

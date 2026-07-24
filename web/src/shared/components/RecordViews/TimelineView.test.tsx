@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 import { TimelineView } from './TimelineView';
 import type { RecordViewItem } from './types';
 
@@ -21,8 +23,8 @@ describe('TimelineView', () => {
     render(<TimelineView items={buildItems()} caption="Requests timeline" />);
 
     // Assert — the earliest date appears before the later date in the DOM
-    const first = screen.getByText('1 Jul 2026');
-    const second = screen.getByText('10 Jul 2026');
+    const first = screen.getByText(formatDate(new Date(2026, 6, 1)));
+    const second = screen.getByText(formatDate(new Date(2026, 6, 10)));
     expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 

@@ -1,6 +1,8 @@
 // Shared date helpers for the announcement editors — ISO instant ↔ the `YYYY-MM-DDTHH:mm` local
 // wall-clock value a datetime-local input expects, plus the auto-archive date note.
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 import { AUTO_ARCHIVE_DAYS } from './constants';
 
 const MS_PER_DAY = 86_400_000;
@@ -22,9 +24,5 @@ export function localInputToIso(local: string): string {
 
 /** The "moves to Archived on {date}" date, `baseMs + AUTO_ARCHIVE_DAYS`. */
 export function formatArchiveDate(baseMs: number): string {
-  return new Date(baseMs + AUTO_ARCHIVE_DAYS * MS_PER_DAY).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatDate(new Date(baseMs + AUTO_ARCHIVE_DAYS * MS_PER_DAY));
 }

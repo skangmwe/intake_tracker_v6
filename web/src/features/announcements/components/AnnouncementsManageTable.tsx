@@ -18,6 +18,7 @@ import {
   TableShell,
 } from '@/shared/components/Table';
 import { StatusPill } from '@/shared/components/Feedback';
+import { formatDateTime } from '@/shared/utils/dateFormat';
 
 import { STATUS_PILL } from '../constants';
 import type { AnnouncementsFilters } from '../announcementsView';
@@ -36,13 +37,7 @@ function formatPosted(iso: string | undefined): string {
   if (!iso) return EM_DASH;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return EM_DASH;
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDateTime(date);
 }
 
 interface AnnouncementsManageTableProps {
