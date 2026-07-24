@@ -554,8 +554,10 @@ public sealed class TaskFieldRow
 }
 
 /// <summary>One task row from usp_GetTasksForWorkspace — the workspace-wide export projection.
-/// Carries the parent Request id plus the assignee's resolved display name (LEFT-joined, so an
-/// unassigned task still exports). Title / Notes are Confidential — never logged.</summary>
+/// Carries the parent Request id, the assignee's and creator's resolved display names (LEFT-joined,
+/// so an unassigned / seeded task still exports), the created date, and the single captured typed
+/// field (its label plus the one value column that is set, coalesced to text). Title / Notes /
+/// FieldValue are Confidential — never logged.</summary>
 public sealed class WorkspaceTaskExportRow
 {
     public Guid TaskId { get; set; }
@@ -565,8 +567,12 @@ public sealed class WorkspaceTaskExportRow
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
     public Guid? AssigneeUserId { get; set; }
     public string? AssigneeName { get; set; }
+    public string? CreatedByName { get; set; }
+    public string? FieldLabel { get; set; }
+    public string? FieldValue { get; set; }
 }
 
 /// <summary>One attachment row from usp_GetAttachmentsForWorkspace — the workspace-wide export
