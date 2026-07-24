@@ -23,9 +23,6 @@ public sealed class RequestIoObject : IIoObject, IIoImporter
     /// <summary>Page the workspace Requests query at the pagination max (api/CLAUDE.md).</summary>
     private const int ExportPageSize = 100;
 
-    /// <summary>Multi-value fields (compliance flags, watchers, tech stack) join with this separator.</summary>
-    private const string MultiValueSeparator = "; ";
-
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     // The identity export column — the RecordId, always emitted (BS §13 — every exported record is
@@ -115,7 +112,7 @@ public sealed class RequestIoObject : IIoObject, IIoImporter
 
             foreach (var row in batch)
             {
-                rows.Add(ProjectRow(row));
+                rows.Add(FieldValuesProjector.Project(row.RecordId, row.FieldValues));
             }
 
             if (batch.Count < ExportPageSize)
@@ -132,54 +129,6 @@ public sealed class RequestIoObject : IIoObject, IIoImporter
 
         return new ExportDataset(columns, trimmed);
     }
-
-    /// <summary>Project one request's FieldValues JSON map into a value dict keyed by field key. Values
-    /// are materialised (string / number / joined multi-value / Yes-No) before the parsed document is
-    /// disposed. The identity "id" (RecordId) always wins over any "id" key in the map.</summary>
-    private static IReadOnlyDictionary<string, object?> ProjectRow(WorkspaceRequestExportRow row)
-    {
-        var cells = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-        var json = string.IsNullOrWhiteSpace(row.FieldValues) ? "{}" : row.FieldValues;
-        using (var document = JsonDocument.Parse(json))
-        {
-            if (document.RootElement.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var property in document.RootElement.EnumerateObject())
-                {
-                    cells[property.Name] = FormatValue(property.Value);
-                }
-            }
-        }
-
-        cells["id"] = row.RecordId;
-        return cells;
-    }
-
-    /// <summary>Materialise a JSON value into a CSV cell value: strings as-is, numbers as their numeric
-    /// value (invariant-formatted downstream), booleans as Yes/No, arrays joined, objects as raw JSON,
-    /// null/absent as null (an empty cell).</summary>
-    private static object? FormatValue(JsonElement element) => element.ValueKind switch
-    {
-        JsonValueKind.String => element.GetString(),
-        // Cast the integer branch to object so the ternary does not widen both branches to double —
-        // that would box every integer as a double (losing int64 precision for large values).
-        JsonValueKind.Number => element.TryGetInt64(out var number) ? (object)number : element.GetDouble(),
-        JsonValueKind.True => "Yes",
-        JsonValueKind.False => "No",
-        JsonValueKind.Array => string.Join(MultiValueSeparator, element.EnumerateArray().Select(FormatScalar)),
-        JsonValueKind.Object => element.GetRawText(),
-        _ => null,
-    };
-
-    private static string FormatScalar(JsonElement element) => element.ValueKind switch
-    {
-        JsonValueKind.String => element.GetString() ?? string.Empty,
-        JsonValueKind.Number => element.GetRawText(),
-        JsonValueKind.True => "Yes",
-        JsonValueKind.False => "No",
-        _ => element.GetRawText(),
-    };
 
     public async Task<ImportRowResult> ImportRowAsync(
         ImportRowContext context, IReadOnlyDictionary<string, string?> fieldValues, CancellationToken cancellationToken)

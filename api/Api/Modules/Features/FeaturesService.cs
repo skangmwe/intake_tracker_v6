@@ -56,6 +56,18 @@ public interface IFeaturesService
     /// <summary>The Feature Catalog list (S9). Null when the caller is not an AI-workspace member (403).</summary>
     Task<PaginatedResponse<FeatureListRowDto>?> QueryAsync(Guid userId, PaginatedQuery query, CancellationToken cancellationToken);
 
+    /// <summary>The Feature field columns for the export field picker + projection — the AI Solutions
+    /// hub's stored Feature field catalog (FieldKey + DisplayName), non-retired, in catalog order. Reads
+    /// the same source as the Fields tab, so the export picker cannot drift from the catalog. Empty when
+    /// no hub workspace is provisioned (field labels are non-sensitive config — not membership-gated).</summary>
+    Task<IReadOnlyList<FeatureExportField>> GetFeatureExportFieldsAsync(CancellationToken cancellationToken);
+
+    /// <summary>A page of the hub's features for CSV export — RecordId + the raw FieldValues JSON map.
+    /// Null when no hub is provisioned or the caller is not a Viewer of the AI Solutions workspace (403)
+    /// — the hub membership is the entitlement (BS §22.4 — export never widens access).</summary>
+    Task<IReadOnlyList<WorkspaceFeatureExportRow>?> QueryFeatureExportAsync(
+        Guid userId, int page, int pageSize, CancellationToken cancellationToken);
+
     Task<FeatureDto?> GetByIdAsync(string recordId, Guid userId, CancellationToken cancellationToken);
 
     Task<FeatureWriteResult> PatchAsync(
@@ -388,6 +400,54 @@ public sealed class FeaturesService : IFeaturesService
         }
 
         return new PaginatedResponse<FeatureListRowDto>(rows, totalCount, page, pageSize);
+    }
+
+    // ─── Export reads (S28 wizard; field-surfacing sweep slice 3b) ─────────────
+
+    public async Task<IReadOnlyList<FeatureExportField>> GetFeatureExportFieldsAsync(CancellationToken cancellationToken)
+    {
+        // The Feature catalog lives on the AI Solutions hub; read the same catalog proc the Fields tab
+        // uses and keep the non-retired Feature rows in catalog order (ObjectType, SortOrder, DisplayName)
+        // so the export picker matches the catalog exactly.
+        var hubId = await ResolveHubWorkspaceIdAsync(cancellationToken).ConfigureAwait(false);
+        if (hubId is not { } workspaceId)
+        {
+            return Array.Empty<FeatureExportField>();
+        }
+
+        var rows = await _db.Set<FieldCatalogRow>()
+            .FromSqlRaw("EXEC dbo.usp_GetWorkspaceFieldCatalog @WorkspaceId", new SqlParameter("@WorkspaceId", workspaceId))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        return rows
+            .Where(row => string.Equals(row.ObjectType, "Feature", StringComparison.Ordinal) && !row.IsRetired)
+            .Select(row => new FeatureExportField(row.FieldKey, row.DisplayName))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<WorkspaceFeatureExportRow>?> QueryFeatureExportAsync(
+        Guid userId, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var hubId = await ResolveHubWorkspaceIdAsync(cancellationToken).ConfigureAwait(false);
+        if (hubId is not { } workspaceId)
+        {
+            return null;
+        }
+
+        // Hub membership IS the entitlement — a non-member gets 403 (null → the descriptor maps it).
+        if (!await _accessGuard.HasWorkspaceLevelAsync(userId, workspaceId, WorkspaceLevel.Viewer, cancellationToken).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        return await _db.Set<WorkspaceFeatureExportRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_GetFeaturesForWorkspace @WorkspaceId, @Page, @PageSize",
+                new SqlParameter("@WorkspaceId", workspaceId),
+                new SqlParameter("@Page", page),
+                new SqlParameter("@PageSize", pageSize))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 
     // ─── Reads & mapping ───────────────────────────────────────────────────────

@@ -1,41 +1,30 @@
-// Feature import/export descriptor (S28 tabs + wizards, Slice 2). The registry entry for the Feature
-// Catalog object: it declares the fields a CSV column can map to on import and the columns emitted on
-// export, projects the access-filtered Feature Catalog query into an export dataset, and creates one
-// Feature per import row. Features are AI-Solutions-hub-scoped (resolved server-side by FeaturesService),
-// so export access is the caller's hub membership, not the passed workspace — a non-member gets a null
-// dataset (→ 403, never a silent empty file). Import fields are the scalar create-path fields; array
-// fields (tags, tech stack) are not CSV-mappable and are omitted. Row values are Confidential — written
-// to the response, never logged (api-pii-handling.md).
+// Feature import/export descriptor (S28 tabs + wizards; dynamic export — field-surfacing sweep slice
+// 3b). The registry entry for the Feature Catalog object: it declares the fields a CSV column can map
+// to on import, derives the export columns from the hub's live Feature field catalog, projects each
+// feature's FieldValues JSON map into an export row, and creates one Feature per import row. Features
+// are AI-Solutions-hub-scoped (resolved server-side by FeaturesService), so export access is the
+// caller's hub membership, not the passed workspace — a non-member gets a null dataset (→ 403, never a
+// silent empty file). The export columns come from the SAME catalog the Fields tab reads (seeded in
+// migration 076), so the export picker surfaces every Feature field and cannot drift from the catalog;
+// values are read from Features.FieldValues (the single source of every content value, keyed by field
+// key). Import fields stay the bounded scalar create-path set; array fields (tags, tech stack) are not
+// CSV-mappable and are omitted. Row values are Confidential — written to the response, never logged
+// (api-pii-handling.md).
 
 using McDermott.AiTracker.Api.Modules.Features;
-using McDermott.AiTracker.Api.Modules.Requests;
+using McDermott.AiTracker.Api.Shared.Schema;
 using Microsoft.Extensions.Options;
 
 namespace McDermott.AiTracker.Api.Modules.ImportExport;
 
 public sealed class FeatureIoObject : IIoObject, IIoImporter
 {
-    /// <summary>Page the access-gated Feature query at the pagination max (api/CLAUDE.md).</summary>
+    /// <summary>Page the hub Feature query at the pagination max (api/CLAUDE.md).</summary>
     private const int ExportPageSize = 100;
 
-    /// <summary>Multi-value fields (tags, tech stack) join with this separator in a single CSV cell.</summary>
-    private const string MultiValueSeparator = "; ";
-
-    // Export columns == the columns FeaturesService.QueryAsync returns, in file order. "id" is the
-    // identity column and is always emitted (BS §13 — every exported record is identifiable).
-    private static readonly IReadOnlyList<IoFieldSpec> ExportFieldSpecs =
-    [
-        new("id", "Record ID", AlwaysIncluded: true),
-        new("name", "Name"),
-        new("oneLiner", "One-liner"),
-        new("featureType", "Type"),
-        new("capabilityTags", "Capability Tags"),
-        new("techStack", "Tech Stack"),
-        new("owner", "Owner"),
-        new("maturity", "Maturity"),
-        new("origin", "Origin"),
-        new("updated", "Last Updated"),
-    ];
+    // The identity export column — the RecordId, always emitted (BS §13 — every exported record is
+    // identifiable). All other columns are the hub's stored Feature fields (derived at runtime).
+    private static readonly IoFieldSpec IdField = new("id", "Record ID", AlwaysIncluded: true);
 
     // Import targets a CSV column may map to — the scalar fields the Feature create path accepts. Name
     // and Type are required at create (usp_CreateFeature has no defaults for them). Array fields
@@ -73,43 +62,58 @@ public sealed class FeatureIoObject : IIoObject, IIoImporter
 
     public IReadOnlyList<IoFieldSpec> ImportFields => ImportFieldSpecs;
 
-    // Feature's export fields are static today; a later slice seeds a Feature FieldDefinition schema and
-    // derives them from the workspace catalog (like Request), which is why this is already workspace-aware.
-    public Task<IReadOnlyList<IoFieldSpec>> GetExportFieldsAsync(
-        Guid workspaceId, Guid userId, CancellationToken cancellationToken) => Task.FromResult(ExportFieldSpecs);
+    // Feature's catalog comes from stored FieldDefinition rows on the hub (seeded in migration 076),
+    // surfaced by FieldSchemaService on the Fields tab — nothing is synthesised here.
+    public IReadOnlyList<CatalogFieldSpec> CatalogFields => Array.Empty<CatalogFieldSpec>();
 
-    // Feature's catalog will come from stored FieldDefinition rows (seeded in a later slice), not here.
-    public IReadOnlyList<Shared.Schema.CatalogFieldSpec> CatalogFields => Array.Empty<Shared.Schema.CatalogFieldSpec>();
+    public async Task<IReadOnlyList<IoFieldSpec>> GetExportFieldsAsync(
+        Guid workspaceId, Guid userId, CancellationToken cancellationToken)
+    {
+        // Columns follow the hub's live Feature field catalog — the same source as the Fields tab, so the
+        // export picker cannot drift from it. Identity "id" (RecordId) leads; the catalog fields follow
+        // in catalog order, deduped against the identity. (Feature is hub-scoped, so the passed workspace
+        // is not used to resolve the catalog — FeaturesService resolves the hub.)
+        var catalog = await _features.GetFeatureExportFieldsAsync(cancellationToken).ConfigureAwait(false);
+
+        var fields = new List<IoFieldSpec>(catalog.Count + 1) { IdField };
+        var seen = new HashSet<string>(StringComparer.Ordinal) { IdField.Key };
+        foreach (var field in catalog)
+        {
+            if (seen.Add(field.Key))
+            {
+                fields.Add(new IoFieldSpec(field.Key, field.Label));
+            }
+        }
+
+        return fields;
+    }
 
     public async Task<ExportDataset?> BuildExportAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
     {
-        // Features live in the AI Solutions hub, not the passed workspace — access is the caller's hub
-        // membership, enforced inside QueryAsync (null → the caller cannot see Features → 403).
+        // Columns from the hub catalog; values from each feature's FieldValues JSON. Features live in the
+        // AI Solutions hub, not the passed workspace — access is the caller's hub membership, enforced
+        // inside QueryFeatureExportAsync (null → the caller cannot see Features → 403).
+        var columns = await GetExportFieldsAsync(workspaceId, userId, cancellationToken).ConfigureAwait(false);
+
         var rows = new List<IReadOnlyDictionary<string, object?>>();
         var page = 1;
 
         while (rows.Count < _options.MaxExportRows)
         {
-            var query = new PaginatedQuery
-            {
-                Page = page,
-                PageSize = ExportPageSize,
-                Filters = null,
-                Sort = new List<SortSpec>(),
-            };
-
-            var result = await _features.QueryAsync(userId, query, cancellationToken).ConfigureAwait(false);
-            if (result is null)
+            var batch = await _features
+                .QueryFeatureExportAsync(userId, page, ExportPageSize, cancellationToken)
+                .ConfigureAwait(false);
+            if (batch is null)
             {
                 return null;
             }
 
-            foreach (var row in result.Items)
+            foreach (var row in batch)
             {
-                rows.Add(ProjectRow(row));
+                rows.Add(FieldValuesProjector.Project(row.RecordId, row.FieldValues));
             }
 
-            if (result.Items.Count < ExportPageSize || rows.Count >= result.TotalCount)
+            if (batch.Count < ExportPageSize)
             {
                 break;
             }
@@ -121,7 +125,7 @@ public sealed class FeatureIoObject : IIoObject, IIoImporter
             ? rows.Take(_options.MaxExportRows).ToList()
             : rows;
 
-        return new ExportDataset(ExportFieldSpecs, trimmed);
+        return new ExportDataset(columns, trimmed);
     }
 
     public async Task<ImportRowResult> ImportRowAsync(
@@ -172,21 +176,6 @@ public sealed class FeatureIoObject : IIoObject, IIoImporter
             _ => new ImportRowResult(ImportRowResult.Flagged, null, ImportOutcomeMapper.GenericFailure()),
         };
     }
-
-    private static IReadOnlyDictionary<string, object?> ProjectRow(FeatureListRowDto row) =>
-        new Dictionary<string, object?>(StringComparer.Ordinal)
-        {
-            ["id"] = row.Id,
-            ["name"] = row.Name,
-            ["oneLiner"] = row.OneLiner,
-            ["featureType"] = row.FeatureType,
-            ["capabilityTags"] = string.Join(MultiValueSeparator, row.CapabilityTags),
-            ["techStack"] = string.Join(MultiValueSeparator, row.TechStack),
-            ["owner"] = row.Owner,
-            ["maturity"] = row.Maturity,
-            ["origin"] = row.Origin,
-            ["updated"] = row.UpdatedAt,
-        };
 
     private static string? Value(IReadOnlyDictionary<string, string?> fieldValues, string key) =>
         fieldValues.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
