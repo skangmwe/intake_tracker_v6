@@ -64,7 +64,9 @@ public sealed class TaskIoObject : IIoObject
 
     public IReadOnlyList<IoFieldSpec> ImportFields => Array.Empty<IoFieldSpec>();
 
-    public IReadOnlyList<IoFieldSpec> ExportFields => ExportFieldSpecs;
+    // Task is fixed-column — its export fields do not vary per workspace.
+    public Task<IReadOnlyList<IoFieldSpec>> GetExportFieldsAsync(
+        Guid workspaceId, Guid userId, CancellationToken cancellationToken) => Task.FromResult(ExportFieldSpecs);
 
     // Task's catalog comes from stored FieldDefinition rows (the six Global attribute fields from
     // migration 075 + the workspace task-field library) plus the five synthesised system auto-fields,

@@ -78,6 +78,19 @@ public interface IRequestsService
 
     Task<RequestWriteOutcome> SetHoldAsync(
         string recordId, bool held, string? reason, Guid actorUserId, string operationId, CancellationToken cancellationToken);
+
+    /// <summary>The Request field columns for the export field picker + projection — the workspace's
+    /// stored Request field catalog (FieldKey + DisplayName), non-retired, in catalog order. Reads the
+    /// same source as the Fields tab (usp_GetWorkspaceFieldCatalog), so the export picker cannot drift
+    /// from the catalog (field-surfacing sweep).</summary>
+    Task<IReadOnlyList<RequestExportField>> GetRequestExportFieldsAsync(
+        Guid workspaceId, CancellationToken cancellationToken);
+
+    /// <summary>A page of the workspace's requests for CSV export — RecordId + the raw FieldValues JSON
+    /// map. Workspace-scoped; the ExportService Viewer gate is the entitlement (BS §22.4 — export never
+    /// widens access), so this is not further user-filtered.</summary>
+    Task<IReadOnlyList<WorkspaceRequestExportRow>> QueryWorkspaceRequestExportAsync(
+        Guid workspaceId, int page, int pageSize, CancellationToken cancellationToken);
 }
 
 public sealed partial class RequestsService : IRequestsService

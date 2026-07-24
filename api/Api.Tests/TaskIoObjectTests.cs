@@ -49,9 +49,10 @@ public sealed class TaskIoObjectTests
             .ReturnsAsync(rows);
 
     [Fact]
-    public void Metadata_IsExportOnly_WithIdentityColumnAndNoImportOrCatalogFields()
+    public async Task Metadata_IsExportOnly_WithIdentityColumnAndNoImportOrCatalogFields()
     {
         var sut = Build();
+        var exportFields = await sut.GetExportFieldsAsync(WorkspaceId, ActorId, CancellationToken.None);
 
         Assert.Equal("Task", sut.ObjectType);
         Assert.Equal("Tasks", sut.Label);
@@ -61,14 +62,14 @@ public sealed class TaskIoObjectTests
         // Task's catalog is stored-driven (migration 075 Global rows + task-field library + system
         // auto-fields), so the manifest contributes no built-in catalog rows.
         Assert.Empty(sut.CatalogFields);
-        Assert.Contains(sut.ExportFields, field => field.Key == "task" && field.AlwaysIncluded);
-        Assert.Contains(sut.ExportFields, field => field.Key == "request");
-        Assert.Contains(sut.ExportFields, field => field.Key == "completedDate");
+        Assert.Contains(exportFields, field => field.Key == "task" && field.AlwaysIncluded);
+        Assert.Contains(exportFields, field => field.Key == "request");
+        Assert.Contains(exportFields, field => field.Key == "completedDate");
         // Newly surfaced columns (created date/by + the captured typed field).
-        Assert.Contains(sut.ExportFields, field => field.Key == "createdAt");
-        Assert.Contains(sut.ExportFields, field => field.Key == "createdBy");
-        Assert.Contains(sut.ExportFields, field => field.Key == "field");
-        Assert.Contains(sut.ExportFields, field => field.Key == "fieldValue");
+        Assert.Contains(exportFields, field => field.Key == "createdAt");
+        Assert.Contains(exportFields, field => field.Key == "createdBy");
+        Assert.Contains(exportFields, field => field.Key == "field");
+        Assert.Contains(exportFields, field => field.Key == "fieldValue");
     }
 
     [Fact]

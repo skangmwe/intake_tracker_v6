@@ -47,7 +47,25 @@ catalog rows (deduped against the System auto-fields and stored rows). `BuildCat
 - **Slice 2:** Task onto the manifest — complete its export (Created date/by + the captured
   typed-field value) and surface its fixed columns as built-in catalog rows.
 - **Slice 3:** Request + Feature — derive export columns from each object's field catalog, read
-  values from `FieldValues`; seed Feature's field schema (it has none today).
+  values from `FieldValues`; seed Feature's field schema (it has none today). **Split into two ships
+  (user-approved 2026-07-24):**
+  - **Slice 3a (shipped):** the workspace-aware export contract + **Request** dynamic export.
+    `IIoObject.ExportFields` (static property) became `GetExportFieldsAsync(workspaceId, userId, ct)`
+    — the four fixed-column descriptors wrap their static list; `RequestIoObject` derives its columns
+    from the workspace field catalog (`GetRequestExportFieldsAsync` → `usp_GetWorkspaceFieldCatalog`,
+    the SAME read as the Fields tab, so the export picker cannot drift) and projects each request's
+    `FieldValues` JSON map (`usp_GetRequestsForWorkspace`) into an export row. Request export went from
+    9 static columns to identity + every non-retired Request field (~46). `ExportService` and the
+    `io/objects` endpoint resolve export fields per workspace + caller.
+  - **Slice 3b (pending):** **Feature** — seed a Feature `FieldDefinition` schema (zero rows today),
+    then make `FeatureIoObject` derive its export columns from the (hub-scoped) catalog + `FieldValues`,
+    reusing the now-workspace-aware `GetExportFieldsAsync` contract.
+
+**Value-formatting rule (fixed in 3a):** a JSON number is materialised as `long` when it fits int64,
+else `double` — never coerced to `double` unconditionally (which would lose int64 precision). Booleans
+export as `Yes`/`No`; arrays join with `"; "`; nested objects as raw JSON; null/absent as an empty cell.
+`CsvExportWriter.WriteDataset` already tolerates ragged rows (a column absent from a request's map → an
+empty cell), so a superset column list over sparse per-record dicts needs no writer change.
 
 ## Boundary
 

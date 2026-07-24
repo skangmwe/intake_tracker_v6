@@ -114,6 +114,39 @@ public sealed partial class RequestsService
         return new PaginatedResponse<RequestListRow>(rows, totalCount, page, pageSize);
     }
 
+    // ─── Export reads (S28 wizard; field-surfacing sweep slice 3a) ─────────────
+
+    public async Task<IReadOnlyList<RequestExportField>> GetRequestExportFieldsAsync(
+        Guid workspaceId, CancellationToken cancellationToken)
+    {
+        // The same catalog the Fields tab reads, so the export picker cannot drift from it. The proc
+        // returns every object type in (ObjectType, SortOrder, DisplayName) order; keep the non-retired
+        // Request rows in that order so the export columns match the catalog exactly.
+        var rows = await _db.Set<FieldCatalogRow>()
+            .FromSqlRaw("EXEC dbo.usp_GetWorkspaceFieldCatalog @WorkspaceId", new SqlParameter("@WorkspaceId", workspaceId))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        return rows
+            .Where(row => string.Equals(row.ObjectType, "Request", StringComparison.Ordinal) && !row.IsRetired)
+            .Select(row => new RequestExportField(row.FieldKey, row.DisplayName))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<WorkspaceRequestExportRow>> QueryWorkspaceRequestExportAsync(
+        Guid workspaceId, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        // Workspace-scoped read; ExportService has already gated the caller's Viewer membership on
+        // @WorkspaceId (BS §22.4 — export never widens access). No further per-user filter here.
+        return await _db.Set<WorkspaceRequestExportRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_GetRequestsForWorkspace @WorkspaceId, @Page, @PageSize",
+                new SqlParameter("@WorkspaceId", workspaceId),
+                new SqlParameter("@Page", page),
+                new SqlParameter("@PageSize", pageSize))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     // ─── Similar-requests nudge (FromSqlRaw; access baked into the proc join) ───
 
     public async Task<IReadOnlyList<SimilarRequestDto>> FindSimilarAsync(

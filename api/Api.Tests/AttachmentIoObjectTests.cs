@@ -44,17 +44,18 @@ public sealed class AttachmentIoObjectTests
             .ReturnsAsync(rows);
 
     [Fact]
-    public void Metadata_IsExportOnly_WithIdentityAndCatalogMirroringManifest()
+    public async Task Metadata_IsExportOnly_WithIdentityAndCatalogMirroringManifest()
     {
         var sut = Build();
+        var exportFields = await sut.GetExportFieldsAsync(WorkspaceId, ActorId, CancellationToken.None);
 
         Assert.Equal("Attachment", sut.ObjectType);
         Assert.False(sut.CanImport);
         Assert.True(sut.CanExport);
         Assert.Empty(sut.ImportFields);
-        Assert.Contains(sut.ExportFields, field => field.Key == "fileName" && field.AlwaysIncluded);
+        Assert.Contains(exportFields, field => field.Key == "fileName" && field.AlwaysIncluded);
         // The catalog fields are the same manifest keys the export exposes (single source, no drift).
-        var exportKeys = sut.ExportFields.Select(field => field.Key).OrderBy(key => key);
+        var exportKeys = exportFields.Select(field => field.Key).OrderBy(key => key);
         var catalogKeys = sut.CatalogFields.Select(field => field.Key).OrderBy(key => key);
         Assert.Equal(exportKeys, catalogKeys);
         Assert.All(sut.CatalogFields, field => Assert.Equal("Attachment", field.ObjectType));

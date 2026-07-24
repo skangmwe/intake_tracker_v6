@@ -82,6 +82,11 @@ public sealed record RequestListRow(
     // The S2 row pill (InProgress / OnHold).
     RequestStatusHoldValue StatusHold);
 
+/// <summary>One Request export column — a stored Request field's key + display label, for the CSV
+/// export field picker and value projection (field-surfacing sweep). Sourced from the workspace field
+/// catalog so it stays in lock-step with the Fields tab.</summary>
+public sealed record RequestExportField(string Key, string Label);
+
 /// <summary>An intake similar-requests match (BS §9.8). Mirrors SimilarRequestDto in requests.ts.</summary>
 public sealed record SimilarRequestDto(
     string Id,

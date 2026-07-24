@@ -1,15 +1,18 @@
-// Request import/export descriptor (S28 tabs + wizards). The registry entry for the core Request
-// object: it declares the fields a CSV column can map to on import and the columns that can be
-// emitted on export, projects the access-filtered Requests query into an export dataset, and creates
-// one Request per import row (resolving the row's Requestor against the firm directory, falling back
-// to the importing admin WITH a flag — never silent, BS §13). Export fields are exactly the keys
-// RequestListRow.Columns already carries (id/name/desc/…), so a row's Columns map IS the dataset row —
-// no re-shaping. Row values / Requestor emails are Confidential/PII — written to the response, never
-// logged (api-pii-handling.md).
+// Request import/export descriptor (S28 tabs + wizards; dynamic export — field-surfacing sweep slice
+// 3a). The registry entry for the core Request object: it declares the fields a CSV column can map to
+// on import, derives the export columns from the workspace's live Request field catalog, projects each
+// request's FieldValues JSON map into an export row, and creates one Request per import row (resolving
+// the row's Requestor against the firm directory, falling back to the importing admin WITH a flag —
+// never silent, BS §13). The export columns come from the SAME catalog the Fields tab reads
+// (GetRequestExportFieldsAsync → usp_GetWorkspaceFieldCatalog), so the export picker surfaces every
+// Request field and cannot drift from the catalog. Values are read from Requests.FieldValues (the
+// single source of every content/derivation value, keyed by field key). Row values / Requestor emails
+// are Confidential/PII — written to the response, never logged (api-pii-handling.md).
 
 using System.Text.Json;
 using McDermott.AiTracker.Api.Data;
 using McDermott.AiTracker.Api.Modules.Requests;
+using McDermott.AiTracker.Api.Shared.Schema;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -17,29 +20,22 @@ namespace McDermott.AiTracker.Api.Modules.ImportExport;
 
 public sealed class RequestIoObject : IIoObject, IIoImporter
 {
-    /// <summary>Page the access-gated Requests query at the pagination max (api/CLAUDE.md).</summary>
+    /// <summary>Page the workspace Requests query at the pagination max (api/CLAUDE.md).</summary>
     private const int ExportPageSize = 100;
+
+    /// <summary>Multi-value fields (compliance flags, watchers, tech stack) join with this separator.</summary>
+    private const string MultiValueSeparator = "; ";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    // Export columns == RequestListRow.Columns keys, in file order. "id" is the identity column and is
-    // always emitted (BS §13 — every exported record is identifiable).
-    private static readonly IReadOnlyList<IoFieldSpec> ExportFieldSpecs =
-    [
-        new("id", "Record ID", AlwaysIncluded: true),
-        new("name", "Name"),
-        new("desc", "Description"),
-        new("stage", "Stage"),
-        new("origin", "Dept / PG / Client"),
-        new("analyst", "Assigned Analyst"),
-        new("priority", "Priority"),
-        new("repo", "Repo URL"),
-        new("due", "Due Date"),
-    ];
+    // The identity export column — the RecordId, always emitted (BS §13 — every exported record is
+    // identifiable). All other columns are the workspace's stored Request fields (derived at runtime).
+    private static readonly IoFieldSpec IdField = new("id", "Record ID", AlwaysIncluded: true);
 
     // Import targets a CSV column may map to. "name" is the only required field (a request needs a
     // name); the rest are optional. Keys mirror CsvRowMapper's alias targets so the mapping path and
-    // the auto-match default set the same fields.
+    // the auto-match default set the same fields. (Import stays a bounded, create-path field set — only
+    // the EXPORT side is made dynamic in this slice.)
     private static readonly IReadOnlyList<IoFieldSpec> ImportFieldSpecs =
     [
         new("name", "Name", Required: true),
@@ -75,37 +71,54 @@ public sealed class RequestIoObject : IIoObject, IIoImporter
 
     public IReadOnlyList<IoFieldSpec> ImportFields => ImportFieldSpecs;
 
-    public IReadOnlyList<IoFieldSpec> ExportFields => ExportFieldSpecs;
+    // Request's catalog comes from stored FieldDefinition rows (per-workspace), not a code manifest, so
+    // FieldSchemaService already surfaces them on the Fields tab — nothing is synthesised here.
+    public IReadOnlyList<CatalogFieldSpec> CatalogFields => Array.Empty<CatalogFieldSpec>();
 
-    // Request's catalog comes from stored FieldDefinition rows (per-workspace), not a code manifest.
-    public IReadOnlyList<Shared.Schema.CatalogFieldSpec> CatalogFields => Array.Empty<Shared.Schema.CatalogFieldSpec>();
+    public async Task<IReadOnlyList<IoFieldSpec>> GetExportFieldsAsync(
+        Guid workspaceId, Guid userId, CancellationToken cancellationToken)
+    {
+        // Columns follow the workspace's live Request field catalog — the same source as the Fields tab,
+        // so the export picker cannot drift from it. Identity "id" (RecordId) leads; the catalog fields
+        // follow in catalog order, deduped against the identity.
+        var catalog = await _requests.GetRequestExportFieldsAsync(workspaceId, cancellationToken).ConfigureAwait(false);
+
+        var fields = new List<IoFieldSpec>(catalog.Count + 1) { IdField };
+        var seen = new HashSet<string>(StringComparer.Ordinal) { IdField.Key };
+        foreach (var field in catalog)
+        {
+            if (seen.Add(field.Key))
+            {
+                fields.Add(new IoFieldSpec(field.Key, field.Label));
+            }
+        }
+
+        return fields;
+    }
 
     public async Task<ExportDataset?> BuildExportAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
     {
-        // Request rows are workspace-scoped; ExportService's Viewer gate on this workspace IS the
-        // entitlement (the query is not further user-filtered), so userId is unused here.
+        // Columns from the catalog; values from each request's FieldValues JSON. Request rows are
+        // workspace-scoped — ExportService's Viewer gate on this workspace IS the entitlement (the query
+        // is not further user-filtered), so userId is unused here. (The catalog is read once here and
+        // once by ExportService's validation pass — export is a user-initiated download, not a hot path.)
+        var columns = await GetExportFieldsAsync(workspaceId, userId, cancellationToken).ConfigureAwait(false);
+
         var rows = new List<IReadOnlyDictionary<string, object?>>();
         var page = 1;
 
         while (rows.Count < _options.MaxExportRows)
         {
-            var query = new PaginatedQuery
-            {
-                Page = page,
-                PageSize = ExportPageSize,
-                Filters = null,
-                Sort = new List<SortSpec>(),
-            };
+            var batch = await _requests
+                .QueryWorkspaceRequestExportAsync(workspaceId, page, ExportPageSize, cancellationToken)
+                .ConfigureAwait(false);
 
-            var result = await _requests.QueryAsync(workspaceId, query, cancellationToken).ConfigureAwait(false);
-
-            // RequestListRow.Columns is already keyed by the export field keys — use it as the row.
-            foreach (var row in result.Items)
+            foreach (var row in batch)
             {
-                rows.Add(row.Columns);
+                rows.Add(ProjectRow(row));
             }
 
-            if (result.Items.Count < ExportPageSize || rows.Count >= result.TotalCount)
+            if (batch.Count < ExportPageSize)
             {
                 break;
             }
@@ -117,8 +130,56 @@ public sealed class RequestIoObject : IIoObject, IIoImporter
             ? rows.Take(_options.MaxExportRows).ToList()
             : rows;
 
-        return new ExportDataset(ExportFieldSpecs, trimmed);
+        return new ExportDataset(columns, trimmed);
     }
+
+    /// <summary>Project one request's FieldValues JSON map into a value dict keyed by field key. Values
+    /// are materialised (string / number / joined multi-value / Yes-No) before the parsed document is
+    /// disposed. The identity "id" (RecordId) always wins over any "id" key in the map.</summary>
+    private static IReadOnlyDictionary<string, object?> ProjectRow(WorkspaceRequestExportRow row)
+    {
+        var cells = new Dictionary<string, object?>(StringComparer.Ordinal);
+
+        var json = string.IsNullOrWhiteSpace(row.FieldValues) ? "{}" : row.FieldValues;
+        using (var document = JsonDocument.Parse(json))
+        {
+            if (document.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in document.RootElement.EnumerateObject())
+                {
+                    cells[property.Name] = FormatValue(property.Value);
+                }
+            }
+        }
+
+        cells["id"] = row.RecordId;
+        return cells;
+    }
+
+    /// <summary>Materialise a JSON value into a CSV cell value: strings as-is, numbers as their numeric
+    /// value (invariant-formatted downstream), booleans as Yes/No, arrays joined, objects as raw JSON,
+    /// null/absent as null (an empty cell).</summary>
+    private static object? FormatValue(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.String => element.GetString(),
+        // Cast the integer branch to object so the ternary does not widen both branches to double —
+        // that would box every integer as a double (losing int64 precision for large values).
+        JsonValueKind.Number => element.TryGetInt64(out var number) ? (object)number : element.GetDouble(),
+        JsonValueKind.True => "Yes",
+        JsonValueKind.False => "No",
+        JsonValueKind.Array => string.Join(MultiValueSeparator, element.EnumerateArray().Select(FormatScalar)),
+        JsonValueKind.Object => element.GetRawText(),
+        _ => null,
+    };
+
+    private static string FormatScalar(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.String => element.GetString() ?? string.Empty,
+        JsonValueKind.Number => element.GetRawText(),
+        JsonValueKind.True => "Yes",
+        JsonValueKind.False => "No",
+        _ => element.GetRawText(),
+    };
 
     public async Task<ImportRowResult> ImportRowAsync(
         ImportRowContext context, IReadOnlyDictionary<string, string?> fieldValues, CancellationToken cancellationToken)

@@ -73,7 +73,10 @@ public sealed class FeatureIoObject : IIoObject, IIoImporter
 
     public IReadOnlyList<IoFieldSpec> ImportFields => ImportFieldSpecs;
 
-    public IReadOnlyList<IoFieldSpec> ExportFields => ExportFieldSpecs;
+    // Feature's export fields are static today; a later slice seeds a Feature FieldDefinition schema and
+    // derives them from the workspace catalog (like Request), which is why this is already workspace-aware.
+    public Task<IReadOnlyList<IoFieldSpec>> GetExportFieldsAsync(
+        Guid workspaceId, Guid userId, CancellationToken cancellationToken) => Task.FromResult(ExportFieldSpecs);
 
     // Feature's catalog will come from stored FieldDefinition rows (seeded in a later slice), not here.
     public IReadOnlyList<Shared.Schema.CatalogFieldSpec> CatalogFields => Array.Empty<Shared.Schema.CatalogFieldSpec>();

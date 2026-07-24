@@ -36,7 +36,9 @@ public sealed class ImportExportControllerTests
         request.SetupGet(item => item.CanImport).Returns(true);
         request.SetupGet(item => item.CanExport).Returns(true);
         request.SetupGet(item => item.ImportFields).Returns(new[] { new IoFieldSpec("name", "Name", Required: true) });
-        request.SetupGet(item => item.ExportFields).Returns(new[] { new IoFieldSpec("id", "Record ID", AlwaysIncluded: true) });
+        request
+            .Setup(item => item.GetExportFieldsAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { new IoFieldSpec("id", "Record ID", AlwaysIncluded: true) });
         _registry.Setup(registry => registry.Find("Request")).Returns(request.Object);
         _registry.SetupGet(registry => registry.All).Returns(new[] { request.Object });
     }

@@ -575,6 +575,16 @@ public sealed class WorkspaceTaskExportRow
     public string? FieldValue { get; set; }
 }
 
+/// <summary>One request row from usp_GetRequestsForWorkspace — the workspace-wide export projection.
+/// Carries the RecordId (the export identity) and the whole FieldValues JSON map, from which the API
+/// projects every column the workspace field catalog defines. FieldValues is Confidential — never
+/// logged.</summary>
+public sealed class WorkspaceRequestExportRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public string FieldValues { get; set; } = "{}";
+}
+
 /// <summary>One attachment row from usp_GetAttachmentsForWorkspace — the workspace-wide export
 /// projection. UploadedByName is the uploader's resolved display name (LEFT-joined; null for a
 /// seeded / non-user actor). File names are Confidential-adjacent — never logged.</summary>
