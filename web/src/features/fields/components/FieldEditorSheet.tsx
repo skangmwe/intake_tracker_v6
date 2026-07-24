@@ -3,7 +3,7 @@
 // (disclosure-surfaces.md); Escape closes. The dependency graph is validated server-side at save.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X } from '@phosphor-icons/react';
+import { LockSimple, X } from '@phosphor-icons/react';
 import type {
   FieldDefinitionDto,
   FieldDefinitionUpsertRequest,
@@ -37,6 +37,12 @@ interface FieldEditorSheetProps {
   onArchive?: (() => void) | undefined;
   isArchiving?: boolean | undefined;
   onClose: () => void;
+  /** When true, every control is disabled, a lock banner shows, and the footer is CLOSE-only. */
+  readOnly?: boolean;
+  /** Lock-banner copy (source-keyed). Shown only when readOnly. */
+  lockMessage?: string;
+  /** Seed form for a locked row that has no fetchable definition (System / foreign-Global). */
+  readOnlyForm?: FieldForm;
 }
 
 export function FieldEditorSheet({
@@ -49,10 +55,15 @@ export function FieldEditorSheet({
   onArchive,
   isArchiving = false,
   onClose,
+  readOnly = false,
+  lockMessage,
+  readOnlyForm,
 }: FieldEditorSheetProps) {
-  const isCreate = field === null;
+  const isCreate = !readOnly && field === null;
   const [form, setForm] = useState<FieldForm>(() =>
-    buildInitialForm(field, initialObjectType, FIELD_TYPE_OPTIONS),
+    readOnly && readOnlyForm
+      ? readOnlyForm
+      : buildInitialForm(field, initialObjectType, FIELD_TYPE_OPTIONS),
   );
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -93,7 +104,14 @@ export function FieldEditorSheet({
     >
       <header className="fields-sheet__header">
         <h2 id="field-editor-heading" tabIndex={-1} ref={headingRef} className="h3">
-          {isCreate ? 'Add field' : `Edit ${field.displayName}`}
+          {readOnly
+            ? `Edit ${form.displayName}`
+            : isCreate
+              ? 'Add field'
+              : // `isCreate` is `!readOnly && field === null`, a compound condition TS can't use to
+                // narrow `field` here — the `!isCreate` branch (with `readOnly` false) only reaches
+                // when `field` is non-null.
+                `Edit ${field!.displayName}`}
         </h2>
         <IconButton icon={X} label="Close editor" onClick={onClose} />
       </header>
@@ -105,12 +123,19 @@ export function FieldEditorSheet({
           </p>
         )}
 
+        {readOnly && lockMessage && (
+          <p className="mws-alert mws-alert--info fields-sheet__lock" role="note">
+            <LockSimple size={16} aria-hidden /> {lockMessage}
+          </p>
+        )}
+
         <label className="mws-field">
           <span className="caption">Display name</span>
           <input
             className="mws-input"
             value={form.displayName}
             required
+            disabled={readOnly}
             onChange={(event) => patch({ displayName: event.target.value })}
           />
         </label>
@@ -121,7 +146,7 @@ export function FieldEditorSheet({
             className="mws-input"
             value={form.fieldKey}
             required
-            disabled={!isCreate}
+            disabled={readOnly || !isCreate}
             pattern="[A-Za-z][A-Za-z0-9]*"
             onChange={(event) => patch({ fieldKey: event.target.value })}
           />
@@ -132,6 +157,7 @@ export function FieldEditorSheet({
           fieldTypeOptions={fieldTypeOptions}
           categoryOptions={CATEGORY_OPTIONS}
           onPatch={patch}
+          disabled={readOnly}
         />
 
         <label className="mws-field">
@@ -139,7 +165,7 @@ export function FieldEditorSheet({
           <select
             className="mws-select"
             value={form.object}
-            disabled={!isCreate}
+            disabled={readOnly || !isCreate}
             onChange={(event) => {
               const nextObject = event.target.value as FieldObjectType;
               const nextOptions =
@@ -164,6 +190,7 @@ export function FieldEditorSheet({
           <select
             className="mws-select"
             value={form.location}
+            disabled={readOnly}
             onChange={(event) => patch({ location: event.target.value as FieldForm['location'] })}
           >
             {FIELD_LOCATION_OPTIONS.map((option) => (
@@ -179,6 +206,7 @@ export function FieldEditorSheet({
           <input
             className="mws-input"
             value={form.section}
+            disabled={readOnly}
             onChange={(event) => patch({ section: event.target.value })}
           />
         </label>
@@ -187,32 +215,45 @@ export function FieldEditorSheet({
           <input
             type="checkbox"
             checked={form.isRequired}
+            disabled={readOnly}
             onChange={(event) => patch({ isRequired: event.target.checked })}
           />
           <span className="caption">Required</span>
         </label>
 
-        <FieldEditorExtras form={form} onPatch={patch} />
+        <FieldEditorExtras form={form} onPatch={patch} disabled={readOnly} />
 
         <RulesEditor
           rows={form.rules}
           fieldKeys={availableFieldKeys}
           onChange={(rules) => patch({ rules })}
+          disabled={readOnly}
         />
 
         <footer className="fields-sheet__footer">
-          {field && !field.isRetired && onArchive && (
-            <Button variant="secondary" onClick={onArchive} disabled={isArchiving}>
-              {isArchiving ? 'Archiving…' : 'Archive'}
-            </Button>
+          {readOnly ? (
+            <>
+              <span className="fields-sheet__footer-spacer" />
+              <Button variant="secondary" onClick={onClose}>
+                Close
+              </Button>
+            </>
+          ) : (
+            <>
+              {field && !field.isRetired && onArchive && (
+                <Button variant="secondary" onClick={onArchive} disabled={isArchiving}>
+                  {isArchiving ? 'Archiving…' : 'Archive'}
+                </Button>
+              )}
+              <span className="fields-sheet__footer-spacer" />
+              <Button variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? 'Saving…' : 'Save field'}
+              </Button>
+            </>
           )}
-          <span className="fields-sheet__footer-spacer" />
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? 'Saving…' : 'Save field'}
-          </Button>
         </footer>
       </form>
     </div>

@@ -9,9 +9,10 @@ import { OptionsEditor } from './OptionsEditor';
 interface FieldEditorExtrasProps {
   form: FieldForm;
   onPatch: (next: Partial<FieldForm>) => void;
+  disabled?: boolean;
 }
 
-export function FieldEditorExtras({ form, onPatch }: FieldEditorExtrasProps) {
+export function FieldEditorExtras({ form, onPatch, disabled = false }: FieldEditorExtrasProps) {
   const isSelect = SELECT_TYPES.includes(form.fieldType);
   const isNumeric = NUMERIC_TYPES.includes(form.fieldType);
 
@@ -25,6 +26,7 @@ export function FieldEditorExtras({ form, onPatch }: FieldEditorExtrasProps) {
               className="mws-input"
               inputMode="numeric"
               value={form.minValue}
+              disabled={disabled}
               onChange={(event) => onPatch({ minValue: event.target.value })}
             />
           </label>
@@ -34,6 +36,7 @@ export function FieldEditorExtras({ form, onPatch }: FieldEditorExtrasProps) {
               className="mws-input"
               inputMode="numeric"
               value={form.maxValue}
+              disabled={disabled}
               onChange={(event) => onPatch({ maxValue: event.target.value })}
             />
           </label>
@@ -41,7 +44,11 @@ export function FieldEditorExtras({ form, onPatch }: FieldEditorExtrasProps) {
       )}
 
       {isSelect && (
-        <OptionsEditor rows={form.options} onChange={(options) => onPatch({ options })} />
+        <OptionsEditor
+          rows={form.options}
+          onChange={(options) => onPatch({ options })}
+          disabled={disabled}
+        />
       )}
 
       {form.fieldType === 'Calculation' && (
@@ -51,6 +58,7 @@ export function FieldEditorExtras({ form, onPatch }: FieldEditorExtrasProps) {
             className="mws-input"
             placeholder="businessValue + efficiencyGain - levelOfEffort"
             value={form.expression}
+            disabled={disabled}
             onChange={(event) => onPatch({ expression: event.target.value })}
           />
         </label>
@@ -62,6 +70,7 @@ export function FieldEditorExtras({ form, onPatch }: FieldEditorExtrasProps) {
           <input
             className="mws-input"
             value={form.defaultValue}
+            disabled={disabled}
             onChange={(event) => onPatch({ defaultValue: event.target.value })}
           />
         </label>
@@ -76,6 +85,7 @@ export function FieldEditorExtras({ form, onPatch }: FieldEditorExtrasProps) {
               <input
                 type="checkbox"
                 checked={form.visibleStages.includes(stage)}
+                disabled={disabled}
                 onChange={(event) =>
                   onPatch({
                     visibleStages: event.target.checked

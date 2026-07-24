@@ -14,9 +14,10 @@ export interface OptionRow {
 interface OptionsEditorProps {
   rows: OptionRow[];
   onChange: (rows: OptionRow[]) => void;
+  disabled?: boolean;
 }
 
-export function OptionsEditor({ rows, onChange }: OptionsEditorProps) {
+export function OptionsEditor({ rows, onChange, disabled = false }: OptionsEditorProps) {
   const update = (id: string, patch: Partial<OptionRow>) =>
     onChange(rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
 
@@ -27,7 +28,9 @@ export function OptionsEditor({ rows, onChange }: OptionsEditorProps) {
   return (
     <fieldset className="mws-field">
       <legend className="caption">Options</legend>
-      {rows.length === 0 && <p className="caption">No options yet. Add the choices this field offers.</p>}
+      {rows.length === 0 && (
+        <p className="caption">No options yet. Add the choices this field offers.</p>
+      )}
       <ul className="fields-option-list">
         {rows.map((row, index) => (
           <li key={row.id} className="fields-option-row">
@@ -39,6 +42,7 @@ export function OptionsEditor({ rows, onChange }: OptionsEditorProps) {
               className="mws-input mws-input--compact"
               placeholder="Value"
               value={row.value}
+              disabled={disabled}
               onChange={(event) => update(row.id, { value: event.target.value })}
             />
             <label className="visually-hidden" htmlFor={`opt-label-${row.id}`}>
@@ -49,13 +53,19 @@ export function OptionsEditor({ rows, onChange }: OptionsEditorProps) {
               className="mws-input mws-input--compact"
               placeholder="Label"
               value={row.label}
+              disabled={disabled}
               onChange={(event) => update(row.id, { label: event.target.value })}
             />
-            <IconButton icon={Trash} label={`Remove option ${index + 1}`} onClick={() => remove(row.id)} />
+            <IconButton
+              icon={Trash}
+              label={`Remove option ${index + 1}`}
+              onClick={() => remove(row.id)}
+              disabled={disabled}
+            />
           </li>
         ))}
       </ul>
-      <Button variant="secondary" compact onClick={add}>
+      <Button variant="secondary" compact onClick={add} disabled={disabled}>
         <Plus size={16} aria-hidden /> Add option
       </Button>
     </fieldset>

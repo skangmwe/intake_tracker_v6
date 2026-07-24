@@ -21,11 +21,12 @@ interface RulesEditorProps {
   rows: RuleRow[];
   fieldKeys: string[];
   onChange: (rows: RuleRow[]) => void;
+  disabled?: boolean;
 }
 
 const COMPARATORS_WITHOUT_VALUE: readonly RuleComparator[] = ['isSet', 'isNotSet'];
 
-export function RulesEditor({ rows, fieldKeys, onChange }: RulesEditorProps) {
+export function RulesEditor({ rows, fieldKeys, onChange, disabled = false }: RulesEditorProps) {
   const update = (id: string, patch: Partial<RuleRow>) =>
     onChange(rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
 
@@ -34,13 +35,23 @@ export function RulesEditor({ rows, fieldKeys, onChange }: RulesEditorProps) {
   const add = () =>
     onChange([
       ...rows,
-      { id: crypto.randomUUID(), action: 'Show', whenFieldKey: fieldKeys[0] ?? '', comparator: 'eq', compareValue: '' },
+      {
+        id: crypto.randomUUID(),
+        action: 'Show',
+        whenFieldKey: fieldKeys[0] ?? '',
+        comparator: 'eq',
+        compareValue: '',
+      },
     ]);
 
   return (
     <fieldset className="mws-field">
       <legend className="caption">Conditional rules</legend>
-      {rows.length === 0 && <p className="caption">No rules. Add a rule to show, hide, or require this field based on another field.</p>}
+      {rows.length === 0 && (
+        <p className="caption">
+          No rules. Add a rule to show, hide, or require this field based on another field.
+        </p>
+      )}
       <ul className="fields-rule-list">
         {rows.map((row, index) => (
           <li key={row.id} className="fields-rule-row">
@@ -51,6 +62,7 @@ export function RulesEditor({ rows, fieldKeys, onChange }: RulesEditorProps) {
               id={`rule-action-${row.id}`}
               className="mws-select mws-input--compact"
               value={row.action}
+              disabled={disabled}
               onChange={(event) => update(row.id, { action: event.target.value as RuleAction })}
             >
               {RULE_ACTION_OPTIONS.map((option) => (
@@ -67,6 +79,7 @@ export function RulesEditor({ rows, fieldKeys, onChange }: RulesEditorProps) {
               id={`rule-field-${row.id}`}
               className="mws-select mws-input--compact"
               value={row.whenFieldKey}
+              disabled={disabled}
               onChange={(event) => update(row.id, { whenFieldKey: event.target.value })}
             >
               {fieldKeys.map((key) => (
@@ -82,7 +95,10 @@ export function RulesEditor({ rows, fieldKeys, onChange }: RulesEditorProps) {
               id={`rule-cmp-${row.id}`}
               className="mws-select mws-input--compact"
               value={row.comparator}
-              onChange={(event) => update(row.id, { comparator: event.target.value as RuleComparator })}
+              disabled={disabled}
+              onChange={(event) =>
+                update(row.id, { comparator: event.target.value as RuleComparator })
+              }
             >
               {COMPARATOR_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -100,15 +116,21 @@ export function RulesEditor({ rows, fieldKeys, onChange }: RulesEditorProps) {
                   className="mws-input mws-input--compact"
                   placeholder="Value"
                   value={row.compareValue}
+                  disabled={disabled}
                   onChange={(event) => update(row.id, { compareValue: event.target.value })}
                 />
               </>
             )}
-            <IconButton icon={Trash} label={`Remove rule ${index + 1}`} onClick={() => remove(row.id)} />
+            <IconButton
+              icon={Trash}
+              label={`Remove rule ${index + 1}`}
+              onClick={() => remove(row.id)}
+              disabled={disabled}
+            />
           </li>
         ))}
       </ul>
-      <Button variant="secondary" compact onClick={add}>
+      <Button variant="secondary" compact onClick={add} disabled={disabled}>
         <Plus size={16} aria-hidden /> Add rule
       </Button>
     </fieldset>
