@@ -4,6 +4,7 @@
 // from the read/orchestration halves to keep each file focused.
 
 using McDermott.AiTracker.Api.Data;
+using McDermott.AiTracker.Api.Shared.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,16 +64,34 @@ public sealed partial class FieldSchemaService
             .AsNoTracking()
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        return new WorkspaceFieldCatalogDto(workspaceId, BuildCatalogRows(stored));
+        // The registered object descriptors are the single source of each fixed-column object's built-in
+        // fields (Attachment, Toolkit item, …); surface the same fields they export.
+        var builtIn = _ioObjects.All.SelectMany(io => io.CatalogFields).ToList();
+
+        return new WorkspaceFieldCatalogDto(workspaceId, BuildCatalogRows(stored, builtIn));
     }
 
     /// <summary>Composes the flat catalog rows from the stored fields. Pure — no I/O — so it is
     /// unit-testable without a database (mirrors ObjectSchemaService.BuildSystemObjects).</summary>
-    public static IReadOnlyList<FieldCatalogRowDto> BuildCatalogRows(IReadOnlyList<FieldCatalogRow> stored)
+    public static IReadOnlyList<FieldCatalogRowDto> BuildCatalogRows(IReadOnlyList<FieldCatalogRow> stored) =>
+        BuildCatalogRows(stored, Array.Empty<CatalogFieldSpec>());
+
+    /// <summary>Composes the flat catalog rows from the stored fields plus each object's built-in fields
+    /// (fixed-column objects whose fields are code-defined, not stored FieldDefinition rows). Pure — no
+    /// I/O. Built-in rows are read-only and deduped against the system auto-fields and stored rows.</summary>
+    public static IReadOnlyList<FieldCatalogRowDto> BuildCatalogRows(
+        IReadOnlyList<FieldCatalogRow> stored, IReadOnlyList<CatalogFieldSpec> builtIn)
     {
         var rows = new List<FieldCatalogRowDto>();
+        var storedKeys = stored
+            .Select(row => (row.ObjectType, Key: row.FieldKey.ToLowerInvariant()))
+            .ToHashSet();
+        var builtInByObject = builtIn
+            .GroupBy(field => field.ObjectType, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
 
-        // System auto-fields first — every object, in object then auto-field order.
+        // System auto-fields first — every object, in object then auto-field order — then that object's
+        // built-in fields (fixed-column objects only; empty for objects backed by stored definitions).
         foreach (var (objectKey, objectLabel) in CatalogObjects)
         {
             foreach (var (fieldKey, fieldLabel, fieldType) in SystemAutoFields)
@@ -86,6 +105,43 @@ public sealed partial class FieldSchemaService
                     FieldType: fieldType,
                     Location: "Global",
                     IsRequired: true,
+                    Source: "System",
+                    Status: "Active",
+                    IsReadOnly: true));
+            }
+
+            if (!builtInByObject.TryGetValue(objectKey, out var builtInFields))
+            {
+                continue;
+            }
+
+            var addedForObject = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var field in builtInFields)
+            {
+                if (SystemAutoFieldKeys.Contains(field.Key))
+                {
+                    continue; // already a system auto-field row
+                }
+
+                if (storedKeys.Contains((objectKey, field.Key.ToLowerInvariant())))
+                {
+                    continue; // an admin-created custom field of the same key wins
+                }
+
+                if (!addedForObject.Add(field.Key))
+                {
+                    continue; // built-in dedup
+                }
+
+                rows.Add(new FieldCatalogRowDto(
+                    Id: $"builtin:{objectKey}:{field.Key}",
+                    ObjectType: objectKey,
+                    ObjectLabel: objectLabel,
+                    FieldKey: field.Key,
+                    DisplayName: field.Label,
+                    FieldType: field.FieldType,
+                    Location: "Global",
+                    IsRequired: false,
                     Source: "System",
                     Status: "Active",
                     IsReadOnly: true));

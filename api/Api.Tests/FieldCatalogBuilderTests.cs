@@ -4,6 +4,7 @@
 
 using McDermott.AiTracker.Api.Data;
 using McDermott.AiTracker.Api.Modules.Fields;
+using McDermott.AiTracker.Api.Shared.Schema;
 using Xunit;
 
 namespace McDermott.AiTracker.Api.Tests;
@@ -99,6 +100,68 @@ public sealed class FieldCatalogBuilderTests
         var row = Assert.Single(rows, candidate => candidate.FieldKey == "sharedPriority");
         Assert.Equal("User", row.Source);
         Assert.True(row.IsReadOnly);
+    }
+
+    // ─── Built-in object fields (field-surfacing sweep — Attachment / Toolkit item) ─────────────
+
+    private static CatalogFieldSpec BuiltIn(string objectType, string key, string type = "ShortText") =>
+        new(objectType, key, key, type);
+
+    [Fact]
+    public void BuildCatalogRows_BuiltInFields_AreReadOnlySystemRowsUnderTheirObject()
+    {
+        // Arrange — two built-in Attachment fields (as an object descriptor would contribute).
+        var builtIn = new[] { BuiltIn("Attachment", "fileName"), BuiltIn("Attachment", "contentType") };
+
+        // Act
+        var rows = FieldSchemaService.BuildCatalogRows(Array.Empty<FieldCatalogRow>(), builtIn);
+
+        // Assert — surfaced under Attachment, read-only System rows, distinct from the 5 auto-fields.
+        var built = rows.Where(row => row.Id.StartsWith("builtin:", System.StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, built.Count);
+        Assert.All(built, row =>
+        {
+            Assert.Equal("Attachment", row.ObjectType);
+            Assert.Equal("System", row.Source);
+            Assert.True(row.IsReadOnly);
+            Assert.False(row.IsRequired);
+        });
+        Assert.Contains(built, row => row.FieldKey == "fileName");
+    }
+
+    [Fact]
+    public void BuildCatalogRows_BuiltInKeyCollidingWithSystemAutoField_IsSkipped()
+    {
+        // 'name' is a system auto-field — a built-in 'name' must not duplicate it.
+        var rows = FieldSchemaService.BuildCatalogRows(
+            Array.Empty<FieldCatalogRow>(), new[] { BuiltIn("Attachment", "name") });
+
+        var nameRows = rows.Where(row => row.ObjectType == "Attachment" && row.FieldKey == "name").ToList();
+        Assert.Single(nameRows);
+        Assert.Equal("System", nameRows[0].Source);
+        Assert.StartsWith("system:", nameRows[0].Id);
+    }
+
+    [Fact]
+    public void BuildCatalogRows_BuiltInKeyCollidingWithStoredCustomField_YieldsTheStoredRow()
+    {
+        // An admin-created custom field of the same key wins over the built-in.
+        var rows = FieldSchemaService.BuildCatalogRows(
+            new[] { Stored("Attachment", "contentType") }, new[] { BuiltIn("Attachment", "contentType") });
+
+        var contentTypeRows = rows.Where(row => row.ObjectType == "Attachment" && row.FieldKey == "contentType").ToList();
+        Assert.Single(contentTypeRows);
+        Assert.Equal("User", contentTypeRows[0].Source);
+        Assert.DoesNotContain(rows, row => row.Id == "builtin:Attachment:contentType");
+    }
+
+    [Fact]
+    public void BuildCatalogRows_DuplicateBuiltInKeys_AreDeduped()
+    {
+        var rows = FieldSchemaService.BuildCatalogRows(
+            Array.Empty<FieldCatalogRow>(), new[] { BuiltIn("Attachment", "kind"), BuiltIn("Attachment", "kind") });
+
+        Assert.Single(rows, row => row.ObjectType == "Attachment" && row.FieldKey == "kind");
     }
 
     // ─── BuildPlatformCatalogRows (Slice B1 — Platform Fields catalog) ──────────────────────────

@@ -4,6 +4,8 @@
 // later slices add Feature, Task, Toolkit, and Attachment descriptors here — new descriptors, not new
 // endpoints. The registry is a thin lookup over the registered descriptors (DI-composed).
 
+using McDermott.AiTracker.Api.Shared.Schema;
+
 namespace McDermott.AiTracker.Api.Modules.ImportExport;
 
 /// <summary>One field an object exposes to import (a CSV column may map to it) or export (it can be
@@ -36,6 +38,13 @@ public interface IIoObject
 
     /// <summary>Columns that can be emitted on export (empty when <see cref="CanExport"/> is false).</summary>
     IReadOnlyList<IoFieldSpec> ExportFields { get; }
+
+    /// <summary>The object's built-in fields to surface in the Fields &amp; objects catalog — the single
+    /// source, shared with <see cref="ExportFields"/> for fixed-column objects. Empty for objects whose
+    /// catalog comes from stored <c>FieldDefinition</c> rows (Request/Feature/Task), so the catalog is
+    /// not double-populated. <c>FieldSchemaService</c> reads this off the registry to synthesize
+    /// read-only built-in rows for objects that have no stored field definitions.</summary>
+    IReadOnlyList<CatalogFieldSpec> CatalogFields { get; }
 
     /// <summary>Project the object's already-access-filtered rows into an export dataset. The caller
     /// (ExportService) has already gated workspace access, but an object may enforce its own access

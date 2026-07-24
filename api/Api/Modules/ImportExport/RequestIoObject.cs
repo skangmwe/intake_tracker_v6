@@ -77,6 +77,9 @@ public sealed class RequestIoObject : IIoObject, IIoImporter
 
     public IReadOnlyList<IoFieldSpec> ExportFields => ExportFieldSpecs;
 
+    // Request's catalog comes from stored FieldDefinition rows (per-workspace), not a code manifest.
+    public IReadOnlyList<Shared.Schema.CatalogFieldSpec> CatalogFields => Array.Empty<Shared.Schema.CatalogFieldSpec>();
+
     public async Task<ExportDataset?> BuildExportAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
     {
         // Request rows are workspace-scoped; ExportService's Viewer gate on this workspace IS the
