@@ -1224,3 +1224,36 @@ public sealed class TriggerSweepClaimRow
 {
     public bool Claimed { get; set; }
 }
+
+// ─── Trigger CRUD reads (Slice: triggers-request-authoring, Task 2.1) ──────────
+/// <summary>One trigger for the admin list/editor — from usp_GetWorkspaceTriggers / usp_GetScheduledTriggerById.
+/// Recipients + ConditionsJson are JSON, parsed in TriggersService.</summary>
+public sealed class TriggerRow
+{
+    public Guid TriggerId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string ObjectType { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public bool IsEnabled { get; set; }
+    public string Cadence { get; set; } = string.Empty;
+    public int? RepeatIntervalDays { get; set; }
+    public int? WindowDays { get; set; }
+    public string NotificationCategory { get; set; } = string.Empty;
+    public string Recipients { get; set; } = "[]";
+    public string NotificationTitle { get; set; } = string.Empty;
+    public string NotificationBody { get; set; } = string.Empty;
+    public string ConditionsJson { get; set; } = "[]";
+}
+
+/// <summary>The trigger id returned by usp_UpsertScheduledTrigger.</summary>
+public sealed class TriggerIdRow
+{
+    public Guid TriggerId { get; set; }
+}
+
+/// <summary>The rows-affected count returned by usp_DeleteScheduledTrigger (0 = not found in workspace).</summary>
+public sealed class TriggerDeleteResultRow
+{
+    public int RowsAffected { get; set; }
+}

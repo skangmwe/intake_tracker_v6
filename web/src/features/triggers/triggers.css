@@ -1,0 +1,89 @@
+/* Trigger admin surface (slice: triggers-request-authoring, Task 2.3). Layout only — every colour,
+   radius, and spacing value is a design token (no raw literals, per _core-requirements.md). The list
+   reuses the shared .mws-table / .mws-badge; these rules cover the toolbar, the editor form column,
+   the recipients grid, and the condition rows. */
+
+.triggers-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* Editor form column inside the shared side sheet. */
+.triggers-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.triggers-form__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.triggers-form__footer-spacer {
+  flex: 1 1 auto;
+}
+
+/* Enabled toggle: the switch and its state caption on one row. */
+.triggers-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The cadence interval sits inline after the "repeat every" select. */
+.triggers-interval {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.triggers-interval__days {
+  max-width: 96px;
+}
+
+/* Recipients — a wrapping grid of checkboxes. */
+.triggers-recipients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+/* Conditions — one field / comparator / value row per line, wrapping on narrow viewports. */
+.triggers-cond-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.triggers-cond-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.triggers-cond-row__field,
+.triggers-cond-row__cmp {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.triggers-cond-row__value {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.triggers-cond-row__today {
+  flex-shrink: 0;
+}

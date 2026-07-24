@@ -190,6 +190,8 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Triggers.ITriggerGate
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Triggers.IScheduledTriggerEvaluator,
     McDermott.AiTracker.Api.Modules.Triggers.ScheduledTriggerEvaluator>();
 builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.Triggers.ScheduledTriggerService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Triggers.ITriggersService,
+    McDermott.AiTracker.Api.Modules.Triggers.TriggersService>();
 
 // ─── Feature Catalog + Saved views (slice 14) — Features depends on Requests / Drafts / TypedLinks
 //     (all registered above); Saved views is presentation metadata over the list surfaces ─

@@ -32,6 +32,11 @@ export const ADMIN_NAV: SideNavItem[] = [
     label: 'Announcements',
     lead: 'Post notices to your workspace. Active announcements appear in everyone’s bell.',
   },
+  {
+    to: '/admin/triggers',
+    label: 'Triggers',
+    lead: 'Send scheduled reminders when a request meets conditions you define — an SLA nearing breach, a benefit review coming due. A daily sweep fires each enabled trigger to its recipients’ bell.',
+  },
   { to: '/admin/import-export', label: 'Import & export' },
   {
     to: '/admin/audit',

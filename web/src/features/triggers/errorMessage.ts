@@ -1,0 +1,14 @@
+// Extracts a user-facing message from a mutation/query error. ApiError carries the API's
+// plain-language ProblemDetails detail (api-error-handling.md) — for triggers that includes the
+// server-side validation reasons; anything else falls back to a generic line. Never surfaces a raw
+// stack or status code to the user.
+
+import { ApiError } from '@/shared/http/apiClient';
+
+export function triggerProblemMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return error.problem.detail;
+  }
+
+  return 'Something went wrong saving this trigger. Try again in a moment.';
+}

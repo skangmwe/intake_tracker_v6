@@ -18,6 +18,7 @@ import {
   PlatformAnnouncementsPage,
 } from '@/features/announcements';
 import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
+import { TriggersAdminPage } from '@/features/triggers';
 import { DashboardPage, DashboardsListPage } from '@/features/dashboards';
 import { AddToCatalogPage, FeatureCatalogPage, FeatureDetailPage } from '@/features/features';
 import { ToolkitSurface } from '@/features/toolkit';
@@ -49,6 +50,7 @@ import '@/mws/app-shell.css';
 import '@/features/home/home.css';
 import '@/features/announcements/announcements.css';
 import '@/features/fields/fields.css';
+import '@/features/triggers/triggers.css';
 import '@/features/objects/objects.css';
 import '@/features/lifecycle/lifecycle.css';
 import '@/features/requests/requests.css';
@@ -95,6 +97,7 @@ export function App() {
                 <Route path="views" element={<ViewsDashboardsPage />} />
                 <Route path="lifecycle" element={<LifecyclePage />} />
                 <Route path="announcements" element={<ManageAnnouncementsPage />} />
+                <Route path="triggers" element={<TriggersAdminPage />} />
                 <Route path="import-export" element={<ImportExportPage />} />
                 <Route path="audit" element={<WorkspaceAuditPage />} />
               </Route>
