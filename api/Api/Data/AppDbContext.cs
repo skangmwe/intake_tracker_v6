@@ -34,6 +34,8 @@ public sealed class AppDbContext : DbContext
             entity.Property(workspace => workspace.Prefix).HasMaxLength(16);
             // Slice 21 — SLA due-soon window (migration 049 owns the DB default of 3).
             entity.Property(workspace => workspace.DueSoonWindowDays).HasDefaultValue(3);
+            // Triggers slice 3 — Benefit-review-date default offset (migration 087 owns the DB default of 90).
+            entity.Property(workspace => workspace.BenefitReviewOffsetDays).HasDefaultValue(90);
         });
 
         modelBuilder.Entity<User>(entity =>

@@ -8,6 +8,7 @@
 // spine; event payloads carry ids/enums only — never field values, names, or descriptions
 // (api-pii-handling.md). Read/serialization/validation helpers live in RequestsService.Reads.cs.
 
+using System.Text.Json;
 using McDermott.AiTracker.Api.Data;
 using McDermott.AiTracker.Api.Modules.Gates;
 using McDermott.AiTracker.Api.Shared.Auth;
@@ -154,6 +155,19 @@ public sealed partial class RequestsService : IRequestsService
         }
 
         var initialStage = stages[0].StageKey;
+
+        // Benefit-review-date default (triggers slice 3, §17.11): a create that carries a deployDate (e.g. a
+        // CSV import at the deploy stage) defaults benefitReviewDate = deployDate + offset, the same rule the
+        // patch path applies. Gated so a create with no date inputs incurs no extra read.
+        var createFields = request.Fields is null
+            ? new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+            : new Dictionary<string, JsonElement>(request.Fields, StringComparer.Ordinal);
+        if (TouchesBenefitReviewInputs(request.Fields))
+        {
+            var offsetDays = await ReadBenefitReviewOffsetDaysAsync(workspaceId, cancellationToken).ConfigureAwait(false);
+            ApplyBenefitReviewDerivation(createFields, request.Fields, offsetDays);
+        }
+
         var recordIdParameter = new SqlParameter("@RecordId", System.Data.SqlDbType.NVarChar, 20)
         {
             Direction = System.Data.ParameterDirection.Output,
@@ -168,7 +182,7 @@ public sealed partial class RequestsService : IRequestsService
                 new SqlParameter("@Stage", initialStage),
                 new SqlParameter("@Name", request.Name),
                 new SqlParameter("@Description", (object?)request.Description ?? string.Empty),
-                new SqlParameter("@FieldValuesJson", SerializeFields(request.Fields)),
+                new SqlParameter("@FieldValuesJson", SerializeFieldsDictionary(createFields)),
                 new SqlParameter("@ActorUserId", actorUserId.ToString()),
                 recordIdParameter,
                 // Queued link-backs (similar-requests nudge + Copy/Promote) are stamped in-transaction
@@ -220,6 +234,14 @@ public sealed partial class RequestsService : IRequestsService
         // so a same-request Abandoned+field-edit is safely blocked by the next mutation attempt.
         var resolvedStatusHold = ResolveStatusHold(request);
         var mergedFields = MergeFields(ParseFields(row.FieldValues), request.Fields);
+        // Benefit-review-date default (triggers slice 3, §17.11): when this patch set/changed deployDate
+        // (or benefitReviewDate) derive/mark the benefit-review date before persisting. Gated so the common
+        // autosave path (no date inputs) never incurs the extra workspace-offset read.
+        if (TouchesBenefitReviewInputs(request.Fields))
+        {
+            var offsetDays = await ReadBenefitReviewOffsetDaysAsync(row.WorkspaceId, cancellationToken).ConfigureAwait(false);
+            ApplyBenefitReviewDerivation(mergedFields, request.Fields, offsetDays);
+        }
         var hasFieldPatch = request.Name is not null
                            || request.Description is not null
                            || request.Fields is { Count: > 0 };
