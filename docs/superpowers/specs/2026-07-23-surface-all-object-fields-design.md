@@ -1,7 +1,7 @@
 # Surface every object field in the catalog + export (manifest architecture)
 
 **Date:** 2026-07-23
-**Status:** Approved (Approach B). Multi-slice program.
+**Status:** COMPLETE (Approach B). All slices shipped — 1 (Attachment+Toolkit), 2 (Task), 3a (Request + workspace-aware contract), 3b (Feature).
 
 ## Goal
 
@@ -57,9 +57,16 @@ catalog rows (deduped against the System auto-fields and stored rows). `BuildCat
     `FieldValues` JSON map (`usp_GetRequestsForWorkspace`) into an export row. Request export went from
     9 static columns to identity + every non-retired Request field (~46). `ExportService` and the
     `io/objects` endpoint resolve export fields per workspace + caller.
-  - **Slice 3b (pending):** **Feature** — seed a Feature `FieldDefinition` schema (zero rows today),
-    then make `FeatureIoObject` derive its export columns from the (hub-scoped) catalog + `FieldValues`,
-    reusing the now-workspace-aware `GetExportFieldsAsync` contract.
+  - **Slice 3b (shipped — program complete):** **Feature** — migration 076 seeds the Feature
+    `FieldDefinition` schema (14 content fields) on the AI Solutions hub, so Feature fields surface on
+    the Fields tab and back the export picker. `FeatureIoObject` derives its export columns from the
+    hub's field catalog (via `IFeaturesService.GetFeatureExportFieldsAsync`, reading the same catalog
+    proc as the Fields tab) and projects each feature's `Features.FieldValues` map (new hub-scoped
+    `usp_GetFeaturesForWorkspace`, gated by hub Viewer membership → null/403 for non-members). Feature
+    export went from 10 hardcoded columns to identity + the 14 catalog fields. The JSON-map projection
+    (shared by Request and Feature) was extracted to `FieldValuesProjector` once Feature became the
+    second caller. Every object (Request, Task, Feature, Attachment, Toolkit item) now surfaces every
+    field in both the Fields catalog and the Import/Export picker.
 
 **Value-formatting rule (fixed in 3a):** a JSON number is materialised as `long` when it fits int64,
 else `double` — never coerced to `double` unconditionally (which would lose int64 precision). Booleans

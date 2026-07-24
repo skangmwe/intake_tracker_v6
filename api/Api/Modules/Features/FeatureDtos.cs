@@ -50,6 +50,11 @@ public sealed record FeatureListRowDto(
     DateTime UpdatedAt,
     string? ThumbnailUrl);
 
+/// <summary>One Feature export column — a stored Feature field's key + display label, for the CSV
+/// export field picker and value projection (field-surfacing sweep). Sourced from the hub's field
+/// catalog so it stays in lock-step with the Fields tab.</summary>
+public sealed record FeatureExportField(string Key, string Label);
+
 /// <summary>POST /requests/{id}/add-to-catalog — the prefilled Feature draft id (mirrors AddToCatalogResult).</summary>
 public sealed record AddToCatalogResultDto(Guid DraftId);
 

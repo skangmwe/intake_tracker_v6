@@ -1,12 +1,14 @@
-// Unit tests for FeatureIoObject (S28 wizards, Slice 2) — the Feature registry descriptor. Verifies the
-// import/export field specs, that BuildExportAsync projects the hub-scoped Feature query into an export
-// dataset (null when the caller is not a hub member → 403), and that ImportRowAsync guards the required
-// Name/Type before creating and maps the create outcome to a landed/flagged result. IFeaturesService is
-// mocked — the descriptor has no DbContext, so every branch is unit-testable.
+// Unit tests for FeatureIoObject (S28 wizards; dynamic export — field-surfacing sweep slice 3b) — the
+// Feature registry descriptor. Verifies the import field specs, that the export columns are derived from
+// the hub's Feature field catalog (identity "id" + the catalog fields), that BuildExportAsync projects
+// each feature's FieldValues JSON map into an export row (null when the caller is not a hub member →
+// 403), and that ImportRowAsync guards the required Name/Type before creating and maps the create
+// outcome to a landed/flagged result. IFeaturesService is mocked — the descriptor has no DbContext, so
+// every branch is unit-testable.
 
+using McDermott.AiTracker.Api.Data;
 using McDermott.AiTracker.Api.Modules.Features;
 using McDermott.AiTracker.Api.Modules.ImportExport;
-using McDermott.AiTracker.Api.Modules.Requests;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
@@ -26,11 +28,18 @@ public sealed class FeatureIoObjectTests
     private static ImportRowContext Context() =>
         new(WorkspaceId, ActorId, "admin@firm.example", "op-1");
 
-    private static FeatureListRowDto Row(string id, string name, IReadOnlyList<string> tags) =>
-        new(
-            Id: id, ETag: "etag", Name: name, OneLiner: "one-liner", FeatureType: "Functional",
-            CapabilityTags: tags, TechStack: System.Array.Empty<string>(), Owner: "owner",
-            Maturity: "Published", Origin: "AI Solutions", UpdatedAt: DateTime.UtcNow, ThumbnailUrl: null);
+    private void SetupColumns(params (string Key, string Label)[] fields) =>
+        _features
+            .Setup(service => service.GetFeatureExportFieldsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(fields.Select(field => new FeatureExportField(field.Key, field.Label)).ToList());
+
+    private void SetupExportPage(int page, IReadOnlyList<WorkspaceFeatureExportRow>? rows) =>
+        _features
+            .Setup(service => service.QueryFeatureExportAsync(ActorId, page, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rows);
+
+    private static WorkspaceFeatureExportRow ExportRow(string recordId, string fieldValuesJson) =>
+        new() { RecordId = recordId, FieldValues = fieldValuesJson };
 
     private static FeatureDto CreatedFeature(string id) =>
         new(
@@ -42,53 +51,57 @@ public sealed class FeatureIoObjectTests
             DataClassification: null, ComplianceFlags: System.Array.Empty<string>(),
             SourcedFromRecordIds: System.Array.Empty<string>(), ETag: "AAAAAAAAAGQ=");
 
-    private void SetupQuery(PaginatedResponse<FeatureListRowDto>? response) =>
-        _features
-            .Setup(service => service.QueryAsync(ActorId, It.IsAny<PaginatedQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(response);
-
     [Fact]
-    public async Task Metadata_IsImportableAndExportable_WithIdentityAndRequiredFields()
+    public async Task Metadata_IsImportableAndExportable_WithIdentityAndDynamicCatalogColumns()
     {
+        // Arrange — the hub catalog surfaces two Feature fields; the export adds the identity.
+        SetupColumns(("name", "Name"), ("featureType", "Type"));
         var sut = Build();
+
+        // Act
         var exportFields = await sut.GetExportFieldsAsync(WorkspaceId, ActorId, CancellationToken.None);
 
+        // Assert
         Assert.Equal("Feature", sut.ObjectType);
         Assert.True(sut.CanImport);
         Assert.True(sut.CanExport);
+        // Identity "id" leads and is always included; the hub catalog fields follow.
         Assert.Contains(exportFields, field => field.Key == "id" && field.AlwaysIncluded);
+        Assert.Contains(exportFields, field => field.Key == "name");
+        Assert.Contains(exportFields, field => field.Key == "featureType");
         Assert.Contains(sut.ImportFields, field => field.Key == "name" && field.Required);
         Assert.Contains(sut.ImportFields, field => field.Key == "featureType" && field.Required);
     }
 
     [Fact]
-    public async Task BuildExportAsync_ProjectsRows_JoiningMultiValueFields()
+    public async Task BuildExportAsync_ProjectsFieldValuesByKey_WithIdentityAndJoinedMultiValue()
     {
-        // Arrange — one page of two features; capability tags are a multi-value field.
-        SetupQuery(new PaginatedResponse<FeatureListRowDto>(
-            new[]
-            {
-                Row("FEAT-00000001", "Alpha", new[] { "extract", "summarize" }),
-                Row("FEAT-00000002", "Beta", System.Array.Empty<string>()),
-            }, 2, 1, 100));
+        // Arrange — three catalog columns and one feature whose FieldValues carries them.
+        SetupColumns(("name", "Name"), ("featureType", "Type"), ("capabilityTags", "Capability Tags"));
+        SetupExportPage(1, new[]
+        {
+            ExportRow("AIS-9001", "{\"name\":\"Alpha\",\"featureType\":\"Functional\",\"capabilityTags\":[\"OCR\",\"Extraction\"]}"),
+        });
 
         // Act
         var dataset = await Build().BuildExportAsync(WorkspaceId, ActorId, CancellationToken.None);
 
-        // Assert
+        // Assert — columns come from the catalog (identity + fields); values from the JSON map.
         Assert.NotNull(dataset);
-        Assert.Contains(dataset!.Columns, column => column.Key == "id");
-        Assert.Equal(2, dataset.Rows.Count);
-        Assert.Equal("FEAT-00000001", dataset.Rows[0]["id"]);
-        Assert.Equal("Alpha", dataset.Rows[0]["name"]);
-        Assert.Equal("extract; summarize", dataset.Rows[0]["capabilityTags"]);
+        Assert.Contains(dataset!.Columns, column => column.Key == "id" && column.AlwaysIncluded);
+        var row = Assert.Single(dataset.Rows);
+        Assert.Equal("AIS-9001", row["id"]);                     // identity from RecordId
+        Assert.Equal("Alpha", row["name"]);                      // string
+        Assert.Equal("OCR; Extraction", row["capabilityTags"]);  // array → joined
     }
 
     [Fact]
     public async Task BuildExportAsync_NotHubMember_ReturnsNull()
     {
-        // Arrange — QueryAsync returns null when the caller is not an AI-hub member.
-        SetupQuery(null);
+        // Arrange — the catalog resolves (labels are non-sensitive), but the hub-gated bulk read returns
+        // null when the caller is not an AI-hub member.
+        SetupColumns(("name", "Name"));
+        SetupExportPage(1, null);
 
         // Act
         var dataset = await Build().BuildExportAsync(WorkspaceId, ActorId, CancellationToken.None);
@@ -100,14 +113,14 @@ public sealed class FeatureIoObjectTests
     [Fact]
     public async Task BuildExportAsync_StopsAtRowCap()
     {
-        // Arrange — a small export cap; the query would return more, but the descriptor trims.
+        // Arrange — a small export cap; the query returns more, but the descriptor trims.
         var options = new ImportExportOptions { MaxExportRows = 1 };
-        SetupQuery(new PaginatedResponse<FeatureListRowDto>(
-            new[]
-            {
-                Row("FEAT-00000001", "Alpha", System.Array.Empty<string>()),
-                Row("FEAT-00000002", "Beta", System.Array.Empty<string>()),
-            }, 2, 1, 100));
+        SetupColumns(("name", "Name"));
+        SetupExportPage(1, new[]
+        {
+            ExportRow("AIS-9001", "{\"name\":\"Alpha\"}"),
+            ExportRow("AIS-9002", "{\"name\":\"Beta\"}"),
+        });
 
         // Act
         var dataset = await Build(options).BuildExportAsync(WorkspaceId, ActorId, CancellationToken.None);
@@ -118,10 +131,32 @@ public sealed class FeatureIoObjectTests
     }
 
     [Fact]
+    public async Task BuildExportAsync_PagesPastAFullBatch()
+    {
+        // Arrange — a full first page (100) forces a second fetch; page 2 holds the last row.
+        SetupColumns(("name", "Name"));
+        var fullPage = Enumerable.Range(0, 100)
+            .Select(index => ExportRow($"AIS-{index:D8}", "{\"name\":\"X\"}"))
+            .ToArray();
+        SetupExportPage(1, fullPage);
+        SetupExportPage(2, new[] { ExportRow("AIS-99999999", "{\"name\":\"Last\"}") });
+
+        // Act
+        var dataset = await Build().BuildExportAsync(WorkspaceId, ActorId, CancellationToken.None);
+
+        // Assert — both pages collected, and the second page was actually requested.
+        Assert.NotNull(dataset);
+        Assert.Equal(101, dataset!.Rows.Count);
+        _features.Verify(
+            service => service.QueryFeatureExportAsync(ActorId, 2, It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task BuildExportAsync_CancellationPropagates()
     {
         _features
-            .Setup(service => service.QueryAsync(ActorId, It.IsAny<PaginatedQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(service => service.GetFeatureExportFieldsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
         using var cts = new CancellationTokenSource();
         cts.Cancel();

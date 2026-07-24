@@ -83,6 +83,7 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<WorkspaceAttachmentExportRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<WorkspaceToolkitExportRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<WorkspaceRequestExportRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<WorkspaceFeatureExportRow>().HasNoKey().ToView((string?)null);
 
         // Slice 8 (Gates & approvals) — keyless projections read via stored procedures.
         modelBuilder.Entity<GateForTransitionRow>().HasNoKey().ToView((string?)null);
