@@ -1,6 +1,7 @@
 // ObjectsAdminTab — the three non-data states, the object list, and opening the create sheet. The
 // data hooks are mocked (the API/selector paths are covered by their own tests). Includes an axe check.
 
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
@@ -11,6 +12,11 @@ import { buildObjectDefinition } from '@/test-utils';
 
 import { useDeleteObject, useSaveObject, useWorkspaceObjects } from '../useObjects';
 import { ObjectsAdminTab } from './ObjectsAdminTab';
+
+// ObjectsAdminTab navigates to a custom object's records list, so it must render inside a router.
+function renderTab(workspaceId: WorkspaceId) {
+  return render(<ObjectsAdminTab workspaceId={workspaceId} />, { wrapper: MemoryRouter });
+}
 
 jest.mock('../useObjects');
 
@@ -60,7 +66,7 @@ describe('ObjectsAdminTab', () => {
     mockUseWorkspaceObjects.mockReturnValue(queryResult({ isLoading: true }));
 
     // Act
-    render(<ObjectsAdminTab workspaceId={WORKSPACE_ID} />);
+    renderTab(WORKSPACE_ID);
 
     // Assert
     expect(screen.getByRole('status')).toHaveTextContent(/loading objects/i);
@@ -71,7 +77,7 @@ describe('ObjectsAdminTab', () => {
     mockUseWorkspaceObjects.mockReturnValue(queryResult({ isError: true }));
 
     // Act
-    render(<ObjectsAdminTab workspaceId={WORKSPACE_ID} />);
+    renderTab(WORKSPACE_ID);
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent(/could not be loaded/i);
@@ -89,7 +95,7 @@ describe('ObjectsAdminTab', () => {
     );
 
     // Act
-    render(<ObjectsAdminTab workspaceId={WORKSPACE_ID} />);
+    renderTab(WORKSPACE_ID);
 
     // Assert
     expect(screen.getByText('Request')).toBeInTheDocument();
@@ -104,7 +110,7 @@ describe('ObjectsAdminTab', () => {
         data: [buildObjectDefinition({ id: 'o-request', name: 'Request', isSystem: true })],
       }),
     );
-    render(<ObjectsAdminTab workspaceId={WORKSPACE_ID} />);
+    renderTab(WORKSPACE_ID);
 
     // Act
     await user.click(screen.getByRole('button', { name: 'New object' }));
@@ -118,7 +124,7 @@ describe('ObjectsAdminTab', () => {
     mockUseWorkspaceObjects.mockReturnValue(
       queryResult({ data: [buildObjectDefinition({ id: 'o-vendor', name: 'Vendor' })] }),
     );
-    const { container } = render(<ObjectsAdminTab workspaceId={WORKSPACE_ID} />);
+    const { container } = renderTab(WORKSPACE_ID);
 
     // Act
     const results = await axe(container);

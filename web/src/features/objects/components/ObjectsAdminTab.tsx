@@ -4,6 +4,7 @@
 // non-data states explicitly (web-component-architecture.md).
 
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from '@phosphor-icons/react';
 
 import type { ObjectDefinitionDto, WorkspaceId } from '@shared/types';
@@ -41,6 +42,7 @@ const NO_FILTERS: ObjectsFilters = {};
 type EditorState = { object: ObjectDefinitionDto | null } | null;
 
 export function ObjectsAdminTab({ workspaceId }: { workspaceId: WorkspaceId }) {
+  const navigate = useNavigate();
   const objects = useWorkspaceObjects(workspaceId);
   const saveObject = useSaveObject(workspaceId);
   const deleteObject = useDeleteObject(workspaceId);
@@ -167,6 +169,7 @@ export function ObjectsAdminTab({ workspaceId }: { workspaceId: WorkspaceId }) {
             onFilterChange={onFilterChange}
             locationOptions={locationOptions}
             onOpen={(object) => setEditor({ object })}
+            onViewRecords={(object) => navigate(`/objects/${object.objectKey}`)}
           />
           <TableFooter
             page={Math.min(page, view.totalPages)}

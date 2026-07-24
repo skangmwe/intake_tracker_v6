@@ -77,6 +77,15 @@
   color: var(--text-secondary);
 }
 
+/* Trailing row actions — the custom-object "View records" control + the definition-editor caret,
+   spaced so the two icon-button tap targets don't crowd (accessibility.md ≥8px between targets). */
+.objects-cell-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
 /* Editor sheet — show-in-sidebar boxed row */
 .objects-switch-box {
   display: flex;

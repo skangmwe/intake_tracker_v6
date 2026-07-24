@@ -5,7 +5,7 @@
 // TableShell's onOpen). Pagination is handled by the parent's footer.
 
 import type { ReactNode } from 'react';
-import { CaretRight } from '@phosphor-icons/react';
+import { CaretRight, Table } from '@phosphor-icons/react';
 
 import type { ObjectDefinitionDto } from '@shared/types';
 
@@ -36,7 +36,7 @@ const COLUMNS: TableColumn[] = [
   { key: 'fieldCount', label: 'Fields', width: 90, sortable: true, align: 'right' },
   { key: 'location', label: 'Location', width: 150, sortable: true, filterable: true },
   { key: 'description', label: 'Description', flex: true },
-  { key: 'view', label: 'View', width: 56, align: 'center' },
+  { key: 'view', label: 'View', width: 96, align: 'center' },
 ];
 
 const FILTER_TYPES: Record<'name' | 'plural' | 'location', FilterType> = {
@@ -53,6 +53,9 @@ interface ObjectsTableProps {
   onFilterChange: (column: ObjectColumnKey, value: FilterValue) => void;
   locationOptions: FilterOption[];
   onOpen: (object: ObjectDefinitionDto) => void;
+  /** Open a custom object's records list. Rendered as a per-row "View records" control for custom
+   *  objects only (built-ins have no in-app records surface). Omitted → the control is not shown. */
+  onViewRecords?: (object: ObjectDefinitionDto) => void;
 }
 
 export function ObjectsTable({
@@ -63,6 +66,7 @@ export function ObjectsTable({
   onFilterChange,
   locationOptions,
   onOpen,
+  onViewRecords,
 }: ObjectsTableProps) {
   const renderFilter = (column: TableColumn): ReactNode => {
     const key = column.key as 'name' | 'plural' | 'location';
@@ -96,13 +100,21 @@ export function ObjectsTable({
       <span key="description" className="objects-cell-desc">
         {object.description ?? EM_DASH}
       </span>,
-      <IconButton
-        key="view"
-        icon={CaretRight}
-        label={`View ${object.name}`}
-        ariaHasPopup="dialog"
-        onClick={() => onOpen(object)}
-      />,
+      <span key="view" className="objects-cell-actions">
+        {!object.isSystem && onViewRecords && (
+          <IconButton
+            icon={Table}
+            label={`View ${object.name} records`}
+            onClick={() => onViewRecords(object)}
+          />
+        )}
+        <IconButton
+          icon={CaretRight}
+          label={`View ${object.name}`}
+          ariaHasPopup="dialog"
+          onClick={() => onOpen(object)}
+        />
+      </span>,
     ],
   }));
 
