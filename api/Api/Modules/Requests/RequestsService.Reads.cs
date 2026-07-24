@@ -6,6 +6,7 @@
 
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.Text.Json;
 using McDermott.AiTracker.Api.Data;
 using Microsoft.Data.SqlClient;
@@ -16,9 +17,6 @@ namespace McDermott.AiTracker.Api.Modules.Requests;
 public sealed partial class RequestsService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
-    private static readonly IReadOnlyDictionary<string, JsonElement> EmptyFields =
-        new Dictionary<string, JsonElement>(StringComparer.Ordinal);
 
     // ─── The list read (two result sets → raw ADO.NET) ─────────────────────────
 
@@ -640,9 +638,6 @@ public sealed partial class RequestsService
             DuplicateOfRecordId: string.IsNullOrWhiteSpace(duplicateOf) ? null : duplicateOf);
     }
 
-    private static string SerializeFields(IReadOnlyDictionary<string, JsonElement>? fields) =>
-        JsonSerializer.Serialize(fields ?? EmptyFields, JsonOptions);
-
     private static string SerializeFieldsDictionary(IReadOnlyDictionary<string, JsonElement> fields) =>
         JsonSerializer.Serialize(fields, JsonOptions);
 
@@ -677,6 +672,90 @@ public sealed partial class RequestsService
         }
 
         return merged;
+    }
+
+    // ─── Benefit-review-date default (triggers slice 3, BS §17.11) ─────────────
+
+    internal const string DeployDateKey = "deployDate";
+    internal const string BenefitReviewDateKey = "benefitReviewDate";
+    internal const string BenefitReviewManualKey = "benefitReviewDateIsManual";
+
+    /// <summary>True when a patch's field map set/changed either benefit-review derivation input
+    /// (deployDate or benefitReviewDate) — the only case that warrants reading the offset + deriving.</summary>
+    private static bool TouchesBenefitReviewInputs(IReadOnlyDictionary<string, JsonElement>? fields) =>
+        fields is not null && (fields.ContainsKey(DeployDateKey) || fields.ContainsKey(BenefitReviewDateKey));
+
+    /// <summary>Read the workspace's Benefit-review offset (days). Single-table EF read (api-data-access.md);
+    /// the column is NOT NULL with a DB default of 90, so a live workspace always yields a concrete value.</summary>
+    private async Task<int> ReadBenefitReviewOffsetDaysAsync(Guid workspaceId, CancellationToken cancellationToken) =>
+        await _db.Workspaces
+            .AsNoTracking()
+            .Where(workspace => workspace.WorkspaceId == workspaceId && !workspace.IsDeleted)
+            .Select(workspace => workspace.BenefitReviewOffsetDays)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>
+    /// Default a request's Benefit-review date from its Deploy Date. When <paramref name="patchFields"/>
+    /// directly sets benefitReviewDate, the record is flagged manual and that value is honored (never
+    /// recomputed). Otherwise, when the patch set/changed deployDate and the record has not been manually
+    /// overridden, benefitReviewDate is (re)computed as deployDate + <paramref name="offsetDays"/>. A
+    /// hand-set value is never clobbered (plan Open Q2: recompute only if unedited). Mutates
+    /// <paramref name="mergedFields"/> in place. Pure — unit-tested.
+    /// </summary>
+    public static void ApplyBenefitReviewDerivation(
+        Dictionary<string, JsonElement> mergedFields,
+        IReadOnlyDictionary<string, JsonElement>? patchFields,
+        int offsetDays)
+    {
+        // A direct edit to benefitReviewDate marks the record manual so future deployDate moves never
+        // clobber it. The user's value is already merged in; just record the marker and stop.
+        if (patchFields is not null && patchFields.ContainsKey(BenefitReviewDateKey))
+        {
+            mergedFields[BenefitReviewManualKey] = JsonSerializer.SerializeToElement(true, JsonOptions);
+            return;
+        }
+
+        // Never recompute over a hand-set benefit-review date.
+        if (IsMarkedManual(mergedFields))
+        {
+            return;
+        }
+
+        // Only (re)compute when this patch set/changed the deploy date and it parses to a real date.
+        if (patchFields is null || !patchFields.ContainsKey(DeployDateKey))
+        {
+            return;
+        }
+
+        if (TryReadIsoDate(mergedFields, DeployDateKey, out var deployDate))
+        {
+            var target = deployDate.AddDays(offsetDays).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            mergedFields[BenefitReviewDateKey] = JsonSerializer.SerializeToElement(target, JsonOptions);
+        }
+    }
+
+    private static bool IsMarkedManual(IReadOnlyDictionary<string, JsonElement> fields)
+    {
+        if (!fields.TryGetValue(BenefitReviewManualKey, out var marker))
+        {
+            return false;
+        }
+
+        return marker.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.String => string.Equals(marker.GetString(), "true", StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
+    }
+
+    private static bool TryReadIsoDate(IReadOnlyDictionary<string, JsonElement> fields, string key, out DateOnly value)
+    {
+        value = default;
+        var raw = GetString(fields, key);
+        return !string.IsNullOrWhiteSpace(raw)
+            && DateOnly.TryParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
     }
 
     private static bool TryDecodeRowVer(string? eTag, out byte[] rowVer)

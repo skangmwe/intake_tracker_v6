@@ -35,6 +35,9 @@ public sealed class Workspace : AuditableEntity
     public DateTime? RetiredAt { get; set; }
     /// <summary>The SLA "Due soon" window in days (slice 21, §17.2). Default 3.</summary>
     public int DueSoonWindowDays { get; set; } = 3;
+    /// <summary>Days added to a request's Deploy Date to default its Benefit-review date
+    /// (time-based triggers slice 3, §17.11). Default 90.</summary>
+    public int BenefitReviewOffsetDays { get; set; } = 90;
 }
 
 /// <summary>A user — provisioned by EnsureUserMiddleware on first authenticated request.</summary>
