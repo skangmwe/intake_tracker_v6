@@ -19,6 +19,11 @@
 --                comment.posted        → mentioned          → payload.mentionedUserIds
 --                escalation.opened     → escalation-received→ the AI-Intake group (payload.aiWorkspaceId)
 --                announcement.published→ announcement-posted → the announcement's audience (slice 13)
+--                trigger.fired         → per-kind category    → payload.recipientUserIds (+ the record's
+--                                        (sla-reminder /         watchers when payload.includeWatchers),
+--                                         benefit-review /       resolved API-side from the record's
+--                                         task-overdue /         user-reference fields (triggers engine)
+--                                         approval-overdue)
 --              Anything else is a no-op. The actor is excluded; disabled accounts are suppressed
 --              (BS §6.8). The dedup UNIQUE index + NOT EXISTS guard mean a re-delivered event and a
 --              user watching both sides of an escalated record each yield exactly one row (idempotent).
@@ -68,6 +73,9 @@ BEGIN
     DECLARE @AnnId    UNIQUEIDENTIFIER = NULL;
     DECLARE @AnnTitle NVARCHAR(200)    = NULL;
 
+    -- Set only for trigger.fired — the admin-authored bell title (triggers engine).
+    DECLARE @TriggerTitle NVARCHAR(200) = NULL;
+
     -- Map event → notification category. A NULL category means "not a notifiable event" → no-op.
     DECLARE @Category NVARCHAR(32) =
         CASE @Type
@@ -80,6 +88,15 @@ BEGIN
             WHEN N'announcement.published' THEN N'announcement-posted'
             ELSE NULL
         END;
+
+    -- trigger.fired carries its category in the payload (per-kind), validated against the allowed set.
+    IF @Type = N'trigger.fired'
+        SET @Category = CASE JSON_VALUE(@Payload, N'$.kind')
+            WHEN N'sla-reminder'     THEN N'sla-reminder'
+            WHEN N'benefit-review'   THEN N'benefit-review'
+            WHEN N'task-overdue'     THEN N'task-overdue'
+            WHEN N'approval-overdue' THEN N'approval-overdue'
+            ELSE NULL END;
 
     IF @Category IS NULL
         RETURN;
@@ -183,6 +200,28 @@ BEGIN
                     ON m.WorkspaceId = @AnnWs AND m.UserId = atm.UserId AND m.IsDeleted = 0;
             END
         END
+    END
+    ELSE IF @Type = N'trigger.fired'
+    BEGIN
+        -- The bell title is admin-authored notice text (Audience Level B/C), not record content.
+        SET @TriggerTitle = JSON_VALUE(@Payload, N'$.title');
+
+        -- Explicit recipients resolved API-side from the record's user-reference fields (ids only).
+        INSERT INTO @Targets (UserId)
+        SELECT DISTINCT TRY_CONVERT(UNIQUEIDENTIFIER, recipient.[value])
+        FROM OPENJSON(@Payload, N'$.recipientUserIds') AS recipient
+        WHERE TRY_CONVERT(UNIQUEIDENTIFIER, recipient.[value]) IS NOT NULL;
+
+        -- Optionally add the record's watchers (the "watchers" recipient field key resolves here,
+        -- reusing the same roster logic as gate/hold/close events). NOT EXISTS keeps the @Targets PK.
+        IF TRY_CONVERT(BIT, JSON_VALUE(@Payload, N'$.includeWatchers')) = 1
+            INSERT INTO @Targets (UserId)
+            SELECT DISTINCT w.UserId
+            FROM dbo.Watchers AS w
+            WHERE w.RecordId = @Record
+              AND w.UnsubscribedAt IS NULL
+              AND w.IsDeleted = 0
+              AND NOT EXISTS (SELECT 1 FROM @Targets AS existing WHERE existing.UserId = w.UserId);
     END;
 
     -- Exclude the actor (never notify yourself) and any disabled account (BS §6.8 — notifications
@@ -211,6 +250,17 @@ BEGIN
          OR (@Category = N'sign-off-requested' AND ISNULL(p.NotifyGateDecisions,       CAST(1 AS BIT)) = 0);
     END;
 
+    -- Trigger reminders: honor the per-record SLA/due-date reminder preference for the due/SLA
+    -- categories. Benefit-review is a value-loop prompt, not a due reminder, so it is not filtered here.
+    IF @Category IN (N'sla-reminder', N'task-overdue', N'approval-overdue')
+    BEGIN
+        DELETE t
+        FROM @Targets AS t
+        LEFT JOIN dbo.WatcherNotificationPreference AS p
+            ON p.UserId = t.UserId AND p.RecordId = @Record AND p.WorkspaceId = @Ws AND p.IsDeleted = 0
+        WHERE ISNULL(p.NotifySlaAndDueDateReminders, CAST(1 AS BIT)) = 0;
+    END;
+
     -- The bell line — RecordId + category only (announcement-posted carries the notice Title).
     DECLARE @Summary NVARCHAR(400) =
         CASE @Category
@@ -223,6 +273,10 @@ BEGIN
             WHEN N'mentioned'           THEN N'You were mentioned on ' + ISNULL(@Record, N'a record')
             WHEN N'escalation-received' THEN ISNULL(@Record, N'A record') + N' was escalated to AI Solutions'
             WHEN N'announcement-posted' THEN N'New announcement: ' + ISNULL(@AnnTitle, N'(untitled)')
+            WHEN N'sla-reminder'        THEN ISNULL(@TriggerTitle, ISNULL(@Record, N'A record') + N' is overdue')
+            WHEN N'benefit-review'      THEN ISNULL(@TriggerTitle, N'Benefit review is due for ' + ISNULL(@Record, N'a record'))
+            WHEN N'task-overdue'        THEN ISNULL(@TriggerTitle, N'A task is overdue on ' + ISNULL(@Record, N'a record'))
+            WHEN N'approval-overdue'    THEN ISNULL(@TriggerTitle, N'An approval is overdue on ' + ISNULL(@Record, N'a record'))
             ELSE N'Update on ' + ISNULL(@Record, N'a record')
         END;
 

@@ -1177,3 +1177,50 @@ public sealed class DashboardEscalationStatusRow
     public int SetCnt { get; set; }
     public int BlankCnt { get; set; }
 }
+
+// ─── Time-based triggers (Slice: triggers-engine-core, Task 1.2) ───────────────
+// Keyless projections read via FromSqlRaw from the trigger procs (Task 1.3). Reads/writes
+// follow the codebase convention — procs, not EF LINQ CRUD (api-data-access.md).
+
+/// <summary>One enabled 'Authored' trigger with its "when" rows rolled up as JSON — from
+/// usp_GetEnabledAuthoredTriggers. ConditionsJson parses into ConditionRule[] in the evaluator.</summary>
+public sealed class EnabledTriggerRow
+{
+    public Guid TriggerId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string ObjectType { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Cadence { get; set; } = string.Empty;
+    public int? RepeatIntervalDays { get; set; }
+    /// <summary>The notification category / payload kind the trigger fires under (sla-reminder etc.).</summary>
+    public string NotificationCategory { get; set; } = string.Empty;
+    /// <summary>JSON array of user-reference field keys to notify (e.g. ["assignedAnalyst","watchers"]).</summary>
+    public string Recipients { get; set; } = "[]";
+    public string NotificationTitle { get; set; } = string.Empty;
+    public string NotificationBody { get; set; } = string.Empty;
+    /// <summary>The ANDed condition rows as a JSON array — {whenFieldKey, comparator, compareValue}.</summary>
+    public string ConditionsJson { get; set; } = "[]";
+}
+
+/// <summary>A candidate record for a trigger — RecordId plus its full field-value map (JSON) —
+/// from usp_GetTriggerCandidates. The evaluator fine-checks the condition over FieldValuesJson.</summary>
+public sealed class TriggerCandidateRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    /// <summary>The record's content-field map (JSON). Confidential — never logged.</summary>
+    public string FieldValuesJson { get; set; } = "{}";
+}
+
+/// <summary>A single fire watermark for a trigger — from usp_GetTriggerWatermarks.</summary>
+public sealed class TriggerWatermarkRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public DateTime LastFiredDate { get; set; }
+}
+
+/// <summary>Result of usp_TryBeginTriggerSweep — 1 when this caller claimed today's sweep, else 0.</summary>
+public sealed class TriggerSweepClaimRow
+{
+    public bool Claimed { get; set; }
+}
