@@ -11,6 +11,9 @@ export type ObjectLocation = 'Global' | 'LocalWorkspace';
 export interface ObjectDefinitionDto {
   id: string;
   workspaceId: string;
+  /** Immutable per-workspace slug (e.g. "vendor"); the built-in analogue is the canonical type key
+   *  ("Request", "Task", "ToolkitItem", …). Used as FieldDefinition.objectType for the object's fields. */
+  objectKey: string;
   name: string;
   pluralLabel: string | null;
   location: ObjectLocation;

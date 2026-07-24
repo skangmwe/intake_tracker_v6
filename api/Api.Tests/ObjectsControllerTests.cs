@@ -39,7 +39,7 @@ public sealed class ObjectsControllerTests
     }
 
     private static ObjectDefinitionDto SampleDto() => new(
-        ObjectId, WorkspaceId, "Vendor", "Vendors", "LocalWorkspace",
+        ObjectId, WorkspaceId, "vendor", "Vendor", "Vendors", "LocalWorkspace",
         "A supplier.", ShowInSidebar: true, SidebarCategory: "Reference",
         RecordsCount: 0, FieldsCount: 0, IsSystem: false);
 

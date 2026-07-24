@@ -51,19 +51,21 @@ public sealed class ObjectSchemaService : IObjectSchemaService
     private const int ErrDuplicate = 50081;
 
     // The five built-in object types, in display order. Fixed ids so the client has a stable key;
-    // built-ins are read-only, so these ids never reach the write procs. Location: Request/Task are
-    // Global; the rest are LocalWorkspace (blueprint §Object scope).
+    // built-ins are read-only, so these ids never reach the write procs. ObjectKey is the canonical
+    // type key (matches FieldDefinition.ObjectType — note Toolkit item's key is "ToolkitItem"), the
+    // built-in analogue of a custom object's slug. Location: Request/Task are Global; the rest are
+    // LocalWorkspace (blueprint §Object scope).
     private static readonly SystemObjectSpec[] SystemObjects =
     [
-        new(new Guid("b1000000-0000-4000-8000-000000000001"), "Request", "Requests", "Global",
+        new(new Guid("b1000000-0000-4000-8000-000000000001"), "Request", "Request", "Requests", "Global",
             "The core intake record — one per AI solution request escalated into the workspace."),
-        new(new Guid("b1000000-0000-4000-8000-000000000002"), "Task", "Tasks", "Global",
+        new(new Guid("b1000000-0000-4000-8000-000000000002"), "Task", "Task", "Tasks", "Global",
             "A unit of delivery work attached to a request, grouped by build phase."),
-        new(new Guid("b1000000-0000-4000-8000-000000000003"), "Attachment", "Attachments", "LocalWorkspace",
+        new(new Guid("b1000000-0000-4000-8000-000000000003"), "Attachment", "Attachment", "Attachments", "LocalWorkspace",
             "A file linked to a request or task — documents, exports, and evidence."),
-        new(new Guid("b1000000-0000-4000-8000-000000000004"), "Feature", "Feature catalog", "LocalWorkspace",
+        new(new Guid("b1000000-0000-4000-8000-000000000004"), "Feature", "Feature", "Feature catalog", "LocalWorkspace",
             "A reusable capability in the Feature Catalog — shipped solutions other teams can browse and adopt."),
-        new(new Guid("b1000000-0000-4000-8000-000000000005"), "Toolkit item", "Toolkit", "LocalWorkspace",
+        new(new Guid("b1000000-0000-4000-8000-000000000005"), "ToolkitItem", "Toolkit item", "Toolkit", "LocalWorkspace",
             "A playbook, plugin, or prompt in the Toolkit — building blocks analysts apply to requests."),
     ];
 
@@ -92,9 +94,17 @@ public sealed class ObjectSchemaService : IObjectSchemaService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // Built-ins first (with live counts), then the workspace's custom objects.
+        var fieldCounts = await _db.Set<CustomObjectCountsRow>()
+            .FromSqlRaw("EXEC dbo.usp_GetCustomObjectCounts @WorkspaceId",
+                new SqlParameter("@WorkspaceId", workspaceId))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var fieldsByObject = fieldCounts.ToDictionary(row => row.ObjectDefinitionId, row => row.FieldsCount);
+
+        // Built-ins first (with live counts), then the workspace's custom objects (live FieldsCount).
         var result = new List<ObjectDefinitionDto>(BuildSystemObjects(workspaceId, counts));
-        result.AddRange(customRows.Select(row => MapCustom(row, workspaceId)));
+        result.AddRange(BuildCustomObjects(workspaceId, customRows, fieldsByObject));
         return result;
     }
 
@@ -109,7 +119,10 @@ public sealed class ObjectSchemaService : IObjectSchemaService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return rows.FirstOrDefault() is { } row ? MapCustom(row, workspaceId) : null;
+        // FieldsCount is 0 here: live counts are a list-surface concern (the Objects tab reads
+        // ListAsync). GetByIdAsync backs create/update responses, where the object has no fields yet
+        // or the tab will re-list.
+        return rows.FirstOrDefault() is { } row ? MapCustom(row, workspaceId, fieldsCount: 0) : null;
     }
 
     public async Task<ObjectMutationResult> CreateAsync(
@@ -223,6 +236,7 @@ public sealed class ObjectSchemaService : IObjectSchemaService
             .Select(spec => new ObjectDefinitionDto(
                 spec.Id,
                 Guid.Empty,
+                spec.ObjectKey,
                 spec.Name,
                 spec.PluralLabel,
                 spec.Location,
@@ -242,6 +256,7 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         return SystemObjects.Select(spec => new ObjectDefinitionDto(
             spec.Id,
             workspaceId,
+            spec.ObjectKey,
             spec.Name,
             spec.PluralLabel,
             spec.Location,
@@ -272,9 +287,22 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         _ => 0,
     };
 
-    private static ObjectDefinitionDto MapCustom(ObjectDefinitionRow row, Guid workspaceId) => new(
+    /// <summary>Composes the custom-object DTOs from their rows and a per-object live field-count map
+    /// (usp_GetCustomObjectCounts). Pure — no I/O — so it is unit-testable without a database (mirrors
+    /// BuildSystemObjects). RecordsCount stays 0 until slice 1b adds the dbo.CustomRecords count.</summary>
+    public static IReadOnlyList<ObjectDefinitionDto> BuildCustomObjects(
+        Guid workspaceId,
+        IReadOnlyList<ObjectDefinitionRow> customRows,
+        IReadOnlyDictionary<Guid, int> fieldsByObject) =>
+        customRows.Select(row => MapCustom(
+            row,
+            workspaceId,
+            fieldsByObject.TryGetValue(row.ObjectDefinitionId, out var count) ? count : 0)).ToList();
+
+    private static ObjectDefinitionDto MapCustom(ObjectDefinitionRow row, Guid workspaceId, int fieldsCount) => new(
         row.ObjectDefinitionId,
         workspaceId,
+        row.ObjectKey,
         row.Name,
         row.PluralLabel,
         row.Location,
@@ -282,8 +310,8 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         row.ShowInSidebar,
         row.SidebarCategory,
         RecordsCount: 0,
-        FieldsCount: 0,
+        FieldsCount: fieldsCount,
         IsSystem: false);
 
-    private sealed record SystemObjectSpec(Guid Id, string Name, string PluralLabel, string Location, string Description);
+    private sealed record SystemObjectSpec(Guid Id, string ObjectKey, string Name, string PluralLabel, string Location, string Description);
 }

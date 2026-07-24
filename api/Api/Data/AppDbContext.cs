@@ -176,6 +176,8 @@ public sealed class AppDbContext : DbContext
             .HasNoKey().ToView((string?)null);
         modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Objects.ObjectRecordCountsRow>()
             .HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Objects.CustomObjectCountsRow>()
+            .HasNoKey().ToView((string?)null);
 
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {

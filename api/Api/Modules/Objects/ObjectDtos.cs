@@ -9,6 +9,7 @@ namespace McDermott.AiTracker.Api.Modules.Objects;
 public sealed record ObjectDefinitionDto(
     Guid Id,
     Guid WorkspaceId,
+    string ObjectKey,
     string Name,
     string? PluralLabel,
     string Location,
@@ -42,12 +43,23 @@ public sealed class ObjectDefinitionRow
 {
     public Guid ObjectDefinitionId { get; set; }
     public Guid WorkspaceId { get; set; }
+    // Immutable per-workspace slug (e.g. "vendor"). Copied into FieldDefinition.ObjectType for the
+    // object's fields. Set once at create time; a rename never changes it.
+    public string ObjectKey { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? PluralLabel { get; set; }
     public string Location { get; set; } = string.Empty;
     public string? Description { get; set; }
     public bool ShowInSidebar { get; set; }
     public string? SidebarCategory { get; set; }
+}
+
+/// <summary>Per-custom-object live field count (usp_GetCustomObjectCounts). One row per custom
+/// object in the workspace. RecordsCount is added in slice 1b once dbo.CustomRecords exists.</summary>
+public sealed class CustomObjectCountsRow
+{
+    public Guid ObjectDefinitionId { get; set; }
+    public int FieldsCount { get; set; }
 }
 
 /// <summary>Single-row live counts for the five built-in objects (usp_GetObjectRecordCounts).</summary>

@@ -6,6 +6,11 @@
 --              is enforced at the controller. Built-in objects are constants and are never
 --              written here.
 --
+--              On CREATE the proc generates an immutable ObjectKey slug from @Name (lowercase,
+--              separators → '-', collapsed, trimmed) and disambiguates with a numeric suffix so
+--              it is unique per workspace. The slug is copied into FieldDefinition.ObjectType for
+--              the object's fields. A rename (UPDATE) changes Name/PluralLabel but NEVER the slug.
+--
 --              Error contract:
 --                50080 → object definition not found (update path).
 --                50081 → an active object with the same name already exists in the workspace.
@@ -55,18 +60,55 @@ BEGIN
             -- CREATE path.
             SET @Id = NEWID();
 
+            -- Build the base slug from @Name: lowercase, whitespace/common separators → '-',
+            -- three collapse passes (matches migration 077's backfill transform), then trim the
+            -- leading/trailing hyphens and cap the length so a disambiguator can be appended.
+            DECLARE @BaseSlug NVARCHAR(64) =
+                REPLACE(REPLACE(REPLACE(
+                REPLACE(REPLACE(REPLACE(
+                REPLACE(REPLACE(REPLACE(REPLACE(
+                    LOWER(LTRIM(RTRIM(@Nm)))
+                    , N' ',      N'-')
+                    , NCHAR(9),  N'-')
+                    , NCHAR(10), N'-')
+                    , NCHAR(13), N'-')
+                    , N'_',      N'-')
+                    , N'/',      N'-')
+                    , N'&',      N'-')
+                    , N'--',     N'-')
+                    , N'--',     N'-')
+                    , N'--',     N'-');
+
+            WHILE LEFT(@BaseSlug, 1) = N'-'
+                SET @BaseSlug = STUFF(@BaseSlug, 1, 1, N'');
+            WHILE @BaseSlug <> N'' AND RIGHT(@BaseSlug, 1) = N'-'
+                SET @BaseSlug = LEFT(@BaseSlug, LEN(@BaseSlug) - 1);
+            IF @BaseSlug = N'' SET @BaseSlug = N'object';
+            SET @BaseSlug = LEFT(@BaseSlug, 55);
+
+            -- Disambiguate to a value unique among the workspace's active objects.
+            DECLARE @Slug   NVARCHAR(64) = @BaseSlug;
+            DECLARE @Suffix INT          = 1;
+            WHILE EXISTS (
+                SELECT 1 FROM dbo.ObjectDefinition
+                WHERE WorkspaceId = @Ws AND ObjectKey = @Slug AND IsDeleted = 0)
+            BEGIN
+                SET @Suffix += 1;
+                SET @Slug = @BaseSlug + N'-' + CAST(@Suffix AS NVARCHAR(8));
+            END;
+
             INSERT INTO dbo.ObjectDefinition
-                (ObjectDefinitionId, WorkspaceId, Name, PluralLabel, Location, Description,
+                (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, Description,
                  ShowInSidebar, SidebarCategory,
                  CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
             VALUES
-                (@Id, @Ws, @Nm, @Plural, @Loc, @Desc,
+                (@Id, @Ws, @Slug, @Nm, @Plural, @Loc, @Desc,
                  @ShowNav, @Category,
                  @Now, @Now, @Actor, @Actor);
         END
         ELSE
         BEGIN
-            -- UPDATE path.
+            -- UPDATE path. ObjectKey is immutable — a rename never repoints field rows/records.
             IF NOT EXISTS (
                 SELECT 1 FROM dbo.ObjectDefinition
                 WHERE ObjectDefinitionId = @Id AND WorkspaceId = @Ws AND IsDeleted = 0)

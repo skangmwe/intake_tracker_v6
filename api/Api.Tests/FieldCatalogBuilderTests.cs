@@ -164,6 +164,48 @@ public sealed class FieldCatalogBuilderTests
         Assert.Single(rows, row => row.ObjectType == "Attachment" && row.FieldKey == "kind");
     }
 
+    // ─── Custom objects (Slice 1a — custom-object records) ──────────────────────────────────────
+
+    [Fact]
+    public void BuildCatalogRows_CustomObject_SynthesizesFiveSystemFields()
+    {
+        // Act — one custom object (slug "vendor"), no stored rows.
+        var rows = FieldSchemaService.BuildCatalogRows(
+            Array.Empty<FieldCatalogRow>(),
+            Array.Empty<CatalogFieldSpec>(),
+            new[] { ("vendor", "Vendor") });
+
+        // Assert — the same five read-only System auto-fields as a built-in, labelled by the object's Name.
+        var vendorRows = rows.Where(row => row.ObjectType == "vendor").ToList();
+        Assert.Equal(
+            new[] { "recordId", "name", "createdAt", "updatedAt", "createdBy" },
+            vendorRows.Select(row => row.FieldKey).ToArray());
+        Assert.All(vendorRows, row =>
+        {
+            Assert.Equal("System", row.Source);
+            Assert.True(row.IsReadOnly);
+            Assert.True(row.IsRequired);
+            Assert.Equal("Vendor", row.ObjectLabel);
+            Assert.StartsWith("system:vendor:", row.Id);
+        });
+    }
+
+    [Fact]
+    public void BuildCatalogRows_CustomObjectStoredField_UsesObjectNameAsLabel()
+    {
+        // A stored custom field on a custom object (ObjectType = slug) shows the object's Name in the
+        // OBJECT column, not the raw slug.
+        var rows = FieldSchemaService.BuildCatalogRows(
+            new[] { Stored("vendor", "rating") },
+            Array.Empty<CatalogFieldSpec>(),
+            new[] { ("vendor", "Vendor") });
+
+        var row = Assert.Single(rows, candidate => candidate.FieldKey == "rating");
+        Assert.Equal("vendor", row.ObjectType);
+        Assert.Equal("Vendor", row.ObjectLabel);
+        Assert.Equal("User", row.Source);
+    }
+
     // ─── BuildPlatformCatalogRows (Slice B1 — Platform Fields catalog) ──────────────────────────
 
     private static PlatformFieldRow Platform(
