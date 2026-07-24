@@ -199,6 +199,12 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Toolkit.IToolkitServi
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Objects.IObjectSchemaService,
     McDermott.AiTracker.Api.Modules.Objects.ObjectSchemaService>();
 
+// ─── Custom-object records (Slice 1b) — generic CRUD over dbo.CustomRecords for any custom object.
+//     Reads gate Viewer, writes gate Member (enforced in the controller on the route workspace);
+//     the service enforces object/record existence (404) and light required-field validation. ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.CustomRecords.ICustomRecordsService,
+    McDermott.AiTracker.Api.Modules.CustomRecords.CustomRecordsService>();
+
 // ─── Seeded Dashboards (slice 23) — the S6/S14/S12/S15 fixed-layout dashboards. The service composes a
 //     dashboard's widgets, resolving each metric to the caller's entitlements via DashboardMetricResolver
 //     (one proc per metric). A dashboard never widens access; the read is gated on the dashboard's own
