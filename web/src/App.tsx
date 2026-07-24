@@ -15,6 +15,7 @@ import {
   AnnouncementDetailPage,
   AnnouncementsListPage,
   ManageAnnouncementsPage,
+  PlatformAnnouncementsPage,
 } from '@/features/announcements';
 import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
 import { DashboardPage, DashboardsListPage } from '@/features/dashboards';
@@ -102,6 +103,7 @@ export function App() {
                 <Route path="fields" element={<PlatformFieldsPage />} />
                 <Route path="crossing-map" element={<CrossingMapPage />} />
                 <Route path="access" element={<AccessPage />} />
+                <Route path="announcements" element={<PlatformAnnouncementsPage />} />
                 <Route path="workspaces" element={<WorkspaceProvisioningPage />} />
                 <Route path="audit" element={<FirmWideAuditPage />} />
               </Route>

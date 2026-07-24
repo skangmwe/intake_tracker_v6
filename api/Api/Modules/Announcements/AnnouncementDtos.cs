@@ -125,3 +125,81 @@ public sealed class AnnouncementQuery
     [Range(1, 100)]
     public int PageSize { get; set; } = 20;
 }
+
+// ─── Platform broadcast (platform-admin only) ───────────────────────────────────
+
+/// <summary>A workspace the caller may broadcast to (GET /platform/workspaces). Mirrors PlatformWorkspaceDto.</summary>
+public sealed record PlatformWorkspaceDto(Guid Id, string Name, string Kind);
+
+/// <summary>Broadcast target — 'all' or 'specific' + workspace ids. Mirrors PlatformAnnouncementTarget.</summary>
+public sealed class PlatformAnnouncementTarget
+{
+    /// <summary>'all' (every non-template workspace) or 'specific'.</summary>
+    public string Kind { get; set; } = "all";
+
+    /// <summary>Required (non-empty) when Kind = 'specific'.</summary>
+    public IReadOnlyList<Guid>? WorkspaceIds { get; set; }
+}
+
+/// <summary>Create a platform broadcast. Mirrors PlatformAnnouncementCreateRequest. Audience is implicitly
+/// everyone and the poster is the acting admin — neither is on the wire.</summary>
+public sealed class PlatformAnnouncementCreateRequest
+{
+    [Required]
+    [MaxLength(200)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required]
+    public string Body { get; set; } = string.Empty;
+
+    public bool Pinned { get; set; }
+
+    /// <summary>'Active' (publish now) or 'Scheduled'. Empty → 'Active'.</summary>
+    public string Status { get; set; } = "Active";
+
+    /// <summary>Required and future when Status = 'Scheduled'.</summary>
+    public DateTime? ScheduledPublishAt { get; set; }
+
+    /// <summary>Auto-archive 30 days after publish. Defaults on.</summary>
+    public bool AutoArchive { get; set; } = true;
+
+    [Required]
+    public PlatformAnnouncementTarget Target { get; set; } = new();
+}
+
+/// <summary>Edit a broadcast's content across every copy (targets are fixed). Mirrors PlatformAnnouncementPatchRequest.</summary>
+public sealed class PlatformAnnouncementPatchRequest
+{
+    [Required]
+    [MaxLength(200)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required]
+    public string Body { get; set; } = string.Empty;
+
+    public bool Pinned { get; set; }
+
+    public string Status { get; set; } = "Active";
+
+    public DateTime? ScheduledPublishAt { get; set; }
+
+    public bool AutoArchive { get; set; } = true;
+}
+
+/// <summary>POST /platform/announcements → created broadcast summary. Mirrors PlatformAnnouncementCreatedDto.</summary>
+public sealed record PlatformAnnouncementCreatedDto(Guid BroadcastId, int WorkspaceCount);
+
+/// <summary>One grouped broadcast row (one per BroadcastId). Mirrors PlatformAnnouncementRow.</summary>
+public sealed record PlatformAnnouncementRow(
+    Guid BroadcastId,
+    string Title,
+    string Body,
+    bool Pinned,
+    string Status,
+    Guid Author,
+    string? AuthorName,
+    DateTime? PostedAt,
+    DateTime? ScheduledPublishAt,
+    bool AutoArchive,
+    DateTime? AutoArchiveAt,
+    int WorkspaceCount);

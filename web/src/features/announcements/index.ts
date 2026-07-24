@@ -2,3 +2,4 @@
 export { AnnouncementsListPage } from './components/AnnouncementsListPage';
 export { AnnouncementDetailPage } from './components/AnnouncementDetailPage';
 export { ManageAnnouncementsPage } from './components/ManageAnnouncementsPage';
+export { PlatformAnnouncementsPage } from './components/PlatformAnnouncementsPage';
