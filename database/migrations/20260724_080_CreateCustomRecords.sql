@@ -66,10 +66,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_CustomRecords_Workspa
         WHERE IsDeleted = 0;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM dbo.MigrationHistory WHERE MigrationId = N'20260724_079_CreateCustomRecords')
+IF NOT EXISTS (SELECT 1 FROM dbo.MigrationHistory WHERE MigrationId = N'20260724_080_CreateCustomRecords')
 BEGIN
     INSERT INTO dbo.MigrationHistory (MigrationId, AppliedBy, Description)
-    VALUES (N'20260724_079_CreateCustomRecords', SUSER_SNAME(),
+    VALUES (N'20260724_080_CreateCustomRecords', SUSER_SNAME(),
             N'Custom-object records — dbo.CustomRecords generic record store (FieldValues JSON, RowVer ETag).');
 END;
 GO

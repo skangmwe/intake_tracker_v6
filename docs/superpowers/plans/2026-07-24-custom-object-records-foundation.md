@@ -121,7 +121,7 @@ Deliverable: create / query / detail / update / soft-delete records of a custom 
 ### Task 6: `dbo.CustomRecords` table + migration
 
 **Files:**
-- Create: `database/migrations/20260724_079_CreateCustomRecords.sql` + `_Rollback.sql`
+- Create: `database/migrations/20260724_080_CreateCustomRecords.sql` + `_Rollback.sql` (numbered 080, not 079: the announcements broadcast slice took 079 concurrently)
 - Modify: `api/Api/Data/Entities.cs` (`CustomRecordRow` tracked entity + keyless `CustomRecordExportRow` is **not** needed here — SP5) ; `AppDbContext.cs` (register `CustomRecordRow` as a normal entity/table)
 
 **Interfaces:**
