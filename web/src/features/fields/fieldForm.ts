@@ -3,6 +3,7 @@
 
 import type {
   DerivedFieldDto,
+  FieldCatalogRowDto,
   FieldCategory,
   FieldDefinitionDto,
   FieldDefinitionUpsertRequest,
@@ -155,4 +156,29 @@ function parseNumber(value: string): number | null {
 
 function needsValue(comparator: string): boolean {
   return comparator !== 'isSet' && comparator !== 'isNotSet';
+}
+
+/**
+ * Seed a read-only field form from a lightweight catalog row. Used for locked rows
+ * (System / Platform / foreign-Global) that have no fetchable FieldDefinition — the sheet
+ * renders disabled, so the fields the row omits show their empty state.
+ */
+export function buildFormFromCatalogRow(row: FieldCatalogRowDto): FieldForm {
+  return {
+    object: row.objectType,
+    location: row.location,
+    fieldKey: row.fieldKey,
+    displayName: row.displayName,
+    fieldType: row.fieldType,
+    category: 'WorkspaceLocal',
+    section: '',
+    isRequired: row.isRequired,
+    minValue: '',
+    maxValue: '',
+    visibleStages: [],
+    options: [],
+    rules: [],
+    expression: '',
+    defaultValue: '',
+  };
 }

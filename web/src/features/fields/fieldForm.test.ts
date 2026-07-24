@@ -5,7 +5,8 @@
 import { FIELD_TYPE_OPTIONS } from './constants';
 import { buildFieldDefinition } from '@/test-utils';
 
-import { buildInitialForm, formToRequest, type FieldForm } from './fieldForm';
+import { buildInitialForm, buildFormFromCatalogRow, formToRequest, type FieldForm } from './fieldForm';
+import type { FieldCatalogRowDto } from '@shared/types';
 
 const TYPES = FIELD_TYPE_OPTIONS;
 
@@ -253,5 +254,37 @@ describe('fieldForm', () => {
     const request = formToRequest(baseForm({ fieldType: 'Number', minValue: 'abc', maxValue: '' }));
     expect(request.minValue).toBeNull();
     expect(request.maxValue).toBeNull();
+  });
+
+  it('buildFormFromCatalogRow — system row — maps known fields and empties the rest', () => {
+    // Arrange
+    const systemRow: FieldCatalogRowDto = {
+      id: 'system:Request:recordId',
+      objectType: 'Request',
+      objectLabel: 'Request',
+      fieldKey: 'recordId',
+      displayName: 'Record ID',
+      fieldType: 'ShortText',
+      location: 'Global',
+      isRequired: true,
+      source: 'System',
+      status: 'Active',
+      isReadOnly: true,
+    };
+
+    // Act
+    const form = buildFormFromCatalogRow(systemRow);
+
+    // Assert
+    expect(form.object).toBe('Request');
+    expect(form.fieldKey).toBe('recordId');
+    expect(form.displayName).toBe('Record ID');
+    expect(form.fieldType).toBe('ShortText');
+    expect(form.location).toBe('Global');
+    expect(form.isRequired).toBe(true);
+    expect(form.section).toBe('');
+    expect(form.visibleStages).toEqual([]);
+    expect(form.options).toEqual([]);
+    expect(form.rules).toEqual([]);
   });
 });
