@@ -79,6 +79,7 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<TaskRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<TaskBundleTemplateRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<TaskFieldRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<WorkspaceTaskExportRow>().HasNoKey().ToView((string?)null);
 
         // Slice 8 (Gates & approvals) — keyless projections read via stored procedures.
         modelBuilder.Entity<GateForTransitionRow>().HasNoKey().ToView((string?)null);
