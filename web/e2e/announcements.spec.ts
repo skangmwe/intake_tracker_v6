@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 // End-to-end for the S23 manage-announcements slice (announcements reconciliation, slice 3). Runs in
 // dev mode (the SSO bypass); the API is mocked at the network boundary so the flow is deterministic
-// without a seeded database. A workspace admin opens Manage announcements, posts an Active notice and a
+// without a seeded database. A workspace admin opens Announcements, posts an Active notice and a
 // Scheduled notice, and sees both land in the table with the right status pill.
 
 const WORKSPACE_ID = '1a150000-0000-4000-8000-000000000001';
@@ -98,9 +98,9 @@ test.beforeEach(async ({ page }) => {
 test('a workspace admin posts an Active and a Scheduled announcement and sees them in the table', async ({
   page,
 }) => {
-  await page.getByRole('link', { name: 'Manage announcements' }).click();
+  await page.getByRole('link', { name: 'Announcements' }).click();
   await expect(page).toHaveURL(/\/admin\/announcements$/);
-  await expect(page.getByRole('heading', { name: 'Manage announcements' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Announcements' })).toBeVisible();
   await expect(page.getByText('No announcements yet')).toBeVisible();
 
   // Post an Active announcement (publish now).
