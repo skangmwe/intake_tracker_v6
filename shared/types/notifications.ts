@@ -132,9 +132,17 @@ export type SavedViewScope = 'personal' | 'shared';
 
 /**
  * The list surface a saved view binds to (slice 14). A view is scoped to one object type so a
- * Request view never appears on the Feature Catalog picker and vice versa.
+ * Request view never appears on the Feature Catalog picker and vice versa. Besides the named
+ * built-ins, a custom object binds its views by slug (`ObjectDefinition.ObjectKey`); the
+ * `string & {}` arm admits any slug while preserving autocomplete for the built-ins.
  */
-export type SavedViewObjectType = 'Request' | 'Feature' | 'Task' | 'Announcement';
+export type SavedViewObjectType =
+  | 'Request'
+  | 'Feature'
+  | 'Task'
+  | 'Announcement'
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  | (string & {});
 
 export interface SavedViewDto {
   id: SavedViewId;

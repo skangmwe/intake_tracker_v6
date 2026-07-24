@@ -44,7 +44,7 @@ public sealed class CustomRecordsControllerTests
     }
 
     private static CustomRecordDto SampleDto() =>
-        new(RecordId, ObjectId, "Acme", NoFields, DateTime.UtcNow, DateTime.UtcNow, "AAAAAAAAAAA=");
+        new(RecordId, ObjectId, "Acme", NoFields, DateTime.UtcNow, DateTime.UtcNow, "creator-oid", "AAAAAAAAAAA=");
 
     private static CustomRecordWriteRequest SampleBody() => new("Acme", null);
 

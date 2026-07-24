@@ -42,6 +42,7 @@ public sealed record CustomRecordDto(
     IReadOnlyDictionary<string, JsonElement> Fields,
     DateTime CreatedAt,
     DateTime UpdatedAt,
+    string CreatedBy,
     string ETag);
 
 /// <summary>One row of a custom-object record list page.</summary>
@@ -63,6 +64,11 @@ public sealed class CustomRecordReadRow
     public byte[] RowVer { get; set; } = Array.Empty<byte>();
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    // Bound by column name from usp_GetCustomRecordById (last projected column). The Entra oid GUID of
+    // the record's creator — an opaque identifier, not PII (api-logging.md), surfaced on the DTO for
+    // the "Created by" meta strip. Stored as NVARCHAR(256) (dbo.CustomRecords.CreatedBy audit column).
+    public string CreatedBy { get; set; } = string.Empty;
 }
 
 /// <summary>usp_QueryCustomRecords — one page row plus the window total (COUNT(*) OVER()).</summary>
