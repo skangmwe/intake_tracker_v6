@@ -69,6 +69,22 @@ public sealed class ObjectSchemaServiceTests
     }
 
     [Fact]
+    public void BuildSystemObjects_CarriesCanonicalObjectKeyPerBuiltIn()
+    {
+        // Act
+        var objects = ObjectSchemaService.BuildSystemObjects(WorkspaceId, Counts());
+        var byName = objects.ToDictionary(o => o.Name);
+
+        // Assert — ObjectKey is the canonical type key (matches FieldDefinition.ObjectType). Note the
+        // Toolkit item's display name differs from its key ("ToolkitItem").
+        Assert.Equal("Request", byName["Request"].ObjectKey);
+        Assert.Equal("Task", byName["Task"].ObjectKey);
+        Assert.Equal("Attachment", byName["Attachment"].ObjectKey);
+        Assert.Equal("Feature", byName["Feature"].ObjectKey);
+        Assert.Equal("ToolkitItem", byName["Toolkit item"].ObjectKey);
+    }
+
+    [Fact]
     public void BuildSystemObjects_LocationScoping_RequestAndTaskGlobal_RestLocal()
     {
         // Act
@@ -81,6 +97,31 @@ public sealed class ObjectSchemaServiceTests
         Assert.Equal("LocalWorkspace", byName["Attachment"].Location);
         Assert.Equal("LocalWorkspace", byName["Feature"].Location);
         Assert.Equal("LocalWorkspace", byName["Toolkit item"].Location);
+    }
+
+    [Fact]
+    public void BuildCustomObjects_ReportsLiveFieldsCount_RecordsCountStaysZero()
+    {
+        // Arrange — two custom objects; only 'vendor' has a field-count entry in the map.
+        var vendorId = new Guid("C0000000-0000-4000-8000-000000000001");
+        var orderId = new Guid("C0000000-0000-4000-8000-000000000002");
+        var rows = new List<ObjectDefinitionRow>
+        {
+            new() { ObjectDefinitionId = vendorId, ObjectKey = "vendor", Name = "Vendor", Location = "LocalWorkspace" },
+            new() { ObjectDefinitionId = orderId, ObjectKey = "order", Name = "Order", Location = "LocalWorkspace" },
+        };
+        var fieldsByObject = new Dictionary<Guid, int> { [vendorId] = 3 };
+
+        // Act
+        var objects = ObjectSchemaService.BuildCustomObjects(WorkspaceId, rows, fieldsByObject);
+        var byId = objects.ToDictionary(o => o.Id);
+
+        // Assert — live FieldsCount from the map; unmapped object falls back to 0; records stay 0 (1b).
+        Assert.Equal(3, byId[vendorId].FieldsCount);
+        Assert.Equal(0, byId[orderId].FieldsCount);
+        Assert.All(objects, o => Assert.Equal(0, o.RecordsCount));
+        Assert.All(objects, o => Assert.False(o.IsSystem));
+        Assert.Equal("vendor", byId[vendorId].ObjectKey);
     }
 
     [Fact]

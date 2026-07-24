@@ -18,6 +18,7 @@ BEGIN
 
     SELECT o.ObjectDefinitionId,
            o.WorkspaceId,
+           o.ObjectKey,
            o.Name,
            o.PluralLabel,
            o.Location,

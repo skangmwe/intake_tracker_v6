@@ -65,6 +65,54 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE ObjectDefinitionTests.[test_Insert_SetsUniqueObjectKeyFromName]
+AS
+BEGIN
+    -- Arrange
+    DECLARE @Ws UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
+    DECLARE @Id UNIQUEIDENTIFIER;
+    DECLARE @Id2 UNIQUEIDENTIFIER;
+
+    -- Act — a single-word and a multi-word name.
+    EXEC dbo.usp_UpsertObjectDefinition
+        @ObjectDefinitionId = NULL, @WorkspaceId = @Ws, @Name = N'Vendor',
+        @Location = N'LocalWorkspace', @ActorUserId = N'aa', @NewObjectDefinitionId = @Id OUTPUT;
+    EXEC dbo.usp_UpsertObjectDefinition
+        @ObjectDefinitionId = NULL, @WorkspaceId = @Ws, @Name = N'Purchase Order',
+        @Location = N'LocalWorkspace', @ActorUserId = N'aa', @NewObjectDefinitionId = @Id2 OUTPUT;
+
+    -- Assert — slug is the lowercased name with separators collapsed to '-'.
+    EXEC tSQLt.AssertEqualsString @Expected = N'vendor', @Actual = (
+        SELECT ObjectKey FROM dbo.ObjectDefinition WHERE ObjectDefinitionId = @Id);
+    EXEC tSQLt.AssertEqualsString @Expected = N'purchase-order', @Actual = (
+        SELECT ObjectKey FROM dbo.ObjectDefinition WHERE ObjectDefinitionId = @Id2);
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Insert_DisambiguatesOnCollision]
+AS
+BEGIN
+    -- Arrange — a pre-existing active row that already owns the slug 'vendor'. Its Name differs
+    -- ('Vendor Master') so the name-uniqueness guard does not fire; we isolate slug disambiguation.
+    DECLARE @Ws UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), @Ws, N'vendor', N'Vendor Master', N'LocalWorkspace', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act — create an object whose Name slugifies to the taken 'vendor'.
+    DECLARE @Id UNIQUEIDENTIFIER;
+    EXEC dbo.usp_UpsertObjectDefinition
+        @ObjectDefinitionId = NULL, @WorkspaceId = @Ws, @Name = N'Vendor',
+        @Location = N'LocalWorkspace', @ActorUserId = N'aa', @NewObjectDefinitionId = @Id OUTPUT;
+
+    -- Assert — the new slug is disambiguated with a numeric suffix ('vendor-2').
+    EXEC tSQLt.AssertEqualsString @Expected = N'vendor-2', @Actual = (
+        SELECT ObjectKey FROM dbo.ObjectDefinition WHERE ObjectDefinitionId = @Id);
+END;
+GO
+
 CREATE PROCEDURE ObjectDefinitionTests.[test_Update_ChangesFields]
 AS
 BEGIN
@@ -156,7 +204,7 @@ BEGIN
 
     -- Act
     CREATE TABLE #List (ObjectDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER,
-        Name NVARCHAR(120), PluralLabel NVARCHAR(120), Location NVARCHAR(20),
+        ObjectKey NVARCHAR(64), Name NVARCHAR(120), PluralLabel NVARCHAR(120), Location NVARCHAR(20),
         Description NVARCHAR(500), ShowInSidebar BIT, SidebarCategory NVARCHAR(80));
     INSERT INTO #List EXEC dbo.usp_ListObjectDefinitions @WorkspaceId = @Ws;
 
@@ -219,5 +267,40 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = 4, @Actual = (SELECT Val FROM @Row WHERE Col = 'ToolkitRecords');
     EXEC tSQLt.AssertEquals @Expected = 3, @Actual = (SELECT Val FROM @Row WHERE Col = 'RequestFields');
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT Val FROM @Row WHERE Col = 'TaskFields');
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_CustomObjectCounts_LiveFieldsCount]
+AS
+BEGIN
+    -- Arrange — one custom object with fields, one with none. FieldDefinition is faked and seeded.
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    DECLARE @Ws    UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
+    DECLARE @Obj   UNIQUEIDENTIFIER = NEWID();
+    DECLARE @Empty UNIQUEIDENTIFIER = NEWID();
+
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Obj,   @Ws, N'vendor', N'Vendor', N'LocalWorkspace', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed'),
+           (@Empty, @Ws, N'empty',  N'Empty',  N'LocalWorkspace', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- 3 active 'vendor' fields + 1 retired + 1 deleted + 1 field on a different object → FieldsCount = 3.
+    -- FieldDefinitionId is supplied because the fake table has no default and the proc counts the PK.
+    INSERT INTO dbo.FieldDefinition (FieldDefinitionId, WorkspaceId, ObjectType, IsDeleted, IsRetired)
+    VALUES (NEWID(), @Ws, N'vendor', 0, 0), (NEWID(), @Ws, N'vendor', 0, 0), (NEWID(), @Ws, N'vendor', 0, 0),
+           (NEWID(), @Ws, N'vendor', 0, 1),   -- retired, excluded
+           (NEWID(), @Ws, N'vendor', 1, 0),   -- deleted, excluded
+           (NEWID(), @Ws, N'other',  0, 0);   -- different object, excluded
+
+    -- Act
+    CREATE TABLE #Counts (ObjectDefinitionId UNIQUEIDENTIFIER, FieldsCount INT);
+    INSERT INTO #Counts EXEC dbo.usp_GetCustomObjectCounts @WorkspaceId = @Ws;
+
+    -- Assert — vendor reports 3 live fields; the empty object still appears with 0 (LEFT JOIN).
+    EXEC tSQLt.AssertEquals @Expected = 3, @Actual = (
+        SELECT FieldsCount FROM #Counts WHERE ObjectDefinitionId = @Obj);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (
+        SELECT FieldsCount FROM #Counts WHERE ObjectDefinitionId = @Empty);
 END;
 GO

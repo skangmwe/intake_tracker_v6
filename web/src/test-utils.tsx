@@ -394,6 +394,7 @@ export function buildObjectDefinition(
   return {
     id: '00000000-0000-0000-0000-0000000000d1',
     workspaceId: 'ws-1' as WorkspaceId,
+    objectKey: 'vendor',
     name: 'Vendor',
     pluralLabel: 'Vendors',
     location: 'LocalWorkspace',

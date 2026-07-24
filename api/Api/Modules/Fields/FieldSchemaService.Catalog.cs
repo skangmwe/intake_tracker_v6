@@ -4,6 +4,7 @@
 // from the read/orchestration halves to keep each file focused.
 
 using McDermott.AiTracker.Api.Data;
+using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Shared.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -68,7 +69,17 @@ public sealed partial class FieldSchemaService
         // fields (Attachment, Toolkit item, …); surface the same fields they export.
         var builtIn = _ioObjects.All.SelectMany(io => io.CatalogFields).ToList();
 
-        return new WorkspaceFieldCatalogDto(workspaceId, BuildCatalogRows(stored, builtIn));
+        // The workspace's custom objects — each is "just another object type" keyed by its slug. They
+        // get the same synthesised system auto-fields, and their stored fields carry ObjectType = slug.
+        var customObjectRows = await _db.Set<ObjectDefinitionRow>()
+            .FromSqlRaw("EXEC dbo.usp_ListObjectDefinitions @WorkspaceId", new SqlParameter("@WorkspaceId", workspaceId))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        var customObjects = customObjectRows
+            .Select(row => (ObjectType: row.ObjectKey, Label: row.Name))
+            .ToList();
+
+        return new WorkspaceFieldCatalogDto(workspaceId, BuildCatalogRows(stored, builtIn, customObjects));
     }
 
     /// <summary>Composes the flat catalog rows from the stored fields. Pure — no I/O — so it is
@@ -80,9 +91,20 @@ public sealed partial class FieldSchemaService
     /// (fixed-column objects whose fields are code-defined, not stored FieldDefinition rows). Pure — no
     /// I/O. Built-in rows are read-only and deduped against the system auto-fields and stored rows.</summary>
     public static IReadOnlyList<FieldCatalogRowDto> BuildCatalogRows(
-        IReadOnlyList<FieldCatalogRow> stored, IReadOnlyList<CatalogFieldSpec> builtIn)
+        IReadOnlyList<FieldCatalogRow> stored, IReadOnlyList<CatalogFieldSpec> builtIn) =>
+        BuildCatalogRows(stored, builtIn, Array.Empty<(string ObjectType, string Label)>());
+
+    /// <summary>As above, plus the workspace's custom objects: each gets the same five synthesised
+    /// read-only system auto-fields, and its stored custom fields (ObjectType = slug) flow through the
+    /// stored loop with the object's Name as the OBJECT label. Pure — no I/O.</summary>
+    public static IReadOnlyList<FieldCatalogRowDto> BuildCatalogRows(
+        IReadOnlyList<FieldCatalogRow> stored,
+        IReadOnlyList<CatalogFieldSpec> builtIn,
+        IReadOnlyList<(string ObjectType, string Label)> customObjects)
     {
         var rows = new List<FieldCatalogRowDto>();
+        var customLabels = customObjects.ToDictionary(
+            entry => entry.ObjectType, entry => entry.Label, StringComparer.OrdinalIgnoreCase);
         var storedKeys = stored
             .Select(row => (row.ObjectType, Key: row.FieldKey.ToLowerInvariant()))
             .ToHashSet();
@@ -148,6 +170,27 @@ public sealed partial class FieldSchemaService
             }
         }
 
+        // Custom objects: synthesise the same five read-only system auto-fields per object. Their
+        // stored custom fields (if any) flow through the stored loop below (ObjectType = slug).
+        foreach (var (objectType, objectLabel) in customObjects)
+        {
+            foreach (var (fieldKey, fieldLabel, fieldType) in SystemAutoFields)
+            {
+                rows.Add(new FieldCatalogRowDto(
+                    Id: $"system:{objectType}:{fieldKey}",
+                    ObjectType: objectType,
+                    ObjectLabel: objectLabel,
+                    FieldKey: fieldKey,
+                    DisplayName: fieldLabel,
+                    FieldType: fieldType,
+                    Location: "LocalWorkspace",
+                    IsRequired: true,
+                    Source: "System",
+                    Status: "Active",
+                    IsReadOnly: true));
+            }
+        }
+
         // Then stored custom fields, excluding any key represented by a synthesised system row.
         foreach (var row in stored)
         {
@@ -160,7 +203,7 @@ public sealed partial class FieldSchemaService
             rows.Add(new FieldCatalogRowDto(
                 Id: row.FieldDefinitionId.ToString(),
                 ObjectType: row.ObjectType,
-                ObjectLabel: LabelForObject(row.ObjectType),
+                ObjectLabel: LabelForObject(row.ObjectType, customLabels),
                 FieldKey: row.FieldKey,
                 DisplayName: row.DisplayName,
                 FieldType: row.FieldType,
@@ -284,6 +327,11 @@ public sealed partial class FieldSchemaService
 
         return rows;
     }
+
+    // Overload used by the workspace catalog: a custom object's slug resolves to its Name; anything
+    // else falls back to the built-in label (or the raw key).
+    private static string LabelForObject(string objectType, IReadOnlyDictionary<string, string> customLabels) =>
+        customLabels.TryGetValue(objectType, out var custom) ? custom : LabelForObject(objectType);
 
     private static string LabelForObject(string objectType)
     {
