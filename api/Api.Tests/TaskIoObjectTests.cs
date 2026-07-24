@@ -1,6 +1,7 @@
-// Unit tests for TaskIoObject (S28 wizards) — the Task registry descriptor. Task is export-only:
-// verifies the export field specs (identity column, no import fields), that BuildExportAsync
-// projects the workspace task query into an export dataset (resolving the assignee name, leaving an
+// Unit tests for TaskIoObject (S28 wizards; onto the manifest — field-surfacing sweep). Task is
+// export-only: verifies the export field specs (identity column, no import fields, no catalog
+// synthesis), that BuildExportAsync projects the workspace task query into an export dataset
+// (resolving the assignee and creator names, surfacing the captured typed field, leaving an
 // unassigned task's name null), pages past a full batch, trims at the row cap, and propagates
 // cancellation. ITasksService is mocked — the descriptor has no DbContext, so every branch is
 // unit-testable.
@@ -34,8 +35,12 @@ public sealed class TaskIoObjectTests
             Status = "Open",
             Notes = "note",
             CompletedAt = null,
+            CreatedAt = new DateTime(2026, 7, 24, 9, 0, 0, DateTimeKind.Utc),
             AssigneeUserId = assigneeName is null ? null : Guid.NewGuid(),
             AssigneeName = assigneeName,
+            CreatedByName = "Robin Diaz",
+            FieldLabel = "Environment",
+            FieldValue = "Production",
         };
 
     private void SetupPage(int page, IReadOnlyList<WorkspaceTaskExportRow> rows) =>
@@ -44,7 +49,7 @@ public sealed class TaskIoObjectTests
             .ReturnsAsync(rows);
 
     [Fact]
-    public void Metadata_IsExportOnly_WithIdentityColumnAndNoImportFields()
+    public void Metadata_IsExportOnly_WithIdentityColumnAndNoImportOrCatalogFields()
     {
         var sut = Build();
 
@@ -53,13 +58,21 @@ public sealed class TaskIoObjectTests
         Assert.False(sut.CanImport);
         Assert.True(sut.CanExport);
         Assert.Empty(sut.ImportFields);
+        // Task's catalog is stored-driven (migration 075 Global rows + task-field library + system
+        // auto-fields), so the manifest contributes no built-in catalog rows.
+        Assert.Empty(sut.CatalogFields);
         Assert.Contains(sut.ExportFields, field => field.Key == "task" && field.AlwaysIncluded);
         Assert.Contains(sut.ExportFields, field => field.Key == "request");
         Assert.Contains(sut.ExportFields, field => field.Key == "completedDate");
+        // Newly surfaced columns (created date/by + the captured typed field).
+        Assert.Contains(sut.ExportFields, field => field.Key == "createdAt");
+        Assert.Contains(sut.ExportFields, field => field.Key == "createdBy");
+        Assert.Contains(sut.ExportFields, field => field.Key == "field");
+        Assert.Contains(sut.ExportFields, field => field.Key == "fieldValue");
     }
 
     [Fact]
-    public async Task BuildExportAsync_ProjectsRows_ResolvingAssigneeAndParentRequest()
+    public async Task BuildExportAsync_ProjectsRows_ResolvingAssigneeCreatorAndCapturedField()
     {
         // Arrange — one page of two tasks; the second is unassigned.
         SetupPage(1, new[]
@@ -77,6 +90,10 @@ public sealed class TaskIoObjectTests
         Assert.Equal("Draft brief", dataset.Rows[0]["task"]);
         Assert.Equal("LIT-9004", dataset.Rows[0]["request"]);
         Assert.Equal("Alex Chen", dataset.Rows[0]["assignee"]);
+        Assert.Equal("Robin Diaz", dataset.Rows[0]["createdBy"]);
+        Assert.Equal("Environment", dataset.Rows[0]["field"]);
+        Assert.Equal("Production", dataset.Rows[0]["fieldValue"]);
+        Assert.Equal(new DateTime(2026, 7, 24, 9, 0, 0, DateTimeKind.Utc), dataset.Rows[0]["createdAt"]);
         Assert.Null(dataset.Rows[1]["assignee"]);
     }
 
