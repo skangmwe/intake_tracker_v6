@@ -180,6 +180,17 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Announcements.IAnnoun
     McDermott.AiTracker.Api.Modules.Announcements.AnnouncementTickGateway>();
 builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.Announcements.AnnouncementSchedulerService>();
 
+// ─── Time-based triggers (slice: triggers-engine-core) — the once-daily scheduled sweep. Gateway +
+//     evaluator are Scoped (hold AppDbContext); the hosted service resolves them per sweep in a fresh
+//     scope, and claims the day atomically so exactly one replica runs it. ─
+builder.Services.Configure<McDermott.AiTracker.Api.Modules.Triggers.ScheduledTriggerOptions>(
+    builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.Triggers.ScheduledTriggerOptions.SectionName));
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Triggers.ITriggerGateway,
+    McDermott.AiTracker.Api.Modules.Triggers.TriggerGateway>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Triggers.IScheduledTriggerEvaluator,
+    McDermott.AiTracker.Api.Modules.Triggers.ScheduledTriggerEvaluator>();
+builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.Triggers.ScheduledTriggerService>();
+
 // ─── Feature Catalog + Saved views (slice 14) — Features depends on Requests / Drafts / TypedLinks
 //     (all registered above); Saved views is presentation metadata over the list surfaces ─
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Features.IFeaturesService,
