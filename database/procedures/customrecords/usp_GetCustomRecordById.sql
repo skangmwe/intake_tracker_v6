@@ -24,7 +24,8 @@ BEGIN
            r.FieldValues,
            r.RowVer,
            r.CreatedAt,
-           r.UpdatedAt
+           r.UpdatedAt,
+           r.CreatedBy
     FROM   dbo.CustomRecords r
     WHERE  r.RecordId           = @Id
       AND  r.WorkspaceId        = @Ws

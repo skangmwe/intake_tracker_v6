@@ -4,6 +4,7 @@
 // (api-testing-guidelines.md).
 
 using McDermott.AiTracker.Api.Modules.Fields;
+using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Shared.Auth;
 using McDermott.AiTracker.Api.Shared.Middleware;
 using Microsoft.AspNetCore.Http;
@@ -21,7 +22,8 @@ public sealed class FieldsControllerTests
     private static FieldsController Build(
         Mock<IFieldSchemaService> fields,
         bool isViewer = true,
-        bool isAdmin = true)
+        bool isAdmin = true,
+        Mock<IObjectSchemaService>? objects = null)
     {
         var accessGuard = new Mock<IAccessGuard>();
         accessGuard.Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>())).ReturnsAsync(isViewer);
@@ -30,10 +32,19 @@ public sealed class FieldsControllerTests
         var currentUser = new Mock<ICurrentUser>();
         currentUser.SetupGet(user => user.UserId).Returns(UserId);
 
+        // Default: no custom objects in the workspace (so an unknown slug resolves to 404). Tests that
+        // exercise the custom-slug path pass their own configured mock.
+        var objectsMock = objects ?? new Mock<IObjectSchemaService>();
+        if (objects is null)
+        {
+            objectsMock.Setup(service => service.ListAsync(WorkspaceId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Array.Empty<ObjectDefinitionDto>());
+        }
+
         var httpContext = new DefaultHttpContext();
         httpContext.Items[OperationIdMiddleware.HeaderName] = "op-123";
 
-        return new FieldsController(fields.Object, accessGuard.Object, currentUser.Object)
+        return new FieldsController(fields.Object, objectsMock.Object, accessGuard.Object, currentUser.Object)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
         };
@@ -88,12 +99,13 @@ public sealed class FieldsControllerTests
     }
 
     [Fact]
-    public async Task GetFields_InvalidObjectType_Returns400()
+    public async Task GetFields_UnknownSlug_Returns404()
     {
+        // A value that is neither a built-in type nor a resolvable custom object slug is 404 (never
+        // disclosing whether the slug exists), not 400 — the custom-object records surface (A5).
         var fields = new Mock<IFieldSchemaService>();
-        var result = await Build(fields).GetFields(WorkspaceId, "Bogus", CancellationToken.None);
-        var problem = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        var result = await Build(fields).GetFields(WorkspaceId, "unknown-object", CancellationToken.None);
+        Assert.IsType<NotFoundResult>(result);
     }
 
     [Fact]

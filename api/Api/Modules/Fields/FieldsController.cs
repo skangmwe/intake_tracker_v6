@@ -4,6 +4,7 @@
 // the service result to a status code (api-coding-standards.md — no business logic in controllers).
 // Access violations return 403, never 404 (api-error-handling.md).
 
+using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Shared.Auth;
 using McDermott.AiTracker.Api.Shared.Middleware;
 using Microsoft.AspNetCore.Mvc;
@@ -15,12 +16,15 @@ namespace McDermott.AiTracker.Api.Modules.Fields;
 public sealed class FieldsController : ControllerBase
 {
     private readonly IFieldSchemaService _fields;
+    private readonly IObjectSchemaService _objects;
     private readonly IAccessGuard _accessGuard;
     private readonly ICurrentUser _currentUser;
 
-    public FieldsController(IFieldSchemaService fields, IAccessGuard accessGuard, ICurrentUser currentUser)
+    public FieldsController(
+        IFieldSchemaService fields, IObjectSchemaService objects, IAccessGuard accessGuard, ICurrentUser currentUser)
     {
         _fields = fields;
+        _objects = objects;
         _accessGuard = accessGuard;
         _currentUser = currentUser;
     }
@@ -34,14 +38,25 @@ public sealed class FieldsController : ControllerBase
         [FromQuery] string objectType = "Request",
         CancellationToken cancellationToken = default)
     {
-        if (!IsValidObjectType(objectType))
-        {
-            return BadRequestProblem("Object type must be one of Request, Task, Feature, Toolkit item, or Attachment.");
-        }
-
+        // Access is checked before resolving the object so a non-member cannot probe which custom
+        // objects exist (404-never-disclose only applies once the caller is a member).
         if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.Viewer, cancellationToken))
         {
             return AccessDenied();
+        }
+
+        // A built-in object type reads its schema directly; any other value is treated as a custom
+        // object slug and must resolve to a real ObjectDefinition in this workspace — else 404 (never
+        // disclosing whether the slug exists). The slug is the FieldDefinition.ObjectType discriminator.
+        if (!IsValidObjectType(objectType))
+        {
+            var objects = await _objects.ListAsync(workspaceId, cancellationToken);
+            var match = objects.FirstOrDefault(candidate =>
+                !candidate.IsSystem && string.Equals(candidate.ObjectKey, objectType, StringComparison.Ordinal));
+            if (match is null)
+            {
+                return NotFound();
+            }
         }
 
         var schema = await _fields.GetSchemaAsync(workspaceId, objectType, cancellationToken);

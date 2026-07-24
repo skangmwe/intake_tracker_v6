@@ -94,16 +94,26 @@ public sealed class CustomRecordsService : ICustomRecordsService
             return null;
         }
 
+        // The object's field schema (keyed by its slug) tells us which filter/sort keys are real user
+        // fields and each one's type, so unknown keys are dropped in C# before the proc — defence in
+        // depth alongside the proc's own whitelist (usp_QueryCustomRecords).
+        var schema = await _fields.GetSchemaAsync(workspaceId, obj.ObjectKey, cancellationToken).ConfigureAwait(false);
+
         var page = query.Page < 1 ? 1 : query.Page;
-        var pageSize = query.PageSize < 1 ? 20 : query.PageSize;
+        var pageSize = query.PageSize < 1 ? 20 : query.PageSize > 100 ? 100 : query.PageSize;
+        var filtersJson = BuildFiltersJson(query.Filters, schema);
+        var (sortColumn, sortDirection) = ResolveSort(query.Sort, schema);
 
         var rows = await _db.Set<CustomRecordQueryRow>()
             .FromSqlRaw(
-                "EXEC dbo.usp_QueryCustomRecords @WorkspaceId, @ObjectDefinitionId, @Page, @PageSize",
+                "EXEC dbo.usp_QueryCustomRecords @WorkspaceId, @ObjectDefinitionId, @Page, @PageSize, @FiltersJson, @SortColumn, @SortDir",
                 new SqlParameter("@WorkspaceId", workspaceId),
                 new SqlParameter("@ObjectDefinitionId", objectId),
                 new SqlParameter("@Page", page),
-                new SqlParameter("@PageSize", pageSize))
+                new SqlParameter("@PageSize", pageSize),
+                new SqlParameter("@FiltersJson", (object?)filtersJson ?? DBNull.Value),
+                new SqlParameter("@SortColumn", sortColumn),
+                new SqlParameter("@SortDir", sortDirection))
             .AsNoTracking()
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -281,6 +291,165 @@ public sealed class CustomRecordsService : ICustomRecordsService
         _ => false,
     };
 
+    // ─── Filter / sort marshalling (pure — unit-testable without a database) ─────
+
+    // The fixed number-operator allow-set the proc recognises. Emitted only after matching this set,
+    // so no caller-supplied operator ever reaches SQL text.
+    private static readonly HashSet<string> NumberOperators =
+        new(StringComparer.Ordinal) { ">", ">=", "=", "<=", "<" };
+
+    /// <summary>
+    /// Translate the record-list filter map into the JSON shape <c>usp_QueryCustomRecords</c> expects —
+    /// a JSON object keyed by column key. The stable columns (<c>name</c> / <c>created</c> / <c>updated</c>)
+    /// and the object's user fields (each present in <paramref name="schema"/>) are emitted with the
+    /// sub-fields the proc reads (<c>contains</c> / <c>values</c> / <c>op</c>+<c>value</c> / <c>from</c>+<c>to</c>)
+    /// plus a documentary <c>type</c>; any key that is neither a stable column nor a real field is dropped,
+    /// so no unknown key reaches SQL. Returns null when nothing survives. Pure.
+    /// </summary>
+    public static string? BuildFiltersJson(
+        IReadOnlyDictionary<string, JsonElement>? filters, WorkspaceFieldSchemaDto schema)
+    {
+        if (filters is null || filters.Count == 0)
+        {
+            return null;
+        }
+
+        var fieldKeys = new HashSet<string>(schema.Fields.Select(field => field.FieldKey), StringComparer.Ordinal);
+        var payload = new Dictionary<string, object?>(StringComparer.Ordinal);
+
+        foreach (var entry in filters)
+        {
+            var clause = entry.Value;
+            if (clause.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            object? marshalled = entry.Key switch
+            {
+                "name" => BuildTextClause(clause),
+                "created" or "updated" => BuildDateClause(clause),
+                _ when fieldKeys.Contains(entry.Key) => BuildFieldClause(clause),
+                _ => null,  // unknown key — dropped, never reaches SQL.
+            };
+
+            if (marshalled is not null)
+            {
+                payload[entry.Key] = marshalled;
+            }
+        }
+
+        return payload.Count == 0 ? null : JsonSerializer.Serialize(payload, JsonOptions);
+    }
+
+    /// <summary>
+    /// Map the first usable sort directive onto a whitelisted proc sort column — a stable column
+    /// (<c>name</c> / <c>created</c> / <c>updated</c>) or one of the object's user field keys (present
+    /// in <paramref name="schema"/>); anything else falls back to <c>name</c>. Direction is normalised to
+    /// <c>asc</c> / <c>desc</c>. Pure.
+    /// </summary>
+    public static (string Column, string Direction) ResolveSort(
+        IReadOnlyList<SortSpec>? sort, WorkspaceFieldSchemaDto schema)
+    {
+        var first = sort?.FirstOrDefault(spec => !string.IsNullOrWhiteSpace(spec.Column));
+        var requested = first?.Column;
+        var column = requested switch
+        {
+            "name" or "created" or "updated" => requested,
+            { } key when schema.Fields.Any(field => string.Equals(field.FieldKey, key, StringComparison.Ordinal)) => key,
+            _ => "name",
+        };
+        var direction = string.Equals(first?.Direction, "desc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+        return (column, direction);
+    }
+
+    /// <summary>A user-field clause — dispatched on its own <c>kind</c> (which agrees with the field's
+    /// schema type). Boolean / user / unknown kinds are not filterable over the JSON bag → dropped.</summary>
+    private static object? BuildFieldClause(JsonElement clause) => ReadStringProperty(clause, "kind") switch
+    {
+        "text" => BuildTextClause(clause),
+        "select" => BuildSelectClause(clause),
+        "number" => BuildNumberClause(clause),
+        "date" => BuildDateClause(clause),
+        _ => null,
+    };
+
+    private static object? BuildTextClause(JsonElement clause)
+    {
+        var contains = ReadStringProperty(clause, "contains");
+        return string.IsNullOrEmpty(contains) ? null : new { type = "text", contains };
+    }
+
+    private static object? BuildSelectClause(JsonElement clause)
+    {
+        if (!clause.TryGetProperty("values", out var values) || values.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var list = ReadStringArray(values);
+        return list.Count == 0 ? null : new { type = "select", values = list };
+    }
+
+    private static object? BuildNumberClause(JsonElement clause)
+    {
+        var op = ReadStringProperty(clause, "op");
+        if (op is null
+            || !NumberOperators.Contains(op)
+            || !clause.TryGetProperty("value", out var value)
+            || value.ValueKind != JsonValueKind.Number)
+        {
+            return null;
+        }
+
+        // value is a JsonElement number — serialized verbatim as its raw numeric literal.
+        return new { type = "number", op, value };
+    }
+
+    private static object? BuildDateClause(JsonElement clause)
+    {
+        var from = ReadStringProperty(clause, "from");
+        var to = ReadStringProperty(clause, "to");
+        if (from is null && to is null)
+        {
+            return null;
+        }
+
+        var payload = new Dictionary<string, object?>(StringComparer.Ordinal) { ["type"] = "date" };
+        if (from is not null)
+        {
+            payload["from"] = from;
+        }
+
+        if (to is not null)
+        {
+            payload["to"] = to;
+        }
+
+        return payload;
+    }
+
+    private static string? ReadStringProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value))
+        {
+            return null;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number => value.ToString(),
+            _ => null,
+        };
+    }
+
+    private static List<string> ReadStringArray(JsonElement array) =>
+        array.EnumerateArray()
+            .Where(element => element.ValueKind == JsonValueKind.String)
+            .Select(element => element.GetString()!)
+            .ToList();
+
     private static CustomRecordDto MapRow(CustomRecordReadRow row) => new(
         Id: row.RecordId,
         ObjectDefinitionId: row.ObjectDefinitionId,
@@ -288,6 +457,7 @@ public sealed class CustomRecordsService : ICustomRecordsService
         Fields: ParseFields(row.FieldValues),
         CreatedAt: DateTime.SpecifyKind(row.CreatedAt, DateTimeKind.Utc),
         UpdatedAt: DateTime.SpecifyKind(row.UpdatedAt, DateTimeKind.Utc),
+        CreatedBy: row.CreatedBy,
         ETag: Convert.ToBase64String(row.RowVer));
 
     private static string SerializeFields(IReadOnlyDictionary<string, JsonElement>? fields) =>
