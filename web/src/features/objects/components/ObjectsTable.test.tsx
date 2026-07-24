@@ -1,6 +1,7 @@
 // ObjectsTable — renders the object rows on the shared list-surface, exposes a keyboard-accessible
 // per-row View trigger, and passes an axe check.
 
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
@@ -37,9 +38,10 @@ function renderTable(overrides: Partial<React.ComponentProps<typeof ObjectsTable
       { value: 'LocalWorkspace', label: 'Local Workspace', count: 1 },
     ],
     onOpen: jest.fn(),
+    onViewRecords: jest.fn(),
     ...overrides,
   };
-  return { props, ...render(<ObjectsTable {...props} />) };
+  return { props, ...render(<ObjectsTable {...props} />, { wrapper: MemoryRouter }) };
 }
 
 describe('ObjectsTable', () => {
@@ -72,6 +74,22 @@ describe('ObjectsTable', () => {
 
     // Assert
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ name: 'Vendor' }));
+  });
+
+  it('ObjectsTable — custom object — View records navigates for the custom row only', async () => {
+    // Arrange
+    const onViewRecords = jest.fn();
+    const user = userEvent.setup();
+    renderTable({ onViewRecords });
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'View Vendor records' }));
+
+    // Assert — the built-in Request row has no records surface, so no such control exists for it.
+    expect(onViewRecords).toHaveBeenCalledWith(expect.objectContaining({ name: 'Vendor' }));
+    expect(
+      screen.queryByRole('button', { name: 'View Request records' }),
+    ).not.toBeInTheDocument();
   });
 
   it('ObjectsTable — no accessibility violations', async () => {

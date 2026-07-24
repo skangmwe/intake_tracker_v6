@@ -21,3 +21,4 @@ export * from './home';
 export * from './relationships';
 export * from './toolkit';
 export * from './objects';
+export * from './customRecords';

@@ -28,3 +28,6 @@ export const AUDIT_LOG_PAGE_SIZE = 25;
 
 /** Page size for the S30 Objects tab list. Large enough that the small object set fits one page. */
 export const OBJECTS_PAGE_SIZE = 25;
+
+/** Page size for a custom object's records list (SP2). */
+export const RECORDS_PAGE_SIZE = 25;

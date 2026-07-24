@@ -1,0 +1,67 @@
+/* SP2 custom-object records list styles. Tokens only — no raw hex, radius via --radius / pill
+   (web-styling.md). Layout (full-height fill + internal scroll + pinned footer) comes from the shared
+   .list-surface / .list-surface__body classes in mws/app-shell.css; this file owns cell typography and
+   the row-actions kebab surface. */
+
+.custom-records-page__title {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.custom-records-page__grid {
+  min-height: 0;
+}
+
+/* ── Cell typography ─────────────────────────────────────────────────────── */
+
+.cr-name {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.cr-count {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* ── Row-actions kebab ───────────────────────────────────────────────────── */
+
+.cr-kebab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--icon-default);
+  cursor: pointer;
+}
+
+.cr-kebab:hover,
+.cr-kebab:focus-visible {
+  color: var(--accent-interactive);
+}
+
+/* Portaled to <body> and fixed-positioned (JS sets top/left) so it escapes the grid cell's
+   overflow:hidden and the grid body's overflow:auto. Items reuse the shared .ast-menu__item. */
+.cr-row-menu {
+  position: fixed;
+  z-index: 60;
+  width: 200px;
+  max-width: calc(100vw - var(--space-5) * 2);
+  padding: var(--space-2) 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+/* Destructive Delete row reads in the error colour at rest and on hover (matches the members menu). */
+.cr-row-menu__danger,
+.cr-row-menu__danger:hover,
+.cr-row-menu__danger:focus-visible {
+  color: var(--color-error);
+}

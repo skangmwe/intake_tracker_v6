@@ -21,6 +21,7 @@ import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
 import { TriggersAdminPage } from '@/features/triggers';
 import { DashboardPage, DashboardsListPage } from '@/features/dashboards';
 import { AddToCatalogPage, FeatureCatalogPage, FeatureDetailPage } from '@/features/features';
+import { CustomRecordsListPage } from '@/features/custom-records';
 import { ToolkitSurface } from '@/features/toolkit';
 import { ImportExportPage } from '@/features/import-export';
 import { LifecyclePage } from '@/features/lifecycle';
@@ -52,6 +53,7 @@ import '@/features/announcements/announcements.css';
 import '@/features/fields/fields.css';
 import '@/features/triggers/triggers.css';
 import '@/features/objects/objects.css';
+import '@/features/custom-records/customRecords.css';
 import '@/features/lifecycle/lifecycle.css';
 import '@/features/requests/requests.css';
 import '@/features/features/features.css';
@@ -73,6 +75,7 @@ const IMPLEMENTED_ROUTES = new Set([
   '/feature-catalog',
   '/dashboards',
   '/toolkit',
+  '/objects',
 ]);
 
 const PLACEHOLDER_ROUTES = NAV_SECTIONS.flatMap((section) => section.items).filter(
@@ -119,6 +122,9 @@ export function App() {
               <Route path="/feature-catalog" element={<FeatureCatalogPage />} />
               <Route path="/feature-catalog/new" element={<AddToCatalogPage />} />
               <Route path="/feature-catalog/:recordId" element={<FeatureDetailPage />} />
+              {/* Custom-object records (SP2). Placed above the catch-all; no plain /objects route
+                  exists (object admin lives under /admin/fields), so this does not shadow anything. */}
+              <Route path="/objects/:objectKey" element={<CustomRecordsListPage />} />
               <Route path="/toolkit" element={<ToolkitSurface />} />
               <Route path="/search" element={<SearchResultsPage />} />
               <Route path="/announcements" element={<AnnouncementsListPage />} />
