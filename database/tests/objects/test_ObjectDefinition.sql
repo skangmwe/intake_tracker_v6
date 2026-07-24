@@ -270,14 +270,16 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE ObjectDefinitionTests.[test_CustomObjectCounts_LiveFieldsCount]
+CREATE PROCEDURE ObjectDefinitionTests.[test_CustomObjectCounts_LiveFieldsAndRecords]
 AS
 BEGIN
-    -- Arrange — one custom object with fields, one with none. FieldDefinition is faked and seeded.
+    -- Arrange — one custom object with fields + records, one with none. FieldDefinition and
+    -- CustomRecords are faked and seeded.
     EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.CustomRecords';
     DECLARE @Ws    UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
-    DECLARE @Obj   UNIQUEIDENTIFIER = NEWID();
-    DECLARE @Empty UNIQUEIDENTIFIER = NEWID();
+    DECLARE @Obj   UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000C1';
+    DECLARE @Empty UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000C2';
 
     INSERT INTO dbo.ObjectDefinition
         (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, Location, IsDeleted,
@@ -293,14 +295,21 @@ BEGIN
            (NEWID(), @Ws, N'vendor', 1, 0),   -- deleted, excluded
            (NEWID(), @Ws, N'other',  0, 0);   -- different object, excluded
 
+    -- 2 active vendor records + 1 deleted + 1 on the other object → RecordsCount(vendor) = 2.
+    INSERT INTO dbo.CustomRecords (RecordId, ObjectDefinitionId, WorkspaceId, Name, FieldValues, IsDeleted, CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), @Obj,   @Ws, N'r1', N'{}', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's'),
+           (NEWID(), @Obj,   @Ws, N'r2', N'{}', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's'),
+           (NEWID(), @Obj,   @Ws, N'r3', N'{}', 1, SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's'),  -- deleted, excluded
+           (NEWID(), @Empty, @Ws, N'e1', N'{}', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's');   -- other object
+
     -- Act
-    CREATE TABLE #Counts (ObjectDefinitionId UNIQUEIDENTIFIER, FieldsCount INT);
+    CREATE TABLE #Counts (ObjectDefinitionId UNIQUEIDENTIFIER, FieldsCount INT, RecordsCount INT);
     INSERT INTO #Counts EXEC dbo.usp_GetCustomObjectCounts @WorkspaceId = @Ws;
 
-    -- Assert — vendor reports 3 live fields; the empty object still appears with 0 (LEFT JOIN).
-    EXEC tSQLt.AssertEquals @Expected = 3, @Actual = (
-        SELECT FieldsCount FROM #Counts WHERE ObjectDefinitionId = @Obj);
-    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (
-        SELECT FieldsCount FROM #Counts WHERE ObjectDefinitionId = @Empty);
+    -- Assert — vendor: 3 live fields + 2 live records; the empty object appears with 0 fields + 1 record.
+    EXEC tSQLt.AssertEquals @Expected = 3, @Actual = (SELECT FieldsCount  FROM #Counts WHERE ObjectDefinitionId = @Obj);
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = (SELECT RecordsCount FROM #Counts WHERE ObjectDefinitionId = @Obj);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT FieldsCount  FROM #Counts WHERE ObjectDefinitionId = @Empty);
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT RecordsCount FROM #Counts WHERE ObjectDefinitionId = @Empty);
 END;
 GO

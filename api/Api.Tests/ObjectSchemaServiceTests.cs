@@ -100,9 +100,9 @@ public sealed class ObjectSchemaServiceTests
     }
 
     [Fact]
-    public void BuildCustomObjects_ReportsLiveFieldsCount_RecordsCountStaysZero()
+    public void BuildCustomObjects_ReportsLiveFieldsAndRecordsCounts()
     {
-        // Arrange — two custom objects; only 'vendor' has a field-count entry in the map.
+        // Arrange — two custom objects; only 'vendor' has a counts row.
         var vendorId = new Guid("C0000000-0000-4000-8000-000000000001");
         var orderId = new Guid("C0000000-0000-4000-8000-000000000002");
         var rows = new List<ObjectDefinitionRow>
@@ -110,16 +110,20 @@ public sealed class ObjectSchemaServiceTests
             new() { ObjectDefinitionId = vendorId, ObjectKey = "vendor", Name = "Vendor", Location = "LocalWorkspace" },
             new() { ObjectDefinitionId = orderId, ObjectKey = "order", Name = "Order", Location = "LocalWorkspace" },
         };
-        var fieldsByObject = new Dictionary<Guid, int> { [vendorId] = 3 };
+        var counts = new List<CustomObjectCountsRow>
+        {
+            new() { ObjectDefinitionId = vendorId, FieldsCount = 3, RecordsCount = 5 },
+        };
 
         // Act
-        var objects = ObjectSchemaService.BuildCustomObjects(WorkspaceId, rows, fieldsByObject);
+        var objects = ObjectSchemaService.BuildCustomObjects(WorkspaceId, rows, counts);
         var byId = objects.ToDictionary(o => o.Id);
 
-        // Assert — live FieldsCount from the map; unmapped object falls back to 0; records stay 0 (1b).
+        // Assert — live counts from the counts row; the object with no counts row falls back to 0/0.
         Assert.Equal(3, byId[vendorId].FieldsCount);
+        Assert.Equal(5, byId[vendorId].RecordsCount);
         Assert.Equal(0, byId[orderId].FieldsCount);
-        Assert.All(objects, o => Assert.Equal(0, o.RecordsCount));
+        Assert.Equal(0, byId[orderId].RecordsCount);
         Assert.All(objects, o => Assert.False(o.IsSystem));
         Assert.Equal("vendor", byId[vendorId].ObjectKey);
     }

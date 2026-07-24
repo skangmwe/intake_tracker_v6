@@ -94,17 +94,16 @@ public sealed class ObjectSchemaService : IObjectSchemaService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var fieldCounts = await _db.Set<CustomObjectCountsRow>()
+        var customCounts = await _db.Set<CustomObjectCountsRow>()
             .FromSqlRaw("EXEC dbo.usp_GetCustomObjectCounts @WorkspaceId",
                 new SqlParameter("@WorkspaceId", workspaceId))
             .AsNoTracking()
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        var fieldsByObject = fieldCounts.ToDictionary(row => row.ObjectDefinitionId, row => row.FieldsCount);
 
-        // Built-ins first (with live counts), then the workspace's custom objects (live FieldsCount).
+        // Built-ins first (with live counts), then the workspace's custom objects (live Fields + Records counts).
         var result = new List<ObjectDefinitionDto>(BuildSystemObjects(workspaceId, counts));
-        result.AddRange(BuildCustomObjects(workspaceId, customRows, fieldsByObject));
+        result.AddRange(BuildCustomObjects(workspaceId, customRows, customCounts));
         return result;
     }
 
@@ -119,10 +118,10 @@ public sealed class ObjectSchemaService : IObjectSchemaService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // FieldsCount is 0 here: live counts are a list-surface concern (the Objects tab reads
-        // ListAsync). GetByIdAsync backs create/update responses, where the object has no fields yet
-        // or the tab will re-list.
-        return rows.FirstOrDefault() is { } row ? MapCustom(row, workspaceId, fieldsCount: 0) : null;
+        // Counts are 0 here: live counts are a list-surface concern (the Objects tab reads ListAsync).
+        // GetByIdAsync backs create/update responses, where the object has no fields/records yet or the
+        // tab will re-list.
+        return rows.FirstOrDefault() is { } row ? MapCustom(row, workspaceId, fieldsCount: 0, recordsCount: 0) : null;
     }
 
     public async Task<ObjectMutationResult> CreateAsync(
@@ -287,19 +286,24 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         _ => 0,
     };
 
-    /// <summary>Composes the custom-object DTOs from their rows and a per-object live field-count map
-    /// (usp_GetCustomObjectCounts). Pure — no I/O — so it is unit-testable without a database (mirrors
-    /// BuildSystemObjects). RecordsCount stays 0 until slice 1b adds the dbo.CustomRecords count.</summary>
+    /// <summary>Composes the custom-object DTOs from their rows and the per-object live field/record
+    /// counts (usp_GetCustomObjectCounts). Pure — no I/O — so it is unit-testable without a database
+    /// (mirrors BuildSystemObjects). An object with no counts row reports 0 for both.</summary>
     public static IReadOnlyList<ObjectDefinitionDto> BuildCustomObjects(
         Guid workspaceId,
         IReadOnlyList<ObjectDefinitionRow> customRows,
-        IReadOnlyDictionary<Guid, int> fieldsByObject) =>
-        customRows.Select(row => MapCustom(
-            row,
-            workspaceId,
-            fieldsByObject.TryGetValue(row.ObjectDefinitionId, out var count) ? count : 0)).ToList();
+        IReadOnlyList<CustomObjectCountsRow> counts)
+    {
+        var countsByObject = counts.ToDictionary(row => row.ObjectDefinitionId);
+        return customRows.Select(row =>
+        {
+            countsByObject.TryGetValue(row.ObjectDefinitionId, out var count);
+            return MapCustom(row, workspaceId, count?.FieldsCount ?? 0, count?.RecordsCount ?? 0);
+        }).ToList();
+    }
 
-    private static ObjectDefinitionDto MapCustom(ObjectDefinitionRow row, Guid workspaceId, int fieldsCount) => new(
+    private static ObjectDefinitionDto MapCustom(
+        ObjectDefinitionRow row, Guid workspaceId, int fieldsCount, int recordsCount) => new(
         row.ObjectDefinitionId,
         workspaceId,
         row.ObjectKey,
@@ -309,7 +313,7 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         row.Description,
         row.ShowInSidebar,
         row.SidebarCategory,
-        RecordsCount: 0,
+        RecordsCount: recordsCount,
         FieldsCount: fieldsCount,
         IsSystem: false);
 

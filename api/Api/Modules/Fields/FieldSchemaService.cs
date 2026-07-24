@@ -34,6 +34,12 @@ public interface IFieldSchemaService
 {
     Task<WorkspaceFieldSchemaDto> GetSchemaAsync(Guid workspaceId, string objectType, CancellationToken cancellationToken);
 
+    /// <summary>The keys of an object's required, non-retired fields — the light required-field presence
+    /// check the custom-object records create/patch runs (Slice 1b). Works for any object type,
+    /// including a custom object's slug.</summary>
+    Task<IReadOnlyList<string>> GetRequiredFieldKeysAsync(
+        Guid workspaceId, string objectType, CancellationToken cancellationToken);
+
     Task<WorkspaceFieldCatalogDto> GetCatalogAsync(Guid workspaceId, CancellationToken cancellationToken);
 
     Task<PlatformFieldCatalogDto> GetPlatformCatalogAsync(CancellationToken cancellationToken);
@@ -90,6 +96,16 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
         var fields = await ReadFieldsAsync(workspaceId, objectType, cancellationToken).ConfigureAwait(false);
         var platform = await ReadPlatformBandAsync(cancellationToken).ConfigureAwait(false);
         return new WorkspaceFieldSchemaDto(workspaceId, objectType, fields, platform);
+    }
+
+    public async Task<IReadOnlyList<string>> GetRequiredFieldKeysAsync(
+        Guid workspaceId, string objectType, CancellationToken cancellationToken)
+    {
+        var fields = await ReadFieldsAsync(workspaceId, objectType, cancellationToken).ConfigureAwait(false);
+        return fields
+            .Where(field => field.IsRequired && !field.IsRetired)
+            .Select(field => field.FieldKey)
+            .ToList();
     }
 
     public async Task<IReadOnlyList<TaskLibraryFieldDto>> GetTaskLibraryAsync(Guid workspaceId, CancellationToken cancellationToken)

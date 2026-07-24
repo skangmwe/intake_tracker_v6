@@ -54,12 +54,13 @@ public sealed class ObjectDefinitionRow
     public string? SidebarCategory { get; set; }
 }
 
-/// <summary>Per-custom-object live field count (usp_GetCustomObjectCounts). One row per custom
-/// object in the workspace. RecordsCount is added in slice 1b once dbo.CustomRecords exists.</summary>
+/// <summary>Per-custom-object live field and record counts (usp_GetCustomObjectCounts). One row per
+/// custom object in the workspace.</summary>
 public sealed class CustomObjectCountsRow
 {
     public Guid ObjectDefinitionId { get; set; }
     public int FieldsCount { get; set; }
+    public int RecordsCount { get; set; }
 }
 
 /// <summary>Single-row live counts for the five built-in objects (usp_GetObjectRecordCounts).</summary>

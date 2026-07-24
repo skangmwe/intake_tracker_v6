@@ -183,6 +183,12 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Objects.CustomObjectCountsRow>()
             .HasNoKey().ToView((string?)null);
 
+        // Custom-object records (Slice 1b) — keyless projections read via stored procedures.
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.CustomRecords.CustomRecordReadRow>()
+            .HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.CustomRecords.CustomRecordQueryRow>()
+            .HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");
