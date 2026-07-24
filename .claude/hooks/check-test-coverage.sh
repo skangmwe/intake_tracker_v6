@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # check-test-coverage.sh — PreToolUse hook for Claude Code
-# Blocks git commit if any testable source file in web/src/ is missing
-# a corresponding test file.
+# Blocks git commit if any testable source file *staged in this commit* is
+# missing a corresponding test file. Scoped to the commit's own changed
+# web/src files (added/copied/modified/renamed) — it does not gate a commit
+# on unrelated, pre-existing untested files elsewhere in the tree.
 #
 # Testable files: components (.tsx), hooks (.ts), utils (.ts), pages (.tsx)
 # Exempt: type definitions, barrel exports (index.ts that only re-export),
@@ -94,7 +96,7 @@ while IFS= read -r src_file; do
     MISSING+=("$src_file")
   fi
 
-done < <(find "$WEB_SRC" -type f \( -name "*.ts" -o -name "*.tsx" \) | sort)
+done < <(git diff --cached --name-only --diff-filter=ACMR -- "$WEB_SRC" | { grep -E '\.(ts|tsx)$' || true; } | sort)
 
 if [ ${#MISSING[@]} -gt 0 ]; then
   # Build the reason message
