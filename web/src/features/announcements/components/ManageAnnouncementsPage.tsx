@@ -15,6 +15,7 @@ import type { AnnouncementAudience, WorkspaceId } from '@shared/types';
 import { Button } from '@/shared/components/Button';
 import type { SelectOption } from '@/shared/components/Form';
 import { type FilterValue, type SortState, TableFooter } from '@/shared/components/Table';
+import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
 import { useMe } from '@/features/users/useMe';
 import { useMembers } from '@/features/users/useMembers';
 
@@ -38,13 +39,19 @@ const NO_FILTERS: AnnouncementsFilters = {};
 
 export function ManageAnnouncementsPage() {
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
-  const adminMemberships = useMemo(
-    () => (me?.memberships ?? []).filter((membership) => membership.level === 'WorkspaceAdmin'),
-    [me],
-  );
 
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<WorkspaceId | null>(null);
-  const workspaceId = selectedWorkspaceId ?? adminMemberships[0]?.workspaceId ?? null;
+  // Scope to the workspace the admin is in (the active workspace), mirroring WorkspaceAuditPage —
+  // not a picker across every workspace they administer. Posting is offered only when the caller is a
+  // WorkspaceAdmin of that active workspace.
+  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const isActiveWorkspaceAdmin = useMemo(
+    () =>
+      (me?.memberships ?? []).some(
+        (membership) =>
+          membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
+      ),
+    [me, workspaceId],
+  );
   const wsId = (workspaceId ?? '') as WorkspaceId;
 
   const list = useManagedAnnouncements(workspaceId ?? undefined);
@@ -141,7 +148,7 @@ export function ManageAnnouncementsPage() {
       </p>
     );
   }
-  if (adminMemberships.length === 0 || workspaceId === null) {
+  if (workspaceId === null || !isActiveWorkspaceAdmin) {
     return (
       <section className="mws-empty mws-empty--zero">
         <p className="body">
@@ -166,24 +173,6 @@ export function ManageAnnouncementsPage() {
           New announcement
         </Button>
       </header>
-
-      {adminMemberships.length > 1 && (
-        <label className="mws-field">
-          <span className="caption">Workspace</span>
-          <select
-            className="mws-select"
-            data-ds="select"
-            value={workspaceId}
-            onChange={(event) => setSelectedWorkspaceId(event.target.value as WorkspaceId)}
-          >
-            {adminMemberships.map((membership) => (
-              <option key={membership.workspaceId} value={membership.workspaceId}>
-                {membership.workspaceName}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
 
       {list.isLoading && (
         <p className="caption" role="status">
