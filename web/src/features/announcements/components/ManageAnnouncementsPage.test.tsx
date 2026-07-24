@@ -76,6 +76,65 @@ it('ManageAnnouncementsPage — non-admin — shows the no-access message', asyn
   expect(await screen.findByText(/You need to be a workspace admin/)).toBeInTheDocument();
 });
 
+it('ManageAnnouncementsPage — admin of another workspace but not the active one — shows the no-access message', async () => {
+  // Arrange — the active workspace (the ai-solutions hub) is view-only; the admin grant is on a
+  // different workspace. Scoping is to the workspace you are in, so posting is not offered here.
+  const me = buildMe({
+    memberships: [
+      buildMembership({
+        workspaceId: 'ws-1' as WorkspaceId,
+        workspaceKind: 'ai-solutions',
+        level: 'Member',
+      }),
+      buildMembership({
+        workspaceId: 'ws-pg' as WorkspaceId,
+        workspaceName: 'Litigation',
+        workspaceKind: 'pg-dept',
+        level: 'WorkspaceAdmin',
+      }),
+    ],
+  });
+
+  // Act
+  renderWithProviders(<ManageAnnouncementsPage />, { seedMe: me });
+
+  // Assert
+  expect(await screen.findByText(/You need to be a workspace admin/)).toBeInTheDocument();
+});
+
+it('ManageAnnouncementsPage — multiple admin workspaces — binds to the active workspace with no selector', async () => {
+  // Arrange — admin of both a PG/Dept and the hub. The active workspace resolves to the ai-solutions
+  // hub (ws-1), not simply the first admin membership, and there is no workspace picker.
+  mockedApi.queryManagedAnnouncements.mockResolvedValue(page([row()]));
+  const me = buildMe({
+    memberships: [
+      buildMembership({
+        workspaceId: 'ws-pg' as WorkspaceId,
+        workspaceName: 'Litigation',
+        workspaceKind: 'pg-dept',
+        level: 'WorkspaceAdmin',
+      }),
+      buildMembership({
+        workspaceId: 'ws-1' as WorkspaceId,
+        workspaceKind: 'ai-solutions',
+        level: 'WorkspaceAdmin',
+      }),
+    ],
+  });
+
+  // Act
+  renderWithProviders(<ManageAnnouncementsPage />, { seedMe: me });
+
+  // Assert — bound to the hub, and no workspace <select> is rendered (the editor is closed).
+  await screen.findByText('Coverage news');
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  expect(mockedApi.queryManagedAnnouncements).toHaveBeenCalledWith(
+    'ws-1',
+    expect.anything(),
+    expect.anything(),
+  );
+});
+
 it('ManageAnnouncementsPage — empty — shows the zero-data state', async () => {
   // Act
   const { container } = renderWithProviders(<ManageAnnouncementsPage />, { seedMe: ADMIN_ME });
