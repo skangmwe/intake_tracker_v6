@@ -70,13 +70,19 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
     private readonly IConditionEngine _conditionEngine;
     private readonly IEventSpine _eventSpine;
     private readonly IClock _clock;
+    private readonly ImportExport.IIoObjectRegistry _ioObjects;
 
-    public FieldSchemaService(AppDbContext db, IConditionEngine conditionEngine, IEventSpine eventSpine, IClock clock)
+    public FieldSchemaService(
+        AppDbContext db, IConditionEngine conditionEngine, IEventSpine eventSpine, IClock clock,
+        ImportExport.IIoObjectRegistry ioObjects)
     {
         _db = db;
         _conditionEngine = conditionEngine;
         _eventSpine = eventSpine;
         _clock = clock;
+        // The registered object descriptors are the single source of each fixed-column object's field
+        // set; the workspace catalog surfaces the same built-in fields those objects export.
+        _ioObjects = ioObjects;
     }
 
     public async Task<WorkspaceFieldSchemaDto> GetSchemaAsync(Guid workspaceId, string objectType, CancellationToken cancellationToken)

@@ -41,6 +41,12 @@ public interface IAttachmentsService
     /// <summary>List a record's attachments. Null → 403 (forbidden/non-existent record); [] when empty.</summary>
     Task<IReadOnlyList<AttachmentDto>?> ListAsync(string recordId, Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>Every attachment in a workspace, paginated — the read behind the Attachment CSV export.
+    /// Access is the caller's Viewer membership on the workspace, gated upstream by ExportService before
+    /// this is called (the workspace scope IS the row-level entitlement; export never widens access).</summary>
+    Task<IReadOnlyList<WorkspaceAttachmentExportRow>> QueryWorkspaceAttachmentsAsync(
+        Guid workspaceId, int page, int pageSize, CancellationToken cancellationToken);
+
     /// <summary>Stream + persist an uploaded file. See AttachmentOutcome for the status mapping.</summary>
     Task<UploadResult> UploadAsync(
         string recordId, string fileName, string contentType, long sizeBytes, Stream content,
@@ -101,6 +107,20 @@ public sealed class AttachmentsService : IAttachmentsService
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         return rows.Select(MapListRow).ToList();
+    }
+
+    public async Task<IReadOnlyList<WorkspaceAttachmentExportRow>> QueryWorkspaceAttachmentsAsync(
+        Guid workspaceId, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        // Workspace-scoped read; ExportService has already gated the caller's Viewer membership on
+        // @WorkspaceId (BS §22.4 — export never widens access). No further per-user filter here.
+        return await _db.Set<WorkspaceAttachmentExportRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_GetAttachmentsForWorkspace @WorkspaceId, @Page, @PageSize",
+                new SqlParameter("@WorkspaceId", workspaceId),
+                new SqlParameter("@Page", page),
+                new SqlParameter("@PageSize", pageSize))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<UploadResult> UploadAsync(

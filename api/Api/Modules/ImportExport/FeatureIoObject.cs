@@ -75,6 +75,9 @@ public sealed class FeatureIoObject : IIoObject, IIoImporter
 
     public IReadOnlyList<IoFieldSpec> ExportFields => ExportFieldSpecs;
 
+    // Feature's catalog will come from stored FieldDefinition rows (seeded in a later slice), not here.
+    public IReadOnlyList<Shared.Schema.CatalogFieldSpec> CatalogFields => Array.Empty<Shared.Schema.CatalogFieldSpec>();
+
     public async Task<ExportDataset?> BuildExportAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
     {
         // Features live in the AI Solutions hub, not the passed workspace — access is the caller's hub

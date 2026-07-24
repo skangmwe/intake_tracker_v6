@@ -51,6 +51,10 @@ public sealed class TaskIoObject : IIoObject
 
     public IReadOnlyList<IoFieldSpec> ExportFields => ExportFieldSpecs;
 
+    // Task's catalog comes from stored FieldDefinition rows (the 6 Global attribute fields + the task
+    // library); its fixed columns move onto the manifest in a later slice.
+    public IReadOnlyList<Shared.Schema.CatalogFieldSpec> CatalogFields => Array.Empty<Shared.Schema.CatalogFieldSpec>();
+
     public async Task<ExportDataset?> BuildExportAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
     {
         // Tasks are workspace-scoped; ExportService's Viewer gate on this workspace IS the entitlement

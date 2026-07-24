@@ -569,6 +569,43 @@ public sealed class WorkspaceTaskExportRow
     public string? AssigneeName { get; set; }
 }
 
+/// <summary>One attachment row from usp_GetAttachmentsForWorkspace — the workspace-wide export
+/// projection. UploadedByName is the uploader's resolved display name (LEFT-joined; null for a
+/// seeded / non-user actor). File names are Confidential-adjacent — never logged.</summary>
+public sealed class WorkspaceAttachmentExportRow
+{
+    public Guid AttachmentId { get; set; }
+    public string RecordId { get; set; } = string.Empty;
+    public string ObjectType { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public bool IsLink { get; set; }
+    public string? ExternalUrl { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? UploadedByName { get; set; }
+}
+
+/// <summary>One toolkit-item row from usp_GetToolkitForWorkspace — the workspace-wide export
+/// projection with every user-meaningful column. UpdatedByName is the updater's resolved display
+/// name (LEFT-joined; null for a seeded / non-user actor).</summary>
+public sealed class WorkspaceToolkitExportRow
+{
+    public string RecordId { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? OneLiner { get; set; }
+    public string? Description { get; set; }
+    public string? Maintainer { get; set; }
+    public string? HowTo { get; set; }
+    public string? BodyMarkdown { get; set; }
+    public string? AttachmentFileName { get; set; }
+    public bool HasAttachment { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public string? UpdatedByName { get; set; }
+}
+
 // ─── Slice 10 (Closure, Copy, Typed links) — keyless read projections ──────────────────
 // TypedLinks are read/written through stored procedures (access-respecting far-side resolution,
 // soft-delete, queued-link stamping in usp_CreateRequest → api-data-access.md). The API never

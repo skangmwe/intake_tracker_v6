@@ -61,6 +61,13 @@ public interface IToolkitService
     Task<PaginatedResponse<ToolkitItemListRowDto>?> QueryAsync(
         Guid workspaceId, Guid userId, PaginatedQuery query, CancellationToken cancellationToken);
 
+    /// <summary>Every toolkit item in a workspace, paginated, with all user-meaningful columns — the read
+    /// behind the Toolkit CSV export. Access is the caller's Viewer membership on the workspace, gated
+    /// upstream by ExportService before this is called (the workspace scope IS the row-level entitlement;
+    /// export never widens access).</summary>
+    Task<IReadOnlyList<WorkspaceToolkitExportRow>> QueryWorkspaceToolkitAsync(
+        Guid workspaceId, int page, int pageSize, CancellationToken cancellationToken);
+
     /// <summary>The full item. Null → 403 (forbidden / non-existent).</summary>
     Task<ToolkitItemDto?> GetByIdAsync(string recordId, Guid userId, CancellationToken cancellationToken);
 
@@ -188,6 +195,20 @@ public sealed class ToolkitService : IToolkitService
         }
 
         return new PaginatedResponse<ToolkitItemListRowDto>(rows, totalCount, page, pageSize);
+    }
+
+    public async Task<IReadOnlyList<WorkspaceToolkitExportRow>> QueryWorkspaceToolkitAsync(
+        Guid workspaceId, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        // Workspace-scoped read; ExportService has already gated the caller's Viewer membership on
+        // @WorkspaceId (BS §22.4 — export never widens access). No further per-user filter here.
+        return await _db.Set<WorkspaceToolkitExportRow>()
+            .FromSqlRaw(
+                "EXEC dbo.usp_GetToolkitForWorkspace @WorkspaceId, @Page, @PageSize",
+                new SqlParameter("@WorkspaceId", workspaceId),
+                new SqlParameter("@Page", page),
+                new SqlParameter("@PageSize", pageSize))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<ToolkitItemDto?> GetByIdAsync(string recordId, Guid userId, CancellationToken cancellationToken)
