@@ -112,6 +112,10 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<TriggerCandidateRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<TriggerWatermarkRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<TriggerSweepClaimRow>().HasNoKey().ToView((string?)null);
+        // Trigger CRUD (slice: triggers-request-authoring) — admin list/editor projections.
+        modelBuilder.Entity<TriggerRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<TriggerIdRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<TriggerDeleteResultRow>().HasNoKey().ToView((string?)null);
 
         // Slice 13 (Announcements) — keyless projections read via stored procedures.
         modelBuilder.Entity<AnnouncementRow>().HasNoKey().ToView((string?)null);
