@@ -58,7 +58,9 @@ public sealed class AttachmentIoObject : IIoObject
 
     public IReadOnlyList<IoFieldSpec> ImportFields => Array.Empty<IoFieldSpec>();
 
-    public IReadOnlyList<IoFieldSpec> ExportFields => ExportFieldSpecs;
+    // Attachment is fixed-column — its export fields do not vary per workspace.
+    public Task<IReadOnlyList<IoFieldSpec>> GetExportFieldsAsync(
+        Guid workspaceId, Guid userId, CancellationToken cancellationToken) => Task.FromResult(ExportFieldSpecs);
 
     public IReadOnlyList<CatalogFieldSpec> CatalogFields => CatalogFieldSpecs;
 

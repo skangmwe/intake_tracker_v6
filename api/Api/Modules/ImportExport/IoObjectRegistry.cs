@@ -36,11 +36,17 @@ public interface IIoObject
     /// <summary>Fields a CSV column may be mapped to on import (empty when <see cref="CanImport"/> is false).</summary>
     IReadOnlyList<IoFieldSpec> ImportFields { get; }
 
-    /// <summary>Columns that can be emitted on export (empty when <see cref="CanExport"/> is false).</summary>
-    IReadOnlyList<IoFieldSpec> ExportFields { get; }
+    /// <summary>Columns that can be emitted on export, for the given workspace and caller (empty when
+    /// <see cref="CanExport"/> is false). Workspace-aware because an object's field set can be
+    /// per-workspace: fixed-column objects return a static list, while objects whose fields are stored
+    /// <c>FieldDefinition</c> rows (Request/Feature) derive their columns from the workspace's live field
+    /// catalog — so the export picker and the Fields catalog cannot drift. <paramref name="userId"/> lets
+    /// a hub-scoped object gate its field catalog on the caller's membership.</summary>
+    Task<IReadOnlyList<IoFieldSpec>> GetExportFieldsAsync(
+        Guid workspaceId, Guid userId, CancellationToken cancellationToken);
 
     /// <summary>The object's built-in fields to surface in the Fields &amp; objects catalog — the single
-    /// source, shared with <see cref="ExportFields"/> for fixed-column objects. Empty for objects whose
+    /// source, shared with <see cref="GetExportFieldsAsync"/> for fixed-column objects. Empty for objects whose
     /// catalog comes from stored <c>FieldDefinition</c> rows (Request/Feature/Task), so the catalog is
     /// not double-populated. <c>FieldSchemaService</c> reads this off the registry to synthesize
     /// read-only built-in rows for objects that have no stored field definitions.</summary>

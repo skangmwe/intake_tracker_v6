@@ -37,15 +37,18 @@ public sealed class ExportServiceTests
         var ioObject = new Mock<IIoObject>();
         ioObject.SetupGet(item => item.ObjectType).Returns("Request");
         ioObject.SetupGet(item => item.CanExport).Returns(canExport);
-        ioObject.SetupGet(item => item.ExportFields).Returns(new[]
+        var exportFields = new[]
         {
             new IoFieldSpec("id", "Record ID", AlwaysIncluded: true),
             new IoFieldSpec("name", "Name"),
-        });
+        };
+        ioObject
+            .Setup(item => item.GetExportFieldsAsync(WorkspaceId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(exportFields);
         ioObject
             .Setup(item => item.BuildExportAsync(WorkspaceId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ExportDataset(
-                ioObject.Object.ExportFields,
+                exportFields,
                 rows ?? new IReadOnlyDictionary<string, object?>[]
                 {
                     new Dictionary<string, object?> { ["id"] = "AIS-00000001", ["name"] = "Alpha" },
@@ -246,10 +249,9 @@ public sealed class ExportServiceTests
         var ioObject = new Mock<IIoObject>();
         ioObject.SetupGet(item => item.ObjectType).Returns("Feature");
         ioObject.SetupGet(item => item.CanExport).Returns(true);
-        ioObject.SetupGet(item => item.ExportFields).Returns(new[]
-        {
-            new IoFieldSpec("id", "Record ID", AlwaysIncluded: true),
-        });
+        ioObject
+            .Setup(item => item.GetExportFieldsAsync(WorkspaceId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { new IoFieldSpec("id", "Record ID", AlwaysIncluded: true) });
         ioObject
             .Setup(item => item.BuildExportAsync(WorkspaceId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ExportDataset?)null);

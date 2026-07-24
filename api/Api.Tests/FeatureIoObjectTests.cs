@@ -48,14 +48,15 @@ public sealed class FeatureIoObjectTests
             .ReturnsAsync(response);
 
     [Fact]
-    public void Metadata_IsImportableAndExportable_WithIdentityAndRequiredFields()
+    public async Task Metadata_IsImportableAndExportable_WithIdentityAndRequiredFields()
     {
         var sut = Build();
+        var exportFields = await sut.GetExportFieldsAsync(WorkspaceId, ActorId, CancellationToken.None);
 
         Assert.Equal("Feature", sut.ObjectType);
         Assert.True(sut.CanImport);
         Assert.True(sut.CanExport);
-        Assert.Contains(sut.ExportFields, field => field.Key == "id" && field.AlwaysIncluded);
+        Assert.Contains(exportFields, field => field.Key == "id" && field.AlwaysIncluded);
         Assert.Contains(sut.ImportFields, field => field.Key == "name" && field.Required);
         Assert.Contains(sut.ImportFields, field => field.Key == "featureType" && field.Required);
     }

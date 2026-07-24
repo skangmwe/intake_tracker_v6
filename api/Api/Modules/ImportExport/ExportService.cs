@@ -80,16 +80,20 @@ public sealed class ExportService : IExportService
             return new ExportResult(ExportOutcome.Denied);
         }
 
+        // The object's export fields can be per-workspace (Request derives them from the workspace field
+        // catalog), so resolve them for this workspace + caller before validating the requested subset.
+        var exportFields = await ioObject.GetExportFieldsAsync(workspaceId, userId, cancellationToken).ConfigureAwait(false);
+
         // Every requested key must be one of the object's export fields — an unknown key is a 400.
         var requested = new HashSet<string>(fieldKeys ?? Array.Empty<string>(), StringComparer.Ordinal);
-        var exportKeys = new HashSet<string>(ioObject.ExportFields.Select(field => field.Key), StringComparer.Ordinal);
+        var exportKeys = new HashSet<string>(exportFields.Select(field => field.Key), StringComparer.Ordinal);
         if (!requested.IsSubsetOf(exportKeys))
         {
             return new ExportResult(ExportOutcome.Unsupported);
         }
 
         // Identity columns are always emitted (even if unchecked); order follows the object's field list.
-        var columns = ioObject.ExportFields
+        var columns = exportFields
             .Where(field => field.AlwaysIncluded || requested.Contains(field.Key))
             .ToList();
         if (columns.Count == 0)

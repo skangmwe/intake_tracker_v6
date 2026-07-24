@@ -48,7 +48,17 @@ public sealed class ImportExportController : ControllerBase
             return AccessDenied();
         }
 
-        var objects = _registry.All.Select(ToDto).ToList();
+        // Export fields can be per-workspace (Request derives them from the workspace field catalog), so
+        // resolve each object's export columns for this workspace + caller before shaping the DTO.
+        var objects = new List<IoObjectDto>(_registry.All.Count);
+        foreach (var ioObject in _registry.All)
+        {
+            var exportFields = ioObject.CanExport
+                ? await ioObject.GetExportFieldsAsync(workspaceId, _currentUser.UserId, cancellationToken)
+                : Array.Empty<IoFieldSpec>();
+            objects.Add(ToDto(ioObject, exportFields));
+        }
+
         return Ok(objects);
     }
 
@@ -190,13 +200,13 @@ public sealed class ImportExportController : ControllerBase
         };
     }
 
-    private static IoObjectDto ToDto(IIoObject ioObject) => new(
+    private static IoObjectDto ToDto(IIoObject ioObject, IReadOnlyList<IoFieldSpec> exportFields) => new(
         ioObject.ObjectType,
         ioObject.Label,
         ioObject.CanImport,
         ioObject.CanExport,
         ioObject.ImportFields.Select(ToFieldDto).ToList(),
-        ioObject.ExportFields.Select(ToFieldDto).ToList());
+        exportFields.Select(ToFieldDto).ToList());
 
     private static IoFieldSpecDto ToFieldDto(IoFieldSpec field) => new(
         field.Key,

@@ -46,17 +46,18 @@ public sealed class ToolkitIoObjectTests
             .ReturnsAsync(rows);
 
     [Fact]
-    public void Metadata_IsExportOnly_WithIdentityAndCatalogMirroringManifest()
+    public async Task Metadata_IsExportOnly_WithIdentityAndCatalogMirroringManifest()
     {
         var sut = Build();
+        var exportFields = await sut.GetExportFieldsAsync(WorkspaceId, ActorId, CancellationToken.None);
 
         Assert.Equal("ToolkitItem", sut.ObjectType);
         Assert.False(sut.CanImport);
         Assert.True(sut.CanExport);
         Assert.Empty(sut.ImportFields);
-        Assert.Contains(sut.ExportFields, field => field.Key == "name" && field.AlwaysIncluded);
-        Assert.Contains(sut.ExportFields, field => field.Key == "body");
-        var exportKeys = sut.ExportFields.Select(field => field.Key).OrderBy(key => key);
+        Assert.Contains(exportFields, field => field.Key == "name" && field.AlwaysIncluded);
+        Assert.Contains(exportFields, field => field.Key == "body");
+        var exportKeys = exportFields.Select(field => field.Key).OrderBy(key => key);
         var catalogKeys = sut.CatalogFields.Select(field => field.Key).OrderBy(key => key);
         Assert.Equal(exportKeys, catalogKeys);
         Assert.All(sut.CatalogFields, field => Assert.Equal("ToolkitItem", field.ObjectType));
