@@ -3,7 +3,7 @@
 import type {
   FieldDefinitionDto,
   FieldDefinitionUpsertRequest,
-  FieldObjectType,
+  FieldObjectTypeOrSlug,
   PlatformFieldCatalogDto,
   PlatformFieldDto,
   PlatformFieldPatchRequest,
@@ -30,7 +30,7 @@ export function fetchFieldCatalog(
 
 export function fetchWorkspaceFields(
   workspaceId: WorkspaceId,
-  objectType: FieldObjectType,
+  objectType: FieldObjectTypeOrSlug,
   signal?: AbortSignal,
 ): Promise<WorkspaceFieldSchemaDto> {
   return apiFetch<WorkspaceFieldSchemaDto>(
@@ -63,7 +63,7 @@ export function updateField(
 export function retireField(
   workspaceId: WorkspaceId,
   fieldKey: string,
-  objectType: FieldObjectType,
+  objectType: FieldObjectTypeOrSlug,
 ): Promise<void> {
   return apiFetch<void>(
     withQuery(`/v1/workspaces/${workspaceId}/fields/${fieldKey}/retire`, { objectType }),

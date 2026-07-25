@@ -5,7 +5,11 @@
 
 import { X } from '@phosphor-icons/react';
 
-import type { FieldDefinitionUpsertRequest, FieldObjectType, WorkspaceId } from '@shared/types';
+import type {
+  FieldDefinitionUpsertRequest,
+  FieldObjectTypeOrSlug,
+  WorkspaceId,
+} from '@shared/types';
 
 import { IconButton } from '@/shared/components/Button';
 
@@ -14,9 +18,11 @@ import { FieldEditorSheet } from './FieldEditorSheet';
 
 interface FieldEditLoaderProps {
   workspaceId: WorkspaceId;
-  objectType: FieldObjectType;
+  objectType: FieldObjectTypeOrSlug;
   fieldKey: string;
-  availableKeysByObject: Partial<Record<FieldObjectType, string[]>>;
+  availableKeysByObject: Partial<Record<string, string[]>>;
+  /** Custom (non-built-in) objects the workspace has defined — forwarded to the editor sheet. */
+  customObjectOptions: readonly { value: string; label: string }[];
   saveError: string | null;
   isSaving: boolean;
   onSave: (fieldKey: string, request: FieldDefinitionUpsertRequest, isCreate: boolean) => void;
@@ -52,6 +58,7 @@ export function FieldEditLoader({
   objectType,
   fieldKey,
   availableKeysByObject,
+  customObjectOptions,
   saveError,
   isSaving,
   onSave,
@@ -81,6 +88,7 @@ export function FieldEditLoader({
       initialObjectType={objectType}
       field={field}
       availableKeysByObject={availableKeysByObject}
+      customObjectOptions={customObjectOptions}
       saveError={saveError}
       isSaving={isSaving}
       onSave={onSave}

@@ -14,6 +14,7 @@ function renderSheet(overrides: Partial<React.ComponentProps<typeof FieldEditorS
     initialObjectType: 'Request',
     field: null,
     availableKeysByObject: { Request: ['deptPgClient'] },
+    customObjectOptions: [],
     saveError: null,
     isSaving: false,
     onSave: jest.fn(),
@@ -44,6 +45,45 @@ describe('FieldEditorSheet', () => {
     expect(screen.getByDisplayValue('dueDate')).toBeDisabled();
     // Object is part of a field's identity — it cannot change on edit.
     expect(screen.getByLabelText('Object')).toBeDisabled();
+  });
+
+  it('FieldEditorSheet — custom object selected — Object option shown and Location locked', async () => {
+    // Arrange
+    const onSave = jest.fn();
+    render(
+      <FieldEditorSheet
+        initialObjectType="vendor"
+        field={null}
+        customObjectOptions={[{ value: 'vendor', label: 'Vendor' }]}
+        availableKeysByObject={{}}
+        saveError={null}
+        isSaving={false}
+        onSave={onSave}
+        onClose={jest.fn()}
+      />,
+    );
+
+    // Assert — the custom object is the selected Object, and Location is Local Workspace + disabled
+    const objectSelect = screen.getByRole('combobox', { name: /object/i });
+    expect(objectSelect).toHaveValue('vendor');
+    const locationSelect = screen.getByRole('combobox', { name: /location/i });
+    expect(locationSelect).toBeDisabled();
+    expect(locationSelect).toHaveValue('LocalWorkspace');
+  });
+
+  it('FieldEditorSheet — switching to a custom object — locks Location to Local Workspace', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    renderSheet({ customObjectOptions: [{ value: 'vendor', label: 'Vendor' }] });
+
+    // Act — start on a Global location, then switch the Object to the custom object.
+    await user.selectOptions(screen.getByLabelText('Location'), 'Global');
+    await user.selectOptions(screen.getByLabelText('Object'), 'vendor');
+
+    // Assert
+    const locationSelect = screen.getByRole('combobox', { name: /location/i });
+    expect(locationSelect).toBeDisabled();
+    expect(locationSelect).toHaveValue('LocalWorkspace');
   });
 
   it('FieldEditorSheet — submit — builds a create request with object and location', async () => {
@@ -225,6 +265,7 @@ describe('FieldEditorSheet', () => {
           options: [{ id: 'o', value: 'A', label: 'A', sortOrder: 0 }],
         })}
         availableKeysByObject={{ Request: ['deptPgClient'] }}
+        customObjectOptions={[]}
         saveError="Something went wrong."
         isSaving={false}
         onSave={jest.fn()}
@@ -233,6 +274,14 @@ describe('FieldEditorSheet', () => {
         onClose={jest.fn()}
       />,
     );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('FieldEditorSheet — no axe violations (custom object selected, Location locked)', async () => {
+    const { container } = renderSheet({
+      customObjectOptions: [{ value: 'vendor', label: 'Vendor' }],
+      initialObjectType: 'vendor',
+    });
     expect(await axe(container)).toHaveNoViolations();
   });
 });
