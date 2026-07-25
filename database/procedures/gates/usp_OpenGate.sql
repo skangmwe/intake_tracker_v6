@@ -40,6 +40,14 @@ BEGIN
 
     DECLARE @NewId UNIQUEIDENTIFIER = NEWID();
 
+    -- Stamp the approver respond-by window (RespondByDate = OpenedAt + Workspaces.ApprovalRespondByDays).
+    -- The column is NOT NULL DEFAULT 5, so the workspace (guaranteed to exist by the access gate) always
+    -- yields a concrete window; the ISNULL is defence in depth against a missing row.
+    DECLARE @OpenedAt DATETIME2 = SYSUTCDATETIME();
+    DECLARE @Days     INT;
+    SELECT @Days = ApprovalRespondByDays FROM dbo.Workspaces WHERE WorkspaceId = @Ws;
+    DECLARE @RespondBy DATE = DATEADD(DAY, ISNULL(@Days, 5), CAST(@OpenedAt AS DATE));
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -89,11 +97,11 @@ BEGIN
         INSERT INTO dbo.ApprovalRequests
             (ApprovalRequestId, RequestRecordId, WorkspaceId, GateDefinitionId, GateName,
              FromStageKey, ToStageKey, FromStageLabel, ToStageLabel, State,
-             OpenedByUserId, FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
+             OpenedByUserId, OpenedAt, RespondByDate, FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
         VALUES
             (@NewId, @Record, @Ws, @Gate, @GateName,
              @FromKey, @ToKey, @FromLabel, @ToLabel, N'Pending',
-             @By, @Frozen, 0, @ByText, @ByText);
+             @By, @OpenedAt, @RespondBy, @Frozen, 0, @ByText, @ByText);
 
         COMMIT TRANSACTION;
     END TRY
@@ -105,7 +113,7 @@ BEGIN
     SELECT
         v.ApprovalRequestId, v.RequestRecordId, v.WorkspaceId, v.GateDefinitionId, v.GateName,
         v.FromStageKey, v.ToStageKey, v.FromStageLabel, v.ToStageLabel, v.State,
-        v.OpenedAt, v.ResolvedAt, v.FrozenApproverSet, v.DecisionsJson
+        v.OpenedAt, v.ResolvedAt, v.RespondByDate, v.FrozenApproverSet, v.DecisionsJson
     FROM dbo.vw_ApprovalRequestDetail AS v
     WHERE v.ApprovalRequestId = @NewId;
 END;

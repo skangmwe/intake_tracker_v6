@@ -19,6 +19,10 @@ public interface ITriggerGateway
     /// authored conditions — the SQL candidate pre-filter is the whole "when".</summary>
     Task<IReadOnlyList<EnabledTriggerRow>> GetEnabledTaskOverdueTriggersAsync(CancellationToken cancellationToken);
 
+    /// <summary>Enabled built-in 'ApprovalOverdue' triggers (usp_GetEnabledApprovalOverdueTriggers). Like
+    /// TaskOverdue, these carry no authored conditions — the candidate pre-filter is the whole "when".</summary>
+    Task<IReadOnlyList<EnabledTriggerRow>> GetEnabledApprovalOverdueTriggersAsync(CancellationToken cancellationToken);
+
     /// <summary>Coarse candidate records for one trigger (usp_GetTriggerCandidates). <paramref name="today"/>
     /// drives the built-in TaskOverdue date pre-filter (open tasks with a due date before today).</summary>
     Task<IReadOnlyList<TriggerCandidateRow>> GetCandidatesAsync(Guid triggerId, DateOnly today, CancellationToken cancellationToken);
@@ -55,6 +59,11 @@ public sealed class TriggerGateway : ITriggerGateway
     public async Task<IReadOnlyList<EnabledTriggerRow>> GetEnabledTaskOverdueTriggersAsync(CancellationToken cancellationToken) =>
         await _db.Set<EnabledTriggerRow>()
             .FromSqlRaw("EXEC dbo.usp_GetEnabledTaskOverdueTriggers")
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<EnabledTriggerRow>> GetEnabledApprovalOverdueTriggersAsync(CancellationToken cancellationToken) =>
+        await _db.Set<EnabledTriggerRow>()
+            .FromSqlRaw("EXEC dbo.usp_GetEnabledApprovalOverdueTriggers")
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
     public async Task<IReadOnlyList<TriggerCandidateRow>> GetCandidatesAsync(Guid triggerId, DateOnly today, CancellationToken cancellationToken) =>

@@ -38,6 +38,9 @@ public sealed class Workspace : AuditableEntity
     /// <summary>Days added to a request's Deploy Date to default its Benefit-review date
     /// (time-based triggers slice 3, §17.11). Default 90.</summary>
     public int BenefitReviewOffsetDays { get; set; } = 90;
+    /// <summary>Days added to an approval gate's OpenedAt to default its approver RespondByDate (Slice 5).
+    /// Per-workspace config; default 5.</summary>
+    public int ApprovalRespondByDays { get; set; } = 5;
 }
 
 /// <summary>A user — provisioned by EnsureUserMiddleware on first authenticated request.</summary>
@@ -694,6 +697,10 @@ public sealed class ApprovalRequestRow
     public string State { get; set; } = string.Empty;
     public DateTime OpenedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    /// <summary>Date the frozen approvers are expected to respond by (OpenedAt + the workspace's
+    /// ApprovalRespondByDays), stamped at gate-open. NULL for gates opened before Slice 5. Drives the
+    /// built-in ApprovalOverdue trigger.</summary>
+    public DateOnly? RespondByDate { get; set; }
     /// <summary>Snapshot of slots + eligible members at open (JSON). Parsed into FrozenApproverSlotDto[].</summary>
     public string FrozenApproverSet { get; set; } = "[]";
     /// <summary>Slot decisions rolled up (JSON). Parsed into ApprovalDecisionDto[].</summary>
@@ -1224,6 +1231,9 @@ public sealed class TriggerCandidateRow
     public string? FieldValuesJson { get; set; }
     /// <summary>The task's assignee to notify — TaskOverdue candidates only; null for Authored.</summary>
     public Guid? AssigneeUserId { get; set; }
+    /// <summary>The gate's frozen approver set (JSON) — ApprovalOverdue candidates only; null otherwise.
+    /// The evaluator resolves the distinct eligible-member user ids from it. Confidential — never logged.</summary>
+    public string? ApproverSetJson { get; set; }
 }
 
 /// <summary>A single fire watermark for a trigger — from usp_GetTriggerWatermarks.</summary>

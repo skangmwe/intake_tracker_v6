@@ -24,6 +24,7 @@ SELECT
     ar.State,
     ar.OpenedAt,
     ar.ResolvedAt,
+    ar.RespondByDate,
     ar.FrozenApproverSet,
     ISNULL((
         SELECT

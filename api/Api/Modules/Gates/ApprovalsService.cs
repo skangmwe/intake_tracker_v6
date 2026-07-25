@@ -274,6 +274,7 @@ public sealed class ApprovalsService : IApprovalsService
         State: row.State,
         OpenedAt: DateTime.SpecifyKind(row.OpenedAt, DateTimeKind.Utc),
         ResolvedAt: row.ResolvedAt is null ? null : DateTime.SpecifyKind(row.ResolvedAt.Value, DateTimeKind.Utc),
+        RespondByDate: row.RespondByDate,
         Slots: ParseJson<FrozenApproverSlotDto>(row.FrozenApproverSet),
         Decisions: ParseJson<ApprovalDecisionDto>(row.DecisionsJson));
 

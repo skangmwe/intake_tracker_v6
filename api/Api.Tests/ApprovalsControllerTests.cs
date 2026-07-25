@@ -43,6 +43,7 @@ public sealed class ApprovalsControllerTests
         State: state,
         OpenedAt: DateTime.UtcNow,
         ResolvedAt: null,
+        RespondByDate: null,
         Slots: Array.Empty<FrozenApproverSlotDto>(),
         Decisions: Array.Empty<ApprovalDecisionDto>());
 

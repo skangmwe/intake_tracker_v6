@@ -24,7 +24,7 @@ BEGIN
     SELECT
         v.ApprovalRequestId, v.RequestRecordId, v.WorkspaceId, v.GateDefinitionId, v.GateName,
         v.FromStageKey, v.ToStageKey, v.FromStageLabel, v.ToStageLabel, v.State,
-        v.OpenedAt, v.ResolvedAt, v.FrozenApproverSet, v.DecisionsJson
+        v.OpenedAt, v.ResolvedAt, v.RespondByDate, v.FrozenApproverSet, v.DecisionsJson
     FROM dbo.vw_ApprovalRequestDetail AS v
     INNER JOIN dbo.WorkspaceMembership AS m
         ON m.WorkspaceId = v.WorkspaceId AND m.UserId = @User AND m.IsDeleted = 0

@@ -83,6 +83,13 @@ public sealed class ScheduledTriggerEvaluator : IScheduledTriggerEvaluator
                 await EvaluateTaskOverdueTriggerAsync(trigger, today, operationId, counts, cancellationToken).ConfigureAwait(false);
             }
 
+            var approvalOverdueTriggers = await _gateway.GetEnabledApprovalOverdueTriggersAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var trigger in approvalOverdueTriggers)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await EvaluateApprovalOverdueTriggerAsync(trigger, today, operationId, counts, cancellationToken).ConfigureAwait(false);
+            }
+
             var (evaluated, fired, failedFanOut) = (counts.Evaluated, counts.Fired, counts.FailedFanOut);
             var durationMs = Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
             _logger.LogInformation(
@@ -145,6 +152,27 @@ public sealed class ScheduledTriggerEvaluator : IScheduledTriggerEvaluator
             var recipientUserIds = candidate.AssigneeUserId is Guid assignee
                 ? new List<string> { assignee.ToString() }
                 : new List<string>();
+            await FireCandidateAsync(
+                trigger, candidate, watermarks, today, recipientUserIds, includeWatchers: false, operationId, counts, cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private async Task EvaluateApprovalOverdueTriggerAsync(
+        EnabledTriggerRow trigger, DateOnly today, string operationId, SweepCounters counts, CancellationToken cancellationToken)
+    {
+        counts.Evaluated++;
+
+        // The candidate proc already applied the fixed condition (unresolved gate, respond-by date passed).
+        // Recipients are the distinct eligible approvers frozen on the gate; watchers are not involved.
+        var candidates = await _gateway.GetCandidatesAsync(trigger.TriggerId, today, cancellationToken).ConfigureAwait(false);
+        var watermarks = await LoadWatermarksAsync(trigger.TriggerId, cancellationToken).ConfigureAwait(false);
+
+        foreach (var candidate in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var recipientUserIds = ResolveApproverRecipients(candidate.ApproverSetJson);
             await FireCandidateAsync(
                 trigger, candidate, watermarks, today, recipientUserIds, includeWatchers: false, operationId, counts, cancellationToken)
                 .ConfigureAwait(false);
@@ -268,6 +296,46 @@ public sealed class ScheduledTriggerEvaluator : IScheduledTriggerEvaluator
         }
 
         return (userIds, includeWatchers);
+    }
+
+    // Distinct eligible-approver user ids across all frozen slots — the recipients for an ApprovalOverdue
+    // trigger. The set shape is [{ ..., eligibleMembers: [{ userId, displayName }] }] (usp_OpenGate). A
+    // person eligible on more than one slot is notified once. The FrozenApproverSet column is ISJSON-checked.
+    private static List<string> ResolveApproverRecipients(string? approverSetJson)
+    {
+        var userIds = new List<string>();
+        if (string.IsNullOrWhiteSpace(approverSetJson))
+        {
+            return userIds;
+        }
+
+        using var document = JsonDocument.Parse(approverSetJson);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return userIds;
+        }
+
+        foreach (var slot in document.RootElement.EnumerateArray())
+        {
+            if (!slot.TryGetProperty("eligibleMembers", out var members) || members.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var member in members.EnumerateArray())
+            {
+                if (member.TryGetProperty("userId", out var userIdElement)
+                    && userIdElement.ValueKind == JsonValueKind.String
+                    && userIdElement.GetString() is string userId
+                    && Guid.TryParse(userId, out _)
+                    && !userIds.Contains(userId, StringComparer.OrdinalIgnoreCase))
+                {
+                    userIds.Add(userId);
+                }
+            }
+        }
+
+        return userIds;
     }
 
     // ─── emission ───────────────────────────────────────────────────────

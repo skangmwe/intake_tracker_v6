@@ -23,6 +23,7 @@ BEGIN
     EXEC tSQLt.FakeTable @TableName = 'dbo.ScheduledTriggerSweepLog';
     EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
     EXEC tSQLt.FakeTable @TableName = 'dbo.Tasks';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalRequests';
 END;
 GO
 
@@ -66,7 +67,7 @@ BEGIN
            (N'LIT-4', @otherWs, N'{"dueDate":"2026-01-03"}', 0);                    -- other ws -> excluded
 
     -- Act
-    DECLARE @out TABLE (RecordId NVARCHAR(64), WatermarkKey NVARCHAR(64), FieldValuesJson NVARCHAR(MAX), AssigneeUserId UNIQUEIDENTIFIER);
+    DECLARE @out TABLE (RecordId NVARCHAR(64), WatermarkKey NVARCHAR(64), FieldValuesJson NVARCHAR(MAX), AssigneeUserId UNIQUEIDENTIFIER, ApproverSetJson NVARCHAR(MAX));
     INSERT INTO @out EXEC dbo.usp_GetTriggerCandidates @TriggerId = @tid, @Today = '2026-07-24';
 
     -- Assert — the one open request; for an Authored trigger the watermark keys on the record id and there
@@ -105,7 +106,7 @@ BEGIN
 
     -- Act
     DECLARE @today DATE = '2026-07-24';
-    DECLARE @out TABLE (RecordId NVARCHAR(64), WatermarkKey NVARCHAR(64), FieldValuesJson NVARCHAR(MAX), AssigneeUserId UNIQUEIDENTIFIER);
+    DECLARE @out TABLE (RecordId NVARCHAR(64), WatermarkKey NVARCHAR(64), FieldValuesJson NVARCHAR(MAX), AssigneeUserId UNIQUEIDENTIFIER, ApproverSetJson NVARCHAR(MAX));
     INSERT INTO @out EXEC dbo.usp_GetTriggerCandidates @TriggerId = @tid, @Today = @today;
 
     -- Assert — only the open, overdue, non-deleted task in the workspace; watermark keyed on its TaskId,
@@ -142,6 +143,79 @@ BEGIN
     INSERT INTO @out EXEC dbo.usp_GetEnabledTaskOverdueTriggers;
 
     -- Assert — only the enabled, non-deleted TaskOverdue trigger; no authored conditions (empty array).
+    DECLARE @count INT = (SELECT COUNT(*) FROM @out);
+    DECLARE @name NVARCHAR(200) = (SELECT TOP 1 Name FROM @out);
+    DECLARE @conditions NVARCHAR(MAX) = (SELECT TOP 1 ConditionsJson FROM @out);
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @count;
+    EXEC tSQLt.AssertEqualsString @Expected = N'keep', @Actual = @name;
+    EXEC tSQLt.AssertEqualsString @Expected = N'[]', @Actual = @conditions;
+END;
+GO
+
+CREATE PROCEDURE TriggersTests.[test usp_GetTriggerCandidates returns only unresolved overdue non-deleted approvals in the workspace]
+AS
+BEGIN
+    -- Arrange
+    DECLARE @tid UNIQUEIDENTIFIER = '00000000-0000-4000-8000-0000000000c1';
+    DECLARE @ws  UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
+    DECLARE @otherWs UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000002';
+    DECLARE @pendingGate UNIQUEIDENTIFIER = '44444444-4444-4000-8000-000000000001';
+    DECLARE @changesGate UNIQUEIDENTIFIER = '44444444-4444-4000-8000-000000000002';
+    DECLARE @frozen NVARCHAR(MAX) = N'[{"slotIndex":0,"eligibleMembers":[{"userId":"00000000-0000-4000-8000-0000000000cc","displayName":"A"}]}]';
+    INSERT INTO dbo.ScheduledTrigger (TriggerId, WorkspaceId, ObjectType, Kind, Name, IsEnabled, Cadence,
+        NotificationCategory, Recipients, NotificationTitle, NotificationBody, CreatedBy, UpdatedBy, IsDeleted)
+    VALUES (@tid, @ws, N'Approval', N'ApprovalOverdue', N'T', 1, N'RepeatEveryNDays', N'approval-overdue', N'[]', N'x', N'y', N'a', N'a', 0);
+
+    INSERT INTO dbo.ApprovalRequests (ApprovalRequestId, RequestRecordId, WorkspaceId, GateDefinitionId, GateName,
+        FromStageKey, ToStageKey, FromStageLabel, ToStageLabel, State, OpenedAt, RespondByDate, FrozenApproverSet, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES
+        (@pendingGate, N'LIT-1', @ws,      NEWID(), N'g', N'a', N'b', N'A', N'B', N'Pending',          SYSUTCDATETIME(), '2026-07-20', @frozen, 0, N's', N's'),  -- unresolved + overdue + in ws -> included
+        (@changesGate, N'LIT-1', @ws,      NEWID(), N'g', N'a', N'b', N'A', N'B', N'ChangesRequested', SYSUTCDATETIME(), '2026-07-20', @frozen, 0, N's', N's'),  -- unresolved (changes) + overdue -> included
+        (NEWID(),      N'LIT-2', @ws,      NEWID(), N'g', N'a', N'b', N'A', N'B', N'Resolved',         SYSUTCDATETIME(), '2026-07-20', @frozen, 0, N's', N's'),  -- resolved -> excluded
+        (NEWID(),      N'LIT-3', @ws,      NEWID(), N'g', N'a', N'b', N'A', N'B', N'Pending',          SYSUTCDATETIME(), '2026-12-31', @frozen, 0, N's', N's'),  -- respond-by in future -> excluded
+        (NEWID(),      N'LIT-4', @ws,      NEWID(), N'g', N'a', N'b', N'A', N'B', N'Pending',          SYSUTCDATETIME(), NULL,         @frozen, 0, N's', N's'),  -- no respond-by -> excluded
+        (NEWID(),      N'LIT-5', @ws,      NEWID(), N'g', N'a', N'b', N'A', N'B', N'Pending',          SYSUTCDATETIME(), '2026-07-20', @frozen, 1, N's', N's'),  -- soft-deleted -> excluded
+        (NEWID(),      N'LIT-6', @otherWs, NEWID(), N'g', N'a', N'b', N'A', N'B', N'Pending',          SYSUTCDATETIME(), '2026-07-20', @frozen, 0, N's', N's');  -- other ws -> excluded
+
+    -- Act
+    DECLARE @today DATE = '2026-07-24';
+    DECLARE @out TABLE (RecordId NVARCHAR(64), WatermarkKey NVARCHAR(64), FieldValuesJson NVARCHAR(MAX), AssigneeUserId UNIQUEIDENTIFIER, ApproverSetJson NVARCHAR(MAX));
+    INSERT INTO @out EXEC dbo.usp_GetTriggerCandidates @TriggerId = @tid, @Today = @today;
+
+    -- Assert — both unresolved overdue gates (Pending + ChangesRequested); watermark keyed on ApprovalRequestId,
+    -- fan-out record is the parent request, frozen approver set carried through.
+    DECLARE @count INT = (SELECT COUNT(*) FROM @out);
+    DECLARE @hasPending INT = (SELECT COUNT(*) FROM @out WHERE WatermarkKey = CAST(@pendingGate AS NVARCHAR(64)));
+    DECLARE @hasChanges INT = (SELECT COUNT(*) FROM @out WHERE WatermarkKey = CAST(@changesGate AS NVARCHAR(64)));
+    DECLARE @approversPresent INT = (SELECT COUNT(*) FROM @out WHERE ApproverSetJson LIKE N'%eligibleMembers%');
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = @count;
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @hasPending;
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @hasChanges;
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = @approversPresent;
+END;
+GO
+
+CREATE PROCEDURE TriggersTests.[test usp_GetEnabledApprovalOverdueTriggers excludes disabled deleted and other kinds]
+AS
+BEGIN
+    -- Arrange
+    DECLARE @ws UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
+    INSERT INTO dbo.ScheduledTrigger (TriggerId, WorkspaceId, ObjectType, Kind, Name, IsEnabled, Cadence,
+        NotificationCategory, Recipients, NotificationTitle, NotificationBody, CreatedBy, UpdatedBy, IsDeleted)
+    VALUES ('00000000-0000-4000-8000-00000000020a', @ws, N'Approval', N'ApprovalOverdue', N'keep',     1, N'Once', N'approval-overdue', N'[]', N'x', N'y', N'a', N'a', 0),
+           ('00000000-0000-4000-8000-00000000020b', @ws, N'Approval', N'ApprovalOverdue', N'disabled', 0, N'Once', N'approval-overdue', N'[]', N'x', N'y', N'a', N'a', 0),
+           ('00000000-0000-4000-8000-00000000020c', @ws, N'Approval', N'ApprovalOverdue', N'deleted',  1, N'Once', N'approval-overdue', N'[]', N'x', N'y', N'a', N'a', 1),
+           ('00000000-0000-4000-8000-00000000020d', @ws, N'Task',     N'TaskOverdue',     N'task',     1, N'Once', N'task-overdue',     N'[]', N'x', N'y', N'a', N'a', 0),
+           ('00000000-0000-4000-8000-00000000020e', @ws, N'Request',  N'Authored',        N'authored', 1, N'Once', N'sla-reminder',     N'[]', N'x', N'y', N'a', N'a', 0);
+
+    -- Act
+    DECLARE @out TABLE (TriggerId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, ObjectType NVARCHAR(64),
+        Kind NVARCHAR(32), Name NVARCHAR(200), Cadence NVARCHAR(32), RepeatIntervalDays INT,
+        NotificationCategory NVARCHAR(32), Recipients NVARCHAR(MAX), NotificationTitle NVARCHAR(200),
+        NotificationBody NVARCHAR(MAX), ConditionsJson NVARCHAR(MAX));
+    INSERT INTO @out EXEC dbo.usp_GetEnabledApprovalOverdueTriggers;
+
+    -- Assert — only the enabled, non-deleted ApprovalOverdue trigger; no authored conditions (empty array).
     DECLARE @count INT = (SELECT COUNT(*) FROM @out);
     DECLARE @name NVARCHAR(200) = (SELECT TOP 1 Name FROM @out);
     DECLARE @conditions NVARCHAR(MAX) = (SELECT TOP 1 ConditionsJson FROM @out);
