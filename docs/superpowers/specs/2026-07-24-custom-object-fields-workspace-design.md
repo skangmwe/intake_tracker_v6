@@ -129,9 +129,30 @@ service guards were never widened past built-ins and must be:
 Factor the "resolve a possibly-custom objectType, or 404" logic into one private helper on the
 controller so the three handlers share it and stay consistent with `GetFields`.
 
-No stored-procedure changes are expected — the guards are app-layer validation over the existing
-`usp_UpsertFieldDefinition` / `usp_RetireFieldDefinition`. (Confirm during build; if a proc rejects a
-slug, that becomes a fourth backend task, but SP1 already widened the column and dropped the CHECK.)
+### Part 3b — foundation truncation/CHECK fix (discovered during planning)
+
+SP1 widened the **column** `FieldDefinition.ObjectType` 16→64 (migration 078) but left the **procs**
+and a **sibling table** at `NVARCHAR(16)` / a hard-coded CHECK. SP2 dodged this because its test/usage
+slugs were all ≤16 chars. SP3 is the first sub-project that authors fields on custom-object slugs from
+the product, so it must close the gaps or a custom object whose slug exceeds 16 chars silently breaks
+(truncation), and *any* custom-object field carrying a rule throws a CHECK violation:
+
+- **Procs — widen `@ObjectType` / `@ObjectTypeLocal` `NVARCHAR(16)` → `NVARCHAR(64)`** (CREATE OR
+  ALTER, no migration; the runner reapplies all procs): `usp_UpsertFieldDefinition`,
+  `usp_RetireFieldDefinition`, `usp_GetWorkspaceFields`, `usp_GetWorkspaceFieldDependencies`,
+  `usp_GetWorkspaceFieldOptions`, `usp_GetWorkspaceFieldRules`. A slug over 16 chars is otherwise
+  truncated on write and read. (`usp_GetWorkspaceFieldCatalog` takes no `@ObjectType` param — unaffected.)
+- **`dbo.FieldRuleDependency` (migration 088)** — the upsert proc inserts a dependency row per rule
+  keyed by `(WorkspaceId, ObjectType, …)`. Its `ObjectType` column is `NVARCHAR(16)` **and** carries
+  `CK_FieldRuleDependency_ObjectType CHECK (ObjectType IN ('Request','Task','Feature'))`, which rejects
+  any custom slug. Mirror migration 078 exactly for this table: drop the dependent composite index
+  `IX_FieldRuleDependency_Workspace_Object`, widen `ObjectType` 16→64, recreate the index, and drop
+  the CHECK (validity is app-enforced against `dbo.ObjectDefinition`). Idempotent, with a rollback.
+
+This is a genuine SP1 completeness gap, not scope creep: without it the SP3 feature the user approved
+silently misbehaves for real object names. It slightly expands the backend beyond the original Part 3
+(which assumed "no proc changes"). The C# guards (Part 3) still validate object-type membership; these
+DB changes make the persisted write path correct for slugs of any length.
 
 ### Part 4 — Rename "Global" → "Platform" (display label only)
 
@@ -180,8 +201,11 @@ Admin: Fields tab → New field → Object = <custom object> (from useWorkspaceO
   404; (d) custom object + Location=Global → 400; (e) non-admin → 403. Mock `IObjectSchemaService`.
 - **Catalog render:** a Local custom-object user field renders as an editable `User` row; the Location
   label reads "Platform" for a Global field (rename check).
-- **tSQLt:** only if a proc changes (not expected). If the upsert/retire procs already accept a slug
-  (SP1), no tSQLt is added.
+- **tSQLt (Part 3b):** one round-trip test proving `usp_UpsertFieldDefinition` then
+  `usp_GetWorkspaceFields` preserve a **>16-char** custom-object slug (would fail under the old
+  `NVARCHAR(16)` param via truncation); and one proving a custom-object field **with a rule** upserts
+  without a CHECK violation now that `CK_FieldRuleDependency_ObjectType` is dropped. Authored to
+  FakeTable/AAA per the repo's tSQLt conventions (CI-run; can't run locally).
 
 ## Rollout
 
