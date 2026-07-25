@@ -11,6 +11,7 @@ import type { FieldCatalogRowDto } from '@shared/types';
 import { Button } from '@/shared/components/Button';
 import { type FilterValue, type SortState } from '@/shared/components/Table';
 
+import { lockMessageForSource } from '../constants';
 import { problemMessage } from '../errorMessage';
 import {
   type CatalogColumnKey,
@@ -18,9 +19,10 @@ import {
   isFilterActive,
   selectCatalogView,
 } from '../fieldCatalogView';
+import { buildFormFromCatalogRow } from '../fieldForm';
 import { usePlatformFieldCatalog, usePlatformFields, useUpdatePlatformField } from '../useFields';
 import { FieldCatalogTable } from './FieldCatalogTable';
-import { FieldReadOnlySheet } from './FieldReadOnlySheet';
+import { FieldEditorSheet } from './FieldEditorSheet';
 import { PlatformFieldEditorSheet } from './PlatformFieldEditorSheet';
 
 const NO_FILTERS: CatalogFilters = {};
@@ -138,7 +140,20 @@ export function PlatformFieldsCatalogTab() {
         />
       )}
 
-      {readonlyRow && <FieldReadOnlySheet row={readonlyRow} onClose={() => setReadonlyRow(null)} />}
+      {readonlyRow && (
+        <FieldEditorSheet
+          initialObjectType={readonlyRow.objectType}
+          field={null}
+          readOnly
+          readOnlyForm={buildFormFromCatalogRow(readonlyRow)}
+          lockMessage={lockMessageForSource(readonlyRow.source)}
+          availableKeysByObject={{}}
+          saveError={null}
+          isSaving={false}
+          onSave={() => {}}
+          onClose={() => setReadonlyRow(null)}
+        />
+      )}
     </div>
   );
 }

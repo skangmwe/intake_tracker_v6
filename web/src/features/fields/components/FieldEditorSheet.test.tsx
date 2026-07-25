@@ -1,9 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
+import type { FieldCatalogRowDto } from '@shared/types';
 
 import { buildFieldDefinition } from '@/test-utils';
 
+import { lockMessageForSource } from '../constants';
+import { buildFormFromCatalogRow } from '../fieldForm';
 import { FieldEditorSheet } from './FieldEditorSheet';
 
 function renderSheet(overrides: Partial<React.ComponentProps<typeof FieldEditorSheet>> = {}) {
@@ -231,5 +234,60 @@ describe('FieldEditorSheet', () => {
       />,
     );
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+const lockedRow: FieldCatalogRowDto = {
+  id: 'system:Request:recordId',
+  objectType: 'Request',
+  objectLabel: 'Request',
+  fieldKey: 'recordId',
+  displayName: 'Record ID',
+  fieldType: 'ShortText',
+  location: 'Global',
+  isRequired: true,
+  source: 'System',
+  status: 'Active',
+  isReadOnly: true,
+};
+
+function renderReadOnly() {
+  return render(
+    <FieldEditorSheet
+      initialObjectType="Request"
+      field={null}
+      readOnly
+      readOnlyForm={buildFormFromCatalogRow(lockedRow)}
+      lockMessage={lockMessageForSource(lockedRow.source)}
+      availableKeysByObject={{}}
+      saveError={null}
+      isSaving={false}
+      onSave={() => {}}
+      onClose={() => {}}
+    />,
+  );
+}
+
+describe('FieldEditorSheet — read-only', () => {
+  it('FieldEditorSheet — read-only — titles "Edit {name}", shows lock banner, no Save', () => {
+    // Arrange / Act
+    renderReadOnly();
+
+    // Assert
+    expect(screen.getByRole('heading', { name: 'Edit Record ID' })).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent(/system field/i);
+    // Exact match — the header's "Close editor" icon button also matches a loose /close/i regex.
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save field/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Display name') as HTMLInputElement).toBeDisabled();
+  });
+
+  it('FieldEditorSheet — read-only — has no axe violations', async () => {
+    // Arrange
+    const { container } = renderReadOnly();
+    // Act
+    const results = await axe(container);
+    // Assert
+    expect(results).toHaveNoViolations();
   });
 });

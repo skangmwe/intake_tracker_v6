@@ -11,6 +11,7 @@ import type { FieldCatalogRowDto, FieldObjectType, WorkspaceId } from '@shared/t
 import { Button } from '@/shared/components/Button';
 import { type FilterValue, type SortState } from '@/shared/components/Table';
 
+import { lockMessageForSource } from '../constants';
 import { problemMessage } from '../errorMessage';
 import {
   type CatalogColumnKey,
@@ -18,11 +19,11 @@ import {
   isFilterActive,
   selectCatalogView,
 } from '../fieldCatalogView';
+import { buildFormFromCatalogRow } from '../fieldForm';
 import { useFieldCatalog, useRetireField, useSaveField } from '../useFields';
 import { FieldCatalogTable } from './FieldCatalogTable';
 import { FieldEditLoader } from './FieldEditLoader';
 import { FieldEditorSheet } from './FieldEditorSheet';
-import { FieldReadOnlySheet } from './FieldReadOnlySheet';
 
 const NO_FILTERS: CatalogFilters = {};
 
@@ -166,7 +167,20 @@ export function FieldsCatalogTab({ workspaceId }: { workspaceId: WorkspaceId }) 
         />
       )}
 
-      {editor?.mode === 'readonly' && <FieldReadOnlySheet row={editor.row} onClose={closeEditor} />}
+      {editor?.mode === 'readonly' && (
+        <FieldEditorSheet
+          initialObjectType={editor.row.objectType}
+          field={null}
+          readOnly
+          readOnlyForm={buildFormFromCatalogRow(editor.row)}
+          lockMessage={lockMessageForSource(editor.row.source)}
+          availableKeysByObject={availableKeysByObject}
+          saveError={null}
+          isSaving={false}
+          onSave={onSave}
+          onClose={closeEditor}
+        />
+      )}
     </div>
   );
 }

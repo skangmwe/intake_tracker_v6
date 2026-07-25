@@ -5,6 +5,7 @@
 import type {
   FieldLocation,
   FieldObjectType,
+  FieldSource,
   FieldType,
   RuleAction,
   RuleComparator,
@@ -127,4 +128,19 @@ export const NUMERIC_TYPES: readonly FieldType[] = ['Number', 'Decimal', 'Curren
 
 export function fieldTypeLabel(fieldType: string): string {
   return FIELD_TYPE_OPTIONS.find((option) => option.value === fieldType)?.label ?? fieldType;
+}
+
+/**
+ * The lock-banner copy shown when a locked field opens read-only, keyed on its provenance.
+ * (Moved verbatim out of the deleted FieldReadOnlySheet.) A read-only 'User' row is a foreign
+ * Global field surfaced from the owning workspace.
+ */
+export function lockMessageForSource(source: FieldSource): string {
+  if (source === 'System') {
+    return 'This is a system field, provisioned automatically on every object. It can’t be edited, archived, or deleted.';
+  }
+  if (source === 'Platform') {
+    return 'This is a platform-defined field managed centrally. It can’t be edited here.';
+  }
+  return 'This is a global field owned by a workspace. It can only be changed from the workspace that created it.';
 }

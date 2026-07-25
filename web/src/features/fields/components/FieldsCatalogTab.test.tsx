@@ -76,14 +76,19 @@ describe('FieldsCatalogTab', () => {
     expect(await screen.findByRole('dialog', { name: 'Add field' })).toBeInTheDocument();
   });
 
-  it('FieldsCatalogTab — clicking a system row opens the read-only sheet', async () => {
+  it('FieldsCatalogTab — clicking a system row opens the unified read-only sheet', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<FieldsCatalogTab workspaceId={WS} />);
+    const { container } = renderWithProviders(<FieldsCatalogTab workspaceId={WS} />);
     await screen.findByRole('table');
 
     await user.click(screen.getByText('Record ID'));
 
-    expect(await screen.findByText(/system field, provisioned automatically/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Edit Record ID' })).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent(/system field, provisioned automatically/i);
+    // Exact match — the header's "Close editor" icon button also matches a loose /close/i regex.
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save field/i })).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('FieldsCatalogTab — clicking an editable row loads and opens the editor', async () => {
