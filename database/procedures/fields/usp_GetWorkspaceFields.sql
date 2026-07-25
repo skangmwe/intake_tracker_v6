@@ -17,13 +17,13 @@
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_GetWorkspaceFields
     @WorkspaceId UNIQUEIDENTIFIER,
-    @ObjectType  NVARCHAR(16)
+    @ObjectType  NVARCHAR(64)
 AS
 BEGIN
     SET NOCOUNT ON;
 
     DECLARE @WorkspaceIdLocal UNIQUEIDENTIFIER = @WorkspaceId;
-    DECLARE @ObjectTypeLocal  NVARCHAR(16)     = @ObjectType;
+    DECLARE @ObjectTypeLocal  NVARCHAR(64)     = @ObjectType;
 
     ;WITH Scoped AS
     (

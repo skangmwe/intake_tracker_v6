@@ -14,7 +14,7 @@
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_RetireFieldDefinition
     @WorkspaceId UNIQUEIDENTIFIER,
-    @ObjectType  NVARCHAR(16),
+    @ObjectType  NVARCHAR(64),
     @FieldKey    NVARCHAR(64),
     @ActorUserId NVARCHAR(256)
 AS
@@ -23,7 +23,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @WorkspaceIdLocal UNIQUEIDENTIFIER = @WorkspaceId;
-    DECLARE @ObjectTypeLocal  NVARCHAR(16)     = @ObjectType;
+    DECLARE @ObjectTypeLocal  NVARCHAR(64)     = @ObjectType;
     DECLARE @FieldKeyLocal     NVARCHAR(64)    = @FieldKey;
     DECLARE @Actor             NVARCHAR(256)   = @ActorUserId;
     DECLARE @Now               DATETIME2       = SYSUTCDATETIME();
