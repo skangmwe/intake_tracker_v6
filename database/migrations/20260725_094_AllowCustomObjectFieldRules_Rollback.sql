@@ -1,7 +1,7 @@
 -- =============================================
 -- Author:      SP3 — Fields on custom objects
 -- Create Date: 2026-07-24
--- Description: Rollback for 20260725_091_AllowCustomObjectFieldRules. Restores the ObjectType CHECK
+-- Description: Rollback for 20260725_094_AllowCustomObjectFieldRules. Restores the ObjectType CHECK
 --              and narrows the column back to NVARCHAR(16) — but ONLY when the data still fits the
 --              original built-in-only model. If any custom-object rule rows exist (ObjectType not in
 --              the built-in set, or a slug longer than 16 chars), those steps are skipped and left
@@ -46,5 +46,5 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_FieldRuleDependency_W
         INCLUDE (FromFieldKey, ToFieldKey) WHERE IsDeleted = 0;
 GO
 
-DELETE FROM dbo.MigrationHistory WHERE MigrationId = N'20260725_091_AllowCustomObjectFieldRules';
+DELETE FROM dbo.MigrationHistory WHERE MigrationId = N'20260725_094_AllowCustomObjectFieldRules';
 GO
