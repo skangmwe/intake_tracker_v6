@@ -4,7 +4,7 @@
 // switch reveals the Sidebar category picker (with a "create new" option).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Trash, X } from '@phosphor-icons/react';
+import { LockSimple, Trash, X } from '@phosphor-icons/react';
 import type { ObjectDefinitionDto, ObjectLocation } from '@shared/types';
 
 import { Button, IconButton } from '@/shared/components/Button';
@@ -143,9 +143,9 @@ export function ObjectEditorSheet({
         )}
 
         {readOnly && (
-          <p className="mws-alert mws-alert--info" role="note">
-            This is a built-in object. Its definition is managed by the platform and can’t be edited
-            here.
+          <p className="mws-alert mws-alert--info fields-sheet__lock" role="note">
+            <LockSimple size={16} aria-hidden /> This is a built-in object. Its definition is
+            managed by the platform and can’t be edited here.
           </p>
         )}
 

@@ -82,6 +82,11 @@ describe('ObjectEditorSheet', () => {
     expect(screen.queryByRole('button', { name: 'Save object' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+
+    // Assert — the read-only banner is present with the expected copy.
+    const banner = screen.getByRole('note');
+    expect(banner).toHaveTextContent('built-in object');
+    expect(banner).toHaveTextContent('edited here');
   });
 
   it('ObjectEditorSheet — sidebar category — hides when Show in sidebar is off', async () => {
