@@ -32,10 +32,11 @@ export function objectLabel(objectType: string): string {
   return OBJECT_OPTIONS.find((option) => option.value === objectType)?.label ?? objectType;
 }
 
-// Field scope. 'Global' is available to every workspace; 'LocalWorkspace' to this one only.
+// Field scope. Platform (stored value 'Global') = available to every workspace; 'LocalWorkspace'
+// to this one only. Display label only — the stored value stays 'Global'.
 export const FIELD_LOCATION_OPTIONS: readonly { value: FieldLocation; label: string }[] = [
   { value: 'LocalWorkspace', label: 'Local Workspace' },
-  { value: 'Global', label: 'Global' },
+  { value: 'Global', label: 'Platform' },
 ];
 
 export function fieldLocationLabel(location: string): string {

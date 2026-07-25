@@ -47,7 +47,7 @@ describe('fieldCatalogView', () => {
     expect(facetValue(buildFieldCatalogRow({ objectType: 'ToolkitItem' }), 'object')).toBe(
       'Toolkit item',
     );
-    expect(facetValue(buildFieldCatalogRow({ location: 'Global' }), 'location')).toBe('Global');
+    expect(facetValue(buildFieldCatalogRow({ location: 'Global' }), 'location')).toBe('Platform');
   });
 
   it('selectCatalogView — select filter on object narrows to matching rows', () => {
