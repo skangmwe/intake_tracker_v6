@@ -31,3 +31,6 @@ export const OBJECTS_PAGE_SIZE = 25;
 
 /** Page size for a custom object's records list (SP2). */
 export const RECORDS_PAGE_SIZE = 25;
+
+/** Autosave debounce for the custom-record detail — coalesces rapid field edits into one patch (SP2). */
+export const SAVE_DEBOUNCE_MS = 600;

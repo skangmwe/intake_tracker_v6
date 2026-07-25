@@ -26,43 +26,6 @@
   gap: var(--space-2);
 }
 
-/* ─── Shared data-driven field controls (RequestFieldControl) ─── */
-
-.request-check {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 14px;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-.request-check input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--accent-interactive);
-}
-
-.request-readonly-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.request-readonly-field__label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
-}
-
-.request-readonly-field__value {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
 /* ─── Drafts (S26) ─── */
 
 .drafts-list {

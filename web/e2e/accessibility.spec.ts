@@ -138,3 +138,76 @@ test('AI default dashboard (S6) has no accessibility violations', async ({ page 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
+
+// ── SP2 custom-object records (Slice C) ────────────────────────────────────
+const VENDOR_OBJECT = {
+  id: 'obj-vendor',
+  workspaceId: WORKSPACE_ID,
+  objectKey: 'vendor',
+  name: 'Vendor',
+  pluralLabel: 'Vendors',
+  description: null,
+  isSystem: false,
+  recordsCount: 0,
+  fieldsCount: 1,
+  createdAt: '2026-07-24T10:00:00Z',
+  updatedAt: '2026-07-24T10:00:00Z',
+};
+const VENDOR_SCHEMA = {
+  workspaceId: WORKSPACE_ID,
+  objectType: 'vendor',
+  fields: [
+    {
+      id: 'fd-code',
+      workspaceId: WORKSPACE_ID,
+      objectType: 'vendor',
+      fieldKey: 'code',
+      displayName: 'Code',
+      fieldType: 'ShortText',
+      section: 'Details',
+      helpText: null,
+      isRequired: false,
+      sortOrder: 1,
+      isRetired: false,
+      options: [],
+      rules: [],
+    },
+  ],
+  platformFields: [],
+};
+const VENDOR_RECORD = {
+  id: 'rec-1',
+  objectDefinitionId: 'obj-vendor',
+  name: 'Acme',
+  fields: { code: 'AC-1' },
+  createdAt: '2026-07-24T10:00:00Z',
+  updatedAt: '2026-07-24T11:00:00Z',
+  createdBy: 'Local Developer',
+  eTag: 'v1',
+};
+
+test('custom-object record create form (SP2) has no accessibility violations', async ({ page }) => {
+  await page.route('**/api/v1/users/me', (route) => route.fulfill(dashJson(DASH_ME)));
+  await page.route('**/api/v1/workspaces/*/objects', (route) => route.fulfill(dashJson([VENDOR_OBJECT])));
+  await page.route('**/api/v1/workspaces/*/fields*', (route) => route.fulfill(dashJson(VENDOR_SCHEMA)));
+  await page.route('**/api/v1/workspaces/*/saved-views*', (route) => route.fulfill(dashJson([])));
+
+  await page.goto('/objects/vendor/new');
+  await expect(page.getByRole('heading', { name: 'New Vendor' })).toBeVisible();
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('custom-object record detail (SP2) has no accessibility violations', async ({ page }) => {
+  await page.route('**/api/v1/users/me', (route) => route.fulfill(dashJson(DASH_ME)));
+  await page.route('**/api/v1/workspaces/*/objects', (route) => route.fulfill(dashJson([VENDOR_OBJECT])));
+  await page.route('**/api/v1/workspaces/*/fields*', (route) => route.fulfill(dashJson(VENDOR_SCHEMA)));
+  await page.route('**/api/v1/workspaces/*/objects/*/records/*', (route) => route.fulfill(dashJson(VENDOR_RECORD)));
+
+  await page.goto('/objects/vendor/rec-1');
+  await expect(page.getByRole('heading', { level: 1, name: 'Acme' })).toBeVisible();
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});

@@ -3,17 +3,22 @@
 // includes the object id and the full query so a filter/sort/page change refetches; the detail key
 // (Slice C) is keyed by record id alone so a detail read is shared across surfaces.
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
   CustomRecordDto,
   CustomRecordListRow,
+  CustomRecordWriteRequest,
   PaginatedQuery,
   PaginatedResponse,
   WorkspaceId,
 } from '@shared/types';
 
-import { getRecord, queryRecords } from './api';
+import { createRecord, deleteRecord, getRecord, patchRecord, queryRecords } from './api';
+
+/** Prefix key for every page of one object's records — mutations invalidate this to refetch lists. */
+const objectRecordsKey = (workspaceId: WorkspaceId, objectId: string) =>
+  ['custom-records', workspaceId, objectId] as const;
 
 /** Key for a page of an object's records — includes the query so any change is a distinct cache entry. */
 export const customRecordsListKey = (
@@ -51,5 +56,40 @@ export function useCustomRecord(
     queryFn: ({ signal }) =>
       getRecord(workspaceId as WorkspaceId, objectId as string, recordId as string, signal),
     enabled: Boolean(workspaceId) && Boolean(objectId) && Boolean(recordId),
+  });
+}
+
+/** Create a record of one custom object (Slice C create form). Invalidates that object's lists. */
+export function useCreateCustomRecord(workspaceId: WorkspaceId, objectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CustomRecordWriteRequest) => createRecord(workspaceId, objectId, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: objectRecordsKey(workspaceId, objectId) });
+    },
+  });
+}
+
+/** Replace a record (Slice C detail autosave). Adopts the fresh record; invalidates that object's lists. */
+export function usePatchCustomRecord(workspaceId: WorkspaceId, objectId: string, recordId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CustomRecordWriteRequest) => patchRecord(workspaceId, objectId, recordId, body),
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(customRecordKey(recordId), fresh);
+      void queryClient.invalidateQueries({ queryKey: objectRecordsKey(workspaceId, objectId) });
+    },
+  });
+}
+
+/** Soft-delete a custom record (Slice C — list kebab + detail header). Takes the record id at call time. */
+export function useDeleteCustomRecord(workspaceId: WorkspaceId, objectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (recordId: string) => deleteRecord(workspaceId, objectId, recordId),
+    onSuccess: (_result, recordId) => {
+      void queryClient.invalidateQueries({ queryKey: objectRecordsKey(workspaceId, objectId) });
+      void queryClient.invalidateQueries({ queryKey: customRecordKey(recordId) });
+    },
   });
 }

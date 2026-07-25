@@ -65,3 +65,149 @@
 .cr-row-menu__danger:focus-visible {
   color: var(--color-error);
 }
+
+/* ── Create form + detail (Slice C) ──────────────────────────────────────── */
+
+/* Page root for the create/detail surfaces — a padded content column (AppShell owns outer padding). */
+.cr-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+/* Single-column reading form (forms-and-input.md: single-column by default). */
+.cr-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: min(100%, 720px);
+}
+
+.cr-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cr-section__title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.cr-section__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* Breadcrumb (detail page) — list link → current record. */
+.cr-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.cr-breadcrumb__link {
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.cr-breadcrumb__link:hover,
+.cr-breadcrumb__link:focus-visible {
+  color: var(--accent-interactive);
+}
+
+.cr-breadcrumb__current {
+  color: var(--text-primary);
+}
+
+/* Detail page — header, meta strip, autosave indicator. */
+.cr-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: min(100%, 720px);
+}
+
+.cr-detail__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cr-detail__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.cr-detail__id {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cr-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+}
+
+.cr-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.cr-meta-item__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.cr-meta-item__value {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.cr-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Inline delete confirmation (destructive actions confirm — disclosure-surfaces.md). */
+.cr-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cr-confirm__text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+}
