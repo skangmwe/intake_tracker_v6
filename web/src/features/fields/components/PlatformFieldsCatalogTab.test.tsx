@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 
@@ -78,13 +78,16 @@ describe('PlatformFieldsCatalogTab', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not be loaded/i);
   });
 
-  it('PlatformFieldsCatalogTab — clicking a system row opens the read-only sheet', async () => {
+  it('PlatformFieldsCatalogTab — clicking a system row opens the unified read-only sheet', async () => {
     const user = userEvent.setup();
     const { container } = renderWithProviders(<PlatformFieldsCatalogTab />);
     await user.click(await screen.findByText('Record ID'));
 
-    const sheet = await screen.findByRole('dialog', { name: 'Record ID' });
-    expect(within(sheet).getByText(/system field, provisioned automatically/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Edit Record ID' })).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent(/system field, provisioned automatically/i);
+    // Exact match — the header's "Close editor" icon button also matches a loose /close/i regex.
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save field/i })).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
