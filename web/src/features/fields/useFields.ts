@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   FieldDefinitionUpsertRequest,
   FieldObjectType,
+  FieldObjectTypeOrSlug,
   PlatformFieldPatchRequest,
   TaskLibraryFieldUpsertRequest,
   WorkspaceFieldCatalogDto,
@@ -25,7 +26,7 @@ import {
   updatePlatformField,
 } from './api';
 
-export const fieldsQueryKey = (workspaceId: WorkspaceId, objectType: FieldObjectType) =>
+export const fieldsQueryKey = (workspaceId: WorkspaceId, objectType: FieldObjectTypeOrSlug) =>
   ['fields', workspaceId, objectType] as const;
 
 /** Broad key matching every object-type schema for a workspace — invalidated on any field write. */
@@ -43,7 +44,7 @@ export const PLATFORM_FIELD_CATALOG_QUERY_KEY = ['platform-field-catalog'] as co
 
 export function useWorkspaceFields(
   workspaceId: WorkspaceId | undefined,
-  objectType: FieldObjectType,
+  objectType: FieldObjectTypeOrSlug,
 ) {
   return useQuery<WorkspaceFieldSchemaDto>({
     queryKey: fieldsQueryKey(workspaceId ?? ('' as WorkspaceId), objectType),

@@ -10,6 +10,7 @@ import type { FieldCatalogRowDto, FieldObjectType, WorkspaceId } from '@shared/t
 
 import { Button } from '@/shared/components/Button';
 import { type FilterValue, type SortState } from '@/shared/components/Table';
+import { useWorkspaceObjects } from '@/features/objects';
 
 import { lockMessageForSource } from '../constants';
 import { problemMessage } from '../errorMessage';
@@ -35,6 +36,7 @@ type EditorState =
 
 export function FieldsCatalogTab({ workspaceId }: { workspaceId: WorkspaceId }) {
   const catalog = useFieldCatalog(workspaceId);
+  const objects = useWorkspaceObjects(workspaceId);
   const saveField = useSaveField(workspaceId);
   const retireField = useRetireField(workspaceId);
 
@@ -52,6 +54,14 @@ export function FieldsCatalogTab({ workspaceId }: { workspaceId: WorkspaceId }) 
     }
     return map;
   }, [allRows]);
+
+  const customObjectOptions = useMemo(
+    () =>
+      (objects.data ?? [])
+        .filter((object) => !object.isSystem)
+        .map((object) => ({ value: object.objectKey, label: object.name })),
+    [objects.data],
+  );
 
   const anyFilters = (Object.values(filters) as FilterValue[]).some(isFilterActive);
 
@@ -145,6 +155,7 @@ export function FieldsCatalogTab({ workspaceId }: { workspaceId: WorkspaceId }) 
           initialObjectType="Request"
           field={null}
           availableKeysByObject={availableKeysByObject}
+          customObjectOptions={customObjectOptions}
           saveError={saveError}
           isSaving={saveField.isPending}
           onSave={onSave}
@@ -158,6 +169,7 @@ export function FieldsCatalogTab({ workspaceId }: { workspaceId: WorkspaceId }) 
           objectType={editor.row.objectType}
           fieldKey={editor.row.fieldKey}
           availableKeysByObject={availableKeysByObject}
+          customObjectOptions={customObjectOptions}
           saveError={saveError}
           isSaving={saveField.isPending}
           onSave={onSave}
@@ -174,6 +186,7 @@ export function FieldsCatalogTab({ workspaceId }: { workspaceId: WorkspaceId }) 
           readOnly
           readOnlyForm={buildFormFromCatalogRow(editor.row)}
           lockMessage={lockMessageForSource(editor.row.source)}
+          customObjectOptions={customObjectOptions}
           availableKeysByObject={availableKeysByObject}
           saveError={null}
           isSaving={false}

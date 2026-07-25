@@ -8,7 +8,7 @@ import type {
   FieldDefinitionDto,
   FieldDefinitionUpsertRequest,
   FieldLocation,
-  FieldObjectType,
+  FieldObjectTypeOrSlug,
   FieldType,
 } from '@shared/types';
 
@@ -17,7 +17,7 @@ import type { OptionRow } from './components/OptionsEditor';
 import type { RuleRow } from './components/RulesEditor';
 
 export interface FieldForm {
-  object: FieldObjectType;
+  object: FieldObjectTypeOrSlug;
   location: FieldLocation;
   fieldKey: string;
   displayName: string;
@@ -36,7 +36,7 @@ export interface FieldForm {
 
 export function buildInitialForm(
   field: FieldDefinitionDto | null,
-  objectType: FieldObjectType,
+  objectType: FieldObjectTypeOrSlug,
   fieldTypeOptions: readonly { value: FieldType; label: string }[],
 ): FieldForm {
   if (field === null) {

@@ -62,10 +62,10 @@ describe('FieldCatalogTable', () => {
     expect(screen.getByText('Severity')).toBeInTheDocument();
   });
 
-  it('FieldCatalogTable — a system row shows the SYSTEM source and Global location', () => {
+  it('FieldCatalogTable — a system row shows the SYSTEM source and Platform location', () => {
     renderTable();
     expect(screen.getByText('System')).toBeInTheDocument();
-    expect(screen.getAllByText('Global').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Platform').length).toBeGreaterThan(0);
     // Required shows a label, not just a colour — the header plus the required row's cell.
     expect(screen.getAllByText('Required').length).toBeGreaterThan(1);
   });

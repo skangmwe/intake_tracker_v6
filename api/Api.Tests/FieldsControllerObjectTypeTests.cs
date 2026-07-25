@@ -97,4 +97,90 @@ public sealed class FieldsControllerObjectTypeTests
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Same(schema, ok.Value);
     }
+
+    private static FieldsController BuildAdmin(
+        Mock<IFieldSchemaService> fields,
+        IReadOnlyList<ObjectDefinitionDto>? objects = null)
+    {
+        var accessGuard = new Mock<IAccessGuard>();
+        accessGuard.Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, It.IsAny<WorkspaceLevel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.SetupGet(user => user.UserId).Returns(UserId);
+
+        var objectsMock = new Mock<IObjectSchemaService>();
+        objectsMock.Setup(service => service.ListAsync(WorkspaceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(objects ?? Array.Empty<ObjectDefinitionDto>());
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.Items[OperationIdMiddleware.HeaderName] = "op-123";
+        return new FieldsController(fields.Object, objectsMock.Object, accessGuard.Object, currentUser.Object)
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext },
+        };
+    }
+
+    private static FieldDefinitionUpsertRequest UpsertReq(string objectType, string location = "LocalWorkspace") => new()
+    {
+        ObjectType = objectType, Location = location, FieldKey = "Owner",
+        DisplayName = "Owner", FieldType = "ShortText", Category = "WorkspaceLocal",
+    };
+
+    [Fact]
+    public async Task CreateField_UnknownSlug_Returns404()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        var sut = BuildAdmin(fields, new[] { CustomObject("vendor") });
+
+        var result = await sut.CreateField(WorkspaceId, UpsertReq("ghost"), CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+        fields.Verify(s => s.UpsertFieldAsync(It.IsAny<Guid>(), It.IsAny<FieldDefinitionUpsertRequest>(),
+            It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateField_CustomObjectWithGlobalLocation_Returns400()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        var sut = BuildAdmin(fields, new[] { CustomObject("vendor") });
+
+        var result = await sut.CreateField(WorkspaceId, UpsertReq("vendor", location: "Global"), CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        fields.Verify(s => s.UpsertFieldAsync(It.IsAny<Guid>(), It.IsAny<FieldDefinitionUpsertRequest>(),
+            It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RetireField_UnknownSlug_Returns404()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        var sut = BuildAdmin(fields, new[] { CustomObject("vendor") });
+
+        var result = await sut.RetireField(WorkspaceId, "Owner", "ghost", CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task CreateField_ValidCustomSlug_ProceedsToUpsert()
+    {
+        // Arrange — the slug resolves, so the guard passes and the service is invoked. We assert the
+        // call happened (a ValidationFailed result avoids constructing a full FieldDefinitionDto).
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(s => s.UpsertFieldAsync(WorkspaceId, It.IsAny<FieldDefinitionUpsertRequest>(),
+                true, UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(FieldOperationOutcome.ValidationFailed, Errors: new[] { "x" }));
+        var sut = BuildAdmin(fields, new[] { CustomObject("vendor") });
+
+        // Act
+        await sut.CreateField(WorkspaceId, UpsertReq("vendor"), CancellationToken.None);
+
+        // Assert — the guard let the request through to the service (slug resolved).
+        fields.Verify(s => s.UpsertFieldAsync(WorkspaceId, It.IsAny<FieldDefinitionUpsertRequest>(),
+            true, UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

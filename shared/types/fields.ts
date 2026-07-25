@@ -15,6 +15,14 @@ import type { FieldDefinitionId, IsoDateTime, RelationshipId, UserId, WorkspaceI
 export type FieldObjectType = 'Request' | 'Task' | 'Feature' | 'ToolkitItem' | 'Attachment';
 
 /**
+ * The editor/api boundary type for an object a field belongs to: a built-in object type OR a custom
+ * object's slug. `(string & {})` keeps built-in autocomplete while allowing any slug. Used only where
+ * a custom slug must flow (the field editor and the create/update/retire calls); the closed
+ * `FieldObjectType` union stays in place everywhere else.
+ */
+export type FieldObjectTypeOrSlug = FieldObjectType | (string & {});
+
+/**
  * Field scope (Fields tab reconciliation). 'Global' = the field is available to every workspace
  * (the AI Solutions hub and any PG/Dept workspace); 'LocalWorkspace' = this workspace only.
  */
@@ -185,7 +193,7 @@ export interface FieldDefinitionDto {
 
 /** Create/replace a workspace field. Rules + options are replaced wholesale on upsert. */
 export interface FieldDefinitionUpsertRequest {
-  objectType: FieldObjectType;
+  objectType: FieldObjectTypeOrSlug;
   fieldKey: string;
   displayName: string;
   fieldType: FieldType;
