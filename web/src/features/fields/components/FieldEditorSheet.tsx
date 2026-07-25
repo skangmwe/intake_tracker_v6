@@ -10,7 +10,7 @@ import type {
   FieldObjectType,
 } from '@shared/types';
 
-import { Button, IconButton } from '@/shared/components/Button';
+import { IconButton } from '@/shared/components/Button';
 
 import {
   CATEGORY_OPTIONS,
@@ -21,6 +21,7 @@ import {
 } from '../constants';
 import { buildInitialForm, formToRequest, type FieldForm } from '../fieldForm';
 import { FieldEditorExtras } from './FieldEditorExtras';
+import { FieldEditorFooter } from './FieldEditorFooter';
 import { RulesEditor } from './RulesEditor';
 import { TypeAndCategoryFields } from './TypeAndCategoryFields';
 
@@ -106,12 +107,9 @@ export function FieldEditorSheet({
         <h2 id="field-editor-heading" tabIndex={-1} ref={headingRef} className="h3">
           {readOnly
             ? `Edit ${form.displayName}`
-            : isCreate
-              ? 'Add field'
-              : // `isCreate` is `!readOnly && field === null`, a compound condition TS can't use to
-                // narrow `field` here — the `!isCreate` branch (with `readOnly` false) only reaches
-                // when `field` is non-null.
-                `Edit ${field!.displayName}`}
+            : field
+              ? `Edit ${field.displayName}`
+              : 'Add field'}
         </h2>
         <IconButton icon={X} label="Close editor" onClick={onClose} />
       </header>
@@ -230,31 +228,14 @@ export function FieldEditorSheet({
           disabled={readOnly}
         />
 
-        <footer className="fields-sheet__footer">
-          {readOnly ? (
-            <>
-              <span className="fields-sheet__footer-spacer" />
-              <Button variant="secondary" onClick={onClose}>
-                Close
-              </Button>
-            </>
-          ) : (
-            <>
-              {field && !field.isRetired && onArchive && (
-                <Button variant="secondary" onClick={onArchive} disabled={isArchiving}>
-                  {isArchiving ? 'Archiving…' : 'Archive'}
-                </Button>
-              )}
-              <span className="fields-sheet__footer-spacer" />
-              <Button variant="secondary" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? 'Saving…' : 'Save field'}
-              </Button>
-            </>
-          )}
-        </footer>
+        <FieldEditorFooter
+          readOnly={readOnly}
+          field={field}
+          onArchive={onArchive}
+          isArchiving={isArchiving}
+          isSaving={isSaving}
+          onClose={onClose}
+        />
       </form>
     </div>
   );
