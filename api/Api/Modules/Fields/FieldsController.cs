@@ -48,15 +48,9 @@ public sealed class FieldsController : ControllerBase
         // A built-in object type reads its schema directly; any other value is treated as a custom
         // object slug and must resolve to a real ObjectDefinition in this workspace — else 404 (never
         // disclosing whether the slug exists). The slug is the FieldDefinition.ObjectType discriminator.
-        if (!IsValidObjectType(objectType))
+        if (await ResolveObjectTypeAsync(workspaceId, objectType, cancellationToken) == ObjectResolution.NotFound)
         {
-            var objects = await _objects.ListAsync(workspaceId, cancellationToken);
-            var match = objects.FirstOrDefault(candidate =>
-                !candidate.IsSystem && string.Equals(candidate.ObjectKey, objectType, StringComparison.Ordinal));
-            if (match is null)
-            {
-                return NotFound();
-            }
+            return NotFound();
         }
 
         var schema = await _fields.GetSchemaAsync(workspaceId, objectType, cancellationToken);
@@ -96,6 +90,17 @@ public sealed class FieldsController : ControllerBase
             return AccessDenied();
         }
 
+        var resolution = await ResolveObjectTypeAsync(workspaceId, request.ObjectType, cancellationToken);
+        if (resolution == ObjectResolution.NotFound)
+        {
+            return NotFound();
+        }
+        if (resolution == ObjectResolution.Custom &&
+            string.Equals(request.Location, "Global", StringComparison.Ordinal))
+        {
+            return BadRequestProblem("Custom-object fields are workspace-local and cannot be Global.");
+        }
+
         var result = await _fields.UpsertFieldAsync(workspaceId, request, isCreate: true, _currentUser.UserId, OperationId(), cancellationToken);
         return MapUpsert(result, workspaceId, isCreate: true);
     }
@@ -117,6 +122,17 @@ public sealed class FieldsController : ControllerBase
             return AccessDenied();
         }
 
+        var resolution = await ResolveObjectTypeAsync(workspaceId, request.ObjectType, cancellationToken);
+        if (resolution == ObjectResolution.NotFound)
+        {
+            return NotFound();
+        }
+        if (resolution == ObjectResolution.Custom &&
+            string.Equals(request.Location, "Global", StringComparison.Ordinal))
+        {
+            return BadRequestProblem("Custom-object fields are workspace-local and cannot be Global.");
+        }
+
         // The route identifies the field; the body's key must agree.
         request.FieldKey = fieldKey;
         var result = await _fields.UpsertFieldAsync(workspaceId, request, isCreate: false, _currentUser.UserId, OperationId(), cancellationToken);
@@ -135,14 +151,14 @@ public sealed class FieldsController : ControllerBase
         [FromQuery] string objectType = "Request",
         CancellationToken cancellationToken = default)
     {
-        if (!IsValidObjectType(objectType))
-        {
-            return BadRequestProblem("Object type must be one of Request, Task, Feature, Toolkit item, or Attachment.");
-        }
-
         if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.WorkspaceAdmin, cancellationToken))
         {
             return AccessDenied();
+        }
+
+        if (await ResolveObjectTypeAsync(workspaceId, objectType, cancellationToken) == ObjectResolution.NotFound)
+        {
+            return NotFound();
         }
 
         var result = await _fields.RetireFieldAsync(workspaceId, objectType, fieldKey, _currentUser.UserId, OperationId(), cancellationToken);
@@ -218,6 +234,25 @@ public sealed class FieldsController : ControllerBase
 
     private static bool IsValidObjectType(string objectType) =>
         objectType is "Request" or "Task" or "Feature" or "ToolkitItem" or "Attachment";
+
+    private enum ObjectResolution { BuiltIn, Custom, NotFound }
+
+    // Resolves a possibly-custom objectType: a built-in passes; any other value must resolve to a real
+    // NON-system ObjectDefinition in this workspace, else NotFound (never disclosing existence). Mirrors
+    // the GetFields slug check so all field endpoints agree.
+    private async Task<ObjectResolution> ResolveObjectTypeAsync(
+        Guid workspaceId, string? objectType, CancellationToken cancellationToken)
+    {
+        if (objectType is not null && IsValidObjectType(objectType))
+        {
+            return ObjectResolution.BuiltIn;
+        }
+
+        var objects = await _objects.ListAsync(workspaceId, cancellationToken);
+        var match = objects.FirstOrDefault(candidate =>
+            !candidate.IsSystem && string.Equals(candidate.ObjectKey, objectType, StringComparison.Ordinal));
+        return match is null ? ObjectResolution.NotFound : ObjectResolution.Custom;
+    }
 
     private ObjectResult BadRequestProblem(string detail) =>
         new(new ProblemDetails
