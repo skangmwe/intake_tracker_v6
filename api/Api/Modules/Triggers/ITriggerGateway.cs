@@ -15,8 +15,13 @@ public interface ITriggerGateway
     /// <summary>Enabled 'Authored' triggers with their conditions rolled up (usp_GetEnabledAuthoredTriggers).</summary>
     Task<IReadOnlyList<EnabledTriggerRow>> GetEnabledAuthoredTriggersAsync(CancellationToken cancellationToken);
 
-    /// <summary>Coarse candidate records (RecordId + field-value map) for one trigger (usp_GetTriggerCandidates).</summary>
-    Task<IReadOnlyList<TriggerCandidateRow>> GetCandidatesAsync(Guid triggerId, CancellationToken cancellationToken);
+    /// <summary>Enabled built-in 'TaskOverdue' triggers (usp_GetEnabledTaskOverdueTriggers). These carry no
+    /// authored conditions — the SQL candidate pre-filter is the whole "when".</summary>
+    Task<IReadOnlyList<EnabledTriggerRow>> GetEnabledTaskOverdueTriggersAsync(CancellationToken cancellationToken);
+
+    /// <summary>Coarse candidate records for one trigger (usp_GetTriggerCandidates). <paramref name="today"/>
+    /// drives the built-in TaskOverdue date pre-filter (open tasks with a due date before today).</summary>
+    Task<IReadOnlyList<TriggerCandidateRow>> GetCandidatesAsync(Guid triggerId, DateOnly today, CancellationToken cancellationToken);
 
     /// <summary>The fire watermarks for one trigger (usp_GetTriggerWatermarks) — read once per trigger per sweep.</summary>
     Task<IReadOnlyList<TriggerWatermarkRow>> GetWatermarksAsync(Guid triggerId, CancellationToken cancellationToken);
@@ -47,9 +52,16 @@ public sealed class TriggerGateway : ITriggerGateway
             .FromSqlRaw("EXEC dbo.usp_GetEnabledAuthoredTriggers")
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-    public async Task<IReadOnlyList<TriggerCandidateRow>> GetCandidatesAsync(Guid triggerId, CancellationToken cancellationToken) =>
+    public async Task<IReadOnlyList<EnabledTriggerRow>> GetEnabledTaskOverdueTriggersAsync(CancellationToken cancellationToken) =>
+        await _db.Set<EnabledTriggerRow>()
+            .FromSqlRaw("EXEC dbo.usp_GetEnabledTaskOverdueTriggers")
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<TriggerCandidateRow>> GetCandidatesAsync(Guid triggerId, DateOnly today, CancellationToken cancellationToken) =>
         await _db.Set<TriggerCandidateRow>()
-            .FromSqlRaw("EXEC dbo.usp_GetTriggerCandidates @TriggerId", new SqlParameter("@TriggerId", triggerId))
+            .FromSqlRaw("EXEC dbo.usp_GetTriggerCandidates @TriggerId, @Today",
+                new SqlParameter("@TriggerId", triggerId),
+                new SqlParameter("@Today", today.ToDateTime(TimeOnly.MinValue)))
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
     public async Task<IReadOnlyList<TriggerWatermarkRow>> GetWatermarksAsync(Guid triggerId, CancellationToken cancellationToken) =>

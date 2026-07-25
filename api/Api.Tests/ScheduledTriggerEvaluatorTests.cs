@@ -63,6 +63,11 @@ public sealed class ScheduledTriggerEvaluatorTests
         spine.Setup(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         gateway.Setup(g => g.UpsertFireAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        // Both trigger-kind getters default to empty so a test that only exercises one loop leaves the other a no-op.
+        gateway.Setup(g => g.GetEnabledAuthoredTriggersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<EnabledTriggerRow>());
+        gateway.Setup(g => g.GetEnabledTaskOverdueTriggersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<EnabledTriggerRow>());
         var sut = new ScheduledTriggerEvaluator(
             gateway.Object, new ConditionEngine(clock), spine.Object, clock, NullLogger<ScheduledTriggerEvaluator>.Instance);
         return (sut, gateway, spine);
@@ -76,7 +81,51 @@ public sealed class ScheduledTriggerEvaluatorTests
     {
         gateway.Setup(g => g.GetEnabledAuthoredTriggersAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { trigger });
-        gateway.Setup(g => g.GetCandidatesAsync(trigger.TriggerId, It.IsAny<CancellationToken>()))
+        gateway.Setup(g => g.GetCandidatesAsync(trigger.TriggerId, It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(candidates);
+        gateway.Setup(g => g.GetWatermarksAsync(trigger.TriggerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(watermarks ?? Array.Empty<TriggerWatermarkRow>());
+    }
+
+    // ─── TaskOverdue (built-in) fixtures ────────────────────────────────
+    private static readonly Guid AssigneeId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+    private static EnabledTriggerRow TaskOverdueTrigger(string cadence = "RepeatEveryNDays", int? repeatIntervalDays = 1) => new()
+    {
+        TriggerId = Guid.NewGuid(),
+        WorkspaceId = Guid.NewGuid(),
+        ObjectType = "Task",
+        Kind = "TaskOverdue",
+        Name = "Overdue task reminder",
+        Cadence = cadence,
+        RepeatIntervalDays = repeatIntervalDays,
+        NotificationCategory = "task-overdue",
+        Recipients = "[]", // unused — the recipient is the task assignee, resolved from the candidate
+        NotificationTitle = "A task is overdue",
+        NotificationBody = "body",
+        ConditionsJson = "[]",
+    };
+
+    // A TaskOverdue candidate: RecordId is the parent request (fan-out target); WatermarkKey is the TaskId
+    // (per-task dedup); no field map; the assignee is the recipient.
+    private static TriggerCandidateRow OverdueTaskCandidate(
+        string recordId = "LIT-9001", string? taskId = null, Guid? assignee = null) => new()
+    {
+        RecordId = recordId,
+        WatermarkKey = taskId ?? "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        FieldValuesJson = null,
+        AssigneeUserId = assignee ?? AssigneeId,
+    };
+
+    private static void ArrangeTaskOverdue(
+        Mock<ITriggerGateway> gateway,
+        EnabledTriggerRow trigger,
+        IReadOnlyList<TriggerCandidateRow> candidates,
+        IReadOnlyList<TriggerWatermarkRow>? watermarks = null)
+    {
+        gateway.Setup(g => g.GetEnabledTaskOverdueTriggersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { trigger });
+        gateway.Setup(g => g.GetCandidatesAsync(trigger.TriggerId, It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(candidates);
         gateway.Setup(g => g.GetWatermarksAsync(trigger.TriggerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(watermarks ?? Array.Empty<TriggerWatermarkRow>());
@@ -285,6 +334,118 @@ public sealed class ScheduledTriggerEvaluatorTests
         cts.Cancel();
 
         // Act / Assert — the sweep observes cancellation and exits without emitting.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sut.RunDailySweepAsync(Today, cts.Token));
+        spine.Verify(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ─── TaskOverdue (built-in fixed-condition) ─────────────────────────
+    [Fact]
+    public async Task RunDailySweep_TaskOverdueWithAssignee_EmitsToAssigneeAndStampsTaskWatermark()
+    {
+        // Arrange — one overdue task (SQL pre-filtered); the assignee is the sole recipient.
+        var (sut, gateway, spine) = Build();
+        var trigger = TaskOverdueTrigger();
+        EventEnvelope? captured = null;
+        spine.Setup(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>()))
+            .Callback<EventEnvelope, CancellationToken>((env, _) => captured = env)
+            .Returns(Task.CompletedTask);
+        var taskId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+        ArrangeTaskOverdue(gateway, trigger, new[] { OverdueTaskCandidate("LIT-9001", taskId, AssigneeId) });
+
+        // Act
+        var summary = await sut.RunDailySweepAsync(Today, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(1, summary.Fired);
+        Assert.NotNull(captured);
+        Assert.Equal("trigger.fired", captured!.EventType);
+        Assert.Equal("LIT-9001", captured.RecordId); // fan-out targets the parent request, not the task
+        using var payload = JsonDocument.Parse(captured.PayloadJson);
+        Assert.Equal("task-overdue", payload.RootElement.GetProperty("kind").GetString());
+        Assert.Equal(AssigneeId.ToString(), payload.RootElement.GetProperty("recipientUserIds")[0].GetString());
+        Assert.False(payload.RootElement.GetProperty("includeWatchers").GetBoolean());
+        // Watermark is keyed on the TaskId, not the parent request id.
+        gateway.Verify(g => g.UpsertFireAsync(trigger.TriggerId, taskId, Today, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RunDailySweep_TaskOverdueNoAssignee_SkipsWithoutStamp()
+    {
+        // Arrange — an unassigned overdue task has no one to notify.
+        var (sut, gateway, spine) = Build();
+        var trigger = TaskOverdueTrigger();
+        var unassigned = new TriggerCandidateRow
+        {
+            RecordId = "LIT-9001",
+            WatermarkKey = "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            FieldValuesJson = null,
+            AssigneeUserId = null,
+        };
+        ArrangeTaskOverdue(gateway, trigger, new[] { unassigned });
+
+        // Act
+        var summary = await sut.RunDailySweepAsync(Today, CancellationToken.None);
+
+        // Assert — nothing emitted and no watermark stamped, so assigning the task later can still fire.
+        Assert.Equal(0, summary.Fired);
+        spine.Verify(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>()), Times.Never);
+        gateway.Verify(g => g.UpsertFireAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RunDailySweep_TaskOverdueOnceWatermarkOnTaskId_DoesNotRefire()
+    {
+        // Arrange — the task already fired once (watermark keyed on its TaskId); 'Once' blocks a re-fire.
+        var (sut, gateway, spine) = Build();
+        var trigger = TaskOverdueTrigger(cadence: "Once", repeatIntervalDays: null);
+        var taskId = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+        var watermark = new[] { new TriggerWatermarkRow { RecordId = taskId, LastFiredDate = new DateTime(2026, 7, 20) } };
+        ArrangeTaskOverdue(gateway, trigger, new[] { OverdueTaskCandidate("LIT-9001", taskId, AssigneeId) }, watermark);
+
+        // Act
+        var summary = await sut.RunDailySweepAsync(Today, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(0, summary.Fired);
+        spine.Verify(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RunDailySweep_TwoOverdueTasksSameRequest_FireIndependentlyPerTask()
+    {
+        // Arrange — two overdue tasks on the SAME request; one already fired. Keying on TaskId (not the
+        // shared request id) means the second still fires.
+        var (sut, gateway, spine) = Build();
+        var trigger = TaskOverdueTrigger(cadence: "Once", repeatIntervalDays: null);
+        var firedTaskId = "11111111-aaaa-4000-8000-000000000001";
+        var freshTaskId = "11111111-aaaa-4000-8000-000000000002";
+        var watermark = new[] { new TriggerWatermarkRow { RecordId = firedTaskId, LastFiredDate = new DateTime(2026, 7, 20) } };
+        ArrangeTaskOverdue(gateway, trigger, new[]
+        {
+            OverdueTaskCandidate("LIT-9001", firedTaskId, AssigneeId),
+            OverdueTaskCandidate("LIT-9001", freshTaskId, AssigneeId),
+        }, watermark);
+
+        // Act
+        var summary = await sut.RunDailySweepAsync(Today, CancellationToken.None);
+
+        // Assert — only the not-yet-fired task fires; its watermark is stamped on its own TaskId.
+        Assert.Equal(1, summary.Fired);
+        gateway.Verify(g => g.UpsertFireAsync(trigger.TriggerId, freshTaskId, Today, It.IsAny<CancellationToken>()), Times.Once);
+        gateway.Verify(g => g.UpsertFireAsync(trigger.TriggerId, firedTaskId, It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RunDailySweep_TaskOverdueCancelledToken_ThrowsWithoutEmitting()
+    {
+        // Arrange
+        var (sut, gateway, spine) = Build();
+        var trigger = TaskOverdueTrigger();
+        ArrangeTaskOverdue(gateway, trigger, new[] { OverdueTaskCandidate() });
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act / Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sut.RunDailySweepAsync(Today, cts.Token));
         spine.Verify(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>()), Times.Never);
     }
