@@ -1207,13 +1207,23 @@ public sealed class EnabledTriggerRow
     public string ConditionsJson { get; set; } = "[]";
 }
 
-/// <summary>A candidate record for a trigger — RecordId plus its full field-value map (JSON) —
-/// from usp_GetTriggerCandidates. The evaluator fine-checks the condition over FieldValuesJson.</summary>
+/// <summary>A candidate record for a trigger — from usp_GetTriggerCandidates. For an Authored (Request)
+/// trigger this carries the record's full field-value map, which the evaluator fine-checks the condition
+/// over; for a built-in TaskOverdue trigger it carries the assignee to notify and no field map (the SQL
+/// pre-filter is the whole condition). <see cref="RecordId"/> is always the fan-out target (the parent
+/// Request id for a Task); <see cref="WatermarkKey"/> is the per-candidate dedup key (the record id for a
+/// Request, the TaskId for a Task) so two tasks on the same request nag independently.</summary>
 public sealed class TriggerCandidateRow
 {
+    /// <summary>The fan-out target — the Request record id (for a Task candidate, its parent Request id).</summary>
     public string RecordId { get; set; } = string.Empty;
-    /// <summary>The record's content-field map (JSON). Confidential — never logged.</summary>
-    public string FieldValuesJson { get; set; } = "{}";
+    /// <summary>The per-candidate fire/dedup key (record id for a Request, TaskId for a Task).</summary>
+    public string? WatermarkKey { get; set; }
+    /// <summary>The record's content-field map (JSON) — Authored candidates only; null for TaskOverdue.
+    /// Confidential — never logged.</summary>
+    public string? FieldValuesJson { get; set; }
+    /// <summary>The task's assignee to notify — TaskOverdue candidates only; null for Authored.</summary>
+    public Guid? AssigneeUserId { get; set; }
 }
 
 /// <summary>A single fire watermark for a trigger — from usp_GetTriggerWatermarks.</summary>
