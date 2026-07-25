@@ -68,6 +68,8 @@ public sealed class ScheduledTriggerEvaluatorTests
             .ReturnsAsync(Array.Empty<EnabledTriggerRow>());
         gateway.Setup(g => g.GetEnabledTaskOverdueTriggersAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<EnabledTriggerRow>());
+        gateway.Setup(g => g.GetEnabledApprovalOverdueTriggersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<EnabledTriggerRow>());
         var sut = new ScheduledTriggerEvaluator(
             gateway.Object, new ConditionEngine(clock), spine.Object, clock, NullLogger<ScheduledTriggerEvaluator>.Instance);
         return (sut, gateway, spine);
@@ -442,6 +444,146 @@ public sealed class ScheduledTriggerEvaluatorTests
         var (sut, gateway, spine) = Build();
         var trigger = TaskOverdueTrigger();
         ArrangeTaskOverdue(gateway, trigger, new[] { OverdueTaskCandidate() });
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act / Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sut.RunDailySweepAsync(Today, cts.Token));
+        spine.Verify(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ─── ApprovalOverdue (built-in) fixtures ────────────────────────────
+    private static readonly Guid ApproverA = Guid.Parse("aaaa1111-1111-1111-1111-111111111111");
+    private static readonly Guid ApproverB = Guid.Parse("bbbb2222-2222-2222-2222-222222222222");
+
+    // One frozen slot with a single eligible member — the FrozenApproverSet JSON shape produced by usp_OpenGate.
+    private static string Slot(int index, Guid userId) =>
+        $"{{\"slotIndex\":{index},\"roleLabel\":\"R{index}\",\"displayLabel\":\"R{index}\"," +
+        $"\"eligibleMembers\":[{{\"userId\":\"{userId}\",\"displayName\":\"Member {index}\"}}]}}";
+
+    private static string ApproverSet(params string[] slots) => "[" + string.Join(",", slots) + "]";
+
+    private static EnabledTriggerRow ApprovalOverdueTrigger(string cadence = "RepeatEveryNDays", int? repeatIntervalDays = 1) => new()
+    {
+        TriggerId = Guid.NewGuid(),
+        WorkspaceId = Guid.NewGuid(),
+        ObjectType = "Approval",
+        Kind = "ApprovalOverdue",
+        Name = "Overdue approval reminder",
+        Cadence = cadence,
+        RepeatIntervalDays = repeatIntervalDays,
+        NotificationCategory = "approval-overdue",
+        Recipients = "[]", // unused — recipients are the frozen eligible approvers on the candidate
+        NotificationTitle = "An approval is overdue",
+        NotificationBody = "body",
+        ConditionsJson = "[]",
+    };
+
+    // An ApprovalOverdue candidate: RecordId is the parent request (fan-out target); WatermarkKey is the
+    // ApprovalRequestId (per-gate dedup); recipients come from ApproverSetJson; no field map, no assignee.
+    private static TriggerCandidateRow OverdueApprovalCandidate(
+        string recordId = "LIT-9001", string? approvalId = null, string? approverSetJson = null) => new()
+    {
+        RecordId = recordId,
+        WatermarkKey = approvalId ?? "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+        FieldValuesJson = null,
+        AssigneeUserId = null,
+        ApproverSetJson = approverSetJson ?? ApproverSet(Slot(0, ApproverA), Slot(1, ApproverB)),
+    };
+
+    private static void ArrangeApprovalOverdue(
+        Mock<ITriggerGateway> gateway,
+        EnabledTriggerRow trigger,
+        IReadOnlyList<TriggerCandidateRow> candidates,
+        IReadOnlyList<TriggerWatermarkRow>? watermarks = null)
+    {
+        gateway.Setup(g => g.GetEnabledApprovalOverdueTriggersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { trigger });
+        gateway.Setup(g => g.GetCandidatesAsync(trigger.TriggerId, It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(candidates);
+        gateway.Setup(g => g.GetWatermarksAsync(trigger.TriggerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(watermarks ?? Array.Empty<TriggerWatermarkRow>());
+    }
+
+    // ─── ApprovalOverdue (built-in fixed-condition) ─────────────────────
+    [Fact]
+    public async Task RunDailySweep_ApprovalOverdue_EmitsToEligibleApproversKeyedOnApprovalId()
+    {
+        // Arrange — one overdue gate (SQL pre-filtered) with two eligible approvers across two slots.
+        var (sut, gateway, spine) = Build();
+        var trigger = ApprovalOverdueTrigger();
+        EventEnvelope? captured = null;
+        spine.Setup(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>()))
+            .Callback<EventEnvelope, CancellationToken>((env, _) => captured = env)
+            .Returns(Task.CompletedTask);
+        var approvalId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+        ArrangeApprovalOverdue(gateway, trigger, new[] { OverdueApprovalCandidate("LIT-9001", approvalId) });
+
+        // Act
+        var summary = await sut.RunDailySweepAsync(Today, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(1, summary.Fired);
+        Assert.NotNull(captured);
+        Assert.Equal("trigger.fired", captured!.EventType);
+        Assert.Equal("LIT-9001", captured.RecordId); // fan-out targets the parent request, not the gate
+        using var payload = JsonDocument.Parse(captured.PayloadJson);
+        Assert.Equal("approval-overdue", payload.RootElement.GetProperty("kind").GetString());
+        var recipients = payload.RootElement.GetProperty("recipientUserIds").EnumerateArray().Select(element => element.GetString()).ToList();
+        Assert.Contains(ApproverA.ToString(), recipients);
+        Assert.Contains(ApproverB.ToString(), recipients);
+        Assert.False(payload.RootElement.GetProperty("includeWatchers").GetBoolean());
+        gateway.Verify(g => g.UpsertFireAsync(trigger.TriggerId, approvalId, Today, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RunDailySweep_ApprovalOverdueNoEligibleApprovers_SkipsWithoutStamp()
+    {
+        // Arrange — a frozen approver set with no members (all approvers removed) → no one to notify.
+        var (sut, gateway, spine) = Build();
+        var trigger = ApprovalOverdueTrigger();
+        ArrangeApprovalOverdue(gateway, trigger, new[] { OverdueApprovalCandidate(approverSetJson: "[]") });
+
+        // Act
+        var summary = await sut.RunDailySweepAsync(Today, CancellationToken.None);
+
+        // Assert — nothing emitted and no watermark stamped, so a re-populated slot can still fire later.
+        Assert.Equal(0, summary.Fired);
+        spine.Verify(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>()), Times.Never);
+        gateway.Verify(g => g.UpsertFireAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RunDailySweep_ApprovalOverdueSameApproverInTwoSlots_DedupesRecipients()
+    {
+        // Arrange — the same person is the eligible approver on two slots; they should be notified once.
+        var (sut, gateway, spine) = Build();
+        var trigger = ApprovalOverdueTrigger();
+        EventEnvelope? captured = null;
+        spine.Setup(s => s.EmitAsync(It.IsAny<EventEnvelope>(), It.IsAny<CancellationToken>()))
+            .Callback<EventEnvelope, CancellationToken>((env, _) => captured = env)
+            .Returns(Task.CompletedTask);
+        var dupSet = ApproverSet(Slot(0, ApproverA), Slot(1, ApproverA));
+        ArrangeApprovalOverdue(gateway, trigger, new[] { OverdueApprovalCandidate(approverSetJson: dupSet) });
+
+        // Act
+        await sut.RunDailySweepAsync(Today, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(captured);
+        using var payload = JsonDocument.Parse(captured!.PayloadJson);
+        var recipients = payload.RootElement.GetProperty("recipientUserIds").EnumerateArray().Select(element => element.GetString()).ToList();
+        Assert.Single(recipients);
+        Assert.Equal(ApproverA.ToString(), recipients[0]);
+    }
+
+    [Fact]
+    public async Task RunDailySweep_ApprovalOverdueCancelledToken_ThrowsWithoutEmitting()
+    {
+        // Arrange
+        var (sut, gateway, spine) = Build();
+        var trigger = ApprovalOverdueTrigger();
+        ArrangeApprovalOverdue(gateway, trigger, new[] { OverdueApprovalCandidate() });
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 

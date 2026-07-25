@@ -52,6 +52,7 @@ public sealed record ApprovalRequestDto(
     string State,
     DateTime OpenedAt,
     DateTime? ResolvedAt,
+    DateOnly? RespondByDate,
     IReadOnlyList<FrozenApproverSlotDto> Slots,
     IReadOnlyList<ApprovalDecisionDto> Decisions);
 

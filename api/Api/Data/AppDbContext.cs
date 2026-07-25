@@ -36,6 +36,7 @@ public sealed class AppDbContext : DbContext
             entity.Property(workspace => workspace.DueSoonWindowDays).HasDefaultValue(3);
             // Triggers slice 3 — Benefit-review-date default offset (migration 087 owns the DB default of 90).
             entity.Property(workspace => workspace.BenefitReviewOffsetDays).HasDefaultValue(90);
+            entity.Property(workspace => workspace.ApprovalRespondByDays).HasDefaultValue(5);
         });
 
         modelBuilder.Entity<User>(entity =>

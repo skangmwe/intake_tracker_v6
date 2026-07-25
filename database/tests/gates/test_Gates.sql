@@ -131,6 +131,49 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE GatesTests.[test_OpenGateStampsRespondByDate]
+AS
+BEGIN
+    -- Arrange — a workspace with a 7-day respond-by window; one slot with one eligible member.
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Requests';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.WorkspaceMembership';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Workspaces';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.GateDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.StageDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.GateApproverSlot';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.ApproverTeamMembership';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.Users';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.ApprovalRequests';
+    INSERT INTO dbo.Workspaces (WorkspaceId, ApprovalRespondByDays, IsDeleted)
+    VALUES ('1A150000-0000-4000-8000-000000000001', 7, 0);
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Name, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000001', '1A150000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', N'R', N'execution', N'{}', 0, N's', N's');
+    INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
+    VALUES ('1A150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
+    INSERT INTO dbo.StageDefinition (StageDefinitionId, LifecycleId, WorkspaceId, StageKey, Label, StatusCategory, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES ('57A60000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'execution', N'Execution', N'Execution', 2, 0, N's', N's'),
+           ('57A60000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'validation', N'Validation', N'Validation', 3, 0, N's', N's');
+    INSERT INTO dbo.GateDefinition (GateDefinitionId, LifecycleId, WorkspaceId, Name, FromStageId, ToStageId, JoinKind, SortOrder, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES ('6A7E0000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '1A150000-0000-4000-8000-000000000001', N'QA readiness gate',
+            '57A60000-0000-4000-8000-000000000003', '57A60000-0000-4000-8000-000000000004', N'and', 0, 0, N's', N's');
+    INSERT INTO dbo.GateApproverSlot (GateApproverSlotId, GateDefinitionId, RoleLabel, SlotIndex, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), '6A7E0000-0000-4000-8000-000000000001', N'GCO', 0, 0, N's', N's');
+    INSERT INTO dbo.ApproverTeamMembership (WorkspaceId, RoleLabel, UserId, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES ('1A150000-0000-4000-8000-000000000001', N'GCO', '00000000-0000-4000-8000-0000000000cc', 0, N's', N's');
+    INSERT INTO dbo.Users (UserId, DisplayName, Email, LastSignInAt, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES ('00000000-0000-4000-8000-0000000000cc', N'Casey', N'casey@example.test', SYSUTCDATETIME(), 0, N's', N's');
+
+    -- Act
+    EXEC dbo.usp_OpenGate @RecordId = N'AIS-00000001', @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @GateDefinitionId = '6A7E0000-0000-4000-8000-000000000001', @OpenedByUserId = '00000000-0000-4000-8000-0000000000aa';
+
+    -- Assert — RespondByDate = the gate's OpenedAt date + the workspace's 7-day window.
+    DECLARE @ExpectedDate DATE = DATEADD(DAY, 7, CAST((SELECT OpenedAt FROM dbo.ApprovalRequests) AS DATE));
+    DECLARE @ActualDate   DATE = (SELECT RespondByDate FROM dbo.ApprovalRequests);
+    EXEC tSQLt.AssertEquals @Expected = @ExpectedDate, @Actual = @ActualDate;
+END;
+GO
+
 CREATE PROCEDURE GatesTests.[test_OpenGateWhenOneAlreadyOpenThrows]
 AS
 BEGIN

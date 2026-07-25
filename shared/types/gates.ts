@@ -3,6 +3,7 @@
 import type {
   ApprovalRequestId,
   GateDefinitionId,
+  IsoDate,
   IsoDateTime,
   LifecycleId,
   RecordId,
@@ -63,6 +64,9 @@ export interface ApprovalRequestDto {
   state: ApprovalRequestState;
   openedAt: IsoDateTime;
   resolvedAt?: IsoDateTime;
+  /** Date the frozen approvers are expected to respond by (openedAt + the workspace's respond-by window),
+   * stamped at gate-open. Absent for gates opened before Slice 5. */
+  respondByDate?: IsoDate;
   slots: FrozenApproverSlot[];
   /** Current decision per slot (latest attempt for each). */
   decisions: ApprovalDecisionDto[];
