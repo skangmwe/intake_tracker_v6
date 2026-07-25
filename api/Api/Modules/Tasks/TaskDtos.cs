@@ -41,7 +41,8 @@ public sealed class TaskTypedFieldValueDto
 /// <summary>The structured typed field a Task captured (mirrors TaskTypedField in tasks.ts).</summary>
 public sealed record TaskTypedFieldDto(Guid DefinitionId, string Label, TaskTypedFieldValueDto Value);
 
-/// <summary>A single Task (mirrors TaskDto in tasks.ts). Completed tasks carry CompletedAt.</summary>
+/// <summary>A single Task (mirrors TaskDto in tasks.ts). Completed tasks carry CompletedAt; DueDate is
+/// an optional planning date (ISO yyyy-MM-dd).</summary>
 public sealed record TaskDto(
     Guid Id,
     string ParentRequestId,
@@ -52,6 +53,7 @@ public sealed record TaskDto(
     TaskTypedFieldDto? TypedField,
     string? Notes,
     DateTime? CompletedAt,
+    string? DueDate,
     DateTime CreatedAt);
 
 /// <summary>A task-bundle template for the composer's "Add bundle" picker (mirrors TaskBundleTemplate).</summary>
@@ -92,6 +94,9 @@ public sealed class TaskCreateRequest
 
     public Guid? Assignee { get; set; }
 
+    /// <summary>Optional planning date (ISO yyyy-MM-dd). Omitted / null → no due date.</summary>
+    public string? DueDate { get; set; }
+
     public TaskTypedFieldInput? TypedField { get; set; }
 
     // kind == 'bundle'
@@ -112,6 +117,12 @@ public sealed class TaskPatchRequest
     public string? Status { get; set; }
 
     public string? Notes { get; set; }
+
+    /// <summary>
+    /// Sparse due-date edit: present (an ISO yyyy-MM-dd string) → set it; present-but-empty ("") →
+    /// clear it; omitted (null) → leave it unchanged.
+    /// </summary>
+    public string? DueDate { get; set; }
 
     /// <summary>Present → set the captured field's value; absent (null) → leave it unchanged.</summary>
     public TaskTypedFieldInput? TypedField { get; set; }

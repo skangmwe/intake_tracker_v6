@@ -525,6 +525,7 @@ public sealed class TaskRow
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public DateOnly? DueDate { get; set; }
     public int SortOrder { get; set; }
     public Guid? FieldDefinitionId { get; set; }
     public string? FieldLabel { get; set; }

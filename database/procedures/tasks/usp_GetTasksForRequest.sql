@@ -33,6 +33,7 @@ BEGIN
         t.Status,
         t.Notes,
         t.CompletedAt,
+        t.DueDate,
         t.SortOrder,
         t.FieldDefinitionId,
         t.FieldLabel,

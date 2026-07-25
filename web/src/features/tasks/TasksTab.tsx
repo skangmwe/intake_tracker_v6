@@ -98,6 +98,7 @@ export function TasksTab({ recordId, workspaceId, paused }: TasksTabProps) {
       kind: 'single',
       title: input.title,
       phase: input.phase,
+      ...(input.dueDate ? { dueDate: input.dueDate } : {}),
       ...(input.field
         ? { typedField: { definitionId: input.field.definitionId, value: emptyValueForKind(input.field.kind) } }
         : {}),

@@ -19,6 +19,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_CreateTask
     @Title             NVARCHAR(400),
     @Phase             NVARCHAR(32),
     @AssigneeUserId    UNIQUEIDENTIFIER,
+    @DueDate           DATE = NULL,
     @FieldDefinitionId UNIQUEIDENTIFIER,
     @FieldLabel        NVARCHAR(200),
     @FieldType         NVARCHAR(16),
@@ -60,12 +61,12 @@ BEGIN
         -- IsDeleted is set explicitly (not left to the column default) because the SortOrder
         -- sequence subquery above filters on IsDeleted = 0 — the new row must satisfy it.
         INSERT INTO dbo.Tasks
-            (TaskId, RecordId, WorkspaceId, Title, Phase, AssigneeUserId, Status, SortOrder,
+            (TaskId, RecordId, WorkspaceId, Title, Phase, AssigneeUserId, Status, DueDate, SortOrder,
              FieldDefinitionId, FieldLabel, FieldType,
              FieldValueUrl, FieldValueText, FieldValueNumber, FieldValueDate, FieldValueSelect, FieldValueBool,
              IsDeleted, CreatedBy, UpdatedBy)
         VALUES
-            (@NewId, @Record, @Ws, @Title, @Phase, @AssigneeUserId, N'Open', @Next,
+            (@NewId, @Record, @Ws, @Title, @Phase, @AssigneeUserId, N'Open', @DueDate, @Next,
              @FieldDefinitionId, @FieldLabel, @FieldType,
              @FieldValueUrl, @FieldValueText, @FieldValueNumber, @FieldValueDate, @FieldValueSelect, @FieldValueBool,
              0, @ByText, @ByText);
@@ -79,7 +80,7 @@ BEGIN
 
     SELECT
         t.TaskId, t.RecordId, t.WorkspaceId, t.Title, t.Phase, t.AssigneeUserId, t.Status,
-        t.Notes, t.CompletedAt, t.SortOrder,
+        t.Notes, t.CompletedAt, t.DueDate, t.SortOrder,
         t.FieldDefinitionId, t.FieldLabel, t.FieldType,
         t.FieldValueUrl, t.FieldValueText, t.FieldValueNumber, t.FieldValueDate, t.FieldValueSelect, t.FieldValueBool,
         t.CreatedAt

@@ -36,7 +36,7 @@ public sealed class TasksControllerTests
     }
 
     private static TaskDto SampleTask() =>
-        new(Guid.NewGuid(), RecordId, "Confirm scope", "Triage", UserId, "Open", null, null, null, DateTime.UtcNow);
+        new(Guid.NewGuid(), RecordId, "Confirm scope", "Triage", UserId, "Open", null, null, null, null, DateTime.UtcNow);
 
     [Fact]
     public async Task GetTasks_Accessible_ReturnsOk()
@@ -83,6 +83,24 @@ public sealed class TasksControllerTests
 
         // Assert
         Assert.Same(created, Assert.IsType<CreatedResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task CreateTask_WithDueDate_ForwardsDueDateToService()
+    {
+        // Arrange
+        TaskCreateRequest? captured = null;
+        var tasks = new Mock<ITasksService>();
+        tasks.Setup(service => service.CreateAsync(RecordId, It.IsAny<TaskCreateRequest>(), UserId, "op-1", It.IsAny<CancellationToken>()))
+            .Callback<string, TaskCreateRequest, Guid, string, CancellationToken>((_, request, _, _, _) => captured = request)
+            .ReturnsAsync(new TaskCreateResult(TaskCreateOutcome.Created, new List<TaskDto> { SampleTask() }, null));
+
+        // Act
+        await Build(tasks).CreateTask(
+            RecordId, new TaskCreateRequest { Kind = "single", Title = "New", DueDate = "2026-07-15" }, CancellationToken.None);
+
+        // Assert
+        Assert.Equal("2026-07-15", captured?.DueDate);
     }
 
     [Fact]
@@ -152,6 +170,24 @@ public sealed class TasksControllerTests
 
         // Assert
         Assert.Same(task, Assert.IsType<OkObjectResult>(result).Value);
+    }
+
+    [Fact]
+    public async Task PatchTask_WithDueDate_ForwardsDueDateToService()
+    {
+        // Arrange — an empty-string due date is a legitimate "clear it" edit and must reach the service.
+        TaskPatchRequest? captured = null;
+        var taskId = Guid.NewGuid();
+        var tasks = new Mock<ITasksService>();
+        tasks.Setup(service => service.PatchAsync(taskId, It.IsAny<TaskPatchRequest>(), UserId, "op-1", It.IsAny<CancellationToken>()))
+            .Callback<Guid, TaskPatchRequest, Guid, string, CancellationToken>((_, request, _, _, _) => captured = request)
+            .ReturnsAsync(new TaskPatchResult(TaskPatchOutcome.Success, SampleTask()));
+
+        // Act
+        await Build(tasks).PatchTask(taskId, new TaskPatchRequest { DueDate = "2026-07-15" }, CancellationToken.None);
+
+        // Assert
+        Assert.Equal("2026-07-15", captured?.DueDate);
     }
 
     [Fact]

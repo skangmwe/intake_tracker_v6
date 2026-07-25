@@ -85,7 +85,7 @@ BEGIN
 
     SELECT
         t.TaskId, t.RecordId, t.WorkspaceId, t.Title, t.Phase, t.AssigneeUserId, t.Status,
-        t.Notes, t.CompletedAt, t.SortOrder,
+        t.Notes, t.CompletedAt, t.DueDate, t.SortOrder,
         t.FieldDefinitionId, t.FieldLabel, t.FieldType,
         t.FieldValueUrl, t.FieldValueText, t.FieldValueNumber, t.FieldValueDate, t.FieldValueSelect, t.FieldValueBool,
         t.CreatedAt
