@@ -31,8 +31,9 @@ interface FieldEditorSheetProps {
   field: FieldDefinitionDto | null;
   /** Field keys available to rule conditions, per object — the current object's set is used. */
   availableKeysByObject: Partial<Record<string, string[]>>;
-  /** Custom (non-built-in) objects the workspace has defined — surfaced in the Object dropdown. */
-  customObjectOptions: readonly { value: string; label: string }[];
+  /** Custom (non-built-in) objects the workspace has defined — surfaced in the Object dropdown.
+   * Only meaningful in the workspace create/edit flow; defaults to none (platform/read-only). */
+  customObjectOptions?: readonly { value: string; label: string }[];
   saveError: string | null;
   isSaving: boolean;
   onSave: (fieldKey: string, request: FieldDefinitionUpsertRequest, isCreate: boolean) => void;
@@ -52,7 +53,7 @@ export function FieldEditorSheet({
   initialObjectType,
   field,
   availableKeysByObject,
-  customObjectOptions,
+  customObjectOptions = [],
   saveError,
   isSaving,
   onSave,
