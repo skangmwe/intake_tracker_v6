@@ -9,6 +9,8 @@ import userEvent from '@testing-library/user-event';
 
 import type { FieldDefinitionId, TaskDto, TaskId, TaskLibraryFieldDto, TaskTypedFieldValue, UserId } from '@shared/types';
 
+import { formatDate } from '@/shared/utils/dateFormat';
+
 import { TaskRow } from './TaskRow';
 
 const ME = 'user-me' as UserId;
@@ -136,6 +138,23 @@ describe('TaskRow', () => {
 
     // Assert
     expect(screen.queryByRole('button', { name: 'Promote Scope to a request' })).not.toBeInTheDocument();
+  });
+
+  it('TaskRow — renders a due-date chip when the task has a due date', async () => {
+    // Arrange
+    const { container } = renderRow(buildTask({ dueDate: '2026-07-15' }));
+
+    // Assert
+    expect(screen.getByText(`Due ${formatDate('2026-07-15')}`)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('TaskRow — omits the due-date chip when the task has no due date', () => {
+    // Act
+    renderRow(buildTask());
+
+    // Assert
+    expect(screen.queryByText(/^Due /)).not.toBeInTheDocument();
   });
 
   it('TaskRow — Locked task shows the precondition row', () => {

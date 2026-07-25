@@ -49,6 +49,8 @@ export interface TaskDto {
   /** Per-task Notes & decisions — expandable free-text (per prototype changelog). */
   notes?: string;
   completedAt?: IsoDateTime;
+  /** Optional planning date the user sets/edits/clears (date-only). */
+  dueDate?: IsoDate;
   createdAt: IsoDateTime;
 }
 
@@ -59,6 +61,7 @@ export type TaskCreateRequest =
       title: string;
       phase: TaskPhase;
       assignee?: UserId;
+      dueDate?: IsoDate;
       preconditionId?: string;
       typedField?: { definitionId: FieldDefinitionId; value: TaskTypedFieldValue };
     }
@@ -69,6 +72,8 @@ export interface TaskPatchRequest {
   phase?: TaskPhase;
   assignee?: UserId;
   status?: TaskStatus;
+  /** Present → set the due date; empty string ('') → clear it; omitted → unchanged. */
+  dueDate?: IsoDate | null;
   typedField?: { definitionId: FieldDefinitionId; value: TaskTypedFieldValue } | null;
   notes?: string;
 }

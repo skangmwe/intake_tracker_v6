@@ -39,6 +39,18 @@ describe('tasks api', () => {
     expect(mockedFetch).toHaveBeenCalledWith(`/v1/requests/${RECORD}/tasks`, { method: 'POST', body: request });
   });
 
+  it('createTasks — POSTs a single task carrying a due date', () => {
+    // Arrange
+    mockedFetch.mockResolvedValue([] as never);
+    const request: TaskCreateRequest = { kind: 'single', title: 'New', phase: 'Execution', dueDate: '2026-07-15' };
+
+    // Act
+    createTasks(RECORD, request);
+
+    // Assert
+    expect(mockedFetch).toHaveBeenCalledWith(`/v1/requests/${RECORD}/tasks`, { method: 'POST', body: request });
+  });
+
   it('patchTask — PATCHes the task by id', () => {
     // Arrange
     mockedFetch.mockResolvedValue(undefined as never);
@@ -48,6 +60,17 @@ describe('tasks api', () => {
 
     // Assert
     expect(mockedFetch).toHaveBeenCalledWith('/v1/tasks/task-1', { method: 'PATCH', body: { status: 'Done' } });
+  });
+
+  it('patchTask — PATCHes a due-date change (empty string clears it)', () => {
+    // Arrange
+    mockedFetch.mockResolvedValue(undefined as never);
+
+    // Act
+    patchTask('task-1', { dueDate: '' });
+
+    // Assert
+    expect(mockedFetch).toHaveBeenCalledWith('/v1/tasks/task-1', { method: 'PATCH', body: { dueDate: '' } });
   });
 
   it('fetchTaskBundles — GETs the workspace bundle templates', async () => {

@@ -36,6 +36,8 @@ CREATE OR ALTER PROCEDURE dbo.usp_PatchTask
     @Status              NVARCHAR(16),
     @SetNotes            BIT,
     @Notes               NVARCHAR(MAX),
+    @SetDueDate          BIT = 0,
+    @DueDate             DATE = NULL,
     @SetTypedFieldValue  BIT,
     @FieldValueUrl       NVARCHAR(2048),
     @FieldValueText      NVARCHAR(MAX),
@@ -86,6 +88,7 @@ BEGIN
                                    ELSE t.CompletedAt
                                END,
             t.Notes          = CASE WHEN @SetNotes = 1 THEN @Notes ELSE t.Notes END,
+            t.DueDate        = CASE WHEN @SetDueDate = 1 THEN @DueDate ELSE t.DueDate END,
             t.FieldValueUrl     = CASE WHEN @SetTypedFieldValue = 1 THEN @FieldValueUrl     ELSE t.FieldValueUrl END,
             t.FieldValueText    = CASE WHEN @SetTypedFieldValue = 1 THEN @FieldValueText    ELSE t.FieldValueText END,
             t.FieldValueNumber  = CASE WHEN @SetTypedFieldValue = 1 THEN @FieldValueNumber  ELSE t.FieldValueNumber END,
@@ -109,7 +112,7 @@ BEGIN
     -- Gated read-back: returns the row only if the caller can still see it (else empty → 403).
     SELECT
         t.TaskId, t.RecordId, t.WorkspaceId, t.Title, t.Phase, t.AssigneeUserId, t.Status,
-        t.Notes, t.CompletedAt, t.SortOrder,
+        t.Notes, t.CompletedAt, t.DueDate, t.SortOrder,
         t.FieldDefinitionId, t.FieldLabel, t.FieldType,
         t.FieldValueUrl, t.FieldValueText, t.FieldValueNumber, t.FieldValueDate, t.FieldValueSelect, t.FieldValueBool,
         t.CreatedAt

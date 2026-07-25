@@ -147,6 +147,13 @@ public sealed class TasksService : ITasksService
         var (valueParams, _) = ExtractFieldValue(request.TypedField?.Value);
         var setTypedFieldValue = request.TypedField is not null;
 
+        // Sparse due-date edit: present → set (an empty / unparseable value clears it); absent → unchanged.
+        var setDueDate = request.DueDate is not null;
+        var dueDate = new SqlParameter("@DueDate", SqlDbType.Date)
+        {
+            Value = TryParseIsoDate(request.DueDate, out var due) ? due.ToDateTime(TimeOnly.MinValue) : DBNull.Value,
+        };
+
         List<TaskRow> rows;
         try
         {
@@ -154,6 +161,7 @@ public sealed class TasksService : ITasksService
                 .FromSqlRaw(
                     "EXEC dbo.usp_PatchTask @TaskId, @UserId, @SetTitle, @Title, @SetPhase, @Phase, " +
                     "@SetAssignee, @AssigneeUserId, @SetStatus, @Status, @SetNotes, @Notes, " +
+                    "@SetDueDate, @DueDate, " +
                     "@SetTypedFieldValue, @FieldValueUrl, @FieldValueText, @FieldValueNumber, " +
                     "@FieldValueDate, @FieldValueSelect, @FieldValueBool",
                     new SqlParameter("@TaskId", taskId),
@@ -168,6 +176,8 @@ public sealed class TasksService : ITasksService
                     new SqlParameter("@Status", (object?)request.Status ?? DBNull.Value),
                     new SqlParameter("@SetNotes", request.Notes is not null),
                     new SqlParameter("@Notes", (object?)request.Notes ?? DBNull.Value),
+                    new SqlParameter("@SetDueDate", setDueDate),
+                    dueDate,
                     new SqlParameter("@SetTypedFieldValue", setTypedFieldValue),
                     valueParams.Url,
                     valueParams.Text,
@@ -295,10 +305,16 @@ public sealed class TasksService : ITasksService
         // Default the assignee to the creator so "assigned to you" works (matches the prototype chip).
         var assignee = request.Assignee ?? actorUserId;
 
+        var dueDate = new SqlParameter("@DueDate", SqlDbType.Date)
+        {
+            // Bind as DateTime (midnight) for the SqlDbType.Date param — portable across SqlClient versions.
+            Value = TryParseIsoDate(request.DueDate, out var due) ? due.ToDateTime(TimeOnly.MinValue) : DBNull.Value,
+        };
+
         var rows = await _db.Set<TaskRow>()
             .FromSqlRaw(
                 "EXEC dbo.usp_CreateTask @RecordId, @WorkspaceId, @Author, @Title, @Phase, @AssigneeUserId, " +
-                "@FieldDefinitionId, @FieldLabel, @FieldType, @FieldValueUrl, @FieldValueText, " +
+                "@DueDate, @FieldDefinitionId, @FieldLabel, @FieldType, @FieldValueUrl, @FieldValueText, " +
                 "@FieldValueNumber, @FieldValueDate, @FieldValueSelect, @FieldValueBool",
                 new SqlParameter("@RecordId", record.RecordId),
                 new SqlParameter("@WorkspaceId", record.WorkspaceId),
@@ -306,6 +322,7 @@ public sealed class TasksService : ITasksService
                 new SqlParameter("@Title", request.Title.Trim()),
                 new SqlParameter("@Phase", phase),
                 new SqlParameter("@AssigneeUserId", assignee),
+                dueDate,
                 new SqlParameter("@FieldDefinitionId", (object?)fieldDefinitionId ?? DBNull.Value),
                 new SqlParameter("@FieldLabel", (object?)fieldLabel ?? DBNull.Value),
                 new SqlParameter("@FieldType", (object?)fieldType ?? DBNull.Value),
@@ -456,6 +473,7 @@ public sealed class TasksService : ITasksService
         TypedField: MapTypedField(row),
         Notes: row.Notes,
         CompletedAt: row.CompletedAt is null ? null : DateTime.SpecifyKind(row.CompletedAt.Value, DateTimeKind.Utc),
+        DueDate: row.DueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         CreatedAt: DateTime.SpecifyKind(row.CreatedAt, DateTimeKind.Utc));
 
     private static TaskTypedFieldDto? MapTypedField(TaskRow row)

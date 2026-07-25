@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import {
   ArrowBendUpRight,
   ArrowSquareOut,
+  CalendarBlank,
   CalendarCheck,
   CheckCircle,
   Circle,
@@ -26,6 +27,7 @@ import type {
 } from '@shared/types';
 
 import { StatusPill } from '@/shared/components/Feedback';
+import { formatDate } from '@/shared/utils/dateFormat';
 
 import { formatCompleted, isTaskDone } from './taskView';
 
@@ -185,6 +187,7 @@ export function TaskRow({ task, currentUserId, library, disabled, onPatch, onPro
 
   const done = isTaskDone(task.status);
   const completed = formatCompleted(task.completedAt);
+  const due = task.dueDate ? formatDate(task.dueDate) : '';
   const hasNotes = (task.notes ?? '').trim().length > 0;
   // Promote is offered on live tasks only — a done/cancelled task has nothing to promote.
   const canPromote = task.status !== 'Done' && task.status !== 'Cancelled';
@@ -207,6 +210,13 @@ export function TaskRow({ task, currentUserId, library, disabled, onPatch, onPro
         <span className="task-row__assignee">{assigneeLabel(task.assignee, currentUserId)}</span>
 
         <StatusPill status={statusKind(task.status)} label={task.status} />
+
+        {due && (
+          <span className="task-row__due">
+            <CalendarBlank size={13} aria-hidden />
+            Due {due}
+          </span>
+        )}
 
         {done && completed && (
           <span className="task-row__completed">

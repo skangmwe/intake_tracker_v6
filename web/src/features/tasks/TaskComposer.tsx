@@ -18,6 +18,8 @@ export type ComposerTab = 'task' | 'bundle';
 export interface AddTaskInput {
   title: string;
   phase: TaskPhase;
+  /** Optional planning date (ISO yyyy-MM-dd); omitted when the user left it blank. */
+  dueDate?: string;
   field?: { definitionId: FieldDefinitionId; kind: 'url' | 'text' | 'number' | 'date' | 'select' | 'checkbox' };
 }
 
@@ -46,6 +48,7 @@ export function TaskComposer({
 }: TaskComposerProps) {
   const [title, setTitle] = useState('');
   const [phase, setPhase] = useState<TaskPhase>('Triage');
+  const [dueDate, setDueDate] = useState('');
   const [fieldId, setFieldId] = useState('');
   const [bundleId, setBundleId] = useState('');
 
@@ -53,13 +56,15 @@ export function TaskComposer({
     const trimmed = title.trim();
     if (!trimmed) return;
     const field = library.find((entry) => entry.id === fieldId);
-    // Spread the field in only when one is picked — exactOptionalPropertyTypes forbids `field: undefined`.
+    // Spread optional members in only when set — exactOptionalPropertyTypes forbids `key: undefined`.
     onAddTask({
       title: trimmed,
       phase,
+      ...(dueDate ? { dueDate } : {}),
       ...(field ? { field: { definitionId: field.id, kind: libraryTypeToKind(field.fieldType) } } : {}),
     });
     setTitle('');
+    setDueDate('');
     setFieldId('');
   };
 
@@ -118,6 +123,20 @@ export function TaskComposer({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="task-composer__row task-composer__row--field">
+            <label className="task-composer__field-label" htmlFor="task-due-date">
+              Due date
+            </label>
+            <input
+              id="task-due-date"
+              type="date"
+              className="task-composer__select"
+              disabled={disabled}
+              value={dueDate}
+              onChange={(event) => setDueDate(event.target.value)}
+            />
+            <span className="task-composer__hint caption">Optional planning date.</span>
           </div>
           <div className="task-composer__row task-composer__row--field">
             <label className="task-composer__field-label" htmlFor="task-field-picker">
