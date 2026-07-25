@@ -44,10 +44,10 @@ IF EXISTS (
     ALTER TABLE dbo.FieldRuleDependency DROP CONSTRAINT CK_FieldRuleDependency_ObjectType;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM dbo.MigrationHistory WHERE MigrationId = N'20260724_088_AllowCustomObjectFieldRules')
+IF NOT EXISTS (SELECT 1 FROM dbo.MigrationHistory WHERE MigrationId = N'20260725_091_AllowCustomObjectFieldRules')
 BEGIN
     INSERT INTO dbo.MigrationHistory (MigrationId, AppliedBy, Description)
-    VALUES (N'20260724_088_AllowCustomObjectFieldRules', SUSER_SNAME(),
+    VALUES (N'20260725_091_AllowCustomObjectFieldRules', SUSER_SNAME(),
             N'Custom-object field rules — widen FieldRuleDependency.ObjectType to NVARCHAR(64) and drop the ObjectType CHECK.');
 END;
 GO
