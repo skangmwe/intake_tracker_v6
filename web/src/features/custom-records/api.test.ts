@@ -4,6 +4,7 @@
 import type {
   CustomRecordDto,
   CustomRecordListRow,
+  CustomRecordWriteRequest,
   PaginatedQuery,
   PaginatedResponse,
   WorkspaceId,
@@ -11,7 +12,7 @@ import type {
 
 import { apiFetch } from '@/shared/http/apiClient';
 
-import { getRecord, queryRecords } from './api';
+import { createRecord, deleteRecord, getRecord, patchRecord, queryRecords } from './api';
 
 jest.mock('@/shared/http/apiClient');
 const mockedApiFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
@@ -77,5 +78,59 @@ describe('getRecord', () => {
       {},
     );
     expect(result).toBe(dto);
+  });
+});
+
+describe('createRecord', () => {
+  it('createRecord — with a write body — POSTs it to the records path', async () => {
+    // Arrange
+    const dto = { id: RECORD_ID, name: 'Acme' } as unknown as CustomRecordDto;
+    mockedApiFetch.mockResolvedValue(dto);
+    const body: CustomRecordWriteRequest = { name: 'Acme', fields: { spend: 100 } };
+
+    // Act
+    const result = await createRecord(WORKSPACE, OBJECT_ID, body);
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/v1/workspaces/${WORKSPACE}/objects/${OBJECT_ID}/records`,
+      { method: 'POST', body },
+    );
+    expect(result).toBe(dto);
+  });
+});
+
+describe('patchRecord', () => {
+  it('patchRecord — with the full field map — PATCHes the record path', async () => {
+    // Arrange
+    const dto = { id: RECORD_ID, name: 'Acme' } as unknown as CustomRecordDto;
+    mockedApiFetch.mockResolvedValue(dto);
+    const body: CustomRecordWriteRequest = { name: 'Acme', fields: { spend: 200, tier: 'gold' } };
+
+    // Act
+    const result = await patchRecord(WORKSPACE, OBJECT_ID, RECORD_ID, body);
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/v1/workspaces/${WORKSPACE}/objects/${OBJECT_ID}/records/${RECORD_ID}`,
+      { method: 'PATCH', body },
+    );
+    expect(result).toBe(dto);
+  });
+});
+
+describe('deleteRecord', () => {
+  it('deleteRecord — by id — DELETEs the record path', async () => {
+    // Arrange
+    mockedApiFetch.mockResolvedValue(undefined);
+
+    // Act
+    await deleteRecord(WORKSPACE, OBJECT_ID, RECORD_ID);
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/v1/workspaces/${WORKSPACE}/objects/${OBJECT_ID}/records/${RECORD_ID}`,
+      { method: 'DELETE' },
+    );
   });
 });

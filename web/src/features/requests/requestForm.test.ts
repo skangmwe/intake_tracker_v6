@@ -1,15 +1,11 @@
-// Unit tests for the data-driven Request form logic (no React, no DB).
+// Tests for the Request-specific form logic that remains in requestForm.ts (the Priority Score
+// formula and the fixed create-form sections) plus a smoke check that the generic helpers moved to
+// @/shared/fields/fieldForm are re-exported unchanged. The generic helpers' own cases live in
+// shared/fields/fieldForm.test.ts.
 
-import type { FieldDefinitionDto, FieldRuleDto } from '@shared/types';
+import type { FieldDefinitionDto } from '@shared/types';
 
-import {
-  computePriorityScore,
-  evaluateComparator,
-  evaluateFieldConditions,
-  filterSections,
-  groupFieldsBySection,
-  validateRequestForm,
-} from './requestForm';
+import { computePriorityScore, INTAKE_CREATE_SECTIONS, validateRequestForm } from './requestForm';
 
 function buildField(overrides: Partial<FieldDefinitionDto>): FieldDefinitionDto {
   return {
@@ -44,189 +40,6 @@ function buildField(overrides: Partial<FieldDefinitionDto>): FieldDefinitionDto 
   };
 }
 
-function rule(overrides: Partial<FieldRuleDto>): FieldRuleDto {
-  return {
-    id: 'r-1',
-    action: 'Show',
-    whenFieldKey: 'x',
-    comparator: 'eq',
-    compareValue: 'true',
-    produceValue: null,
-    sortOrder: 0,
-    ...overrides,
-  };
-}
-
-describe('groupFieldsBySection', () => {
-  it('groupFieldsBySection — orders sections by first appearance and fields by sortOrder', () => {
-    // Arrange
-    const fields = [
-      buildField({ fieldKey: 'b', section: 'Intake', sortOrder: 2 }),
-      buildField({ fieldKey: 'a', section: 'Intake', sortOrder: 1 }),
-      buildField({ fieldKey: 'c', section: 'Value mapping', sortOrder: 3 }),
-      buildField({ fieldKey: 'retired', section: 'Intake', sortOrder: 0, isRetired: true }),
-    ];
-
-    // Act
-    const groups = groupFieldsBySection(fields);
-
-    // Assert
-    expect(groups.map((group) => group.section)).toEqual(['Intake', 'Value mapping']);
-    expect(groups[0]?.fields.map((field) => field.fieldKey)).toEqual(['a', 'b']);
-  });
-});
-
-describe('filterSections', () => {
-  it('filterSections — keeps only named sections in the requested order', () => {
-    // Arrange
-    const groups = groupFieldsBySection([
-      buildField({ fieldKey: 'a', section: 'Triage', sortOrder: 1 }),
-      buildField({ fieldKey: 'b', section: 'Intake', sortOrder: 2 }),
-    ]);
-
-    // Act
-    const filtered = filterSections(groups, ['Intake', 'Triage']);
-
-    // Assert
-    expect(filtered.map((group) => group.section)).toEqual(['Intake', 'Triage']);
-  });
-});
-
-describe('evaluateComparator', () => {
-  it('evaluateComparator — eq matches the string form of a boolean', () => {
-    // Arrange / Act / Assert
-    expect(evaluateComparator(true, 'eq', 'true')).toBe(true);
-    expect(evaluateComparator(false, 'eq', 'true')).toBe(false);
-  });
-
-  it('evaluateComparator — isSet is false for empty and true for a value', () => {
-    // Arrange / Act / Assert
-    expect(evaluateComparator('', 'isSet', null)).toBe(false);
-    expect(evaluateComparator('x', 'isSet', null)).toBe(true);
-  });
-
-  it('evaluateComparator — numeric comparison works with gt', () => {
-    // Arrange / Act / Assert
-    expect(evaluateComparator(6, 'gt', '5')).toBe(true);
-    expect(evaluateComparator(4, 'gt', '5')).toBe(false);
-  });
-
-  it('evaluateComparator — isNotSet is true only for an empty value', () => {
-    // Arrange / Act / Assert
-    expect(evaluateComparator(null, 'isNotSet', null)).toBe(true);
-    expect(evaluateComparator('x', 'isNotSet', null)).toBe(false);
-  });
-
-  it('evaluateComparator — neq is the inverse of eq', () => {
-    // Arrange / Act / Assert
-    expect(evaluateComparator('PG', 'neq', 'Client')).toBe(true);
-    expect(evaluateComparator('Client', 'neq', 'Client')).toBe(false);
-  });
-
-  it('evaluateComparator — contains is case-insensitive and false when either side is empty', () => {
-    // Arrange / Act / Assert
-    expect(evaluateComparator('Meeting Notes', 'contains', 'notes')).toBe(true);
-    expect(evaluateComparator('Meeting', 'contains', 'notes')).toBe(false);
-    expect(evaluateComparator(null, 'contains', 'notes')).toBe(false);
-  });
-
-  it('evaluateComparator — gte, lt and lte compare numerically', () => {
-    // Arrange / Act / Assert
-    expect(evaluateComparator(5, 'gte', '5')).toBe(true);
-    expect(evaluateComparator(4, 'gte', '5')).toBe(false);
-    expect(evaluateComparator(4, 'lt', '5')).toBe(true);
-    expect(evaluateComparator(5, 'lt', '5')).toBe(false);
-    expect(evaluateComparator(5, 'lte', '5')).toBe(true);
-    expect(evaluateComparator(6, 'lte', '5')).toBe(false);
-  });
-
-  it('evaluateComparator — non-numeric operands make an ordered comparison false', () => {
-    // Arrange / Act / Assert
-    expect(evaluateComparator('abc', 'gt', '5')).toBe(false);
-    expect(evaluateComparator(6, 'gt', 'xyz')).toBe(false);
-  });
-});
-
-describe('evaluateFieldConditions', () => {
-  it('evaluateFieldConditions — a Show-ruled field is hidden until its condition matches', () => {
-    // Arrange — holdReason shows only when holdBlocked = true.
-    const fields = [
-      buildField({ fieldKey: 'holdBlocked', fieldType: 'Boolean' }),
-      buildField({
-        fieldKey: 'holdReason',
-        rules: [
-          rule({
-            action: 'Show',
-            whenFieldKey: 'holdBlocked',
-            comparator: 'eq',
-            compareValue: 'true',
-          }),
-        ],
-      }),
-    ];
-
-    // Act
-    const whenHidden = evaluateFieldConditions(fields, { holdBlocked: false });
-    const whenShown = evaluateFieldConditions(fields, { holdBlocked: true });
-
-    // Assert
-    expect(whenHidden.hidden.has('holdReason')).toBe(true);
-    expect(whenShown.hidden.has('holdReason')).toBe(false);
-  });
-
-  it('evaluateFieldConditions — a Hide rule hides the field when it matches', () => {
-    // Arrange — legacyNotes is hidden once the record is archived.
-    const fields = [
-      buildField({ fieldKey: 'archived', fieldType: 'Boolean' }),
-      buildField({
-        fieldKey: 'legacyNotes',
-        rules: [
-          rule({
-            action: 'Hide',
-            whenFieldKey: 'archived',
-            comparator: 'eq',
-            compareValue: 'true',
-          }),
-        ],
-      }),
-    ];
-
-    // Act
-    const shown = evaluateFieldConditions(fields, { archived: false });
-    const hidden = evaluateFieldConditions(fields, { archived: true });
-
-    // Assert
-    expect(shown.hidden.has('legacyNotes')).toBe(false);
-    expect(hidden.hidden.has('legacyNotes')).toBe(true);
-  });
-
-  it('evaluateFieldConditions — a Require rule marks the field required when it matches', () => {
-    // Arrange — clientNumber required when deptPgClient = Client.
-    const fields = [
-      buildField({ fieldKey: 'deptPgClient', fieldType: 'SingleSelect' }),
-      buildField({
-        fieldKey: 'clientNumber',
-        rules: [
-          rule({
-            action: 'Require',
-            whenFieldKey: 'deptPgClient',
-            comparator: 'eq',
-            compareValue: 'Client',
-          }),
-        ],
-      }),
-    ];
-
-    // Act
-    const notClient = evaluateFieldConditions(fields, { deptPgClient: 'PG' });
-    const isClient = evaluateFieldConditions(fields, { deptPgClient: 'Client' });
-
-    // Assert
-    expect(notClient.required.has('clientNumber')).toBe(false);
-    expect(isClient.required.has('clientNumber')).toBe(true);
-  });
-});
-
 describe('computePriorityScore', () => {
   it('computePriorityScore — is businessValue + efficiencyGain − levelOfEffort', () => {
     // Arrange / Act / Assert
@@ -235,100 +48,22 @@ describe('computePriorityScore', () => {
   });
 });
 
-describe('validateRequestForm', () => {
-  it('validateRequestForm — flags a required empty field but ignores hidden ones', () => {
-    // Arrange
-    const fields = [
-      buildField({ fieldKey: 'name', displayName: 'Request name', isRequired: true }),
-      buildField({
-        fieldKey: 'clientNumber',
-        displayName: 'Client number',
-        rules: [
-          rule({
-            action: 'Require',
-            whenFieldKey: 'deptPgClient',
-            comparator: 'eq',
-            compareValue: 'Client',
-          }),
-        ],
-      }),
-    ];
+describe('INTAKE_CREATE_SECTIONS', () => {
+  it('INTAKE_CREATE_SECTIONS — lists the four numbered create-form sections in order', () => {
+    // Arrange / Act / Assert
+    expect(INTAKE_CREATE_SECTIONS).toEqual(['Intake', 'Value mapping', 'Solution details', 'Triage']);
+  });
+});
 
-    // Act — name missing, dept not Client (so clientNumber not required).
-    const errors = validateRequestForm(fields, { deptPgClient: 'PG' });
+describe('validateRequestForm re-export', () => {
+  it('validateRequestForm — re-exports the shared validator and flags a required empty field', () => {
+    // Arrange
+    const fields = [buildField({ fieldKey: 'name', displayName: 'Request name', isRequired: true })];
+
+    // Act
+    const errors = validateRequestForm(fields, {});
 
     // Assert
     expect(errors.name).toContain('required');
-    expect(errors.clientNumber).toBeUndefined();
-  });
-
-  it('validateRequestForm — enforces numeric 1–5 bounds', () => {
-    // Arrange
-    const fields = [
-      buildField({
-        fieldKey: 'businessValue',
-        displayName: 'Business Value',
-        fieldType: 'Number',
-        minValue: 1,
-        maxValue: 5,
-      }),
-    ];
-
-    // Act
-    const errors = validateRequestForm(fields, { businessValue: 9 });
-
-    // Assert
-    expect(errors.businessValue).toContain('at most 5');
-  });
-
-  it('validateRequestForm — flags a value below the minimum', () => {
-    // Arrange
-    const fields = [
-      buildField({
-        fieldKey: 'businessValue',
-        displayName: 'Business Value',
-        fieldType: 'Number',
-        minValue: 1,
-        maxValue: 5,
-      }),
-    ];
-
-    // Act
-    const errors = validateRequestForm(fields, { businessValue: 0 });
-
-    // Assert
-    expect(errors.businessValue).toContain('at least 1');
-  });
-
-  it('validateRequestForm — flags a non-numeric value in a Number field', () => {
-    // Arrange
-    const fields = [
-      buildField({ fieldKey: 'businessValue', displayName: 'Business Value', fieldType: 'Number' }),
-    ];
-
-    // Act
-    const errors = validateRequestForm(fields, { businessValue: 'abc' });
-
-    // Assert
-    expect(errors.businessValue).toContain('must be a number');
-  });
-
-  it('validateRequestForm — a valid in-range Decimal produces no error', () => {
-    // Arrange
-    const fields = [
-      buildField({
-        fieldKey: 'ratio',
-        displayName: 'Ratio',
-        fieldType: 'Decimal',
-        minValue: 0,
-        maxValue: 10,
-      }),
-    ];
-
-    // Act
-    const errors = validateRequestForm(fields, { ratio: 3.5 });
-
-    // Assert
-    expect(errors.ratio).toBeUndefined();
   });
 });

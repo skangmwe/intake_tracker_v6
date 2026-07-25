@@ -5,6 +5,7 @@
 import type {
   CustomRecordDto,
   CustomRecordListRow,
+  CustomRecordWriteRequest,
   PaginatedQuery,
   PaginatedResponse,
   WorkspaceId,
@@ -35,5 +36,42 @@ export function getRecord(
   return apiFetch<CustomRecordDto>(
     `/v1/workspaces/${workspaceId}/objects/${objectId}/records/${recordId}`,
     signal ? { signal } : {},
+  );
+}
+
+/** Create a record of one custom object. Returns the full record (Slice C create form). */
+export function createRecord(
+  workspaceId: WorkspaceId,
+  objectId: string,
+  body: CustomRecordWriteRequest,
+): Promise<CustomRecordDto> {
+  return apiFetch<CustomRecordDto>(
+    `/v1/workspaces/${workspaceId}/objects/${objectId}/records`,
+    { method: 'POST', body },
+  );
+}
+
+/** Replace a record's name + full field map (Slice C detail autosave — last-write-wins, no If-Match). */
+export function patchRecord(
+  workspaceId: WorkspaceId,
+  objectId: string,
+  recordId: string,
+  body: CustomRecordWriteRequest,
+): Promise<CustomRecordDto> {
+  return apiFetch<CustomRecordDto>(
+    `/v1/workspaces/${workspaceId}/objects/${objectId}/records/${recordId}`,
+    { method: 'PATCH', body },
+  );
+}
+
+/** Soft-delete a custom record (Slice C — list kebab + detail header). */
+export function deleteRecord(
+  workspaceId: WorkspaceId,
+  objectId: string,
+  recordId: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/v1/workspaces/${workspaceId}/objects/${objectId}/records/${recordId}`,
+    { method: 'DELETE' },
   );
 }

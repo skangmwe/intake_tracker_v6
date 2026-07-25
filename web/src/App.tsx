@@ -21,7 +21,11 @@ import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
 import { TriggersAdminPage } from '@/features/triggers';
 import { DashboardPage, DashboardsListPage } from '@/features/dashboards';
 import { AddToCatalogPage, FeatureCatalogPage, FeatureDetailPage } from '@/features/features';
-import { CustomRecordsListPage } from '@/features/custom-records';
+import {
+  CustomRecordCreatePage,
+  CustomRecordDetailPage,
+  CustomRecordsListPage,
+} from '@/features/custom-records';
 import { ToolkitSurface } from '@/features/toolkit';
 import { ImportExportPage } from '@/features/import-export';
 import { LifecyclePage } from '@/features/lifecycle';
@@ -125,6 +129,8 @@ export function App() {
               {/* Custom-object records (SP2). Placed above the catch-all; no plain /objects route
                   exists (object admin lives under /admin/fields), so this does not shadow anything. */}
               <Route path="/objects/:objectKey" element={<CustomRecordsListPage />} />
+              <Route path="/objects/:objectKey/new" element={<CustomRecordCreatePage />} />
+              <Route path="/objects/:objectKey/:recordId" element={<CustomRecordDetailPage />} />
               <Route path="/toolkit" element={<ToolkitSurface />} />
               <Route path="/search" element={<SearchResultsPage />} />
               <Route path="/announcements" element={<AnnouncementsListPage />} />
