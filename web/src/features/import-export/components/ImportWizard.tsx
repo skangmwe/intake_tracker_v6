@@ -1,15 +1,17 @@
-// Import wizard (S28, Import tab). Four steps on a shared Stepper: pick an object, upload a CSV (with a
-// live preview), map columns to fields, then review + run. Import is create-only and CSV-only (BS §13).
-// Column mapping + the target object travel to the server; the run + status polling live in
-// ImportRunStep. Renders the io-object catalog's loading / error / empty states explicitly.
+// Import wizard (S28, Import tab). Four steps on a shared Stepper: pick an object (and, for objects that
+// support it, a create/upsert mode), upload a CSV (with a live preview), map columns to fields, then
+// review + run. Import is CSV-only (BS §13). In upsert mode, a synthetic "Record ID" target is added to
+// the mapping fields so an existing record can be matched and updated; create mode always makes a new
+// record per row. Column mapping + the target object + mode travel to the server; the run + status
+// polling live in ImportRunStep. Renders the io-object catalog's loading / error / empty states explicitly.
 
 import { useMemo, useState, type ChangeEvent } from 'react';
 
-import type { IoObjectDto, WorkspaceId } from '@shared/types';
+import type { ImportMode, IoFieldSpec, IoObjectDto, WorkspaceId } from '@shared/types';
 
 import { CSV_PREVIEW_ROW_LIMIT } from '@/shared/constants';
 import { Button } from '@/shared/components/Button';
-import { Select } from '@/shared/components/Form';
+import { Select, type SelectOption } from '@/shared/components/Form';
 import { Stepper } from '@/shared/components/Feedback';
 
 import { parseCsvPreview, type CsvPreview } from '../csvPreview';
@@ -32,11 +34,20 @@ const STEPS = [
 ];
 const CSV_EXTENSION = /\.csv$/i;
 
+/** Synthetic mapping target added only in upsert mode — matches an existing record by its Record ID. */
+const RECORD_ID_FIELD: IoFieldSpec = { key: 'id', label: 'Record ID', required: true };
+
+const IMPORT_MODE_OPTIONS: SelectOption[] = [
+  { value: 'create', label: 'Create only' },
+  { value: 'upsert', label: 'Create or update' },
+];
+
 export function ImportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
   const { objects, isLoading, isError } = useIoObjectsForImport(workspaceId);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [objectType, setObjectType] = useState('');
+  const [mode, setMode] = useState<ImportMode>('create');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CsvPreview | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -45,13 +56,26 @@ export function ImportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
   const active: IoObjectDto | undefined =
     objects.find((item) => item.objectType === objectType) ?? objects[0];
 
+  // Only an object the registry marks canUpsert may run in upsert mode — force create otherwise, rather
+  // than trusting stale mode state left over from a previously selected object.
+  const effectiveMode: ImportMode = active?.canUpsert ? mode : 'create';
+
+  const importTargets = useMemo<IoFieldSpec[]>(
+    () =>
+      effectiveMode === 'upsert'
+        ? [RECORD_ID_FIELD, ...(active?.importFields ?? [])]
+        : (active?.importFields ?? []),
+    [effectiveMode, active],
+  );
+
   const validity = useMemo(
-    () => validateMapping(mapping, active?.importFields ?? []),
-    [mapping, active],
+    () => validateMapping(mapping, importTargets),
+    [mapping, importTargets],
   );
 
   const chooseObject = (value: string) => {
     setObjectType(value);
+    setMode('create');
     // Fields differ per object — clear the upload so mapping is always against the chosen object.
     setFile(null);
     setPreview(null);
@@ -61,7 +85,7 @@ export function ImportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
 
   const onFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const picked = event.target.files?.[0] ?? null;
-    const fields = active?.importFields ?? [];
+    const fields = importTargets;
     setFile(picked);
     setPreview(null);
     setMapping({});
@@ -124,6 +148,14 @@ export function ImportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
             options={objects.map((item) => ({ value: item.objectType, label: item.label }))}
             onChange={chooseObject}
           />
+          {active.canUpsert && (
+            <Select
+              label="Import mode"
+              value={effectiveMode}
+              options={IMPORT_MODE_OPTIONS}
+              onChange={(value) => setMode(value as ImportMode)}
+            />
+          )}
         </div>
       )}
 
@@ -153,7 +185,7 @@ export function ImportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
           <ImportColumnMapper
             headers={preview.headers}
             sampleRow={preview.rows[0]}
-            fields={active.importFields}
+            fields={importTargets}
             mapping={mapping}
             onChange={(columnIndex, fieldKey) =>
               setMapping((current) => ({ ...current, [columnIndex]: fieldKey }))
@@ -177,6 +209,7 @@ export function ImportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
           objectType={active.objectType}
           objectLabel={active.label}
           mapping={toMappingPayload(mapping)}
+          mode={effectiveMode}
         />
       )}
 
