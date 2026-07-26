@@ -2,11 +2,17 @@
 // Fields tab is served by PlatformFieldsController; this controller adds the two remaining tabs:
 //   • GET/POST/PATCH/DELETE /platform/objects — the Global object types (built-in Request/Task,
 //                                     read-only; plus Global custom objects a platform admin manages).
+//   • POST/PATCH/DELETE /platform/objects/{objectKey}/fields — custom fields on a Global custom
+//                                     object (SP3b Slice 2a, Task 4). Delegates to
+//                                     IFieldSchemaService.UpsertGlobalObjectFieldAsync /
+//                                     RetireGlobalObjectFieldAsync, which already verify objectKey
+//                                     resolves to a Global CUSTOM object (NotFound otherwise).
 //   • GET /platform/relationships  — the canonical system-seeded relationships every workspace
 //                                     inherits, de-duplicated across workspaces, read-only.
 // Every endpoint verifies the caller carries the Platform-admin grant; a non-admin gets 403 (never
 // 404). The controller only routes / validates / authorizes and maps the service result to a status.
 
+using McDermott.AiTracker.Api.Modules.Fields;
 using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Modules.Relationships;
 using McDermott.AiTracker.Api.Shared.Auth;
@@ -19,17 +25,20 @@ namespace McDermott.AiTracker.Api.Modules.PlatformAdmin;
 public sealed class PlatformSchemaController : ControllerBase
 {
     private readonly IObjectSchemaService _objects;
+    private readonly IFieldSchemaService _fields;
     private readonly IRelationshipsService _relationships;
     private readonly IAccessGuard _accessGuard;
     private readonly ICurrentUser _currentUser;
 
     public PlatformSchemaController(
         IObjectSchemaService objects,
+        IFieldSchemaService fields,
         IRelationshipsService relationships,
         IAccessGuard accessGuard,
         ICurrentUser currentUser)
     {
         _objects = objects;
+        _fields = fields;
         _relationships = relationships;
         _accessGuard = accessGuard;
         _currentUser = currentUser;
@@ -122,6 +131,75 @@ public sealed class PlatformSchemaController : ControllerBase
         };
     }
 
+    /// <summary>Create a field on a Global custom object (platform admin). <paramref name="objectKey"/>
+    /// must resolve to a Global, non-system object — any other value (built-in, LocalWorkspace object,
+    /// unknown slug) returns 404, never disclosing which slugs exist.</summary>
+    [HttpPost("objects/{objectKey}/fields")]
+    [ProducesResponseType(typeof(FieldDefinitionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateField(
+        [FromRoute] string objectKey,
+        [FromBody] FieldDefinitionUpsertRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.IsPlatformAdminAsync(_currentUser.UserId, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var result = await _fields.UpsertGlobalObjectFieldAsync(
+            objectKey, request, isCreate: true, _currentUser.UserId, cancellationToken);
+        return MapFieldMutation(result, isDelete: false);
+    }
+
+    /// <summary>Patch a field on a Global custom object (platform admin). The route's fieldKey wins
+    /// over whatever the body carries.</summary>
+    [HttpPatch("objects/{objectKey}/fields/{fieldKey}")]
+    [ProducesResponseType(typeof(FieldDefinitionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateField(
+        [FromRoute] string objectKey,
+        [FromRoute] string fieldKey,
+        [FromBody] FieldDefinitionUpsertRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.IsPlatformAdminAsync(_currentUser.UserId, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        request.FieldKey = fieldKey;
+        var result = await _fields.UpsertGlobalObjectFieldAsync(
+            objectKey, request, isCreate: false, _currentUser.UserId, cancellationToken);
+        return MapFieldMutation(result, isDelete: false);
+    }
+
+    /// <summary>Retire (soft-delete) a field on a Global custom object (platform admin).</summary>
+    [HttpDelete("objects/{objectKey}/fields/{fieldKey}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteField(
+        [FromRoute] string objectKey,
+        [FromRoute] string fieldKey,
+        CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.IsPlatformAdminAsync(_currentUser.UserId, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var result = await _fields.RetireGlobalObjectFieldAsync(objectKey, fieldKey, _currentUser.UserId, cancellationToken);
+        return MapFieldMutation(result, isDelete: true);
+    }
+
     /// <summary>The canonical system-seeded relationships every workspace inherits, de-duplicated
     /// across workspaces — read-only reference (S34 Relationships). No workspace scope.</summary>
     [HttpGet("relationships")]
@@ -148,6 +226,66 @@ public sealed class PlatformSchemaController : ControllerBase
             ObjectMutationOutcome.InvalidState =>
                 ConflictProblem(result.Detail ?? "An object with this name already exists."),
             _ => AccessDenied(),
+        };
+
+    // Success returns 200 with the field (create and patch) or 204 (delete). NotFound covers both
+    // "objectKey isn't a Global custom object" and "fieldKey doesn't exist on it" — the service
+    // collapses both into the same outcome, so the caller never learns which. Conflict is a
+    // duplicate field key on create. ValidationFailed carries the service's field-shape / dependency
+    // errors. ForeignGlobal and PlatformDefined are workspace-path-only outcomes (a foreign-owner or
+    // platform-defined guard) that UpsertGlobalObjectFieldAsync/RetireGlobalObjectFieldAsync
+    // deliberately skip for the platform path — platform admins own every Global field. They cannot
+    // occur here; map them (and any future outcome) to 500 rather than a misleading 409/403 so an
+    // unexpected value never gets treated as "the operation succeeded, just conflicted."
+    private IActionResult MapFieldMutation(FieldOperationResult result, bool isDelete) =>
+        result.Outcome switch
+        {
+            FieldOperationOutcome.Success => isDelete ? NoContent() : Ok(result.Field),
+            FieldOperationOutcome.NotFound => NotFound(),
+            FieldOperationOutcome.Conflict => FieldConflictProblem(),
+            FieldOperationOutcome.ValidationFailed => FieldValidationProblem(result.Errors),
+            _ => FieldUnexpectedStateProblem(),
+        };
+
+    private ObjectResult FieldConflictProblem() =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/duplicate-field",
+            Title = "Field already exists.",
+            Status = StatusCodes.Status409Conflict,
+            Detail = "A field with this key already exists on this object. Edit it instead of creating a new one.",
+        })
+        {
+            StatusCode = StatusCodes.Status409Conflict,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    private ObjectResult FieldValidationProblem(IReadOnlyList<string>? errors) =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/validation",
+            Title = "The field configuration is not valid.",
+            Status = StatusCodes.Status400BadRequest,
+            Detail = errors is { Count: > 0 } ? string.Join(" ", errors) : "The field configuration is not valid.",
+        })
+        {
+            StatusCode = StatusCodes.Status400BadRequest,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    // Defensive-only branch — see the comment on MapFieldMutation. Never expose which outcome hit
+    // this path; the detail is intentionally generic (api-error-handling.md — no internals in errors).
+    private ObjectResult FieldUnexpectedStateProblem() =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/unexpected-field-state",
+            Title = "The field could not be saved.",
+            Status = StatusCodes.Status500InternalServerError,
+            Detail = "The field is in a state this endpoint does not support.",
+        })
+        {
+            StatusCode = StatusCodes.Status500InternalServerError,
+            ContentTypes = { "application/problem+json" },
         };
 
     private BadRequestObjectResult NameRequired()
