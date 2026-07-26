@@ -572,13 +572,18 @@ GO
 -- usp_QueryCustomRecords — Global-field whitelist + cross-tenant leak exclusion (SP3b Slice 2a)
 -- =============================================
 
-CREATE PROCEDURE CustomRecordsTests.[test_Query_WhitelistsGlobalFieldAndOwnLocalField_ExcludesOtherWorkspacesLocalField]
+CREATE PROCEDURE CustomRecordsTests.[test_Query_WhitelistsGlobalFieldAndOwnLocalField_ExcludesMislabelledForeignRow]
 AS
 BEGIN
-    -- Arrange — workspace A's own local field, a platform Global field (WorkspaceId NULL), and a
-    -- DIFFERENT workspace B's local field, all on the same object slug. Filtering by A's own field
-    -- or the Global field must narrow the result set (they're in A's effective whitelist);
-    -- filtering by B's field must NOT narrow it (B's local field never leaks into A's whitelist).
+    -- Arrange — workspace A's own local field, a TRUE platform Global field (WorkspaceId IS NULL,
+    -- Location='Global'), and a DIFFERENT workspace B's row that is WORKSPACE-OWNED but
+    -- MISLABELLED Location='Global' (WorkspaceId=@OtherWs, not NULL — FieldDefinition places no
+    -- server-side constraint tying Location to WorkspaceId, so this row can exist). Filtering by
+    -- A's own field or the true platform Global field must narrow the result set (they're in A's
+    -- effective whitelist); filtering by B's mislabelled row must NOT narrow it — the Global arm
+    -- requires WorkspaceId IS NULL, not Location alone, so B's row never leaks into A's whitelist
+    -- even though it claims Location='Global' (mirrors test_ObjectDefinition.sql's
+    -- test_WorkspaceOwnedRowMislabelledGlobal_DoesNotLeakCrossTenant).
     DECLARE @Ws  UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000001';
     DECLARE @OtherWs UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000002';
     DECLARE @Obj UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-0000000000AA';
@@ -587,15 +592,15 @@ BEGIN
     INSERT INTO dbo.FieldDefinition (WorkspaceId, ObjectType, FieldKey, FieldType, Location, IsDeleted, IsRetired)
     VALUES
         (@Ws,      N'vendor', N'regionA', N'ShortText', N'LocalWorkspace', 0, 0), -- A's own local field
-        (NULL,     N'vendor', N'firmTag', N'ShortText', N'Global',         0, 0), -- platform Global field
-        (@OtherWs, N'vendor', N'regionB', N'ShortText', N'LocalWorkspace', 0, 0); -- B's own local field
+        (NULL,     N'vendor', N'firmTag', N'ShortText', N'Global',         0, 0), -- TRUE platform Global field
+        (@OtherWs, N'vendor', N'regionB', N'ShortText', N'Global',         0, 0); -- B's row, MISLABELLED Global
 
     EXEC CustomRecordsTests.SeedRecord @Obj, @Ws, N'One', N'{"regionA":"East","firmTag":"Compliance","regionB":"West"}';
     EXEC CustomRecordsTests.SeedRecord @Obj, @Ws, N'Two', N'{"regionA":"West","firmTag":"Ops","regionB":"East"}';
 
     DECLARE @Act TABLE (RecordId UNIQUEIDENTIFIER, Name NVARCHAR(400), FieldValues NVARCHAR(MAX), RowVer VARBINARY(8), TotalCount INT);
 
-    -- Act + Assert 1 — the platform Global field narrows A's result set (it IS whitelisted).
+    -- Act + Assert 1 — the TRUE platform Global field narrows A's result set (it IS whitelisted).
     INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
         @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
         @FiltersJson = N'{"firmTag":{"type":"text","contains":"Compliance"}}';
@@ -611,8 +616,11 @@ BEGIN
     EXEC tSQLt.AssertEqualsString @Expected = N'One', @Actual = (SELECT TOP 1 Name FROM @Act);
     DELETE FROM @Act;
 
-    -- Act + Assert 3 — workspace B's local field does NOT narrow A's result set (not whitelisted,
-    -- so the predicate is a no-op — same as an unknown key — and every in-scope row still returns).
+    -- Act + Assert 3 — workspace B's MISLABELLED-Global row does NOT narrow A's result set. It is
+    -- workspace-owned (WorkspaceId=@OtherWs, not NULL), so the Global arm's WorkspaceId IS NULL
+    -- guard excludes it from A's whitelist — the predicate is a no-op (same as an unknown key) and
+    -- every in-scope row still returns. This is the leak this fix closes: Location alone is not
+    -- sufficient ownership evidence.
     INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
         @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
         @FiltersJson = N'{"regionB":{"type":"text","contains":"West"}}';
