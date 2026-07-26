@@ -7,6 +7,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using McDermott.AiTracker.Api.Data;
+using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Shared.EventSpine;
 using McDermott.AiTracker.Api.Shared.Rules;
 using McDermott.AiTracker.Api.Shared.Time;
@@ -54,6 +55,19 @@ public interface IFieldSchemaService
 
     Task<FieldOperationResult> UpsertTaskLibraryFieldAsync(
         Guid workspaceId, TaskLibraryFieldUpsertRequest request, bool isCreate, Guid actorUserId, string operationId, CancellationToken cancellationToken);
+
+    // ---- Global (platform-owned) custom-object field upsert/retire (SP3b Slice 2a) — platform-admin
+    // surface, no workspace scope, no event emission (mirrors Slice 1's platform object CRUD). ----
+
+    /// <summary>Creates or updates a field on a Global custom object (WorkspaceId NULL,
+    /// Location='Global'). A platform admin owns Global fields, so the IsLocal/ForeignGlobal and
+    /// IsPlatformDefined guards that gate a workspace's own field edits do not apply here.</summary>
+    Task<FieldOperationResult> UpsertGlobalObjectFieldAsync(
+        string objectKey, FieldDefinitionUpsertRequest request, bool isCreate, Guid actorUserId, CancellationToken cancellationToken);
+
+    /// <summary>Retires a field on a Global custom object.</summary>
+    Task<FieldOperationResult> RetireGlobalObjectFieldAsync(
+        string objectKey, string fieldKey, Guid actorUserId, CancellationToken cancellationToken);
 }
 
 public sealed partial class FieldSchemaService : IFieldSchemaService
@@ -77,10 +91,11 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
     private readonly IEventSpine _eventSpine;
     private readonly IClock _clock;
     private readonly IReadOnlyList<ImportExport.IIoObject> _ioObjects;
+    private readonly IObjectSchemaService _objects;
 
     public FieldSchemaService(
         AppDbContext db, IConditionEngine conditionEngine, IEventSpine eventSpine, IClock clock,
-        IEnumerable<ImportExport.IIoObject> ioObjects)
+        IEnumerable<ImportExport.IIoObject> ioObjects, IObjectSchemaService objects)
     {
         _db = db;
         _conditionEngine = conditionEngine;
@@ -91,6 +106,11 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
         // service, so taking the registry here would create a DI cycle. Only the built-in
         // descriptors' catalog fields are needed, and IEnumerable<IIoObject> is exactly that set.
         _ioObjects = ioObjects.ToList();
+        // ObjectSchemaService depends only on AppDbContext (not IFieldSchemaService), so this edge
+        // is acyclic — verified by a container-resolution test (ImportExportEndpointsTests) that
+        // resolves both interfaces from a real DI scope (the SP5 lesson: mocked unit tests and
+        // 401-only integration tests can't see a cycle that only manifests at container build time).
+        _objects = objects;
     }
 
     public async Task<WorkspaceFieldSchemaDto> GetSchemaAsync(Guid workspaceId, string objectType, CancellationToken cancellationToken)
@@ -240,6 +260,88 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
             cancellationToken).ConfigureAwait(false);
 
         await EmitAsync(workspaceId, "field.retired", fieldKey, objectType, actorUserId, operationId, cancellationToken).ConfigureAwait(false);
+        return new FieldOperationResult(FieldOperationOutcome.Success, current with { IsRetired = true });
+    }
+
+    public async Task<FieldOperationResult> UpsertGlobalObjectFieldAsync(
+        string objectKey, FieldDefinitionUpsertRequest request, bool isCreate, Guid actorUserId, CancellationToken cancellationToken)
+    {
+        // The target must be a Global custom object (WorkspaceId NULL, Location='Global', not a built-in).
+        var globals = await _objects.ListGlobalAsync(cancellationToken).ConfigureAwait(false);
+        if (!globals.Any(o => o is { IsSystem: false, Location: "Global" } && o.ObjectKey == objectKey))
+        {
+            return new FieldOperationResult(FieldOperationOutcome.NotFound);
+        }
+
+        request.ObjectType = objectKey;
+        request.Location = "Global";          // forced — platform fields are always Global
+        var fieldKey = request.FieldKey!;
+
+        // Read the object's Global fields (Guid.Empty owns no rows, so only Location='Global' rows surface).
+        var existing = await ReadFieldsAsync(Guid.Empty, objectKey, cancellationToken).ConfigureAwait(false);
+        var current = existing.FirstOrDefault(field => field.FieldKey == fieldKey);
+        if (isCreate && current is not null) return new FieldOperationResult(FieldOperationOutcome.Conflict);
+        if (!isCreate && current is null) return new FieldOperationResult(FieldOperationOutcome.NotFound);
+        // NOTE: no IsLocal/ForeignGlobal/IsPlatformDefined guard — platform admins own Global fields.
+
+        var validationErrors = ValidateFieldTypeShape(request);
+        var dependencies = ComputeDependencies(request);
+        var graph = ValidateGraphWithChange(
+            await ReadDependenciesAsync(Guid.Empty, objectKey, cancellationToken).ConfigureAwait(false), fieldKey, dependencies);
+        if (!graph.IsValid) validationErrors = validationErrors.Concat(graph.Errors).ToList();
+        if (validationErrors.Count > 0)
+            return new FieldOperationResult(FieldOperationOutcome.ValidationFailed, Errors: validationErrors);
+
+        await ExecuteUpsertAsync(null, request, dependencies, actorUserId, cancellationToken).ConfigureAwait(false);
+
+        var refreshed = await ReadFieldsAsync(Guid.Empty, objectKey, cancellationToken).ConfigureAwait(false);
+        var saved = refreshed.First(field => field.FieldKey == fieldKey);
+        return new FieldOperationResult(FieldOperationOutcome.Success, saved);
+    }
+
+    public async Task<FieldOperationResult> RetireGlobalObjectFieldAsync(
+        string objectKey, string fieldKey, Guid actorUserId, CancellationToken cancellationToken)
+    {
+        // The target must be a Global custom object (mirrors UpsertGlobalObjectFieldAsync's guard).
+        var globals = await _objects.ListGlobalAsync(cancellationToken).ConfigureAwait(false);
+        if (!globals.Any(o => o is { IsSystem: false, Location: "Global" } && o.ObjectKey == objectKey))
+        {
+            return new FieldOperationResult(FieldOperationOutcome.NotFound);
+        }
+
+        var existing = await ReadFieldsAsync(Guid.Empty, objectKey, cancellationToken).ConfigureAwait(false);
+        var current = existing.FirstOrDefault(field => field.FieldKey == fieldKey);
+        if (current is null)
+        {
+            return new FieldOperationResult(FieldOperationOutcome.NotFound);
+        }
+
+        // NOTE: no IsLocal/IsPlatformDefined guard — platform admins own Global fields.
+
+        // Dependency guard: another live field still references this one.
+        var stillReferenced = existing
+            .Where(field => field.FieldKey != fieldKey && !field.IsRetired)
+            .SelectMany(FieldReferences)
+            .Any(reference => string.Equals(reference, fieldKey, StringComparison.OrdinalIgnoreCase));
+        if (stillReferenced)
+        {
+            return new FieldOperationResult(
+                FieldOperationOutcome.ValidationFailed,
+                Errors: new[] { $"'{current.DisplayName}' is used by another field's rule or derivation and cannot be retired until that reference is removed." });
+        }
+
+        await _db.Database.ExecuteSqlRawAsync(
+            "EXEC dbo.usp_RetireFieldDefinition @WorkspaceId, @ObjectType, @FieldKey, @ActorUserId",
+            new[]
+            {
+                new SqlParameter("@WorkspaceId", DBNull.Value),
+                new SqlParameter("@ObjectType", objectKey),
+                new SqlParameter("@FieldKey", fieldKey),
+                new SqlParameter("@ActorUserId", actorUserId.ToString()),
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        // No event — platform ops are firm-wide, not per-workspace (mirrors Slice 1's platform object CRUD).
         return new FieldOperationResult(FieldOperationOutcome.Success, current with { IsRetired = true });
     }
 

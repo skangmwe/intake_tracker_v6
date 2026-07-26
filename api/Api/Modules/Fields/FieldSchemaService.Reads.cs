@@ -117,8 +117,11 @@ public sealed partial class FieldSchemaService
         return rows.Select(row => (row.FromFieldKey, row.ToFieldKey)).ToList();
     }
 
+    // workspaceId is null for a Global (platform-owned) field — the proc scopes those on the
+    // Global namespace (WorkspaceId IS NULL AND Location='Global') instead of a workspace
+    // (mirrors ObjectSchemaService.UpsertAsync's nullable-workspace pattern).
     private async Task ExecuteUpsertAsync(
-        Guid workspaceId, FieldDefinitionUpsertRequest request, IReadOnlyList<string> dependencies, Guid actorUserId, CancellationToken cancellationToken)
+        Guid? workspaceId, FieldDefinitionUpsertRequest request, IReadOnlyList<string> dependencies, Guid actorUserId, CancellationToken cancellationToken)
     {
         var optionsJson = request.Options is { Count: > 0 }
             ? JsonSerializer.Serialize(request.Options.Select(option => new { value = option.Value, label = option.Label, sortOrder = option.SortOrder }), JsonOptions)
@@ -146,7 +149,7 @@ public sealed partial class FieldSchemaService
                 @DerivedKind, @DerivedExpression, @DerivedDefaultValue, @OptionsJson, @RulesJson, @DependenciesJson, @ActorUserId",
             new[]
             {
-                new SqlParameter("@WorkspaceId", workspaceId),
+                new SqlParameter("@WorkspaceId", (object?)workspaceId ?? DBNull.Value),
                 new SqlParameter("@ObjectType", request.ObjectType),
                 new SqlParameter("@FieldKey", request.FieldKey),
                 new SqlParameter("@DisplayName", request.DisplayName),

@@ -93,4 +93,27 @@ public sealed class ImportExportEndpointsTests : IClassFixture<WebApplicationFac
         Assert.NotNull(registry);
         Assert.NotNull(fields);
     }
+
+    /// <summary>Container-resolution guard: FieldSchemaService now depends on IObjectSchemaService
+    /// (SP3b Slice 2a, Task 3 — the platform Global-object field upsert/retire path needs to resolve
+    /// the target's Global custom object). ObjectSchemaService depends only on AppDbContext, not
+    /// IFieldSchemaService, so FieldSchemaService -> IObjectSchemaService is acyclic — but the mocked
+    /// unit tests in FieldSchemaServiceGlobalFieldTests can't see a cycle that only manifests at
+    /// container build time (the SP5 lesson). Resolving both from a real scope exercises the full
+    /// constructor graph and throws InvalidOperationException("A circular dependency was
+    /// detected...") if a cycle regresses — no database access is required, this only constructs the
+    /// object graph.</summary>
+    [Fact]
+    public void ServiceProvider_ResolvesIFieldSchemaServiceAndIObjectSchemaService_NoCircularDependency()
+    {
+        using var scope = _factory.Services.CreateScope();
+
+        var fields = scope.ServiceProvider
+            .GetRequiredService<McDermott.AiTracker.Api.Modules.Fields.IFieldSchemaService>();
+        var objects = scope.ServiceProvider
+            .GetRequiredService<McDermott.AiTracker.Api.Modules.Objects.IObjectSchemaService>();
+
+        Assert.NotNull(fields);
+        Assert.NotNull(objects);
+    }
 }
