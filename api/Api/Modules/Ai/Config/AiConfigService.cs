@@ -49,4 +49,12 @@ public sealed class AiConfigService : IAiConfigService
 
         return new AiConfigDto(enabled, allowlist);
     }
+
+    public async Task<IReadOnlyList<Guid>> GetEnabledWorkspaceIdsAsync(CancellationToken ct) =>
+        await _db.Workspaces
+            .AsNoTracking()
+            .Where(workspace => workspace.AiAssistEnabled && !workspace.IsDeleted)
+            .Select(workspace => workspace.WorkspaceId)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
 }

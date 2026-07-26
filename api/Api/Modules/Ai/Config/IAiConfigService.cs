@@ -7,4 +7,8 @@ public interface IAiConfigService
 
     Task<AiConfigDto> SetAsync(
         Guid workspaceId, Guid actorUserId, bool enabled, IReadOnlyList<string> allowlist, CancellationToken ct);
+
+    /// <summary>The ids of every workspace with AI-assist enabled (AiAssistEnabled = true, not soft-deleted).
+    /// The embedding refresh sweep processes only these — a disabled workspace is never embedded.</summary>
+    Task<IReadOnlyList<Guid>> GetEnabledWorkspaceIdsAsync(CancellationToken ct);
 }
