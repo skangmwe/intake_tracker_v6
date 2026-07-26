@@ -53,7 +53,9 @@ public sealed class ExportServiceTests
                 {
                     new Dictionary<string, object?> { ["id"] = "AIS-00000001", ["name"] = "Alpha" },
                 }));
-        _registry.Setup(registry => registry.Find("Request")).Returns(ioObject.Object);
+        _registry
+            .Setup(registry => registry.FindForWorkspaceAsync(WorkspaceId, "Request", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ioObject.Object);
     }
 
     private static SavedViewResponse View(
@@ -167,7 +169,9 @@ public sealed class ExportServiceTests
     [Fact]
     public async Task ExportObjectAsync_UnknownObject_ReturnsUnsupported()
     {
-        _registry.Setup(registry => registry.Find("Widget")).Returns((IIoObject?)null);
+        _registry
+            .Setup(registry => registry.FindForWorkspaceAsync(WorkspaceId, "Widget", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IIoObject?)null);
 
         var result = await Build().ExportObjectAsync(
             WorkspaceId, "Widget", new[] { "name" }, UserId, CancellationToken.None);
@@ -255,7 +259,9 @@ public sealed class ExportServiceTests
         ioObject
             .Setup(item => item.BuildExportAsync(WorkspaceId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ExportDataset?)null);
-        _registry.Setup(registry => registry.Find("Feature")).Returns(ioObject.Object);
+        _registry
+            .Setup(registry => registry.FindForWorkspaceAsync(WorkspaceId, "Feature", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ioObject.Object);
         _accessGuard
             .Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);

@@ -50,8 +50,9 @@ public sealed class ImportExportController : ControllerBase
 
         // Export fields can be per-workspace (Request derives them from the workspace field catalog), so
         // resolve each object's export columns for this workspace + caller before shaping the DTO.
-        var objects = new List<IoObjectDto>(_registry.All.Count);
-        foreach (var ioObject in _registry.All)
+        var registered = await _registry.AllForWorkspaceAsync(workspaceId, _currentUser.UserId, cancellationToken);
+        var objects = new List<IoObjectDto>(registered.Count);
+        foreach (var ioObject in registered)
         {
             var exportFields = ioObject.CanExport
                 ? await ioObject.GetExportFieldsAsync(workspaceId, _currentUser.UserId, cancellationToken)
@@ -83,7 +84,8 @@ public sealed class ImportExportController : ControllerBase
         }
 
         // Resolve the target object (default Request for backward-compat). Unknown or non-importable → 400.
-        var ioObject = _registry.Find(string.IsNullOrWhiteSpace(objectType) ? "Request" : objectType);
+        var ioObject = await _registry.FindForWorkspaceAsync(
+            workspaceId, string.IsNullOrWhiteSpace(objectType) ? "Request" : objectType, _currentUser.UserId, cancellationToken);
         if (ioObject is null || !ioObject.CanImport)
         {
             return ValidationFailure("objectType", "That object can't be imported. Choose an importable object.");

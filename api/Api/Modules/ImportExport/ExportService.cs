@@ -67,7 +67,7 @@ public sealed class ExportService : IExportService
         Guid workspaceId, string? objectType, IReadOnlyList<string>? fieldKeys, Guid userId,
         CancellationToken cancellationToken)
     {
-        var ioObject = _registry.Find(objectType);
+        var ioObject = await _registry.FindForWorkspaceAsync(workspaceId, objectType, userId, cancellationToken).ConfigureAwait(false);
         if (ioObject is null || !ioObject.CanExport)
         {
             return new ExportResult(ExportOutcome.Unsupported);
