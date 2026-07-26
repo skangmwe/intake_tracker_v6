@@ -18,6 +18,9 @@ public class LlmProviderFactoryTests
             await Task.CompletedTask;
             yield return new LlmToken(name);
         }
+
+        public Task<LlmCompletion> CompleteAsync(LlmRequest request, int maxTokens, CancellationToken ct) =>
+            Task.FromResult(new LlmCompletion(name));
     }
 
     private static LlmProviderFactory BuildSut(string defaultProvider = "claude") =>

@@ -10,4 +10,9 @@ public interface ILlmProvider
     string Name { get; }
 
     IAsyncEnumerable<LlmToken> StreamAsync(LlmRequest request, CancellationToken ct);
+
+    /// <summary>A single non-streaming completion. Used for short, one-shot generations (field-value
+    /// suggestions) where streaming buys nothing. Never logs request or response content
+    /// (api-pii-handling.md, api-logging.md).</summary>
+    Task<LlmCompletion> CompleteAsync(LlmRequest request, int maxTokens, CancellationToken ct);
 }

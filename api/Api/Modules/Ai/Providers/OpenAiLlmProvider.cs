@@ -52,4 +52,25 @@ public sealed class OpenAiLlmProvider : ILlmProvider
             }
         }
     }
+
+    public async Task<LlmCompletion> CompleteAsync(LlmRequest request, int maxTokens, CancellationToken ct)
+    {
+        var messages = new List<ChatMessage> { new SystemChatMessage(request.System) };
+        foreach (var message in request.Messages)
+        {
+            messages.Add(string.Equals(message.Role, "assistant", StringComparison.OrdinalIgnoreCase)
+                ? new AssistantChatMessage(message.Content)
+                : new UserChatMessage(message.Content));
+        }
+
+        var options = new ChatCompletionOptions { MaxOutputTokenCount = maxTokens };
+
+        var completion = await _client.Value.CompleteChatAsync(messages, options, ct).ConfigureAwait(false);
+
+        var text = string.Concat(completion.Value.Content
+            .Where(part => !string.IsNullOrEmpty(part.Text))
+            .Select(part => part.Text));
+
+        return new LlmCompletion(text);
+    }
 }

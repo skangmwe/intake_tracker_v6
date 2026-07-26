@@ -55,7 +55,11 @@ export function CustomRecordDetailPage() {
   );
   const record = useCustomRecord(workspaceId ?? undefined, object?.id, recordId);
 
-  const patch = usePatchCustomRecord((workspaceId ?? '') as WorkspaceId, object?.id ?? '', recordId);
+  const patch = usePatchCustomRecord(
+    (workspaceId ?? '') as WorkspaceId,
+    object?.id ?? '',
+    recordId,
+  );
   const remove = useDeleteCustomRecord((workspaceId ?? '') as WorkspaceId, object?.id ?? '');
 
   const [values, setValues] = useState<FieldValueMap>({});
@@ -82,7 +86,10 @@ export function CustomRecordDetailPage() {
     [schema.data],
   );
   const sections = useMemo(() => groupFieldsBySection(userFields), [userFields]);
-  const conditions = useMemo(() => evaluateFieldConditions(userFields, values), [userFields, values]);
+  const conditions = useMemo(
+    () => evaluateFieldConditions(userFields, values),
+    [userFields, values],
+  );
 
   if (isMeLoading || objects.isLoading) {
     return (
@@ -110,7 +117,9 @@ export function CustomRecordDetailPage() {
 
   // A missing / forbidden record is non-disclosing — NoAccessPage, never a 404 that confirms existence.
   if (record.isError || !record.data) {
-    return <NoAccessPage resourceNoun="record" onGoHome={() => navigate(`/objects/${objectKey}`)} />;
+    return (
+      <NoAccessPage resourceNoun="record" onGoHome={() => navigate(`/objects/${objectKey}`)} />
+    );
   }
 
   const current = record.data;
@@ -138,7 +147,11 @@ export function CustomRecordDetailPage() {
   return (
     <main className="cr-page" data-ds="page">
       <nav aria-label="Breadcrumb" className="cr-breadcrumb">
-        <button type="button" className="cr-breadcrumb__link" onClick={() => navigate(`/objects/${objectKey}`)}>
+        <button
+          type="button"
+          className="cr-breadcrumb__link"
+          onClick={() => navigate(`/objects/${objectKey}`)}
+        >
           {listTitle}
         </button>
         <CaretRight size={14} aria-hidden />
@@ -162,9 +175,7 @@ export function CustomRecordDetailPage() {
 
         {confirming && (
           <div className="mws-card cr-confirm" role="alertdialog" aria-label="Delete record">
-            <p className="cr-confirm__text">
-              Delete “{current.name}”? This can’t be undone.
-            </p>
+            <p className="cr-confirm__text">Delete “{current.name}”? This can’t be undone.</p>
             {remove.isError && (
               <p className="mws-alert mws-alert--error" role="alert">
                 This record could not be deleted. Try again in a moment.
@@ -211,7 +222,11 @@ export function CustomRecordDetailPage() {
             const visible = group.fields.filter((field) => !conditions.hidden.has(field.fieldKey));
             if (visible.length === 0) return null;
             return (
-              <section key={group.section} className="mws-card cr-section" aria-label={group.section}>
+              <section
+                key={group.section}
+                className="mws-card cr-section"
+                aria-label={group.section}
+              >
                 <h2 className="cr-section__title">{group.section}</h2>
                 <div className="cr-section__fields">
                   {visible.map((field) => (
@@ -221,6 +236,12 @@ export function CustomRecordDetailPage() {
                       value={values[field.fieldKey]}
                       onChange={(value) => handleChange(field.fieldKey, value)}
                       required={conditions.required.has(field.fieldKey)}
+                      suggest={{
+                        workspaceId: workspaceId as WorkspaceId,
+                        objectType: object.objectKey,
+                        recordId,
+                        siblingValues: values,
+                      }}
                     />
                   ))}
                 </div>

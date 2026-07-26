@@ -110,9 +110,7 @@ function formatDayMonth(value: unknown): string {
   const date = isoDate
     ? new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]))
     : new Date(raw);
-  return Number.isNaN(date.getTime())
-    ? '—'
-    : formatDate(date);
+  return Number.isNaN(date.getTime()) ? '—' : formatDate(date);
 }
 
 // SLA Status (BS §17.2) — the API derives it authoritatively from Due Date and the workspace's
@@ -291,6 +289,12 @@ function IntakeTab({
                     onChange={(value) => handleChange(field.fieldKey, value)}
                     required={conditions.required.has(field.fieldKey)}
                     disabled={crossed && !onAiSide}
+                    suggest={{
+                      workspaceId: request.workspaceId as WorkspaceId,
+                      objectType: 'Request',
+                      recordId: request.id,
+                      siblingValues: values,
+                    }}
                   />
                 );
                 if (!crossed) return <div key={field.fieldKey}>{control}</div>;

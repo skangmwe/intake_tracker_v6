@@ -50,7 +50,12 @@ const SLIDER_MAX = 5;
 const SLIDER_STEP = 1;
 const SLIDER_DEFAULT = 3;
 /** Value-mapping fields the Priority-score widget renders in place of the generic controls. */
-const VALUE_MAPPING_WIDGET_KEYS = new Set(['businessValue', 'efficiencyGain', 'levelOfEffort', 'priorityScore']);
+const VALUE_MAPPING_WIDGET_KEYS = new Set([
+  'businessValue',
+  'efficiencyGain',
+  'levelOfEffort',
+  'priorityScore',
+]);
 /** Intake keys the special Request-type select owns. */
 const REQUEST_TYPE_KEYS = new Set(['requestType']);
 /** Revealed only when the request is a client engagement. */
@@ -99,7 +104,9 @@ export function IntakeFormPage() {
   const [lifecycleId, setLifecycleId] = useState<LifecycleId | ''>('');
 
   const toggleRelated = (id: RecordId) =>
-    setQueuedRelated((prev) => (prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id]));
+    setQueuedRelated((prev) =>
+      prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id],
+    );
 
   // Seed values + queued links from a resumed draft once its body loads (defaults stay for anything
   // it omits). The queued links are what make a Copy / Promote link-back land as a typed link on submit.
@@ -120,7 +127,9 @@ export function IntakeFormPage() {
     return (
       <main className="requests-page">
         <h1 className="h2">New request</h1>
-        <p className="caption" role="status">Loading the intake form…</p>
+        <p className="caption" role="status">
+          Loading the intake form…
+        </p>
       </main>
     );
   }
@@ -130,17 +139,24 @@ export function IntakeFormPage() {
       <main className="requests-page">
         <h1 className="h2">New request</h1>
         <p className="mws-alert mws-alert--error" role="alert">
-          We couldn’t open the intake form. You need a workspace to create a request — ask an admin for access, then try again.
+          We couldn’t open the intake form. You need a workspace to create a request — ask an admin
+          for access, then try again.
         </p>
       </main>
     );
   }
 
-  if (schemaQuery.isLoading || lifecycleQuery.isLoading || (Boolean(draftId) && draftQuery.isLoading)) {
+  if (
+    schemaQuery.isLoading ||
+    lifecycleQuery.isLoading ||
+    (Boolean(draftId) && draftQuery.isLoading)
+  ) {
     return (
       <main className="requests-page">
         <h1 className="h2">New request</h1>
-        <p className="caption" role="status">Loading the intake form…</p>
+        <p className="caption" role="status">
+          Loading the intake form…
+        </p>
       </main>
     );
   }
@@ -241,9 +257,17 @@ export function IntakeFormPage() {
       <h1 className="h2">New request</h1>
 
       <div className="ast-intake">
-        <form className="ast-intake__form" onSubmit={handleSubmit} noValidate aria-label="New request">
+        <form
+          className="ast-intake__form"
+          onSubmit={handleSubmit}
+          noValidate
+          aria-label="New request"
+        >
           {sections.map((group) => {
-            const number = INTAKE_CREATE_SECTIONS.indexOf(group.section as (typeof INTAKE_CREATE_SECTIONS)[number]) + 1;
+            const number =
+              INTAKE_CREATE_SECTIONS.indexOf(
+                group.section as (typeof INTAKE_CREATE_SECTIONS)[number],
+              ) + 1;
             const isValueMapping = group.section === 'Value mapping';
             const isIntake = group.section === 'Intake';
             const skipKeys = isValueMapping
@@ -265,13 +289,20 @@ export function IntakeFormPage() {
                 isHidden={isHidden}
                 onFieldChange={setField}
                 lead={isIntake ? lifecyclePicker : undefined}
-                widget={isValueMapping ? <PriorityScoreWidget values={values} onChange={setField} /> : undefined}
+                widget={
+                  isValueMapping ? (
+                    <PriorityScoreWidget values={values} onChange={setField} />
+                  ) : undefined
+                }
+                aiSuggest={{ workspaceId: wsId, objectType: 'Request' }}
               />
             );
           })}
 
           {mutationError && (
-            <p className="mws-alert mws-alert--error" role="alert">{mutationError}</p>
+            <p className="mws-alert mws-alert--error" role="alert">
+              {mutationError}
+            </p>
           )}
 
           <div className="ast-actions">
@@ -310,6 +341,7 @@ interface IntakeSectionProps {
   onFieldChange: (fieldKey: string, value: unknown) => void;
   lead?: ReactNode | undefined;
   widget?: ReactNode | undefined;
+  aiSuggest?: { workspaceId: WorkspaceId; objectType: string } | undefined;
 }
 
 function IntakeSection({
@@ -324,6 +356,7 @@ function IntakeSection({
   onFieldChange,
   lead,
   widget,
+  aiSuggest,
 }: IntakeSectionProps) {
   const headingId = `section-${number}-heading`;
   const visible = fields.filter((field) => !skipKeys.has(field.fieldKey) && !isHidden(field));
@@ -331,8 +364,12 @@ function IntakeSection({
   return (
     <section className="mws-card ast-section" aria-labelledby={headingId}>
       <header className="ast-section__head">
-        <span className="ast-section__num" aria-hidden="true">{number}</span>
-        <h2 id={headingId} className="ast-section__title">{section}</h2>
+        <span className="ast-section__num" aria-hidden="true">
+          {number}
+        </span>
+        <h2 id={headingId} className="ast-section__title">
+          {section}
+        </h2>
       </header>
 
       {lead}
@@ -343,7 +380,9 @@ function IntakeSection({
           {visible.map((field) => (
             <div
               key={field.fieldKey}
-              className={FULL_WIDTH_TYPES.has(field.fieldType) ? 'ast-field ast-field--full' : 'ast-field'}
+              className={
+                FULL_WIDTH_TYPES.has(field.fieldType) ? 'ast-field ast-field--full' : 'ast-field'
+              }
             >
               <RequestFieldControl
                 field={field}
@@ -351,6 +390,7 @@ function IntakeSection({
                 onChange={(value) => onFieldChange(field.fieldKey, value)}
                 required={requiredKeys.has(field.fieldKey)}
                 error={errors[field.fieldKey]}
+                suggest={aiSuggest ? { ...aiSuggest, siblingValues: values } : undefined}
               />
             </div>
           ))}
@@ -375,14 +415,39 @@ function PriorityScoreWidget({ values, onChange }: PriorityScoreWidgetProps) {
   return (
     <div className="ast-priority">
       <div className="ast-priority__sliders">
-        <RangeSlider label="Business value" value={sliderValue('businessValue')} min={SLIDER_MIN} max={SLIDER_MAX} step={SLIDER_STEP} onChange={(next) => onChange('businessValue', next)} />
-        <RangeSlider label="Efficiency gain" value={sliderValue('efficiencyGain')} min={SLIDER_MIN} max={SLIDER_MAX} step={SLIDER_STEP} onChange={(next) => onChange('efficiencyGain', next)} />
-        <RangeSlider label="Level of effort" value={sliderValue('levelOfEffort')} min={SLIDER_MIN} max={SLIDER_MAX} step={SLIDER_STEP} onChange={(next) => onChange('levelOfEffort', next)} />
+        <RangeSlider
+          label="Business value"
+          value={sliderValue('businessValue')}
+          min={SLIDER_MIN}
+          max={SLIDER_MAX}
+          step={SLIDER_STEP}
+          onChange={(next) => onChange('businessValue', next)}
+        />
+        <RangeSlider
+          label="Efficiency gain"
+          value={sliderValue('efficiencyGain')}
+          min={SLIDER_MIN}
+          max={SLIDER_MAX}
+          step={SLIDER_STEP}
+          onChange={(next) => onChange('efficiencyGain', next)}
+        />
+        <RangeSlider
+          label="Level of effort"
+          value={sliderValue('levelOfEffort')}
+          min={SLIDER_MIN}
+          max={SLIDER_MAX}
+          step={SLIDER_STEP}
+          onChange={(next) => onChange('levelOfEffort', next)}
+        />
       </div>
       <div className="ast-priority__score">
         <span className="eyebrow ast-priority__eyebrow">Priority score</span>
-        <output className="ast-priority__value" aria-label="Priority score">{score}</output>
-        <span className="ast-priority__formula">Business Value + Efficiency Gain − Level of Effort</span>
+        <output className="ast-priority__value" aria-label="Priority score">
+          {score}
+        </output>
+        <span className="ast-priority__formula">
+          Business Value + Efficiency Gain − Level of Effort
+        </span>
       </div>
     </div>
   );
@@ -420,9 +485,13 @@ function SimilarRequestsPanel({
 
   return (
     <section className="mws-card ast-similar" aria-labelledby="similar-heading">
-      <h2 id="similar-heading" className="mws-card__eyebrow">Similar requests</h2>
+      <h2 id="similar-heading" className="mws-card__eyebrow">
+        Similar requests
+      </h2>
       {visible.length === 0 ? (
-        <p className="body ast-similar__hint">Matches appear here as you type the name and description.</p>
+        <p className="body ast-similar__hint">
+          Matches appear here as you type the name and description.
+        </p>
       ) : (
         <ul className="ast-similar__list">
           {visible.map((match) => {
@@ -447,7 +516,11 @@ function SimilarRequestsPanel({
                   {linked ? (
                     <span className="ast-similar__linked">Linked as related</span>
                   ) : (
-                    <button type="button" className="ast-similar__action" onClick={() => onToggleLink(match.id)}>
+                    <button
+                      type="button"
+                      className="ast-similar__action"
+                      onClick={() => onToggleLink(match.id)}
+                    >
                       <LinkIcon size={14} aria-hidden />
                       Link as related
                     </button>

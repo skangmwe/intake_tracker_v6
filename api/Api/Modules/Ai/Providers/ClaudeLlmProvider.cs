@@ -59,4 +59,33 @@ public sealed class ClaudeLlmProvider : ILlmProvider
             }
         }
     }
+
+    public async Task<LlmCompletion> CompleteAsync(LlmRequest request, int maxTokens, CancellationToken ct)
+    {
+        var parameters = new MessageCreateParams
+        {
+            Model = _model,
+            MaxTokens = maxTokens,
+            System = request.System,
+            Messages = request.Messages
+                .Select(message => new MessageParam
+                {
+                    Role = string.Equals(message.Role, "assistant", StringComparison.OrdinalIgnoreCase)
+                        ? Role.Assistant
+                        : Role.User,
+                    Content = message.Content,
+                })
+                .ToList(),
+        };
+
+        var message = await _client.Value.Messages.Create(parameters, ct).ConfigureAwait(false);
+
+        // Concatenate every text block; ignore any non-text (thinking/tool) blocks.
+        var text = string.Concat(message.Content
+            .Select(block => block.Value)
+            .OfType<TextBlock>()
+            .Select(block => block.Text));
+
+        return new LlmCompletion(text);
+    }
 }
