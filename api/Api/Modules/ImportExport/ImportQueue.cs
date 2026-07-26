@@ -22,7 +22,8 @@ public sealed record ImportJobMessage(
     string FileName,
     string OperationId,
     string ObjectType = "Request",
-    string? MappingJson = null);
+    string? MappingJson = null,
+    ImportMode Mode = ImportMode.Create);
 
 public interface IImportQueue
 {
