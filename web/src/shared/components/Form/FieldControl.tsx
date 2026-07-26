@@ -2,10 +2,13 @@
 // field schema and the shared Form controls. Shared by the Request intake/detail surfaces and
 // custom-object records. Optional fields are marked (never required — forms-and-input.md).
 // Derived/calculation fields render read-only. Field types the seed doesn't yet configure options
-// for fall back to text.
+// for fall back to text. When a call site passes a `suggest` context and AI assist is on for the
+// workspace, editable text/select fields also offer an AI "Suggest" affordance (Phase 4, §14).
 
-import type { FieldDefinitionDto } from '@shared/types';
+import type { FieldDefinitionDto, FieldType } from '@shared/types';
 
+import { SuggestButton } from '@/features/ai-suggest';
+import type { FieldSuggestContext } from '@/features/ai-suggest';
 import { DateField } from '@/shared/components/Form/DateField';
 import { NumberField } from '@/shared/components/Form/NumberField';
 import { Select } from '@/shared/components/Form/Select';
@@ -21,7 +24,18 @@ export interface FieldControlProps {
   required: boolean;
   error?: string | undefined;
   disabled?: boolean | undefined;
+  /** When provided (and AI assist is enabled), editable text/select fields offer a "Suggest" affordance. */
+  suggest?: FieldSuggestContext | undefined;
 }
+
+// Field types that accept a free-text or single-option AI suggestion.
+const SUGGESTABLE_TYPES = new Set<FieldType>([
+  'ShortText',
+  'LongText',
+  'RichText',
+  'Url',
+  'SingleSelect',
+]);
 
 function asText(value: unknown): string {
   if (value === undefined || value === null) return '';
@@ -29,7 +43,7 @@ function asText(value: unknown): string {
   return String(value);
 }
 
-export function FieldControl({ field, value, onChange, required, error, disabled }: FieldControlProps) {
+function renderControl({ field, value, onChange, required, error, disabled }: FieldControlProps) {
   const optional = !required;
   const label = field.displayName;
   const hint = field.helpText ?? undefined;
@@ -39,7 +53,16 @@ export function FieldControl({ field, value, onChange, required, error, disabled
     case 'LongText':
     case 'RichText':
       return (
-        <TextArea label={label} value={text} onChange={onChange} optional={optional} hint={hint} error={error} rows={3} disabled={disabled} />
+        <TextArea
+          label={label}
+          value={text}
+          onChange={onChange}
+          optional={optional}
+          hint={hint}
+          error={error}
+          rows={3}
+          disabled={disabled}
+        />
       );
 
     case 'Number':
@@ -61,14 +84,35 @@ export function FieldControl({ field, value, onChange, required, error, disabled
 
     case 'Date':
     case 'DateTime':
-      return <DateField label={label} value={text} onChange={onChange} optional={optional} hint={hint} error={error} disabled={disabled} />;
+      return (
+        <DateField
+          label={label}
+          value={text}
+          onChange={onChange}
+          optional={optional}
+          hint={hint}
+          error={error}
+          disabled={disabled}
+        />
+      );
 
     case 'SingleSelect': {
       const options = [
         { value: '', label: 'Select…' },
         ...field.options.map((option) => ({ value: option.value, label: option.label })),
       ];
-      return <Select label={label} value={text} onChange={onChange} options={options} optional={optional} hint={hint} error={error} disabled={disabled} />;
+      return (
+        <Select
+          label={label}
+          value={text}
+          onChange={onChange}
+          options={options}
+          optional={optional}
+          hint={hint}
+          error={error}
+          disabled={disabled}
+        />
+      );
     }
 
     case 'Boolean':
@@ -108,4 +152,22 @@ export function FieldControl({ field, value, onChange, required, error, disabled
         />
       );
   }
+}
+
+export function FieldControl(props: FieldControlProps) {
+  const control = renderControl(props);
+
+  const showSuggest =
+    props.suggest !== undefined && !props.disabled && SUGGESTABLE_TYPES.has(props.field.fieldType);
+
+  if (!showSuggest) {
+    return control;
+  }
+
+  return (
+    <div className="field-control__with-suggest">
+      {control}
+      <SuggestButton field={props.field} context={props.suggest!} onAccept={props.onChange} />
+    </div>
+  );
 }

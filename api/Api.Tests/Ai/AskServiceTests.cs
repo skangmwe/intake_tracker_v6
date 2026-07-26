@@ -269,5 +269,11 @@ public class AskServiceTests
                 await Task.Yield();
             }
         }
+
+        public Task<LlmCompletion> CompleteAsync(LlmRequest request, int maxTokens, CancellationToken ct)
+        {
+            LastRequest = request;
+            return Task.FromResult(new LlmCompletion(string.Concat(_tokens)));
+        }
     }
 }

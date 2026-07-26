@@ -13,3 +13,6 @@ public sealed record LlmRequest(string System, IReadOnlyList<LlmMessage> Message
 
 /// <summary>One streamed text delta from the model.</summary>
 public sealed record LlmToken(string Text);
+
+/// <summary>The full text of a single non-streaming completion (concatenated text blocks).</summary>
+public sealed record LlmCompletion(string Text);

@@ -58,7 +58,10 @@ export function CustomRecordCreatePage() {
     [schema.data],
   );
   const sections = useMemo(() => groupFieldsBySection(userFields), [userFields]);
-  const conditions = useMemo(() => evaluateFieldConditions(userFields, values), [userFields, values]);
+  const conditions = useMemo(
+    () => evaluateFieldConditions(userFields, values),
+    [userFields, values],
+  );
 
   const setField = (fieldKey: string, value: unknown) =>
     setValues((prev) => ({ ...prev, [fieldKey]: value }));
@@ -143,6 +146,11 @@ export function CustomRecordCreatePage() {
                     onChange={(value) => setField(field.fieldKey, value)}
                     required={conditions.required.has(field.fieldKey)}
                     error={triedSubmit ? errors[field.fieldKey] : undefined}
+                    suggest={{
+                      workspaceId: workspaceId as WorkspaceId,
+                      objectType: object.objectKey,
+                      siblingValues: values,
+                    }}
                   />
                 ))}
               </div>
