@@ -12,6 +12,7 @@
 // Every endpoint verifies the caller carries the Platform-admin grant; a non-admin gets 403 (never
 // 404). The controller only routes / validates / authorizes and maps the service result to a status.
 
+using System.Text.RegularExpressions;
 using McDermott.AiTracker.Api.Modules.Fields;
 using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Modules.Relationships;
@@ -174,6 +175,16 @@ public sealed class PlatformSchemaController : ControllerBase
             return AccessDenied();
         }
 
+        // The route fieldKey overwrites the body's FieldKey below, so it must be re-validated here
+        // against the same rule FieldKey carries on the DTO — otherwise a malformed/oversized route
+        // segment skips [MaxLength(64)] + the camelCase [RegularExpression] entirely (those only run
+        // against the body during model binding) and reaches the @FieldKey NVARCHAR(64) SQL parameter
+        // unchecked, surfacing as a raw 500 instead of a clean 400.
+        if (!IsValidFieldKey(fieldKey))
+        {
+            return InvalidFieldKeyProblem();
+        }
+
         request.FieldKey = fieldKey;
         var result = await _fields.UpsertGlobalObjectFieldAsync(
             objectKey, request, isCreate: false, _currentUser.UserId, cancellationToken);
@@ -194,6 +205,13 @@ public sealed class PlatformSchemaController : ControllerBase
         if (!await _accessGuard.IsPlatformAdminAsync(_currentUser.UserId, cancellationToken))
         {
             return AccessDenied();
+        }
+
+        // Same guard as UpdateField — a route-only value with no body to bind, so it needs its own
+        // explicit check against the FieldKey shape/length rule before it reaches the service/SQL.
+        if (!IsValidFieldKey(fieldKey))
+        {
+            return InvalidFieldKeyProblem();
         }
 
         var result = await _fields.RetireGlobalObjectFieldAsync(objectKey, fieldKey, _currentUser.UserId, cancellationToken);
@@ -285,6 +303,27 @@ public sealed class PlatformSchemaController : ControllerBase
         })
         {
             StatusCode = StatusCodes.Status500InternalServerError,
+            ContentTypes = { "application/problem+json" },
+        };
+
+    // Mirrors FieldDefinitionUpsertRequest.FieldKey's own [MaxLength(64)] + camelCase
+    // [RegularExpression] exactly — a route-supplied fieldKey (UpdateField/DeleteField) never goes
+    // through DTO model binding, so it must be checked by hand before it reaches the service/SQL.
+    private static bool IsValidFieldKey(string? fieldKey) =>
+        !string.IsNullOrEmpty(fieldKey)
+        && fieldKey.Length <= 64
+        && Regex.IsMatch(fieldKey, "^[A-Za-z][A-Za-z0-9]*$");
+
+    private ObjectResult InvalidFieldKeyProblem() =>
+        new(new ProblemDetails
+        {
+            Type = "https://mws.ai/errors/validation",
+            Title = "The field configuration is not valid.",
+            Status = StatusCodes.Status400BadRequest,
+            Detail = "Field key must be a camelCase identifier, no more than 64 characters.",
+        })
+        {
+            StatusCode = StatusCodes.Status400BadRequest,
             ContentTypes = { "application/problem+json" },
         };
 

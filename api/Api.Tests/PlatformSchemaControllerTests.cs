@@ -365,6 +365,64 @@ public sealed class PlatformSchemaControllerTests
         Assert.Same(updated, ok.Value);
     }
 
+    [Theory]
+    [InlineData("1priority")] // must start with a letter
+    [InlineData("priority-x")] // hyphen not allowed
+    [InlineData("priority key")] // space not allowed
+    [InlineData("priority'x")] // punctuation not allowed
+    public async Task UpdateField_MalformedRouteFieldKey_Returns400(string malformedKey)
+    {
+        // Fix round 1, finding 2 — the route fieldKey overwrites the body's FieldKey after DTO model
+        // binding already ran, so a malformed route segment must be re-checked by hand or it reaches
+        // the service/SQL unvalidated.
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .UpdateField("vendor", malformedKey, SampleFieldRequest(), CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        fields.Verify(service => service.UpsertGlobalObjectFieldAsync(
+            It.IsAny<string>(), It.IsAny<FieldDefinitionUpsertRequest>(), It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory]
+    [InlineData("1priority")]
+    [InlineData("priority-x")]
+    [InlineData("priority key")]
+    [InlineData("priority'x")]
+    public async Task DeleteField_MalformedRouteFieldKey_Returns400(string malformedKey)
+    {
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .DeleteField("vendor", malformedKey, CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        fields.Verify(service => service.RetireGlobalObjectFieldAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateField_ValidRouteFieldKeyExceedsMaxLength_Returns400()
+    {
+        // 65 chars — one over FieldKey's [MaxLength(64)].
+        var overLong = "a" + new string('b', 64);
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .UpdateField("vendor", overLong, SampleFieldRequest(), CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        fields.Verify(service => service.UpsertGlobalObjectFieldAsync(
+            It.IsAny<string>(), It.IsAny<FieldDefinitionUpsertRequest>(), It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     [Fact]
     public async Task UpdateField_NonGlobalObject_Returns404()
     {

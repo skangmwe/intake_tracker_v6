@@ -1,13 +1,23 @@
 // Model-validation tests for FieldDefinitionUpsertRequest.ObjectType (SP3b Slice 2a, Task 4 — the
-// carried-forward Task 3 review finding). The regex was widened to admit a custom object slug
-// alongside the five named built-ins, mirroring the identical fix already applied to
-// SavedViewUpsertRequest.ObjectType (see SavedViewUpsertValidationTests.cs). Before this fix, a
-// custom-object slug (e.g. a Global custom object's ObjectKey, passed to the platform field
-// endpoints added in this task, or a workspace custom object's ObjectKey via FieldsController)
-// failed model binding with a 400 before the controller action — and therefore before
-// FieldSchemaService's own existence check — ever ran. Slug *validity* (does it resolve to a real
-// object) is app-enforced downstream, not checked here — a request with an unresolvable slug still
-// binds successfully and then 404s from the service.
+// carried-forward Task 3 review finding, revised after fix-round-1 review). ObjectType carries no
+// [RegularExpression] — only [Required] + [MaxLength(64)] (matching ObjectDefinition.ObjectKey's
+// column width). An earlier version of this fix widened the built-ins-only regex to also admit a
+// "clean" slug shape ([a-z0-9][a-z0-9-]{0,63}), mirroring SavedViewUpsertRequest.ObjectType (Slice A
+// / Task A6, see SavedViewUpsertValidationTests.cs) — but that still rejected slugs the generator can
+// actually produce outside that shape: usp_UpsertObjectDefinition.sql's REPLACE chain never strips
+// apostrophes or other punctuation/non-ASCII, so e.g. a Global object named "O'Brien Vendors" yields
+// the ObjectKey "o'brien-vendors", which a charset regex would still 400 at model binding — before
+// the controller action, and therefore before FieldSchemaService's own existence check, ever runs.
+// We do not own the slug generator (shipped Slice-1 code) and no regex can safely track its full
+// charset, so binding no longer attempts to enumerate valid object types at all. Slug *validity*
+// (does it resolve to a real object) is enforced downstream — FieldsController.ResolveObjectTypeAsync
+// (workspace path) / FieldSchemaService.UpsertGlobalObjectFieldAsync/RetireGlobalObjectFieldAsync
+// (platform path) — not here: a bogus-but-well-formed value binds successfully and then 404s from the
+// service, which is correct.
+//
+// NOTE: SavedViewUpsertRequest.ObjectType has the identical latent issue (same charset-regex
+// approach, same generator) and is a known sibling for a future slice — intentionally left unchanged
+// here, out of scope for this task.
 
 using System.ComponentModel.DataAnnotations;
 using McDermott.AiTracker.Api.Modules.Fields;
@@ -34,6 +44,9 @@ public sealed class FieldDefinitionUpsertValidationTests
         Category = "WorkspaceLocal",
     };
 
+    private static bool HasObjectTypeError(IList<ValidationResult> results) =>
+        results.Any(result => result.MemberNames.Contains(nameof(FieldDefinitionUpsertRequest.ObjectType)));
+
     [Theory]
     [InlineData("Request")]
     [InlineData("Task")]
@@ -44,7 +57,7 @@ public sealed class FieldDefinitionUpsertValidationTests
     {
         var results = Validate(Request(builtIn));
 
-        Assert.DoesNotContain(results, result => result.MemberNames.Contains(nameof(FieldDefinitionUpsertRequest.ObjectType)));
+        Assert.False(HasObjectTypeError(results));
     }
 
     [Fact]
@@ -54,7 +67,7 @@ public sealed class FieldDefinitionUpsertValidationTests
         // ObjectType — this is the exact scenario that was silently broken before the fix.
         var results = Validate(Request("vendor"));
 
-        Assert.DoesNotContain(results, result => result.MemberNames.Contains(nameof(FieldDefinitionUpsertRequest.ObjectType)));
+        Assert.False(HasObjectTypeError(results));
     }
 
     [Fact]
@@ -62,7 +75,29 @@ public sealed class FieldDefinitionUpsertValidationTests
     {
         var results = Validate(Request("vendor-review-2"));
 
-        Assert.DoesNotContain(results, result => result.MemberNames.Contains(nameof(FieldDefinitionUpsertRequest.ObjectType)));
+        Assert.False(HasObjectTypeError(results));
+    }
+
+    [Fact]
+    public void ObjectType_SlugWithApostrophe_IsValid()
+    {
+        // usp_UpsertObjectDefinition.sql's separator REPLACE chain never strips apostrophes, so a
+        // Global object named "O'Brien Vendors" produces exactly this ObjectKey. This is the fix-
+        // round-1 finding: a charset-enumerating regex would 400 this at model binding even though
+        // it is a real, generator-produced slug. It must bind — the service layer decides validity.
+        var results = Validate(Request("o'brien-vendors"));
+
+        Assert.False(HasObjectTypeError(results));
+    }
+
+    [Fact]
+    public void ObjectType_SlugWithOtherPunctuation_IsValid()
+    {
+        // Any other punctuation the generator's REPLACE chain doesn't strip (it only handles
+        // space/tab/CR/LF/_//&) must also bind — no charset is enumerated at all.
+        var results = Validate(Request("vendor.co,inc"));
+
+        Assert.False(HasObjectTypeError(results));
     }
 
     [Fact]
@@ -70,7 +105,7 @@ public sealed class FieldDefinitionUpsertValidationTests
     {
         var results = Validate(Request(null));
 
-        Assert.Contains(results, result => result.MemberNames.Contains(nameof(FieldDefinitionUpsertRequest.ObjectType)));
+        Assert.True(HasObjectTypeError(results));
     }
 
     [Fact]
@@ -78,15 +113,24 @@ public sealed class FieldDefinitionUpsertValidationTests
     {
         var results = Validate(Request(""));
 
-        Assert.Contains(results, result => result.MemberNames.Contains(nameof(FieldDefinitionUpsertRequest.ObjectType)));
+        Assert.True(HasObjectTypeError(results));
     }
 
     [Fact]
-    public void ObjectType_MalformedSlug_IsInvalid()
+    public void ObjectType_ExceedsMaxLength_IsInvalid()
     {
-        // Upper-case / spaces / punctuation are not a valid slug and not a named built-in.
-        var results = Validate(Request("Bad Slug!"));
+        // MaxLength(64) is the one shape constraint left on ObjectType — matches the
+        // ObjectDefinition.ObjectKey column width (NVARCHAR(64)).
+        var results = Validate(Request(new string('a', 65)));
 
-        Assert.Contains(results, result => result.MemberNames.Contains(nameof(FieldDefinitionUpsertRequest.ObjectType)));
+        Assert.True(HasObjectTypeError(results));
+    }
+
+    [Fact]
+    public void ObjectType_AtMaxLength_IsValid()
+    {
+        var results = Validate(Request(new string('a', 64)));
+
+        Assert.False(HasObjectTypeError(results));
     }
 }
