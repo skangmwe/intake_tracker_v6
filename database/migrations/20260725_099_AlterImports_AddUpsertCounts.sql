@@ -15,7 +15,7 @@ IF COL_LENGTH(N'dbo.Imports', N'UpdatedRows') IS NULL
     ALTER TABLE dbo.Imports ADD UpdatedRows INT NOT NULL CONSTRAINT DF_Imports_UpdatedRows DEFAULT 0;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM dbo.MigrationHistory WHERE MigrationId = N'20260725_097_AlterImports_AddUpsertCounts')
+IF NOT EXISTS (SELECT 1 FROM dbo.MigrationHistory WHERE MigrationId = N'20260725_099_AlterImports_AddUpsertCounts')
     INSERT INTO dbo.MigrationHistory (MigrationId, AppliedBy, Description)
-    VALUES (N'20260725_097_AlterImports_AddUpsertCounts', SUSER_SNAME(), N'Import upsert — CreatedRows/UpdatedRows on dbo.Imports.');
+    VALUES (N'20260725_099_AlterImports_AddUpsertCounts', SUSER_SNAME(), N'Import upsert — CreatedRows/UpdatedRows on dbo.Imports.');
 GO

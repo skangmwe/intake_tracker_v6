@@ -18,5 +18,5 @@ BEGIN
     ALTER TABLE dbo.Imports DROP COLUMN CreatedRows;
 END;
 GO
-DELETE FROM dbo.MigrationHistory WHERE MigrationId = N'20260725_097_AlterImports_AddUpsertCounts';
+DELETE FROM dbo.MigrationHistory WHERE MigrationId = N'20260725_099_AlterImports_AddUpsertCounts';
 GO
