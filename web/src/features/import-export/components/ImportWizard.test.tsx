@@ -24,6 +24,7 @@ const REQUEST: IoObjectDto = {
   label: 'Requests',
   canImport: true,
   canExport: true,
+  canUpsert: false,
   importFields: [
     { key: 'name', label: 'Name', required: true },
     { key: 'description', label: 'Description' },
@@ -36,6 +37,7 @@ const FEATURE: IoObjectDto = {
   label: 'Features',
   canImport: true,
   canExport: true,
+  canUpsert: false,
   importFields: [
     { key: 'name', label: 'Name', required: true },
     { key: 'featureType', label: 'Type', required: true },

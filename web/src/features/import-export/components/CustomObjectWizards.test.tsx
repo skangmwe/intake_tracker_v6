@@ -27,6 +27,7 @@ const VENDOR: IoObjectDto = {
   label: 'Vendors',
   canImport: true,
   canExport: true,
+  canUpsert: false,
   importFields: [{ key: 'name', label: 'Name', required: true }],
   exportFields: [
     { key: 'id', label: 'Record ID', alwaysIncluded: true },

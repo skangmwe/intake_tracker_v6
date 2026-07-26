@@ -42,6 +42,8 @@ const JOB: ImportStatusDto = {
   status: 'CompletedWithErrors',
   totalRows: 3,
   landedRows: 2,
+  createdRows: 2,
+  updatedRows: 0,
   flaggedRows: [
     {
       rowIndex: 3,
@@ -92,7 +94,7 @@ describe('ImportRunStep', () => {
 
     // Assert
     expect(mutate).toHaveBeenCalledWith(
-      { file: FILE, objectType: 'Request', mapping: MAPPING },
+      { file: FILE, objectType: 'Request', mapping: MAPPING, mode: 'create' },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });

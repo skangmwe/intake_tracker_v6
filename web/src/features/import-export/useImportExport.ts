@@ -7,6 +7,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 import type {
   ImportColumnMapping,
+  ImportMode,
   ImportStatusDto,
   ImportStartResponse,
   IoObjectDto,
@@ -33,18 +34,19 @@ export function useIoObjects(workspaceId: WorkspaceId | undefined) {
   });
 }
 
-/** Variables for a wizard-driven import: the file, the target object, and the column mapping. */
+/** Variables for a wizard-driven import: the file, the target object, the column mapping, and the import mode. */
 export interface StartImportVars {
   file: File;
   objectType: string;
   mapping: ImportColumnMapping[];
+  mode: ImportMode;
 }
 
 /** Kick off a CSV import — returns the importId to poll. */
 export function useStartImport(workspaceId: WorkspaceId | undefined) {
   return useMutation<ImportStartResponse, Error, StartImportVars>({
-    mutationFn: ({ file, objectType, mapping }) =>
-      startImport(workspaceId as WorkspaceId, file, objectType, mapping),
+    mutationFn: ({ file, objectType, mapping, mode }) =>
+      startImport(workspaceId as WorkspaceId, file, objectType, mapping, mode),
   });
 }
 

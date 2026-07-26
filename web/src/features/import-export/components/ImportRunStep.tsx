@@ -63,7 +63,7 @@ export function ImportRunStep({
 
   const onRun = () => {
     start.mutate(
-      { file, objectType, mapping },
+      { file, objectType, mapping, mode: 'create' },
       { onSuccess: (result) => setImportId(result.importId) },
     );
   };
