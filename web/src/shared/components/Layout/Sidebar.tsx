@@ -18,19 +18,24 @@ interface SidebarProps {
   memberships: WorkspaceMembershipDto[];
   /** Holds the additive Platform-admin grant — gates the Platform nav item (S34–S39). */
   isPlatformAdmin: boolean;
+  /** The active workspace has AI assist enabled — gates the Ask nav item (Phase 4). */
+  aiEnabled: boolean;
   onToggleCollapse: () => void;
   onNavigate: () => void;
 }
 
 export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
-  { open, collapsed, memberships, isPlatformAdmin, onToggleCollapse, onNavigate },
+  { open, collapsed, memberships, isPlatformAdmin, aiEnabled, onToggleCollapse, onNavigate },
   ref,
 ) {
-  // Platform-admin-only items (e.g. Platform) show only to a Platform admin; the API is the real
-  // boundary, this is a courtesy. A section left with no visible items is dropped.
+  // Platform-admin-only items (e.g. Platform) show only to a Platform admin; the Ask item shows only
+  // when the active workspace has AI assist on. The API is the real boundary; these are courtesies. A
+  // section left with no visible items is dropped.
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => !item.platformOnly || isPlatformAdmin),
+    items: section.items.filter(
+      (item) => (!item.platformOnly || isPlatformAdmin) && (!item.requiresAi || aiEnabled),
+    ),
   })).filter((section) => section.items.length > 0);
 
   return (

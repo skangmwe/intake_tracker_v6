@@ -19,6 +19,8 @@ import {
 } from '@/features/announcements';
 import { FieldsAdminPage, PlatformFieldsPage } from '@/features/fields';
 import { TriggersAdminPage } from '@/features/triggers';
+import { AiSettingsPage } from '@/features/ai-config';
+import { AskPage } from '@/features/ask';
 import { DashboardPage, DashboardsListPage } from '@/features/dashboards';
 import { AddToCatalogPage, FeatureCatalogPage, FeatureDetailPage } from '@/features/features';
 import {
@@ -105,6 +107,7 @@ export function App() {
                 <Route path="lifecycle" element={<LifecyclePage />} />
                 <Route path="announcements" element={<ManageAnnouncementsPage />} />
                 <Route path="triggers" element={<TriggersAdminPage />} />
+                <Route path="ai" element={<AiSettingsPage />} />
                 <Route path="import-export" element={<ImportExportPage />} />
                 <Route path="audit" element={<WorkspaceAuditPage />} />
               </Route>
@@ -119,6 +122,7 @@ export function App() {
               </Route>
               <Route path="/requests" element={<RequestsListPage />} />
               <Route path="/requests/new" element={<IntakeFormPage />} />
+              <Route path="/ask" element={<AskPage />} />
               <Route path="/requests/:recordId" element={<RecordDetailPage />} />
               <Route path="/drafts" element={<DraftsPage />} />
               <Route path="/dashboards" element={<DashboardsListPage />} />

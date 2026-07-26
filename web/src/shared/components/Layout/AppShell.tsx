@@ -7,9 +7,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { useMe, useUpdateTheme } from '@/features/users/useMe';
+import { useAiConfig } from '@/features/ai-config';
 import { useFocusTrap } from '@/shared/hooks/useFocusTrap';
 import { getActiveTheme } from '@/shared/theme/theme';
 import { useTheme } from '@/shared/theme/useTheme';
+import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
 
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -29,6 +31,11 @@ export function AppShell() {
   const location = useLocation();
   const { data: me } = useMe();
   const memberships = me?.memberships ?? [];
+
+  // Gate the Ask nav item on the active workspace's AI-assist config (Phase 4). The API is the real
+  // boundary; a disabled workspace simply never shows the entry.
+  const activeWorkspaceId = resolveActiveWorkspaceId(memberships) ?? undefined;
+  const { data: aiConfig } = useAiConfig(activeWorkspaceId);
 
   const { theme, setTheme, toggleTheme } = useTheme();
   const updateTheme = useUpdateTheme();
@@ -90,6 +97,7 @@ export function AppShell() {
         collapsed={collapsed}
         memberships={memberships}
         isPlatformAdmin={me?.isPlatformAdmin ?? false}
+        aiEnabled={aiConfig?.enabled ?? false}
         onToggleCollapse={onToggleCollapse}
         onNavigate={closeDrawer}
       />

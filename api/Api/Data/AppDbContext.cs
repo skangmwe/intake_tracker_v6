@@ -208,6 +208,16 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Ai.Retrieval.RetrievalCandidateRow>()
             .HasNoKey().ToView((string?)null);
 
+        // AI-assist Ask conversations (Phase 4, Slice 3) — keyless projections read via stored procedures.
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Ai.Chat.AiConversationIdRow>()
+            .HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Ai.Chat.AiMessageIdRow>()
+            .HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Ai.Chat.AiMessageRow>()
+            .HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Ai.Chat.AiConversationListRow>()
+            .HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

@@ -9,6 +9,7 @@ import {
   Gear,
   House,
   ShieldCheck,
+  Sparkle,
   SquaresFour,
   Toolbox,
   Tray,
@@ -20,6 +21,8 @@ export interface NavEntry {
   label: string;
   /** Item shown only to holders of the additive Platform-admin grant (S34–S39). */
   platformOnly?: boolean;
+  /** Item shown only when the active workspace has AI assist enabled (Phase 4). */
+  requiresAi?: boolean;
 }
 
 export interface NavSection {
@@ -33,6 +36,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/', icon: House, label: 'Home' },
       { to: '/requests', icon: Tray, label: 'Requests' },
+      { to: '/ask', icon: Sparkle, label: 'Ask', requiresAi: true },
       { to: '/dashboards', icon: ChartBar, label: 'Dashboards' },
     ],
   },

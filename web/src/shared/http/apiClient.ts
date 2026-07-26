@@ -101,6 +101,35 @@ export async function apiFetchBlobPost(path: string, body: unknown, signal?: Abo
   return res.blob();
 }
 
+/**
+ * POST a JSON body and open a Server-Sent Events stream (the Ask surface, Phase 4). A plain `EventSource`
+ * can't POST a body or carry the bearer token, so the stream goes through fetch + the same token provider;
+ * the caller reads `response.body` as a stream and parses `event:` / `data:` frames. Throws an ApiError for a
+ * non-OK response (e.g. 403) before any streaming begins.
+ */
+export async function apiFetchEventStream(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'text/event-stream',
+  };
+  const token = await tokenProvider();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const init: RequestInit = { method: 'POST', headers, body: JSON.stringify(body) };
+  if (signal) init.signal = signal;
+
+  const res = await fetch(`/api${path}`, init);
+  if (!res.ok) {
+    throw await toApiError(res);
+  }
+
+  return res;
+}
+
 async function toApiError(res: Response): Promise<ApiError> {
   let problem: ProblemDetails;
   try {
