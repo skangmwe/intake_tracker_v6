@@ -115,6 +115,7 @@ public sealed class ImportRunner : IImportRunner
                 }
                 else
                 {
+                    // ImportAction.None too — built-in / create-only landed rows report as created.
                     created++;
                 }
             }
