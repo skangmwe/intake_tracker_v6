@@ -41,6 +41,11 @@ public sealed class Workspace : AuditableEntity
     /// <summary>Days added to an approval gate's OpenedAt to default its approver RespondByDate (Slice 5).
     /// Per-workspace config; default 5.</summary>
     public int ApprovalRespondByDays { get; set; } = 5;
+    /// <summary>Phase 4 — the AI-assist off-switch (§14). Default false; a workspace admin opts in.</summary>
+    public bool AiAssistEnabled { get; set; }
+    /// <summary>Phase 4 — JSON array of content-field keys the AI layer may read and send to a provider.
+    /// Default the three non-PII intake fields; never client/matter numbers or identities.</summary>
+    public string AiContentFieldAllowlist { get; set; } = "[\"Name\",\"Description\",\"WorkflowDetails\"]";
 }
 
 /// <summary>A user — provisioned by EnsureUserMiddleware on first authenticated request.</summary>

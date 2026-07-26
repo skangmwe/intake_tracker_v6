@@ -37,6 +37,14 @@
     <!-- Entra ID token validation for the SPA/API (api-auth.md). Version verified
          against the live NuGet registry during slice 2 (latest stable 4.12.2). -->
     <PackageReference Include="Microsoft.Identity.Web" Version="4.12.2" />
+    <!-- AI-assist layer (Phase 4, api-llm-auth.md). Versions verified against the live
+         NuGet registry 2026-07-25. `Anthropic` is the OFFICIAL .NET SDK ("The official
+         .NET library for the Anthropic API") — not the community `Anthropic.SDK`. Claude
+         is the default chat provider (MaxRetries=3); OpenAI is the alt chat provider;
+         Azure.AI.OpenAI drives embeddings via the project's Azure OpenAI deployment (MI). -->
+    <PackageReference Include="Anthropic" Version="12.39.0" />
+    <PackageReference Include="OpenAI" Version="2.12.0" />
+    <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.ApplicationInsights" Version="5.0.1" />
   </ItemGroup>
