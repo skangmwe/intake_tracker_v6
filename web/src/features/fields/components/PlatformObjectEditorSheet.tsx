@@ -52,6 +52,9 @@ export function PlatformObjectEditorSheet({
 }: PlatformObjectEditorSheetProps) {
   const isCreate = object === null;
   const [draft, setDraft] = useState<PlatformObjectFormValue>(() => initialDraft(object));
+  // Deleting a Global object removes a record type from every workspace, so it confirms inline first
+  // (destructive actions confirm — disclosure-surfaces.md).
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -165,15 +168,39 @@ export function PlatformObjectEditorSheet({
           </label>
         )}
 
+        {!isCreate && confirmingDelete && (
+          <div
+            className="mws-alert mws-alert--error"
+            role="alertdialog"
+            aria-labelledby="platform-object-delete-heading"
+          >
+            <p id="platform-object-delete-heading">
+              Delete “{object.name}”? It will be removed from every workspace. This can’t be undone.
+            </p>
+            <span className="objects-sheet__footer-right">
+              <Button
+                variant="secondary"
+                disabled={isDeleting}
+                onClick={() => setConfirmingDelete(false)}
+              >
+                Cancel
+              </Button>
+              <Button variant="destructive" disabled={isDeleting} onClick={() => onDelete(object.id)}>
+                {isDeleting ? 'Deleting…' : 'Delete object'}
+              </Button>
+            </span>
+          </div>
+        )}
+
         <footer className="fields-sheet__footer objects-sheet__footer">
           <span className="objects-sheet__footer-left">
-            {!isCreate && (
+            {!isCreate && !confirmingDelete && (
               <Button
                 variant="destructive"
                 disabled={isDeleting}
-                onClick={() => onDelete(object.id)}
+                onClick={() => setConfirmingDelete(true)}
               >
-                <Trash size={16} aria-hidden /> {isDeleting ? 'Deleting…' : 'Delete'}
+                <Trash size={16} aria-hidden /> Delete
               </Button>
             )}
           </span>

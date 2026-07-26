@@ -131,9 +131,10 @@ describe('PlatformObjectsTab', () => {
     renderWithProviders(<PlatformObjectsTab />);
     await screen.findByRole('table', { name: 'Global objects' });
 
-    // Act
+    // Act — open the editor, click Delete (opens the inline confirm), then confirm.
     await user.click(screen.getByRole('button', { name: 'Edit Vendor' }));
-    await user.click(await screen.findByRole('button', { name: /delete/i }));
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete object' }));
 
     // Assert
     await waitFor(() => expect(mockedApi.deletePlatformObject).toHaveBeenCalledWith('vendor'));
