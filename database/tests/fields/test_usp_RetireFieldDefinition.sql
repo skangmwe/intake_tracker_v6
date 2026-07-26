@@ -80,6 +80,27 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE RetireFieldDefinitionTests.[test_NullWorkspace_RetiresGlobalField]
+AS
+BEGIN
+    -- Arrange — SP3b Slice 2a: a platform retire (@WorkspaceId = NULL) soft-retires a
+    -- NULL-workspace Global field.
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldRuleDependency';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.CrossingMap';
+
+    INSERT INTO dbo.FieldDefinition (FieldDefinitionId, WorkspaceId, ObjectType, FieldKey, DisplayName, FieldType, Category, Location, SortOrder, IsRequired, IsReadOnly, IsPlatformDefined, AllowNewValues, IsRetired, IsDeleted)
+    VALUES (NEWID(), NULL, N'Request', N'firmPolicyRef', N'Firm Policy Reference', N'ShortText', N'WorkspaceLocal', N'Global', 1, 0, 0, 0, 0, 0, 0);
+
+    -- Act
+    EXEC dbo.usp_RetireFieldDefinition @WorkspaceId = NULL, @ObjectType = N'Request', @FieldKey = N'firmPolicyRef', @ActorUserId = N'platform-admin';
+
+    -- Assert
+    DECLARE @IsRetired BIT = (SELECT IsRetired FROM dbo.FieldDefinition WHERE FieldKey = N'firmPolicyRef' AND WorkspaceId IS NULL);
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @IsRetired;
+END;
+GO
+
 CREATE PROCEDURE RetireFieldDefinitionTests.[test_FieldInLiveCrossingMapping_Throws]
 AS
 BEGIN

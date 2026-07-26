@@ -568,6 +568,88 @@ BEGIN
 END;
 GO
 
+-- =============================================
+-- usp_QueryCustomRecords — Global-field whitelist + cross-tenant leak exclusion (SP3b Slice 2a)
+-- =============================================
+
+CREATE PROCEDURE CustomRecordsTests.[test_Query_WhitelistsGlobalFieldAndOwnLocalField_ExcludesOtherWorkspacesLocalField]
+AS
+BEGIN
+    -- Arrange — workspace A's own local field, a platform Global field (WorkspaceId NULL), and a
+    -- DIFFERENT workspace B's local field, all on the same object slug. Filtering by A's own field
+    -- or the Global field must narrow the result set (they're in A's effective whitelist);
+    -- filtering by B's field must NOT narrow it (B's local field never leaks into A's whitelist).
+    DECLARE @Ws  UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000001';
+    DECLARE @OtherWs UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000002';
+    DECLARE @Obj UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-0000000000AA';
+    EXEC CustomRecordsTests.SeedObject @Obj, @Ws;
+
+    INSERT INTO dbo.FieldDefinition (WorkspaceId, ObjectType, FieldKey, FieldType, Location, IsDeleted, IsRetired)
+    VALUES
+        (@Ws,      N'vendor', N'regionA', N'ShortText', N'LocalWorkspace', 0, 0), -- A's own local field
+        (NULL,     N'vendor', N'firmTag', N'ShortText', N'Global',         0, 0), -- platform Global field
+        (@OtherWs, N'vendor', N'regionB', N'ShortText', N'LocalWorkspace', 0, 0); -- B's own local field
+
+    EXEC CustomRecordsTests.SeedRecord @Obj, @Ws, N'One', N'{"regionA":"East","firmTag":"Compliance","regionB":"West"}';
+    EXEC CustomRecordsTests.SeedRecord @Obj, @Ws, N'Two', N'{"regionA":"West","firmTag":"Ops","regionB":"East"}';
+
+    DECLARE @Act TABLE (RecordId UNIQUEIDENTIFIER, Name NVARCHAR(400), FieldValues NVARCHAR(MAX), RowVer VARBINARY(8), TotalCount INT);
+
+    -- Act + Assert 1 — the platform Global field narrows A's result set (it IS whitelisted).
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"firmTag":{"type":"text","contains":"Compliance"}}';
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM @Act);
+    EXEC tSQLt.AssertEqualsString @Expected = N'One', @Actual = (SELECT TOP 1 Name FROM @Act);
+    DELETE FROM @Act;
+
+    -- Act + Assert 2 — A's own local field narrows A's result set (it IS whitelisted).
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"regionA":{"type":"text","contains":"East"}}';
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM @Act);
+    EXEC tSQLt.AssertEqualsString @Expected = N'One', @Actual = (SELECT TOP 1 Name FROM @Act);
+    DELETE FROM @Act;
+
+    -- Act + Assert 3 — workspace B's local field does NOT narrow A's result set (not whitelisted,
+    -- so the predicate is a no-op — same as an unknown key — and every in-scope row still returns).
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"regionB":{"type":"text","contains":"West"}}';
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = (SELECT COUNT(*) FROM @Act);
+END;
+GO
+
+CREATE PROCEDURE CustomRecordsTests.[test_Query_LocalFieldOverridesGlobalFieldOfSameKey_NoWhitelistCollision]
+AS
+BEGIN
+    -- Arrange — A's own local field shares a FieldKey with a platform Global field on the same
+    -- slug (usp_GetWorkspaceFields's "local override" case). The @Fields whitelist population must
+    -- de-dupe by key (local wins) rather than violate its PRIMARY KEY on the duplicate FieldKey.
+    DECLARE @Ws  UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000001';
+    DECLARE @Obj UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-0000000000AA';
+    EXEC CustomRecordsTests.SeedObject @Obj, @Ws;
+
+    INSERT INTO dbo.FieldDefinition (WorkspaceId, ObjectType, FieldKey, FieldType, Location, IsDeleted, IsRetired)
+    VALUES
+        (@Ws,  N'vendor', N'priority', N'ShortText', N'LocalWorkspace', 0, 0), -- A's own local override
+        (NULL, N'vendor', N'priority', N'Number',     N'Global',        0, 0); -- platform Global (different type)
+
+    EXEC CustomRecordsTests.SeedRecord @Obj, @Ws, N'Alpha', N'{"priority":"High"}';
+
+    -- Act — filtering as text (matching the LOCAL override's type) must not error and must match.
+    DECLARE @Act TABLE (RecordId UNIQUEIDENTIFIER, Name NVARCHAR(400), FieldValues NVARCHAR(MAX), RowVer VARBINARY(8), TotalCount INT);
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"priority":{"type":"text","contains":"High"}}';
+
+    -- Assert — no whitelist-insert collision (the proc would throw before returning anything), and
+    -- the local field's semantics (text contains) governed the match.
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM @Act);
+    EXEC tSQLt.AssertEqualsString @Expected = N'Alpha', @Actual = (SELECT TOP 1 Name FROM @Act);
+END;
+GO
+
 CREATE PROCEDURE CustomRecordsTests.[test_Query_TextFilter_EscapesLikeWildcards]
 AS
 BEGIN

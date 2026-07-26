@@ -11,6 +11,17 @@
 --                  confirmed — on either side cannot be retired until that mapping is removed → THROW
 --                  50014 (BS §6.2 crossing-map retirement guard; the CrossingMap table lands in slice 24).
 --              Idempotent — re-retiring an already-retired field is a no-op.
+--
+--              Updated 2026-07-26 (SP3b Slice 2a) — @WorkspaceId may be NULL to retire a Global
+--              (platform-owned) field. The row-lookup, the crossing-map guard's field-identity
+--              join, and the retiring UPDATE all resolve "this field" via "the calling
+--              workspace when @WorkspaceId is supplied, or the Global namespace when NULL" —
+--              mirrors usp_UpsertFieldDefinition. The dependency guard's own WorkspaceId
+--              predicate is unchanged: dbo.FieldRuleDependency.WorkspaceId is NOT NULL (FK to
+--              Workspaces), so no Global field can ever have a dependency row there — the guard
+--              is vacuously correct (never fires) for a Global field until that table is also
+--              widened in a future slice. Workspace retire is unaffected — it always passes a
+--              real @WorkspaceId.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_RetireFieldDefinition
     @WorkspaceId UNIQUEIDENTIFIER,
@@ -34,7 +45,8 @@ BEGIN
         DECLARE @IsPlatformDefined BIT, @IsRetired BIT;
         SELECT @IsPlatformDefined = IsPlatformDefined, @IsRetired = IsRetired
         FROM dbo.FieldDefinition
-        WHERE WorkspaceId = @WorkspaceIdLocal AND ObjectType = @ObjectTypeLocal
+        WHERE ((@WorkspaceIdLocal IS NULL AND Location = N'Global') OR WorkspaceId = @WorkspaceIdLocal)
+          AND ObjectType = @ObjectTypeLocal
           AND FieldKey = @FieldKeyLocal AND IsDeleted = 0;
 
         IF @IsPlatformDefined IS NULL
@@ -63,7 +75,7 @@ BEGIN
             INNER JOIN dbo.FieldDefinition fd
                 ON fd.FieldDefinitionId IN (cm.PgFieldDefinitionId, cm.AiFieldDefinitionId)
             WHERE cm.IsDeleted = 0
-              AND fd.WorkspaceId = @WorkspaceIdLocal
+              AND ((@WorkspaceIdLocal IS NULL AND fd.Location = N'Global') OR fd.WorkspaceId = @WorkspaceIdLocal)
               AND fd.ObjectType = @ObjectTypeLocal
               AND fd.FieldKey = @FieldKeyLocal
               AND fd.IsDeleted = 0)
@@ -72,7 +84,8 @@ BEGIN
         IF @IsRetired = 0
             UPDATE dbo.FieldDefinition
             SET IsRetired = 1, RetiredAt = @Now, UpdatedBy = @Actor, UpdatedAt = @Now
-            WHERE WorkspaceId = @WorkspaceIdLocal AND ObjectType = @ObjectTypeLocal
+            WHERE ((@WorkspaceIdLocal IS NULL AND Location = N'Global') OR WorkspaceId = @WorkspaceIdLocal)
+              AND ObjectType = @ObjectTypeLocal
               AND FieldKey = @FieldKeyLocal AND IsDeleted = 0;
 
         COMMIT TRANSACTION;

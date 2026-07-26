@@ -117,6 +117,65 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE UpsertFieldDefinitionTests.[test_NullWorkspace_CreatesGlobalField]
+AS
+BEGIN
+    -- Arrange — SP3b Slice 2a: a platform create (@WorkspaceId = NULL) makes a NULL-workspace
+    -- Global field.
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.SelectOption';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldRule';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.DerivedField';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldRuleDependency';
+
+    -- Act
+    EXEC dbo.usp_UpsertFieldDefinition
+        @WorkspaceId = NULL, @ObjectType = N'Request', @FieldKey = N'firmPolicyRef',
+        @DisplayName = N'Firm Policy Reference', @FieldType = N'ShortText', @Category = N'WorkspaceLocal',
+        @Location = N'Global', @ActorUserId = N'platform-admin';
+
+    -- Assert — the row is NULL-workspace and Global.
+    DECLARE @Count INT = (
+        SELECT COUNT(*) FROM dbo.FieldDefinition
+        WHERE FieldKey = N'firmPolicyRef' AND ObjectType = N'Request'
+          AND WorkspaceId IS NULL AND Location = N'Global' AND IsDeleted = 0);
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Count;
+END;
+GO
+
+CREATE PROCEDURE UpsertFieldDefinitionTests.[test_NullWorkspace_DuplicateGlobalKey_Throws]
+AS
+BEGIN
+    -- Arrange — the Global namespace enforces key uniqueness per (ObjectType, FieldKey) via the
+    -- pre-existing filtered unique index UX_FieldDefinition_Global_Object_Key (migration 072). A
+    -- second create of the same Global key throws at the index.
+    EXEC tSQLt.FakeTable @TableName = 'dbo.SelectOption';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldRule';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.DerivedField';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldRuleDependency';
+    -- FieldDefinition is NOT faked here — the real table (with its real indexes) is required so the
+    -- Global-namespace unique index actually enforces the duplicate-key guard under test.
+
+    -- Act — create the first Global field.
+    EXEC dbo.usp_UpsertFieldDefinition
+        @WorkspaceId = NULL, @ObjectType = N'Feature', @FieldKey = N'globalDupTest',
+        @DisplayName = N'Global Dup Test', @FieldType = N'ShortText', @Category = N'WorkspaceLocal',
+        @Location = N'Global', @ActorUserId = N'platform-admin';
+
+    -- Assert — a second, INDEPENDENT create of the same Global key is rejected by the unique index.
+    -- (usp_UpsertFieldDefinition's own lookup only matches by natural key + Location, so a caller
+    -- that fabricates a fresh @FieldDefinitionId path can't bypass it — the index is authoritative.)
+    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%UX_FieldDefinition_Global_Object_Key%';
+    INSERT INTO dbo.FieldDefinition
+        (FieldDefinitionId, WorkspaceId, ObjectType, FieldKey, DisplayName, FieldType, Category, Location,
+         IsRequired, IsReadOnly, IsPlatformDefined, AllowNewValues, IsRetired, IsDeleted, SortOrder,
+         CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
+    VALUES
+        (NEWID(), NULL, N'Feature', N'globalDupTest', N'Duplicate', N'ShortText', N'WorkspaceLocal', N'Global',
+         0, 0, 0, 0, 0, 0, 1, N'test-actor', N'test-actor', SYSUTCDATETIME(), SYSUTCDATETIME());
+END;
+GO
+
 CREATE PROCEDURE UpsertFieldDefinitionTests.[test_PlatformDefinedField_Throws]
 AS
 BEGIN

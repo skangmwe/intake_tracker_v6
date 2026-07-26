@@ -12,6 +12,19 @@
 --              platform-defined field. Child rows are soft-deleted then re-inserted
 --              (the WHERE IsDeleted=0 filtered unique indexes allow value re-use).
 --
+--              Updated 2026-07-26 (SP3b Slice 2a) — @WorkspaceId may be NULL to create/patch a
+--              Global (platform-owned) field (WorkspaceId=NULL, Location='Global'). The lookup
+--              that resolves the existing row (serving both as the update-path existence check
+--              and, implicitly, the create-path key-uniqueness check — a second create of the
+--              same key hits the same row and becomes an update) operates on "the same
+--              namespace as the row being written": the calling workspace when @WorkspaceId is
+--              supplied, or the Global namespace (all rows with Location='Global') when
+--              @WorkspaceId is NULL. Workspace create/patch is unaffected — it always passes a
+--              real @WorkspaceId. A duplicate Global-namespace key is still caught by the
+--              pre-existing UX_FieldDefinition_Global_Object_Key filtered unique index
+--              (migration 072) — a second create of the same (ObjectType, FieldKey) Global field
+--              throws at the index rather than the app layer.
+--
 --              JSON params:
 --                @OptionsJson      = [{"value","label","sortOrder"}]
 --                @RulesJson        = [{"action","whenFieldKey","comparator","compareValue","produceValue","sortOrder"}]
@@ -61,7 +74,8 @@ BEGIN
 
         SELECT @FieldDefinitionId = FieldDefinitionId, @IsPlatformDefined = IsPlatformDefined
         FROM dbo.FieldDefinition
-        WHERE WorkspaceId = @WorkspaceIdLocal AND ObjectType = @ObjectTypeLocal
+        WHERE ((@WorkspaceIdLocal IS NULL AND Location = N'Global') OR WorkspaceId = @WorkspaceIdLocal)
+          AND ObjectType = @ObjectTypeLocal
           AND FieldKey = @FieldKeyLocal AND IsDeleted = 0;
 
         IF @IsPlatformDefined = 1

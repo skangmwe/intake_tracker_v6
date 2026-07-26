@@ -9,6 +9,13 @@
 --              and rows of another workspace/object are excluded. FieldValues is Confidential — never
 --              logged (api-pii-handling.md).
 --
+--              Updated 2026-07-26 (SP3b Slice 2a) — the @Fields filter/sort whitelist (below)
+--              includes both the calling workspace's own local fields AND every platform Global
+--              field (Location='Global', WorkspaceId NULL) on the same object slug, so a Global
+--              field is filterable/sortable in every workspace. Scoped by ObjectType = @Slug, so
+--              there is no cross-object bleed; a DIFFERENT workspace's own local field on the
+--              same slug is still excluded from this workspace's whitelist.
+--
 --              INJECTION SAFETY (this proc is the designated high-risk review target):
 --                * A field key reaches the dynamic SQL text ONLY after it matched a real, active
 --                  FieldDefinition row for this object (the @Fields whitelist). Unknown filter keys
@@ -138,11 +145,22 @@ BEGIN
           WHERE ObjectDefinitionId = @Obj AND IsDeleted = 0);
 
     -- Whitelist of the object's user fields (key + type). Only keys present here may enter SQL text.
+    -- A local field can share a key with a foreign Global field (usp_GetWorkspaceFields's "local
+    -- override" case); de-dupe by key with the local (WorkspaceId = @Ws) row winning — same
+    -- precedence as usp_GetWorkspaceFields — so the @Fields PRIMARY KEY never collides.
     DECLARE @Fields TABLE (FieldKey NVARCHAR(64) PRIMARY KEY, FieldType NVARCHAR(32) NOT NULL);
     INSERT INTO @Fields (FieldKey, FieldType)
         SELECT FieldKey, FieldType
-        FROM   dbo.FieldDefinition
-        WHERE  WorkspaceId = @Ws AND ObjectType = @Slug AND IsDeleted = 0 AND IsRetired = 0;
+        FROM (
+            SELECT FieldKey, FieldType,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY FieldKey
+                       ORDER BY CASE WHEN WorkspaceId = @Ws THEN 0 ELSE 1 END) AS RowRank
+            FROM   dbo.FieldDefinition
+            WHERE  (WorkspaceId = @Ws OR Location = N'Global')
+              AND  ObjectType = @Slug AND IsDeleted = 0 AND IsRetired = 0
+        ) AS ranked
+        WHERE ranked.RowRank = 1;
 
     -- Build the WHERE fragment: one predicate per filter key that is a stable column OR a whitelisted
     -- field. Field values are read via JSON_VALUE(@FiltersJson, …) at exec time (never concatenated).
