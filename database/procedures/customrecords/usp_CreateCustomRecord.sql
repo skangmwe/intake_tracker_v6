@@ -5,6 +5,9 @@
 --              object exists (active) in the workspace before inserting — a record can never bind to
 --              a foreign or deleted object. FieldValues is stored as-is (the API sends the full map);
 --              it is Confidential and never logged (api-pii-handling.md).
+--              Updated 2026-07-26 (SP3b Slice 1) — the existence check also accepts a Global object
+--              (WorkspaceId NULL, Location='Global') as a valid target from any workspace; the
+--              inserted record still carries the caller's own @WorkspaceId.
 --
 --              Error contract:
 --                50083 → the object definition was not found (active) in this workspace.
@@ -34,7 +37,9 @@ BEGIN
 
         IF NOT EXISTS (
             SELECT 1 FROM dbo.ObjectDefinition
-            WHERE ObjectDefinitionId = @Obj AND WorkspaceId = @Ws AND IsDeleted = 0)
+            WHERE ObjectDefinitionId = @Obj
+              AND (WorkspaceId = @Ws OR (WorkspaceId IS NULL AND Location = N'Global'))
+              AND IsDeleted = 0)
             THROW 50083, 'Object definition not found in this workspace.', 1;
 
         INSERT INTO dbo.CustomRecords

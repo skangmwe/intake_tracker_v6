@@ -1,6 +1,7 @@
 // The object editor side sheet (S30 Objects tab) — create a custom object, edit one, or view a
-// built-in read-only. Non-blocking side sheet (disclosure-surfaces.md); Escape closes. Built-in
-// objects are locked (view only, no delete). Custom objects are fully editable; the Show-in-sidebar
+// built-in / firm-wide object read-only. Non-blocking side sheet (disclosure-surfaces.md); Escape
+// closes. Built-in objects AND Global (firm-wide, platform-owned) custom objects are locked (view
+// only, no delete) — only a local custom object this workspace owns is editable. The Show-in-sidebar
 // switch reveals the Sidebar category picker (with a "create new" option).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -15,6 +16,12 @@ import {
   LOCATION_OPTIONS,
   NEW_CATEGORY_VALUE,
 } from '../constants';
+
+// A platform-owned Global custom object has no owning workspace, so it surfaces in every workspace
+// with WorkspaceId = Guid.Empty (set by the API's MapCustom only for NULL-workspace rows). That empty
+// owner is the signal this workspace can't edit it — NOT the Location label, since a workspace's own
+// object stays editable even if its Location happens to be 'Global'.
+const EMPTY_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
 
 export interface ObjectFormValue {
   name: string;
@@ -68,7 +75,10 @@ export function ObjectEditorSheet({
   onClose,
 }: ObjectEditorSheetProps) {
   const isCreate = object === null;
-  const readOnly = object?.isSystem ?? false;
+  // A platform-owned Global custom object (no owning workspace → WorkspaceId Guid.Empty) opens
+  // read-only here, like a built-in. Only a custom object this workspace owns is editable.
+  const isForeignGlobal = !(object?.isSystem ?? false) && object?.workspaceId === EMPTY_WORKSPACE_ID;
+  const readOnly = (object?.isSystem ?? false) || isForeignGlobal;
   const [draft, setDraft] = useState<ObjectFormValue>(() => initialDraft(object));
   const [newCategory, setNewCategory] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -117,7 +127,9 @@ export function ObjectEditorSheet({
   };
 
   const navHint = readOnly
-    ? 'This built-in object always has a place in the navigation.'
+    ? isForeignGlobal
+      ? 'This firm-wide object’s navigation is managed by a platform admin.'
+      : 'This built-in object always has a place in the navigation.'
     : 'Adds a navigation item for this object under a sidebar category.';
 
   return (
@@ -144,8 +156,10 @@ export function ObjectEditorSheet({
 
         {readOnly && (
           <p className="mws-alert mws-alert--info fields-sheet__lock" role="note">
-            <LockSimple size={16} aria-hidden /> This is a built-in object. Its definition is
-            managed by the platform and can’t be edited here.
+            <LockSimple size={16} aria-hidden />{' '}
+            {isForeignGlobal
+              ? 'This is a firm-wide object, managed by a platform admin. Its records are still available in this workspace.'
+              : 'This is a built-in object. Its definition is managed by the platform and can’t be edited here.'}
           </p>
         )}
 
@@ -210,7 +224,7 @@ export function ObjectEditorSheet({
             <input
               type="checkbox"
               aria-label="Show in left sidebar"
-              checked={readOnly ? true : draft.showInSidebar}
+              checked={draft.showInSidebar}
               disabled={readOnly}
               onChange={(event) => patch({ showInSidebar: event.target.checked })}
             />

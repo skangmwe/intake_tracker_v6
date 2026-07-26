@@ -8,6 +8,10 @@
 --
 --              Error contract:
 --                50080 → object definition not found (or already deleted).
+--
+--              Updated 2026-07-26 (SP3b Slice 1) — a platform delete of a Global object passes
+--              @WorkspaceId = NULL; the existence check and the update accept a Global row
+--              (Location='Global') in that case, alongside the normal own-workspace match.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_DeleteObjectDefinition
     @ObjectDefinitionId UNIQUEIDENTIFIER,
@@ -28,7 +32,8 @@ BEGIN
 
         IF NOT EXISTS (
             SELECT 1 FROM dbo.ObjectDefinition
-            WHERE ObjectDefinitionId = @Id AND WorkspaceId = @Ws AND IsDeleted = 0)
+            WHERE ObjectDefinitionId = @Id
+              AND ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws) AND IsDeleted = 0)
             THROW 50080, 'Object definition not found.', 1;
 
         UPDATE dbo.ObjectDefinition
@@ -36,7 +41,8 @@ BEGIN
                DeletedAt = @Now,
                UpdatedBy = @Actor,
                UpdatedAt = @Now
-         WHERE ObjectDefinitionId = @Id AND WorkspaceId = @Ws;
+         WHERE ObjectDefinitionId = @Id
+           AND ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws);
 
         COMMIT TRANSACTION;
     END TRY

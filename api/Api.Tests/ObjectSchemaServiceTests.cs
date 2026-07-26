@@ -1,6 +1,7 @@
-// Unit tests for ObjectSchemaService.BuildSystemObjects (Objects tab, S30) — the pure composition of
-// the five built-in object DTOs from a workspace's live counts. No database (the DB paths are covered
-// by the tSQLt object procs + the controller tests).
+// Unit tests for ObjectSchemaService's pure composition/mapping (Objects tab, S30; Global custom
+// objects, SP3b) — the built-in and custom object DTOs. No database. The DB-backed paths
+// (ListGlobalAsync / CreateGlobalAsync / UpdateGlobalAsync / DeleteGlobalAsync execute stored
+// procedures) are covered by the object-proc tSQLt tests and the platform controller tests.
 
 using McDermott.AiTracker.Api.Modules.Objects;
 using Xunit;
@@ -116,7 +117,7 @@ public sealed class ObjectSchemaServiceTests
         };
 
         // Act
-        var objects = ObjectSchemaService.BuildCustomObjects(WorkspaceId, rows, counts);
+        var objects = ObjectSchemaService.BuildCustomObjects(rows, counts);
         var byId = objects.ToDictionary(o => o.Id);
 
         // Assert — live counts from the counts row; the object with no counts row falls back to 0/0.
@@ -126,6 +127,46 @@ public sealed class ObjectSchemaServiceTests
         Assert.Equal(0, byId[orderId].RecordsCount);
         Assert.All(objects, o => Assert.False(o.IsSystem));
         Assert.Equal("vendor", byId[vendorId].ObjectKey);
+    }
+
+    [Fact]
+    public void BuildCustomObjects_GlobalRow_SurfacesWorkspaceEmpty_StaysCustom()
+    {
+        // Arrange — a Global (platform-owned) custom object has no owning workspace (WorkspaceId NULL).
+        var globalId = new Guid("C0000000-0000-4000-8000-0000000000FF");
+        var rows = new List<ObjectDefinitionRow>
+        {
+            new() { ObjectDefinitionId = globalId, WorkspaceId = null, ObjectKey = "vendor", Name = "Vendor", Location = "Global" },
+        };
+
+        // Act
+        var objects = ObjectSchemaService.BuildCustomObjects(rows, Array.Empty<CustomObjectCountsRow>());
+
+        // Assert — surfaces with WorkspaceId = Guid.Empty (not owned by the calling workspace), stays a
+        // custom object (IsSystem false), keeps Location 'Global'. This is what the workspace read-only
+        // surface keys on to lock a Global custom object.
+        var vendor = Assert.Single(objects);
+        Assert.Equal(Guid.Empty, vendor.WorkspaceId);
+        Assert.False(vendor.IsSystem);
+        Assert.Equal("Global", vendor.Location);
+    }
+
+    [Fact]
+    public void BuildCustomObjects_LocalRow_SurfacesRowWorkspace()
+    {
+        // Arrange — a local custom object carries its owning workspace on the row.
+        var localWorkspaceId = new Guid("B0000000-0000-4000-8000-0000000000BB");
+        var orderId = new Guid("C0000000-0000-4000-8000-000000000010");
+        var rows = new List<ObjectDefinitionRow>
+        {
+            new() { ObjectDefinitionId = orderId, WorkspaceId = localWorkspaceId, ObjectKey = "order", Name = "Order", Location = "LocalWorkspace" },
+        };
+
+        // Act
+        var objects = ObjectSchemaService.BuildCustomObjects(rows, Array.Empty<CustomObjectCountsRow>());
+
+        // Assert — the DTO reflects the row's own workspace.
+        Assert.Equal(localWorkspaceId, Assert.Single(objects).WorkspaceId);
     }
 
     [Fact]

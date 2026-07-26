@@ -3,7 +3,13 @@
 
 import { apiFetch } from '@/shared/http/apiClient';
 
-import { fetchPlatformObjects, fetchPlatformRelationships } from './platformSchema';
+import {
+  createPlatformObject,
+  deletePlatformObject,
+  fetchPlatformObjects,
+  fetchPlatformRelationships,
+  updatePlatformObject,
+} from './platformSchema';
 
 jest.mock('@/shared/http/apiClient');
 const mockedApiFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
@@ -53,6 +59,51 @@ describe('platformSchema api', () => {
     // Assert
     expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects', {
       signal: controller.signal,
+    });
+  });
+
+  it('createPlatformObject — POSTs the request to the platform objects endpoint', async () => {
+    // Arrange
+    const request = {
+      name: 'Matter',
+      pluralLabel: 'Matters',
+      location: 'Global' as const,
+      description: null,
+      showInSidebar: true,
+      sidebarCategory: null,
+    };
+
+    // Act
+    await createPlatformObject(request);
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects', {
+      method: 'POST',
+      body: request,
+    });
+  });
+
+  it('updatePlatformObject — PATCHes the request to the object by id', async () => {
+    // Arrange
+    const request = { name: 'Matter 2' };
+
+    // Act
+    await updatePlatformObject('vendor', request);
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects/vendor', {
+      method: 'PATCH',
+      body: request,
+    });
+  });
+
+  it('deletePlatformObject — DELETEs the object by id', async () => {
+    // Act
+    await deletePlatformObject('vendor');
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects/vendor', {
+      method: 'DELETE',
     });
   });
 });

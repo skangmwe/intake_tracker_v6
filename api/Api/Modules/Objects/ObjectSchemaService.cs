@@ -32,9 +32,6 @@ public interface IObjectSchemaService
 {
     Task<IReadOnlyList<ObjectDefinitionDto>> ListAsync(Guid workspaceId, CancellationToken cancellationToken);
 
-    /// <summary>The Global built-in object types (Request, Task) for the platform Objects tab (S34) —
-    /// a read-only reference with no workspace scope and no counts. Pure (no I/O).</summary>
-    IReadOnlyList<ObjectDefinitionDto> GetGlobalObjects();
     Task<ObjectDefinitionDto?> GetByIdAsync(Guid objectId, Guid workspaceId, CancellationToken cancellationToken);
     Task<ObjectMutationResult> CreateAsync(
         Guid workspaceId, ObjectDefinitionCreateRequest request, Guid actorUserId, CancellationToken cancellationToken);
@@ -42,6 +39,26 @@ public interface IObjectSchemaService
         Guid objectId, Guid workspaceId, ObjectDefinitionPatchRequest request, Guid actorUserId, CancellationToken cancellationToken);
     Task<ObjectMutationResult> DeleteAsync(
         Guid objectId, Guid workspaceId, Guid actorUserId, CancellationToken cancellationToken);
+
+    // ---- Global (platform-owned) custom objects (SP3b) — platform-admin surface, no workspace scope ----
+
+    /// <summary>Every Global object type for the platform Objects tab (SP3b): the Global built-ins
+    /// (Request, Task) followed by Global custom objects. No workspace scope and no counts — a Global
+    /// object's records live per-workspace, not on this reference surface.</summary>
+    Task<IReadOnlyList<ObjectDefinitionDto>> ListGlobalAsync(CancellationToken cancellationToken);
+
+    /// <summary>Creates a Global custom object (Location forced to 'Global', no owning workspace). The
+    /// request's Location is ignored.</summary>
+    Task<ObjectMutationResult> CreateGlobalAsync(
+        ObjectDefinitionCreateRequest request, Guid actorUserId, CancellationToken cancellationToken);
+
+    /// <summary>Patches a Global custom object. A built-in or a local custom object id returns NotFound.</summary>
+    Task<ObjectMutationResult> UpdateGlobalAsync(
+        Guid objectId, ObjectDefinitionPatchRequest request, Guid actorUserId, CancellationToken cancellationToken);
+
+    /// <summary>Soft-deletes a Global custom object. A built-in or a local custom object id returns NotFound.</summary>
+    Task<ObjectMutationResult> DeleteGlobalAsync(
+        Guid objectId, Guid actorUserId, CancellationToken cancellationToken);
 }
 
 public sealed class ObjectSchemaService : IObjectSchemaService
@@ -49,6 +66,9 @@ public sealed class ObjectSchemaService : IObjectSchemaService
     // Error numbers from usp_Upsert/DeleteObjectDefinition (see the proc headers).
     private const int ErrNotFound  = 50080;
     private const int ErrDuplicate = 50081;
+
+    // Location value for a Global (platform-owned) custom object.
+    private const string GlobalLocation = "Global";
 
     // The five built-in object types, in display order. Fixed ids so the client has a stable key;
     // built-ins are read-only, so these ids never reach the write procs. ObjectKey is the canonical
@@ -101,9 +121,10 @@ public sealed class ObjectSchemaService : IObjectSchemaService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // Built-ins first (with live counts), then the workspace's custom objects (live Fields + Records counts).
+        // Built-ins first (with live counts), then the workspace's own + inherited-Global custom objects
+        // (live Fields + Records counts; a Global object surfaces with WorkspaceId = Guid.Empty).
         var result = new List<ObjectDefinitionDto>(BuildSystemObjects(workspaceId, counts));
-        result.AddRange(BuildCustomObjects(workspaceId, customRows, customCounts));
+        result.AddRange(BuildCustomObjects(customRows, customCounts));
         return result;
     }
 
@@ -121,7 +142,7 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         // Counts are 0 here: live counts are a list-surface concern (the Objects tab reads ListAsync).
         // GetByIdAsync backs create/update responses, where the object has no fields/records yet or the
         // tab will re-list.
-        return rows.FirstOrDefault() is { } row ? MapCustom(row, workspaceId, fieldsCount: 0, recordsCount: 0) : null;
+        return rows.FirstOrDefault() is { } row ? MapCustom(row, fieldsCount: 0, recordsCount: 0) : null;
     }
 
     public async Task<ObjectMutationResult> CreateAsync(
@@ -154,8 +175,10 @@ public sealed class ObjectSchemaService : IObjectSchemaService
             actorUserId, cancellationToken).ConfigureAwait(false);
     }
 
+    // workspaceId is null for a Global (platform-owned) custom object; the proc scopes those on the
+    // Global namespace (Location='Global') instead of a workspace.
     private async Task<ObjectMutationResult> UpsertAsync(
-        Guid? objectId, Guid workspaceId,
+        Guid? objectId, Guid? workspaceId,
         string name, string? pluralLabel, string location, string? description,
         bool showInSidebar, string? sidebarCategory,
         Guid actorUserId, CancellationToken cancellationToken)
@@ -174,7 +197,7 @@ public sealed class ObjectSchemaService : IObjectSchemaService
                 new object[]
                 {
                     new SqlParameter("@ObjectDefinitionId", (object?)objectId ?? DBNull.Value),
-                    new SqlParameter("@WorkspaceId", workspaceId),
+                    new SqlParameter("@WorkspaceId", (object?)workspaceId ?? DBNull.Value),
                     new SqlParameter("@Name", name),
                     new SqlParameter("@PluralLabel", (object?)pluralLabel ?? DBNull.Value),
                     new SqlParameter("@Location", location),
@@ -196,12 +219,20 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         }
 
         var newId = (Guid)newIdParam.Value!;
-        var saved = await GetByIdAsync(newId, workspaceId, cancellationToken).ConfigureAwait(false);
+        // Global read-back passes Guid.Empty; the relaxed usp_GetObjectDefinitionById matches the Global
+        // row via Location='Global' regardless of the workspace passed.
+        var saved = await GetByIdAsync(newId, workspaceId ?? Guid.Empty, cancellationToken).ConfigureAwait(false);
         return new ObjectMutationResult(ObjectMutationOutcome.Success, saved, null);
     }
 
-    public async Task<ObjectMutationResult> DeleteAsync(
-        Guid objectId, Guid workspaceId, Guid actorUserId, CancellationToken cancellationToken)
+    public Task<ObjectMutationResult> DeleteAsync(
+        Guid objectId, Guid workspaceId, Guid actorUserId, CancellationToken cancellationToken) =>
+        DeleteInternalAsync(objectId, workspaceId, actorUserId, cancellationToken);
+
+    // workspaceId is null for a Global (platform-owned) custom object; the proc scopes the delete on
+    // the Global namespace (Location='Global') instead of a workspace.
+    private async Task<ObjectMutationResult> DeleteInternalAsync(
+        Guid objectId, Guid? workspaceId, Guid actorUserId, CancellationToken cancellationToken)
     {
         try
         {
@@ -210,7 +241,7 @@ public sealed class ObjectSchemaService : IObjectSchemaService
                 new object[]
                 {
                     new SqlParameter("@ObjectDefinitionId", objectId),
-                    new SqlParameter("@WorkspaceId", workspaceId),
+                    new SqlParameter("@WorkspaceId", (object?)workspaceId ?? DBNull.Value),
                     new SqlParameter("@ActorUserId", actorUserId.ToString()),
                 },
                 cancellationToken).ConfigureAwait(false);
@@ -223,7 +254,62 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         return new ObjectMutationResult(ObjectMutationOutcome.Success, null, null);
     }
 
-    public IReadOnlyList<ObjectDefinitionDto> GetGlobalObjects() => GetGlobalSystemObjects();
+    public async Task<IReadOnlyList<ObjectDefinitionDto>> ListGlobalAsync(CancellationToken cancellationToken)
+    {
+        var customRows = await _db.Set<ObjectDefinitionRow>()
+            .FromSqlRaw("EXEC dbo.usp_ListGlobalObjectDefinitions")
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Global built-ins (Request, Task) first, then Global custom objects. No counts on this
+        // platform reference surface — a Global object's records live per-workspace, not here.
+        var result = new List<ObjectDefinitionDto>(GetGlobalSystemObjects());
+        result.AddRange(BuildCustomObjects(customRows, Array.Empty<CustomObjectCountsRow>()));
+        return result;
+    }
+
+    public Task<ObjectMutationResult> CreateGlobalAsync(
+        ObjectDefinitionCreateRequest request, Guid actorUserId, CancellationToken cancellationToken) =>
+        // Location is forced to Global (request.Location is ignored); no owning workspace.
+        UpsertAsync(
+            null, null, request.Name, request.PluralLabel, GlobalLocation,
+            request.Description, request.ShowInSidebar, request.SidebarCategory,
+            actorUserId, cancellationToken);
+
+    public async Task<ObjectMutationResult> UpdateGlobalAsync(
+        Guid objectId, ObjectDefinitionPatchRequest request, Guid actorUserId, CancellationToken cancellationToken)
+    {
+        // Resolve against the Global namespace (Guid.Empty owns no rows, so only a Global row can match).
+        // A built-in or a local custom object id fails the Global-custom guard → NotFound.
+        var existing = await GetByIdAsync(objectId, Guid.Empty, cancellationToken).ConfigureAwait(false);
+        if (existing is not { IsSystem: false, Location: GlobalLocation })
+        {
+            return new ObjectMutationResult(ObjectMutationOutcome.NotFound, null, "Global object definition not found.");
+        }
+
+        return await UpsertAsync(
+            objectId, null,
+            request.Name ?? existing.Name,
+            request.PluralLabel ?? existing.PluralLabel,
+            GlobalLocation,
+            request.Description ?? existing.Description,
+            request.ShowInSidebar ?? existing.ShowInSidebar,
+            request.SidebarCategory ?? existing.SidebarCategory,
+            actorUserId, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ObjectMutationResult> DeleteGlobalAsync(
+        Guid objectId, Guid actorUserId, CancellationToken cancellationToken)
+    {
+        var existing = await GetByIdAsync(objectId, Guid.Empty, cancellationToken).ConfigureAwait(false);
+        if (existing is not { IsSystem: false, Location: GlobalLocation })
+        {
+            return new ObjectMutationResult(ObjectMutationOutcome.NotFound, null, "Global object definition not found.");
+        }
+
+        return await DeleteInternalAsync(objectId, null, actorUserId, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>Composes the Global built-in object DTOs (Request, Task) for the platform Objects tab
     /// (S34) — no workspace scope, no counts (a read-only reference). Pure — no I/O — so it is
@@ -290,7 +376,6 @@ public sealed class ObjectSchemaService : IObjectSchemaService
     /// counts (usp_GetCustomObjectCounts). Pure — no I/O — so it is unit-testable without a database
     /// (mirrors BuildSystemObjects). An object with no counts row reports 0 for both.</summary>
     public static IReadOnlyList<ObjectDefinitionDto> BuildCustomObjects(
-        Guid workspaceId,
         IReadOnlyList<ObjectDefinitionRow> customRows,
         IReadOnlyList<CustomObjectCountsRow> counts)
     {
@@ -298,14 +383,16 @@ public sealed class ObjectSchemaService : IObjectSchemaService
         return customRows.Select(row =>
         {
             countsByObject.TryGetValue(row.ObjectDefinitionId, out var count);
-            return MapCustom(row, workspaceId, count?.FieldsCount ?? 0, count?.RecordsCount ?? 0);
+            return MapCustom(row, count?.FieldsCount ?? 0, count?.RecordsCount ?? 0);
         }).ToList();
     }
 
+    // A Global (platform-owned) custom object has no owning workspace (row.WorkspaceId NULL) and
+    // surfaces with WorkspaceId = Guid.Empty; a local object carries its own workspace on the row.
     private static ObjectDefinitionDto MapCustom(
-        ObjectDefinitionRow row, Guid workspaceId, int fieldsCount, int recordsCount) => new(
+        ObjectDefinitionRow row, int fieldsCount, int recordsCount) => new(
         row.ObjectDefinitionId,
-        workspaceId,
+        row.WorkspaceId ?? Guid.Empty,
         row.ObjectKey,
         row.Name,
         row.PluralLabel,
