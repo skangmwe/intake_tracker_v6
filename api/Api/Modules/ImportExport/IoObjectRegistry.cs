@@ -4,6 +4,7 @@
 // later slices add Feature, Task, Toolkit, and Attachment descriptors here — new descriptors, not new
 // endpoints. The registry is a thin lookup over the registered descriptors (DI-composed).
 
+using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Shared.Schema;
 
 namespace McDermott.AiTracker.Api.Modules.ImportExport;
@@ -96,21 +97,71 @@ public interface IIoObjectRegistry
 
     /// <summary>The descriptor for an object type, or null when the type is not registered.</summary>
     IIoObject? Find(string? objectType);
+
+    /// <summary>All descriptors available in a workspace: the static built-ins plus one descriptor per
+    /// non-system custom object (dbo.ObjectDefinition). Workspace-aware because custom objects are
+    /// per-workspace. Used by the import/export wizards and export/import services; the static <see cref="All"/>
+    /// stays built-ins-only for the Fields catalog.</summary>
+    Task<IReadOnlyList<IIoObject>> AllForWorkspaceAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>The descriptor for an object type in a workspace: a static built-in, or a custom object
+    /// resolved by slug. Null when the type is neither.</summary>
+    Task<IIoObject?> FindForWorkspaceAsync(Guid workspaceId, string? objectType, Guid userId, CancellationToken cancellationToken);
 }
 
 public sealed class IoObjectRegistry : IIoObjectRegistry
 {
     private readonly IReadOnlyList<IIoObject> _objects;
     private readonly IReadOnlyDictionary<string, IIoObject> _byType;
+    private readonly IObjectSchemaService _objectSchema;
+    private readonly ICustomObjectIoObjectFactory _factory;
 
-    public IoObjectRegistry(IEnumerable<IIoObject> objects)
+    public IoObjectRegistry(
+        IEnumerable<IIoObject> objects,
+        IObjectSchemaService objectSchema,
+        ICustomObjectIoObjectFactory factory)
     {
         _objects = objects.ToList();
         _byType = _objects.ToDictionary(item => item.ObjectType, StringComparer.Ordinal);
+        _objectSchema = objectSchema;
+        _factory = factory;
     }
 
     public IReadOnlyList<IIoObject> All => _objects;
 
     public IIoObject? Find(string? objectType) =>
         objectType is not null && _byType.TryGetValue(objectType, out var match) ? match : null;
+
+    public async Task<IReadOnlyList<IIoObject>> AllForWorkspaceAsync(
+        Guid workspaceId, Guid userId, CancellationToken cancellationToken)
+    {
+        var result = new List<IIoObject>(_objects);
+        var definitions = await _objectSchema.ListAsync(workspaceId, cancellationToken).ConfigureAwait(false);
+        foreach (var definition in definitions.Where(item => !item.IsSystem))
+        {
+            result.Add(await _factory.CreateAsync(workspaceId, definition, userId, cancellationToken).ConfigureAwait(false));
+        }
+
+        return result;
+    }
+
+    public async Task<IIoObject?> FindForWorkspaceAsync(
+        Guid workspaceId, string? objectType, Guid userId, CancellationToken cancellationToken)
+    {
+        // Built-ins first (Request/Feature/Task/Toolkit/Attachment) — no schema read needed.
+        if (Find(objectType) is { } builtIn)
+        {
+            return builtIn;
+        }
+
+        if (string.IsNullOrWhiteSpace(objectType))
+        {
+            return null;
+        }
+
+        var definitions = await _objectSchema.ListAsync(workspaceId, cancellationToken).ConfigureAwait(false);
+        var match = definitions.FirstOrDefault(item =>
+            !item.IsSystem && string.Equals(item.ObjectKey, objectType, StringComparison.Ordinal));
+        return match is null ? null : await _factory.CreateAsync(workspaceId, match, userId, cancellationToken).ConfigureAwait(false);
+    }
 }
