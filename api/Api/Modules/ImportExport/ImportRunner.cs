@@ -46,7 +46,10 @@ public sealed class ImportRunner : IImportRunner
     {
         // Resolve the target object's import descriptor. The controller only enqueues importable object
         // types, but guard defensively — an unimportable/unknown type is a permanent failure, not a retry.
-        if (_registry.Find(message.ObjectType) is not IIoImporter importer)
+        var descriptor = await _registry
+            .FindForWorkspaceAsync(message.WorkspaceId, message.ObjectType, message.StartedByUserId, cancellationToken)
+            .ConfigureAwait(false);
+        if (descriptor is not IIoImporter importer)
         {
             await CompleteAsync(message.ImportId, "Failed", 0, 0, 0, cancellationToken).ConfigureAwait(false);
             return;

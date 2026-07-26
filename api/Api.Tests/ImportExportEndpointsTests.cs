@@ -10,6 +10,7 @@ using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace McDermott.AiTracker.Api.Tests;
@@ -71,5 +72,25 @@ public sealed class ImportExportEndpointsTests : IClassFixture<WebApplicationFac
             "/api/v1/exports",
             Json($$"""{ "savedViewId": "{{Guid.NewGuid()}}" }"""));
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    /// <summary>Container-resolution guard: IIoObjectRegistry -> ICustomObjectIoObjectFactory ->
+    /// IFieldSchemaService used to close a cycle back onto IIoObjectRegistry (FieldSchemaService only
+    /// ever needed the built-in IIoObject descriptors, not the registry itself). Resolving both from a
+    /// real scope exercises the full constructor graph and throws
+    /// InvalidOperationException("A circular dependency was detected...") if the cycle regresses — no
+    /// database access is required, this only constructs the object graph.</summary>
+    [Fact]
+    public void ServiceProvider_ResolvesIIoObjectRegistryAndIFieldSchemaService_NoCircularDependency()
+    {
+        using var scope = _factory.Services.CreateScope();
+
+        var registry = scope.ServiceProvider
+            .GetRequiredService<McDermott.AiTracker.Api.Modules.ImportExport.IIoObjectRegistry>();
+        var fields = scope.ServiceProvider
+            .GetRequiredService<McDermott.AiTracker.Api.Modules.Fields.IFieldSchemaService>();
+
+        Assert.NotNull(registry);
+        Assert.NotNull(fields);
     }
 }

@@ -39,8 +39,12 @@ public sealed class ImportExportControllerTests
         request
             .Setup(item => item.GetExportFieldsAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { new IoFieldSpec("id", "Record ID", AlwaysIncluded: true) });
-        _registry.Setup(registry => registry.Find("Request")).Returns(request.Object);
-        _registry.SetupGet(registry => registry.All).Returns(new[] { request.Object });
+        _registry
+            .Setup(registry => registry.FindForWorkspaceAsync(It.IsAny<Guid>(), "Request", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(request.Object);
+        _registry
+            .Setup(registry => registry.AllForWorkspaceAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { request.Object });
     }
 
     private ImportExportController Build()
@@ -243,7 +247,9 @@ public sealed class ImportExportControllerTests
     {
         // Arrange — admin, but the object isn't registered.
         AllowAdmin();
-        _registry.Setup(registry => registry.Find("Widget")).Returns((IIoObject?)null);
+        _registry
+            .Setup(registry => registry.FindForWorkspaceAsync(It.IsAny<Guid>(), "Widget", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IIoObject?)null);
 
         // Act
         var result = await Build().ImportCsv(WorkspaceId, CsvFile(), "Widget", null, CancellationToken.None);

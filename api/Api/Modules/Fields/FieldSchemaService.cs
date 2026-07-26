@@ -76,19 +76,21 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
     private readonly IConditionEngine _conditionEngine;
     private readonly IEventSpine _eventSpine;
     private readonly IClock _clock;
-    private readonly ImportExport.IIoObjectRegistry _ioObjects;
+    private readonly IReadOnlyList<ImportExport.IIoObject> _ioObjects;
 
     public FieldSchemaService(
         AppDbContext db, IConditionEngine conditionEngine, IEventSpine eventSpine, IClock clock,
-        ImportExport.IIoObjectRegistry ioObjects)
+        IEnumerable<ImportExport.IIoObject> ioObjects)
     {
         _db = db;
         _conditionEngine = conditionEngine;
         _eventSpine = eventSpine;
         _clock = clock;
-        // The registered object descriptors are the single source of each fixed-column object's field
-        // set; the workspace catalog surfaces the same built-in fields those objects export.
-        _ioObjects = ioObjects;
+        // Depend on the registered IIoObject descriptors directly (not IIoObjectRegistry) — the
+        // registry itself resolves through ICustomObjectIoObjectFactory, which depends on this
+        // service, so taking the registry here would create a DI cycle. Only the built-in
+        // descriptors' catalog fields are needed, and IEnumerable<IIoObject> is exactly that set.
+        _ioObjects = ioObjects.ToList();
     }
 
     public async Task<WorkspaceFieldSchemaDto> GetSchemaAsync(Guid workspaceId, string objectType, CancellationToken cancellationToken)
