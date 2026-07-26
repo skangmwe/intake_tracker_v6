@@ -17,6 +17,12 @@ import {
   NEW_CATEGORY_VALUE,
 } from '../constants';
 
+// A platform-owned Global custom object has no owning workspace, so it surfaces in every workspace
+// with WorkspaceId = Guid.Empty (set by the API's MapCustom only for NULL-workspace rows). That empty
+// owner is the signal this workspace can't edit it — NOT the Location label, since a workspace's own
+// object stays editable even if its Location happens to be 'Global'.
+const EMPTY_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
+
 export interface ObjectFormValue {
   name: string;
   pluralLabel: string;
@@ -69,9 +75,9 @@ export function ObjectEditorSheet({
   onClose,
 }: ObjectEditorSheetProps) {
   const isCreate = object === null;
-  // A Global custom object (Location='Global', not a built-in) is owned by the platform, not this
-  // workspace — it opens read-only here (like a built-in). Only a local custom object is editable.
-  const isForeignGlobal = !(object?.isSystem ?? false) && object?.location === 'Global';
+  // A platform-owned Global custom object (no owning workspace → WorkspaceId Guid.Empty) opens
+  // read-only here, like a built-in. Only a custom object this workspace owns is editable.
+  const isForeignGlobal = !(object?.isSystem ?? false) && object?.workspaceId === EMPTY_WORKSPACE_ID;
   const readOnly = (object?.isSystem ?? false) || isForeignGlobal;
   const [draft, setDraft] = useState<ObjectFormValue>(() => initialDraft(object));
   const [newCategory, setNewCategory] = useState('');

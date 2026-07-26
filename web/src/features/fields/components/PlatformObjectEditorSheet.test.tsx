@@ -58,11 +58,14 @@ describe('PlatformObjectEditorSheet', () => {
       location: 'Global',
       isSystem: false,
     });
-    renderSheet({ object: vendor, onDelete });
+    const { container } = renderSheet({ object: vendor, onDelete });
 
-    // Assert + Act
+    // Assert — edit mode is a meaningfully different rendered state (Delete present) → axe it.
     expect(screen.getByRole('dialog', { name: 'Edit Vendor' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Vendor')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+
+    // Act
     await user.click(screen.getByRole('button', { name: /delete/i }));
     expect(onDelete).toHaveBeenCalledWith('vendor');
   });

@@ -33,7 +33,7 @@ BEGIN
                   AND r.ObjectDefinitionId = o.ObjectDefinitionId
                   AND r.IsDeleted          = 0)
     FROM   dbo.ObjectDefinition o
-    WHERE  (o.WorkspaceId = @Ws OR o.Location = N'Global')
+    WHERE  (o.WorkspaceId = @Ws OR (o.WorkspaceId IS NULL AND o.Location = N'Global'))
       AND  o.IsDeleted    = 0;
 END;
 GO

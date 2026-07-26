@@ -37,7 +37,9 @@ BEGIN
 
         IF NOT EXISTS (
             SELECT 1 FROM dbo.ObjectDefinition
-            WHERE ObjectDefinitionId = @Obj AND (WorkspaceId = @Ws OR Location = N'Global') AND IsDeleted = 0)
+            WHERE ObjectDefinitionId = @Obj
+              AND (WorkspaceId = @Ws OR (WorkspaceId IS NULL AND Location = N'Global'))
+              AND IsDeleted = 0)
             THROW 50083, 'Object definition not found in this workspace.', 1;
 
         INSERT INTO dbo.CustomRecords

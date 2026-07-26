@@ -528,3 +528,43 @@ BEGIN
         WHERE ObjectDefinitionId = @Id AND IsDeleted = 1 AND DeletedAt IS NOT NULL);
 END;
 GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_WorkspaceOwnedRowMislabelledGlobal_DoesNotLeakCrossTenant]
+AS
+BEGIN
+    -- Arrange — a workspace-OWNED custom object mislabelled Location='Global' (a real WorkspaceId, not
+    -- NULL). The ObjectsController permits Location='Global' on a workspace create, so such a row can
+    -- exist. It is NOT a platform-owned Global object (those have WorkspaceId NULL) and must stay
+    -- scoped to its owning workspace — never surfaced to another workspace or on the platform tab.
+    DECLARE @OwnerWs UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000A1';
+    DECLARE @OtherWs UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000A2';
+    DECLARE @Id      UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000A9';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Id, @OwnerWs, N'ws-global', N'Workspace Global', N'Workspace Globals', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act — a DIFFERENT workspace lists objects, resolves the row by id, and the platform tab lists.
+    CREATE TABLE #List (ObjectDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER,
+        ObjectKey NVARCHAR(64), Name NVARCHAR(120), PluralLabel NVARCHAR(120), Location NVARCHAR(20),
+        Description NVARCHAR(500), ShowInSidebar BIT, SidebarCategory NVARCHAR(80));
+    INSERT INTO #List EXEC dbo.usp_ListObjectDefinitions @WorkspaceId = @OtherWs;
+
+    CREATE TABLE #Row (ObjectDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER,
+        ObjectKey NVARCHAR(64), Name NVARCHAR(120), PluralLabel NVARCHAR(120), Location NVARCHAR(20),
+        Description NVARCHAR(500), ShowInSidebar BIT, SidebarCategory NVARCHAR(80));
+    INSERT INTO #Row EXEC dbo.usp_GetObjectDefinitionById @ObjectDefinitionId = @Id, @WorkspaceId = @OtherWs;
+
+    CREATE TABLE #Global (ObjectDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER,
+        ObjectKey NVARCHAR(64), Name NVARCHAR(120), PluralLabel NVARCHAR(120), Location NVARCHAR(20),
+        Description NVARCHAR(500), ShowInSidebar BIT, SidebarCategory NVARCHAR(80));
+    INSERT INTO #Global EXEC dbo.usp_ListGlobalObjectDefinitions;
+
+    -- Assert — the mislabelled row leaks to no one: not the other workspace's list, not a by-id
+    -- resolve from that workspace, and not the platform Global list.
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #List WHERE ObjectDefinitionId = @Id);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #Row);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #Global WHERE ObjectDefinitionId = @Id);
+END;
+GO

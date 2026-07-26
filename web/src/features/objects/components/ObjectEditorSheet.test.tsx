@@ -59,9 +59,9 @@ describe('ObjectEditorSheet', () => {
     );
   });
 
-  it('ObjectEditorSheet — edit custom object — pre-fills, shows meta, and offers Delete', () => {
+  it('ObjectEditorSheet — edit custom object — pre-fills, shows meta, and offers Delete', async () => {
     // Arrange / Act
-    renderSheet({
+    const { container } = renderSheet({
       object: buildObjectDefinition({ name: 'Vendor', recordsCount: 3, fieldsCount: 1 }),
     });
 
@@ -71,6 +71,28 @@ describe('ObjectEditorSheet', () => {
     expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
     expect(screen.getByText('Records')).toBeInTheDocument();
     expect(screen.getByText('Fields')).toBeInTheDocument();
+    // Edit-custom is a meaningfully different rendered state — axe it (web-testing.md).
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('ObjectEditorSheet — own object with Location Global — stays editable (owner, not Guid.Empty)', () => {
+    // Arrange / Act — a workspace's OWN custom object whose Location happens to be 'Global'. It carries
+    // a real workspaceId (not Guid.Empty), so the owner can still edit it — the lock keys on the empty
+    // owner, not the Location label.
+    renderSheet({
+      object: buildObjectDefinition({
+        name: 'Vendor',
+        location: 'Global',
+        isSystem: false,
+        workspaceId: 'ws-1',
+      }),
+    });
+
+    // Assert — editable: display name enabled, Save + Delete present, no lock banner.
+    expect(screen.getByLabelText('Display name')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save object' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 
   it('ObjectEditorSheet — built-in object — is read-only with no Save or Delete', () => {
@@ -89,9 +111,9 @@ describe('ObjectEditorSheet', () => {
     expect(banner).toHaveTextContent('edited here');
   });
 
-  it('ObjectEditorSheet — Global custom object — is read-only with a firm-wide lock and no Save/Delete', () => {
-    // Arrange / Act — a Global custom object surfaces here with location Global, isSystem false,
-    // workspaceId Guid.Empty (not owned by this workspace).
+  it('ObjectEditorSheet — foreign Global custom object — is read-only with a firm-wide lock and no Save/Delete', () => {
+    // Arrange / Act — a platform-owned Global custom object surfaces here with location Global,
+    // isSystem false, workspaceId Guid.Empty (not owned by this workspace).
     renderSheet({
       object: buildObjectDefinition({
         name: 'Vendor',
@@ -113,10 +135,15 @@ describe('ObjectEditorSheet', () => {
     expect(banner).toHaveTextContent('managed by a platform admin');
   });
 
-  it('ObjectEditorSheet — Global custom read-only mode — no accessibility violations', async () => {
-    // Arrange
+  it('ObjectEditorSheet — foreign Global read-only mode — no accessibility violations', async () => {
+    // Arrange — workspaceId Guid.Empty makes it a foreign (platform-owned) Global object → locked.
     const { container } = renderSheet({
-      object: buildObjectDefinition({ name: 'Vendor', location: 'Global', isSystem: false }),
+      object: buildObjectDefinition({
+        name: 'Vendor',
+        location: 'Global',
+        isSystem: false,
+        workspaceId: '00000000-0000-0000-0000-000000000000',
+      }),
     });
 
     // Act

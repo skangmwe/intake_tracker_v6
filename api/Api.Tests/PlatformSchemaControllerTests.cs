@@ -154,6 +154,21 @@ public sealed class PlatformSchemaControllerTests
     }
 
     [Fact]
+    public async Task UpdateObject_BlankName_Returns400()
+    {
+        var objects = new Mock<IObjectSchemaService>();
+        var request = new ObjectDefinitionPatchRequest("   ", null, null, null, null, null);
+
+        var result = await Build(isPlatformAdmin: true, objects: objects)
+            .UpdateObject(Guid.NewGuid(), request, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        objects.Verify(service => service.UpdateGlobalAsync(
+            It.IsAny<Guid>(), It.IsAny<ObjectDefinitionPatchRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task UpdateObject_NotAdmin_Returns403()
     {
         var objects = new Mock<IObjectSchemaService>();
