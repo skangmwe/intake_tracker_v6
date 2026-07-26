@@ -169,6 +169,9 @@ public sealed class ExportServiceTests
     [Fact]
     public async Task ExportObjectAsync_UnknownObject_ReturnsUnsupported()
     {
+        // Arrange — the Viewer gate runs before descriptor resolution, so an unknown object type only
+        // reaches Unsupported when the caller is a Viewer of the workspace.
+        AllowMembership();
         _registry
             .Setup(registry => registry.FindForWorkspaceAsync(WorkspaceId, "Widget", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IIoObject?)null);
@@ -191,6 +194,29 @@ public sealed class ExportServiceTests
             WorkspaceId, "Request", new[] { "name" }, UserId, CancellationToken.None);
 
         Assert.Equal(ExportOutcome.Denied, result.Outcome);
+    }
+
+    [Fact]
+    public async Task ExportObjectAsync_NonViewer_ValidObjectType_NeverResolvesDescriptor()
+    {
+        // Arrange — the Viewer gate must run BEFORE the object descriptor is resolved, so an
+        // unauthorized caller can never use Denied-vs-Unsupported as a slug-existence oracle, and no
+        // needless descriptor-resolution work (which may hit the database for a custom object) happens
+        // for a caller who was never entitled to see this workspace.
+        SetupExportObject();
+        _accessGuard
+            .Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await Build().ExportObjectAsync(
+            WorkspaceId, "Request", new[] { "name" }, UserId, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(ExportOutcome.Denied, result.Outcome);
+        _registry.Verify(
+            registry => registry.FindForWorkspaceAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]

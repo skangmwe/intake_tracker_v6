@@ -67,17 +67,21 @@ public sealed class ExportService : IExportService
         Guid workspaceId, string? objectType, IReadOnlyList<string>? fieldKeys, Guid userId,
         CancellationToken cancellationToken)
     {
+        // Viewer membership IS the row-level entitlement for the workspace's records, so the export can
+        // only ever contain rows the caller may already see (BS §22.4 — export never widens access).
+        // Gate BEFORE resolving the object descriptor: resolving a custom object's slug touches the
+        // database, so checking access first denies an unauthorized caller without doing that work,
+        // and prevents a cross-workspace slug-existence oracle (Denied vs. Unsupported would otherwise
+        // reveal whether a given custom-object slug exists in a workspace the caller cannot see).
+        if (!await _accessGuard.HasWorkspaceLevelAsync(userId, workspaceId, WorkspaceLevel.Viewer, cancellationToken).ConfigureAwait(false))
+        {
+            return new ExportResult(ExportOutcome.Denied);
+        }
+
         var ioObject = await _registry.FindForWorkspaceAsync(workspaceId, objectType, userId, cancellationToken).ConfigureAwait(false);
         if (ioObject is null || !ioObject.CanExport)
         {
             return new ExportResult(ExportOutcome.Unsupported);
-        }
-
-        // Viewer membership IS the row-level entitlement for the workspace's records, so the export can
-        // only ever contain rows the caller may already see (BS §22.4 — export never widens access).
-        if (!await _accessGuard.HasWorkspaceLevelAsync(userId, workspaceId, WorkspaceLevel.Viewer, cancellationToken).ConfigureAwait(false))
-        {
-            return new ExportResult(ExportOutcome.Denied);
         }
 
         // The object's export fields can be per-workspace (Request derives them from the workspace field

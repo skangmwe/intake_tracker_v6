@@ -67,7 +67,7 @@ public sealed partial class FieldSchemaService
 
         // The registered object descriptors are the single source of each fixed-column object's built-in
         // fields (Attachment, Toolkit item, …); surface the same fields they export.
-        var builtIn = _ioObjects.All.SelectMany(io => io.CatalogFields).ToList();
+        var builtIn = _ioObjects.SelectMany(io => io.CatalogFields).ToList();
 
         // The workspace's custom objects — each is "just another object type" keyed by its slug. They
         // get the same synthesised system auto-fields, and their stored fields carry ObjectType = slug.
