@@ -59,7 +59,7 @@ public sealed partial class FieldSchemaService
 
         return fields.Select(row => new FieldDefinitionDto(
             row.FieldDefinitionId,
-            row.WorkspaceId,
+            row.WorkspaceId ?? Guid.Empty,
             row.ObjectType,
             row.FieldKey,
             row.DisplayName,

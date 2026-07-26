@@ -162,7 +162,7 @@ public sealed class AuditEntry : AuditableEntity
 public sealed class FieldDefinitionRow
 {
     public Guid FieldDefinitionId { get; set; }
-    public Guid WorkspaceId { get; set; }
+    public Guid? WorkspaceId { get; set; }
     public string ObjectType { get; set; } = string.Empty;
     public string FieldKey { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
