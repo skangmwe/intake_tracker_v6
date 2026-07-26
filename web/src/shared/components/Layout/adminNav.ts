@@ -37,6 +37,11 @@ export const ADMIN_NAV: SideNavItem[] = [
     label: 'Triggers',
     lead: 'Send scheduled reminders when a request meets conditions you define — an SLA nearing breach, a benefit review coming due. A daily sweep fires each enabled trigger to its recipients’ bell.',
   },
+  {
+    to: '/admin/ai',
+    label: 'AI assist',
+    lead: 'Turn the Ask search assistant on or off for this workspace, and choose which non-PII content fields it may read. Off by default.',
+  },
   { to: '/admin/import-export', label: 'Import & export' },
   {
     to: '/admin/audit',

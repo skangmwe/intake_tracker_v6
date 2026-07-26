@@ -228,6 +228,13 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Embedding.IEmbeddi
     McDermott.AiTracker.Api.Modules.Ai.Embedding.EmbeddingRefreshEvaluator>();
 builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.Ai.Embedding.EmbeddingRefreshService>();
 
+// ─── AI-assist Ask (Phase 4, Slice 3) — grounded SSE chat: conversation store, prompt builder + citation
+//     parser (pure), and the orchestrating Ask service ─
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Chat.IAiConversationStore,
+    McDermott.AiTracker.Api.Modules.Ai.Chat.AiConversationStore>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Chat.IAskService,
+    McDermott.AiTracker.Api.Modules.Ai.Chat.AskService>();
+
 // ─── Feature Catalog + Saved views (slice 14) — Features depends on Requests / Drafts / TypedLinks
 //     (all registered above); Saved views is presentation metadata over the list surfaces ─
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Features.IFeaturesService,

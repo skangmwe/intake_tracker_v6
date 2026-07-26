@@ -1,0 +1,60 @@
+/* Workspace AI-config panel (Phase 4, Slice 3). Layout only — every colour, radius, and spacing value is
+   a design token (no raw literals, per _core-requirements.md). Reuses the shared .mws-switch / .mws-checkbox
+   / .mws-btn; these rules cover the panel's stacked sections. */
+
+.ai-config {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 640px;
+}
+
+.ai-config__toggle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+}
+
+.ai-config__toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ai-config__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ai-config__hint {
+  margin: 0;
+}
+
+.ai-config__check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ai-config__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ai-config__field-error {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
