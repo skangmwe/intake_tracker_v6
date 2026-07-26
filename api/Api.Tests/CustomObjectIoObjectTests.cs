@@ -39,6 +39,9 @@ public sealed class CustomObjectIoObjectTests
     private static CustomObjectIoObject Build(Mock<ICustomRecordsService> records) =>
         new(ObjectId, Slug, "Vendors", ExportFields(), ImportFields(), records.Object, MaxRows);
 
+    private static CustomRecordListRow Row(string name) =>
+        new(Guid.NewGuid(), name, new Dictionary<string, JsonElement> { ["vendorName"] = Str(name) }, "etag");
+
     [Fact]
     public void Metadata_UsesSlugAndLabel_AndIsBothDirections()
     {
@@ -174,5 +177,47 @@ public sealed class CustomObjectIoObjectTests
 
         Assert.Equal(ImportRowResult.Flagged, result.Outcome);
         Assert.NotEmpty(result.Reasons);
+    }
+
+    [Fact]
+    public async Task BuildExportAsync_PagesPastAFullBatch()
+    {
+        var workspaceId = Guid.NewGuid();
+        var records = new Mock<ICustomRecordsService>();
+        var page1 = new PaginatedResponse<CustomRecordListRow>(
+            Enumerable.Range(0, 100).Select(index => Row($"r{index}")).ToList(), TotalCount: 130, Page: 1, PageSize: 100);
+        var page2 = new PaginatedResponse<CustomRecordListRow>(
+            Enumerable.Range(100, 30).Select(index => Row($"r{index}")).ToList(), TotalCount: 130, Page: 2, PageSize: 100);
+        records
+            .Setup(s => s.QueryAsync(workspaceId, ObjectId, It.Is<PaginatedQuery>(q => q.Page == 1), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(page1);
+        records
+            .Setup(s => s.QueryAsync(workspaceId, ObjectId, It.Is<PaginatedQuery>(q => q.Page == 2), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(page2);
+        var sut = Build(records);
+
+        var dataset = await sut.BuildExportAsync(workspaceId, Guid.NewGuid(), CancellationToken.None);
+
+        Assert.NotNull(dataset);
+        Assert.Equal(130, dataset!.Rows.Count);
+        records.Verify(s => s.QueryAsync(workspaceId, ObjectId, It.Is<PaginatedQuery>(q => q.Page == 2), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task BuildExportAsync_TrimsAtMaxExportRows()
+    {
+        var workspaceId = Guid.NewGuid();
+        var records = new Mock<ICustomRecordsService>();
+        var fullPage = new PaginatedResponse<CustomRecordListRow>(
+            Enumerable.Range(0, 100).Select(index => Row($"r{index}")).ToList(), TotalCount: 500, Page: 1, PageSize: 100);
+        records
+            .Setup(s => s.QueryAsync(workspaceId, ObjectId, It.IsAny<PaginatedQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(fullPage);
+        var sut = new CustomObjectIoObject(ObjectId, Slug, "Vendors", ExportFields(), ImportFields(), records.Object, maxExportRows: 40);
+
+        var dataset = await sut.BuildExportAsync(workspaceId, Guid.NewGuid(), CancellationToken.None);
+
+        Assert.NotNull(dataset);
+        Assert.Equal(40, dataset!.Rows.Count);
     }
 }
