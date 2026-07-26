@@ -42,7 +42,8 @@ public sealed record ObjectDefinitionPatchRequest(
 public sealed class ObjectDefinitionRow
 {
     public Guid ObjectDefinitionId { get; set; }
-    public Guid WorkspaceId { get; set; }
+    // Nullable: a Global (platform-owned) custom object has no owning workspace.
+    public Guid? WorkspaceId { get; set; }
     // Immutable per-workspace slug (e.g. "vendor"). Copied into FieldDefinition.ObjectType for the
     // object's fields. Set once at create time; a rename never changes it.
     public string ObjectKey { get; set; } = string.Empty;
