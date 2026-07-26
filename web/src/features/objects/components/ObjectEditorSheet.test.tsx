@@ -89,6 +89,43 @@ describe('ObjectEditorSheet', () => {
     expect(banner).toHaveTextContent('edited here');
   });
 
+  it('ObjectEditorSheet — Global custom object — is read-only with a firm-wide lock and no Save/Delete', () => {
+    // Arrange / Act — a Global custom object surfaces here with location Global, isSystem false,
+    // workspaceId Guid.Empty (not owned by this workspace).
+    renderSheet({
+      object: buildObjectDefinition({
+        name: 'Vendor',
+        location: 'Global',
+        isSystem: false,
+        workspaceId: '00000000-0000-0000-0000-000000000000',
+      }),
+    });
+
+    // Assert — the form is disabled; Close (not Cancel), no Save / Delete.
+    expect(screen.getByLabelText('Display name')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Save object' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+
+    // Assert — the firm-wide lock banner (distinct from the built-in copy).
+    const banner = screen.getByRole('note');
+    expect(banner).toHaveTextContent('firm-wide object');
+    expect(banner).toHaveTextContent('managed by a platform admin');
+  });
+
+  it('ObjectEditorSheet — Global custom read-only mode — no accessibility violations', async () => {
+    // Arrange
+    const { container } = renderSheet({
+      object: buildObjectDefinition({ name: 'Vendor', location: 'Global', isSystem: false }),
+    });
+
+    // Act
+    const results = await axe(container);
+
+    // Assert
+    expect(results).toHaveNoViolations();
+  });
+
   it('ObjectEditorSheet — sidebar category — hides when Show in sidebar is off', async () => {
     // Arrange
     const user = userEvent.setup();
