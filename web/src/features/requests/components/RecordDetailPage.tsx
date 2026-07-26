@@ -38,6 +38,7 @@ import {
   type CloseOutcomeValue,
 } from '@/features/closure';
 import { RelationshipsCard } from '@/features/typed-links';
+import { DuplicateCheckAction } from '@/features/ai-duplicates';
 import { AttachmentsCard } from '@/features/attachments';
 import { WatchersCard } from '@/features/watchers';
 import { GenericRelatedRecordsTab, useRelationshipTabs } from '@/features/relationships';
@@ -473,6 +474,16 @@ function StatusTab({ request, setStatusHold, setStage, canEscalate, onEscalate }
         recordId={request.id as RecordId}
         workspaceId={request.workspaceId as WorkspaceId}
       />
+
+      {/* On-demand AI duplicate check — self-hides when AI is off; offered only while the record is open,
+        since confirming closes it as a duplicate. */}
+      {closed == null && (
+        <DuplicateCheckAction
+          workspaceId={request.workspaceId as WorkspaceId}
+          recordId={request.id as RecordId}
+          recordName={request.name}
+        />
+      )}
 
       <SlaBlock slaStatus={request.slaStatus} />
 
