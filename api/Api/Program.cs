@@ -193,6 +193,29 @@ builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.Triggers.Sched
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Triggers.ITriggersService,
     McDermott.AiTracker.Api.Modules.Triggers.TriggersService>();
 
+// ─── AI-assist layer (Phase 4, api-llm-auth.md) — non-secret config bound here; provider SDK
+//     clients (Claude/OpenAI keys from Key Vault, Azure OpenAI via Managed Identity) register in
+//     later Slice-1 tasks. Default-OFF per workspace; the off-switch lives on the workspace row. ─
+builder.Services.Configure<McDermott.AiTracker.Api.Modules.Ai.AiOptions>(
+    builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.Ai.AiOptions.SectionName));
+// Chat providers are Singletons resolved lazily (only the Ask flow, Slice 3, injects the factory),
+// so an absent key in local dev never crashes startup. Keys load from Key Vault into configuration
+// (api-secrets.md); embeddings authenticate via Managed Identity and have no key (registered in 1.3).
+builder.Services.AddSingleton<McDermott.AiTracker.Api.Modules.Ai.Providers.ILlmProvider>(serviceProvider =>
+    new McDermott.AiTracker.Api.Modules.Ai.Providers.ClaudeLlmProvider(
+        builder.Configuration["Ai:AnthropicApiKey"] ?? string.Empty,
+        serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<McDermott.AiTracker.Api.Modules.Ai.AiOptions>>()));
+builder.Services.AddSingleton<McDermott.AiTracker.Api.Modules.Ai.Providers.ILlmProvider>(serviceProvider =>
+    new McDermott.AiTracker.Api.Modules.Ai.Providers.OpenAiLlmProvider(
+        builder.Configuration["Ai:OpenAiApiKey"] ?? string.Empty,
+        serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<McDermott.AiTracker.Api.Modules.Ai.AiOptions>>()));
+builder.Services.AddSingleton<McDermott.AiTracker.Api.Modules.Ai.Providers.ILlmProviderFactory,
+    McDermott.AiTracker.Api.Modules.Ai.Providers.LlmProviderFactory>();
+builder.Services.AddSingleton<McDermott.AiTracker.Api.Modules.Ai.Providers.IEmbeddingService,
+    McDermott.AiTracker.Api.Modules.Ai.Providers.AzureOpenAiEmbeddingService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Config.IAiConfigService,
+    McDermott.AiTracker.Api.Modules.Ai.Config.AiConfigService>();
+
 // ─── Feature Catalog + Saved views (slice 14) — Features depends on Requests / Drafts / TypedLinks
 //     (all registered above); Saved views is presentation metadata over the list surfaces ─
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Features.IFeaturesService,
