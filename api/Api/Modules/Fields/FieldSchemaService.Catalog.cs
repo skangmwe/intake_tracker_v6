@@ -231,7 +231,19 @@ public sealed partial class FieldSchemaService
             .AsNoTracking()
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        return new PlatformFieldCatalogDto(BuildPlatformCatalogRows(globalStored, platformDefined));
+        // Global custom objects (SP3b Slice 2a) — each contributes its own system auto-fields plus
+        // its platform-owned Global fields, editable here. Read per object via the same field-read
+        // path UpsertGlobalObjectFieldAsync uses (Guid.Empty owns no rows, so only that object's
+        // Location='Global' rows surface — see FieldSchemaService.cs).
+        var globalObjects = await _objects.ListGlobalAsync(cancellationToken).ConfigureAwait(false);
+        var globalCustomObjects = new List<(string ObjectKey, string ObjectLabel, IReadOnlyList<FieldDefinitionDto> Fields)>();
+        foreach (var globalObject in globalObjects.Where(o => !o.IsSystem))
+        {
+            var fields = await ReadFieldsAsync(Guid.Empty, globalObject.ObjectKey, cancellationToken).ConfigureAwait(false);
+            globalCustomObjects.Add((globalObject.ObjectKey, globalObject.Name, fields));
+        }
+
+        return new PlatformFieldCatalogDto(BuildPlatformCatalogRows(globalStored, platformDefined, globalCustomObjects));
     }
 
     /// <summary>Composes the platform Fields-tab catalog: the system auto-fields synthesised on each
@@ -240,7 +252,22 @@ public sealed partial class FieldSchemaService
     /// I/O — so it is unit-testable without a database. Deduped by (object, key).</summary>
     public static IReadOnlyList<FieldCatalogRowDto> BuildPlatformCatalogRows(
         IReadOnlyList<FieldCatalogRow> globalStored,
-        IReadOnlyList<PlatformFieldRow> platformDefined)
+        IReadOnlyList<PlatformFieldRow> platformDefined) =>
+        BuildPlatformCatalogRows(
+            globalStored, platformDefined,
+            Array.Empty<(string ObjectKey, string ObjectLabel, IReadOnlyList<FieldDefinitionDto> Fields)>());
+
+    /// <summary>As above, plus each Global custom object (SP3b Slice 2a): its five synthesised
+    /// read-only system auto-fields, then its platform-owned Global fields as EDITABLE rows (a
+    /// platform admin owns Global fields directly — mirrors UpsertGlobalObjectFieldAsync having no
+    /// IsLocal/ForeignGlobal guard). A Global custom object's fields also appear in
+    /// <paramref name="globalStored"/> (usp_GetPlatformFieldCatalog scopes on Location='Global' only,
+    /// with no ObjectType restriction) but with WorkspaceId NULL — those rows are skipped in step 3
+    /// below so each field renders exactly once, as editable. Pure — no I/O.</summary>
+    public static IReadOnlyList<FieldCatalogRowDto> BuildPlatformCatalogRows(
+        IReadOnlyList<FieldCatalogRow> globalStored,
+        IReadOnlyList<PlatformFieldRow> platformDefined,
+        IReadOnlyList<(string ObjectKey, string ObjectLabel, IReadOnlyList<FieldDefinitionDto> Fields)> globalCustomObjects)
     {
         var rows = new List<FieldCatalogRowDto>();
         var seen = new HashSet<(string ObjectType, string FieldKey)>();
@@ -298,9 +325,17 @@ public sealed partial class FieldSchemaService
                 IsReadOnly: platform.IsSystemImmutable));
         }
 
-        // 3. Global fields across every workspace — read-only on the platform screen.
+        // 3. Global fields across every workspace — read-only on the platform screen. A platform-owned
+        //    Global custom object's fields (WorkspaceId NULL) also satisfy this proc's WHERE clause
+        //    (Location='Global', no ObjectType restriction) — skip them here; step 4 below adds them
+        //    as editable, grouped under their object, so each field renders exactly once.
         foreach (var row in globalStored)
         {
+            if (row.WorkspaceId is null)
+            {
+                continue;
+            }
+
             if (SystemAutoFieldKeys.Contains(row.FieldKey))
             {
                 continue;
@@ -323,6 +358,63 @@ public sealed partial class FieldSchemaService
                 Source: "User",
                 Status: row.IsRetired ? "Archived" : "Active",
                 IsReadOnly: true));
+        }
+
+        // 4. Global custom objects (SP3b Slice 2a): the same five read-only system auto-fields as a
+        //    built-in Global object, then that object's platform-owned Global fields — editable here,
+        //    since a platform admin owns them directly (no owning workspace to defer to).
+        foreach (var (objectKey, objectLabel, fields) in globalCustomObjects)
+        {
+            foreach (var (fieldKey, fieldLabel, fieldType) in SystemAutoFields)
+            {
+                Reserve(objectKey, fieldKey);
+                rows.Add(new FieldCatalogRowDto(
+                    Id: $"system:{objectKey}:{fieldKey}",
+                    ObjectType: objectKey,
+                    ObjectLabel: objectLabel,
+                    FieldKey: fieldKey,
+                    DisplayName: fieldLabel,
+                    FieldType: fieldType,
+                    Location: "Global",
+                    IsRequired: true,
+                    Source: "System",
+                    Status: "Active",
+                    IsReadOnly: true));
+            }
+
+            foreach (var field in fields)
+            {
+                // Defensive — ReadFieldsAsync(Guid.Empty, objectKey, ct) already scopes to Location='Global'
+                // rows (Guid.Empty owns no rows), but guard explicitly so the composition never drifts.
+                if (!string.Equals(field.Location, "Global", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (SystemAutoFieldKeys.Contains(field.FieldKey))
+                {
+                    continue;
+                }
+
+                if (!Reserve(objectKey, field.FieldKey))
+                {
+                    continue;
+                }
+
+                var isSystem = field.IsPlatformDefined || field.IsSystemProvisioned;
+                rows.Add(new FieldCatalogRowDto(
+                    Id: field.Id.ToString(),
+                    ObjectType: objectKey,
+                    ObjectLabel: objectLabel,
+                    FieldKey: field.FieldKey,
+                    DisplayName: field.DisplayName,
+                    FieldType: field.FieldType,
+                    Location: "Global",
+                    IsRequired: field.IsRequired,
+                    Source: isSystem ? "System" : "User",
+                    Status: field.IsRetired ? "Archived" : "Active",
+                    IsReadOnly: false));
+            }
         }
 
         return rows;
