@@ -32,9 +32,6 @@ public interface IObjectSchemaService
 {
     Task<IReadOnlyList<ObjectDefinitionDto>> ListAsync(Guid workspaceId, CancellationToken cancellationToken);
 
-    /// <summary>The Global built-in object types (Request, Task) for the platform Objects tab (S34) —
-    /// a read-only reference with no workspace scope and no counts. Pure (no I/O).</summary>
-    IReadOnlyList<ObjectDefinitionDto> GetGlobalObjects();
     Task<ObjectDefinitionDto?> GetByIdAsync(Guid objectId, Guid workspaceId, CancellationToken cancellationToken);
     Task<ObjectMutationResult> CreateAsync(
         Guid workspaceId, ObjectDefinitionCreateRequest request, Guid actorUserId, CancellationToken cancellationToken);
@@ -313,8 +310,6 @@ public sealed class ObjectSchemaService : IObjectSchemaService
 
         return await DeleteInternalAsync(objectId, null, actorUserId, cancellationToken).ConfigureAwait(false);
     }
-
-    public IReadOnlyList<ObjectDefinitionDto> GetGlobalObjects() => GetGlobalSystemObjects();
 
     /// <summary>Composes the Global built-in object DTOs (Request, Task) for the platform Objects tab
     /// (S34) — no workspace scope, no counts (a read-only reference). Pure — no I/O — so it is

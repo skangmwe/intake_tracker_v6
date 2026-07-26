@@ -1,7 +1,8 @@
-// Unit tests for PlatformSchemaController (S34 — Objects / Relationships tab reads). The Platform-
-// admin gate and delegation to the reused services (the services and access guard are mocked). Covers
-// each endpoint's happy path, the non-admin 403, and cancellation propagation. The Relationships tab
-// is the read-only system-seeded reference — no workspace picker, no workspaceId parameter.
+// Unit tests for PlatformSchemaController (S34 — Objects / Relationships; Global custom objects,
+// SP3b). The Platform-admin gate and delegation to the reused services (the services and access guard
+// are mocked). Covers each endpoint's happy path, the non-admin 403, the object-CRUD status mapping
+// (200 / 400 / 404 / 409), and cancellation propagation. The Relationships tab is the read-only
+// system-seeded reference — no workspace picker, no workspaceId parameter.
 
 using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Modules.PlatformAdmin;
@@ -40,13 +41,17 @@ public sealed class PlatformSchemaControllerTests
         };
     }
 
+    private static ObjectDefinitionDto SampleGlobalObject(string name = "Vendor") => new(
+        Guid.NewGuid(), Guid.Empty, "vendor", name, "Vendors", "Global", null,
+        ShowInSidebar: true, SidebarCategory: null, RecordsCount: 0, FieldsCount: 0, IsSystem: false);
+
     [Fact]
     public async Task GetObjects_Admin_ReturnsOkWithGlobalObjects()
     {
         // Arrange
         var objects = new Mock<IObjectSchemaService>();
-        objects.Setup(service => service.GetGlobalObjects())
-            .Returns(ObjectSchemaService.GetGlobalSystemObjects());
+        objects.Setup(service => service.ListGlobalAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ObjectSchemaService.GetGlobalSystemObjects());
 
         // Act
         var result = await Build(isPlatformAdmin: true, objects: objects).GetObjects(CancellationToken.None);
@@ -67,7 +72,142 @@ public sealed class PlatformSchemaControllerTests
 
         var problem = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
-        objects.Verify(service => service.GetGlobalObjects(), Times.Never);
+        objects.Verify(service => service.ListGlobalAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateObject_Admin_ReturnsOkWithObject()
+    {
+        // Arrange
+        var created = SampleGlobalObject();
+        var objects = new Mock<IObjectSchemaService>();
+        objects.Setup(service => service.CreateGlobalAsync(
+                It.IsAny<ObjectDefinitionCreateRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectMutationResult(ObjectMutationOutcome.Success, created, null));
+
+        // Act — request Location is deliberately LocalWorkspace to assert it is ignored (forced Global).
+        var request = new ObjectDefinitionCreateRequest("Vendor", "Vendors", "LocalWorkspace", null, true, null);
+        var result = await Build(isPlatformAdmin: true, objects: objects).CreateObject(request, CancellationToken.None);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(created, ok.Value);
+    }
+
+    [Fact]
+    public async Task CreateObject_NotAdmin_Returns403()
+    {
+        var objects = new Mock<IObjectSchemaService>();
+        var request = new ObjectDefinitionCreateRequest("Vendor", null, "Global", null, true, null);
+
+        var result = await Build(isPlatformAdmin: false, objects: objects).CreateObject(request, CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        objects.Verify(service => service.CreateGlobalAsync(
+            It.IsAny<ObjectDefinitionCreateRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateObject_BlankName_Returns400()
+    {
+        var objects = new Mock<IObjectSchemaService>();
+        var request = new ObjectDefinitionCreateRequest("   ", null, "Global", null, true, null);
+
+        var result = await Build(isPlatformAdmin: true, objects: objects).CreateObject(request, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        objects.Verify(service => service.CreateGlobalAsync(
+            It.IsAny<ObjectDefinitionCreateRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateObject_DuplicateName_Returns409()
+    {
+        var objects = new Mock<IObjectSchemaService>();
+        objects.Setup(service => service.CreateGlobalAsync(
+                It.IsAny<ObjectDefinitionCreateRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectMutationResult(
+                ObjectMutationOutcome.InvalidState, null, "An object with this name already exists in this workspace."));
+        var request = new ObjectDefinitionCreateRequest("Vendor", null, "Global", null, true, null);
+
+        var result = await Build(isPlatformAdmin: true, objects: objects).CreateObject(request, CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateObject_NonGlobalId_Returns404()
+    {
+        var objects = new Mock<IObjectSchemaService>();
+        objects.Setup(service => service.UpdateGlobalAsync(
+                It.IsAny<Guid>(), It.IsAny<ObjectDefinitionPatchRequest>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectMutationResult(
+                ObjectMutationOutcome.NotFound, null, "Global object definition not found."));
+        var request = new ObjectDefinitionPatchRequest("Vendor 2", null, null, null, null, null);
+
+        var result = await Build(isPlatformAdmin: true, objects: objects)
+            .UpdateObject(Guid.NewGuid(), request, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task UpdateObject_NotAdmin_Returns403()
+    {
+        var objects = new Mock<IObjectSchemaService>();
+        var request = new ObjectDefinitionPatchRequest("Vendor 2", null, null, null, null, null);
+
+        var result = await Build(isPlatformAdmin: false, objects: objects)
+            .UpdateObject(Guid.NewGuid(), request, CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        objects.Verify(service => service.UpdateGlobalAsync(
+            It.IsAny<Guid>(), It.IsAny<ObjectDefinitionPatchRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteObject_Admin_Returns204()
+    {
+        var objects = new Mock<IObjectSchemaService>();
+        objects.Setup(service => service.DeleteGlobalAsync(It.IsAny<Guid>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectMutationResult(ObjectMutationOutcome.Success, null, null));
+
+        var result = await Build(isPlatformAdmin: true, objects: objects)
+            .DeleteObject(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteObject_NonGlobalId_Returns404()
+    {
+        var objects = new Mock<IObjectSchemaService>();
+        objects.Setup(service => service.DeleteGlobalAsync(It.IsAny<Guid>(), UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ObjectMutationResult(
+                ObjectMutationOutcome.NotFound, null, "Global object definition not found."));
+
+        var result = await Build(isPlatformAdmin: true, objects: objects)
+            .DeleteObject(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteObject_NotAdmin_Returns403()
+    {
+        var objects = new Mock<IObjectSchemaService>();
+
+        var result = await Build(isPlatformAdmin: false, objects: objects)
+            .DeleteObject(Guid.NewGuid(), CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        objects.Verify(service => service.DeleteGlobalAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
