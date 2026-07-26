@@ -58,6 +58,8 @@ public sealed class ToolkitIoObject : IIoObject
 
     public bool CanExport => true;
 
+    public bool CanUpsert => false;
+
     public IReadOnlyList<IoFieldSpec> ImportFields => Array.Empty<IoFieldSpec>();
 
     // Toolkit item is fixed-column — its export fields do not vary per workspace.

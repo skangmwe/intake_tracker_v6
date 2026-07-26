@@ -21,6 +21,14 @@ public sealed record ExportDataset(
     IReadOnlyList<IoFieldSpec> Columns,
     IReadOnlyList<IReadOnlyDictionary<string, object?>> Rows);
 
+/// <summary>Whether an import run creates new records only, or matches by Record ID and updates
+/// existing ones (create-or-update). Only objects with <see cref="IIoObject.CanUpsert"/> accept Upsert.</summary>
+public enum ImportMode { Create, Upsert }
+
+/// <summary>What an imported row did to the store — used for the created/updated report split. A
+/// Flagged row is None.</summary>
+public enum ImportAction { None, Created, Updated }
+
 /// <summary>Per-object import/export capability descriptor. One registered instance per object type.</summary>
 public interface IIoObject
 {
@@ -33,6 +41,10 @@ public interface IIoObject
     bool CanImport { get; }
 
     bool CanExport { get; }
+
+    /// <summary>Whether this object supports upsert import (match an existing record by Record ID and
+    /// update it). False for the built-ins (create-only); true for custom objects.</summary>
+    bool CanUpsert { get; }
 
     /// <summary>Fields a CSV column may be mapped to on import (empty when <see cref="CanImport"/> is false).</summary>
     IReadOnlyList<IoFieldSpec> ImportFields { get; }
@@ -65,13 +77,17 @@ public interface IIoObject
 /// <summary>Per-job context for an object-aware CSV import. <c>ActorEmail</c> is the importing user's
 /// directory email, resolved once per job by the runner so a descriptor's requestor fallback does not
 /// re-query it per row (api-performance.md — no queries in a loop).</summary>
-public sealed record ImportRowContext(Guid WorkspaceId, Guid ActorUserId, string ActorEmail, string OperationId);
+public sealed record ImportRowContext(
+    Guid WorkspaceId, Guid ActorUserId, string ActorEmail, string OperationId,
+    ImportMode Mode = ImportMode.Create);
 
 /// <summary>The outcome of importing one CSV row through a descriptor. <c>Outcome</c> is
 /// <see cref="Landed"/> (a record was created) or <see cref="Flagged"/> (nothing created, or created
 /// with a caveat). A landed row may still carry <c>Reasons</c> — e.g. a requestor-fallback warning —
 /// which the runner tallies as flagged for the report (BS §13, never silent).</summary>
-public sealed record ImportRowResult(string Outcome, string? RecordId, IReadOnlyList<ImportReasonDto> Reasons)
+public sealed record ImportRowResult(
+    string Outcome, string? RecordId, IReadOnlyList<ImportReasonDto> Reasons,
+    ImportAction Action = ImportAction.None)
 {
     public const string Landed = "Landed";
     public const string Flagged = "Flagged";

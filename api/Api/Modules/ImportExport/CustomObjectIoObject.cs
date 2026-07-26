@@ -58,6 +58,8 @@ public sealed class CustomObjectIoObject : IIoObject, IIoImporter
 
     public bool CanExport => true;
 
+    public bool CanUpsert => true;
+
     public IReadOnlyList<IoFieldSpec> ImportFields => _importFields;
 
     // Custom-object fields are stored FieldDefinition rows surfaced by FieldSchemaService — nothing is
@@ -107,6 +109,59 @@ public sealed class CustomObjectIoObject : IIoObject, IIoImporter
     public async Task<ImportRowResult> ImportRowAsync(
         ImportRowContext context, IReadOnlyDictionary<string, string?> fieldValues, CancellationToken cancellationToken)
     {
+        var (name, fields) = BuildWrite(fieldValues);
+
+        if (context.Mode != ImportMode.Upsert)
+        {
+            return await CreateRowAsync(context, new CustomRecordWriteRequest(name, fields), cancellationToken).ConfigureAwait(false);
+        }
+
+        var rawId = fieldValues.TryGetValue("id", out var idCell) ? idCell?.Trim() : null;
+        if (string.IsNullOrEmpty(rawId))
+        {
+            // No id → a brand-new row in an edited export → create.
+            return await CreateRowAsync(context, new CustomRecordWriteRequest(name, fields), cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!Guid.TryParse(rawId, out var recordId))
+        {
+            return new ImportRowResult(ImportRowResult.Flagged, null,
+                new[] { new ImportReasonDto("invalid-id", "The Record ID isn't a valid id.", "id") });
+        }
+
+        var existing = await _records.GetByIdAsync(context.WorkspaceId, _objectDefinitionId, recordId, cancellationToken).ConfigureAwait(false);
+        if (existing is null)
+        {
+            return new ImportRowResult(ImportRowResult.Flagged, null,
+                new[] { new ImportReasonDto("record-not-found", "No record with that Record ID exists here.", "id") });
+        }
+
+        // Merge: existing fields, overlaid by the CSV's mapped fields; Name updated only if the CSV maps it.
+        var merged = new Dictionary<string, JsonElement>(existing.Fields, StringComparer.Ordinal);
+        foreach (var (key, value) in fields)
+        {
+            merged[key] = value;
+        }
+
+        var result = await _records
+            .PatchAsync(context.WorkspaceId, _objectDefinitionId, recordId,
+                new CustomRecordWriteRequest(name ?? existing.Name, merged), context.ActorUserId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.Outcome switch
+        {
+            CustomRecordWriteOutcome.Success =>
+                new ImportRowResult(ImportRowResult.Landed, result.Record!.Id.ToString(), Array.Empty<ImportReasonDto>(), ImportAction.Updated),
+            CustomRecordWriteOutcome.ValidationFailed =>
+                new ImportRowResult(ImportRowResult.Flagged, null, ImportOutcomeMapper.FromValidationErrors(result.Errors!)),
+            _ => new ImportRowResult(ImportRowResult.Flagged, null, ImportOutcomeMapper.GenericFailure()),
+        };
+    }
+
+    /// <summary>Build the record Name (mapped "name" cell, if any) and the field bag (mapped user-field
+    /// cells as JSON strings; "id"/"name" and unknown keys dropped). Shared by create + upsert.</summary>
+    private (string? Name, Dictionary<string, JsonElement> Fields) BuildWrite(IReadOnlyDictionary<string, string?> fieldValues)
+    {
         string? name = null;
         var fields = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         foreach (var (key, rawValue) in fieldValues)
@@ -130,7 +185,13 @@ public sealed class CustomObjectIoObject : IIoObject, IIoImporter
             }
         }
 
-        var request = new CustomRecordWriteRequest(name, fields);
+        return (name, fields);
+    }
+
+    /// <summary>Create-path (create-only import, and the blank-id upsert row).</summary>
+    private async Task<ImportRowResult> CreateRowAsync(
+        ImportRowContext context, CustomRecordWriteRequest request, CancellationToken cancellationToken)
+    {
         var result = await _records
             .CreateAsync(context.WorkspaceId, _objectDefinitionId, request, context.ActorUserId, cancellationToken)
             .ConfigureAwait(false);
@@ -138,7 +199,7 @@ public sealed class CustomObjectIoObject : IIoObject, IIoImporter
         return result.Outcome switch
         {
             CustomRecordWriteOutcome.Success =>
-                new ImportRowResult(ImportRowResult.Landed, result.Record!.Id.ToString(), Array.Empty<ImportReasonDto>()),
+                new ImportRowResult(ImportRowResult.Landed, result.Record!.Id.ToString(), Array.Empty<ImportReasonDto>(), ImportAction.Created),
             CustomRecordWriteOutcome.ValidationFailed =>
                 new ImportRowResult(ImportRowResult.Flagged, null, ImportOutcomeMapper.FromValidationErrors(result.Errors!)),
             _ => new ImportRowResult(ImportRowResult.Flagged, null, ImportOutcomeMapper.GenericFailure()),

@@ -29,6 +29,8 @@ public sealed record ImportStatusResponse(
     string Status,
     int TotalRows,
     int LandedRows,
+    int CreatedRows,
+    int UpdatedRows,
     IReadOnlyList<ImportFlaggedRowDto> FlaggedRows);
 
 /// <summary>POST /exports body — mirrors ExportRequest in imports.ts.</summary>
@@ -54,6 +56,7 @@ public sealed record IoObjectDto(
     string Label,
     bool CanImport,
     bool CanExport,
+    bool CanUpsert,
     IReadOnlyList<IoFieldSpecDto> ImportFields,
     IReadOnlyList<IoFieldSpecDto> ExportFields);
 

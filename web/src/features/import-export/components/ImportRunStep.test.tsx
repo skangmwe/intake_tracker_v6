@@ -6,7 +6,7 @@ import { axe } from 'jest-axe';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import type { ImportStatusDto, WorkspaceId } from '@shared/types';
+import type { ImportMode, ImportStatusDto, WorkspaceId } from '@shared/types';
 
 import { useImportStatus, useStartImport } from '../useImportExport';
 import { ImportRunStep } from './ImportRunStep';
@@ -42,6 +42,8 @@ const JOB: ImportStatusDto = {
   status: 'CompletedWithErrors',
   totalRows: 3,
   landedRows: 2,
+  createdRows: 2,
+  updatedRows: 0,
   flaggedRows: [
     {
       rowIndex: 3,
@@ -50,9 +52,22 @@ const JOB: ImportStatusDto = {
   ],
 };
 
+const COMPLETED_JOB: ImportStatusDto = {
+  id: 'imp-2' as ImportStatusDto['id'],
+  workspaceId: WORKSPACE,
+  startedBy: 'u-1' as ImportStatusDto['startedBy'],
+  startedAt: '2026-07-06T10:00:00Z',
+  status: 'Completed',
+  totalRows: 5,
+  landedRows: 5,
+  createdRows: 3,
+  updatedRows: 2,
+  flaggedRows: [],
+};
+
 beforeEach(() => jest.clearAllMocks());
 
-function renderStep() {
+function renderStep(mode: ImportMode = 'create') {
   return render(
     <ImportRunStep
       workspaceId={WORKSPACE}
@@ -60,6 +75,7 @@ function renderStep() {
       objectType="Request"
       objectLabel="Requests"
       mapping={MAPPING}
+      mode={mode}
     />,
   );
 }
@@ -92,7 +108,7 @@ describe('ImportRunStep', () => {
 
     // Assert
     expect(mutate).toHaveBeenCalledWith(
-      { file: FILE, objectType: 'Request', mapping: MAPPING },
+      { file: FILE, objectType: 'Request', mapping: MAPPING, mode: 'create' },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
@@ -122,5 +138,65 @@ describe('ImportRunStep', () => {
     expect(screen.getByText(/Completed with issues/)).toBeInTheDocument();
     expect(screen.getByText('Name is required.')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('ImportRunStep — a completed job — reports created and updated counts', async () => {
+    // Arrange — mutate immediately reports success so the status block renders.
+    const mutate = jest.fn((_vars, opts?: { onSuccess?: (r: { importId: string }) => void }) =>
+      opts?.onSuccess?.({ importId: 'imp-2' }),
+    );
+    mockStart({ mutate } as unknown as Partial<ReturnType<typeof useStartImport>>);
+    mockStatus(COMPLETED_JOB);
+    const { container } = renderStep();
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Run import' }));
+
+    // Assert
+    expect(screen.getByText('Completed — 3 created, 2 updated.')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('ImportRunStep — CompletedWithErrors — reports created, updated, and flagged counts', async () => {
+    // Arrange
+    const mutate = jest.fn((_vars, opts?: { onSuccess?: (r: { importId: string }) => void }) =>
+      opts?.onSuccess?.({ importId: 'imp-1' }),
+    );
+    mockStart({ mutate } as unknown as Partial<ReturnType<typeof useStartImport>>);
+    mockStatus(JOB);
+    renderStep();
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Run import' }));
+
+    // Assert
+    expect(
+      screen.getByText('Completed with issues — 2 created, 0 updated, 1 flagged.'),
+    ).toBeInTheDocument();
+  });
+
+  it('ImportRunStep — upsert mode — shows conditional copy and passes mode to the mutation', async () => {
+    // Arrange
+    const mutate = jest.fn();
+    mockStart({ mutate } as Partial<ReturnType<typeof useStartImport>>);
+    mockStatus(undefined);
+    const { container } = renderStep('upsert');
+
+    // Assert — pre-run copy explains upsert matching before the run even happens.
+    expect(
+      screen.getByText(
+        /Rows with a Record ID update existing records; rows without one are created\./,
+      ),
+    ).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Run import' }));
+
+    // Assert — the mode prop rides through to the mutation, not a hardcoded 'create'.
+    expect(mutate).toHaveBeenCalledWith(
+      { file: FILE, objectType: 'Request', mapping: MAPPING, mode: 'upsert' },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
   });
 });

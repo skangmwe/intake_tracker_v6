@@ -27,6 +27,8 @@ BEGIN
         i.TotalRows,
         i.LandedRows,
         i.FlaggedRows,
+        i.CreatedRows,
+        i.UpdatedRows,
         i.StartedByUserId,
         i.StartedAt,
         i.CompletedAt

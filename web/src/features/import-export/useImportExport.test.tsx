@@ -73,6 +73,7 @@ describe('useIoObjects', () => {
         label: 'Requests',
         canImport: true,
         canExport: true,
+        canUpsert: false,
         importFields: [],
         exportFields: [],
       },
@@ -95,12 +96,13 @@ describe('useStartImport', () => {
       file,
       objectType: 'Request',
       mapping: [{ columnIndex: 0, fieldKey: 'name' }],
+      mode: 'create',
     });
 
     // Assert
     expect(mockedStart).toHaveBeenCalledWith(WORKSPACE, file, 'Request', [
       { columnIndex: 0, fieldKey: 'name' },
-    ]);
+    ], 'create');
   });
 });
 
@@ -143,6 +145,8 @@ describe('useImportStatus', () => {
       status: 'Completed',
       totalRows: 3,
       landedRows: 3,
+      createdRows: 3,
+      updatedRows: 0,
       flaggedRows: [],
     };
     mockedStatus.mockResolvedValue(job);

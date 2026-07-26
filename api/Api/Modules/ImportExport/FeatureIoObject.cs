@@ -60,6 +60,8 @@ public sealed class FeatureIoObject : IIoObject, IIoImporter
 
     public bool CanExport => true;
 
+    public bool CanUpsert => false;
+
     public IReadOnlyList<IoFieldSpec> ImportFields => ImportFieldSpecs;
 
     // Feature's catalog comes from stored FieldDefinition rows on the hub (seeded in migration 076),

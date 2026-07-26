@@ -75,7 +75,8 @@ public sealed class ImportExportController : ControllerBase
         IFormFile? file,
         [FromForm(Name = "objectType")] string? objectType,
         [FromForm(Name = "mapping")] string? mapping,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromForm(Name = "mode")] string? mode = null)
     {
         // Admin gate BEFORE streaming — a non-admin never uploads a file (BS §13).
         if (!await _accessGuard.HasWorkspaceLevelAsync(_currentUser.UserId, workspaceId, WorkspaceLevel.WorkspaceAdmin, cancellationToken))
@@ -91,9 +92,22 @@ public sealed class ImportExportController : ControllerBase
             return ValidationFailure("objectType", "That object can't be imported. Choose an importable object.");
         }
 
+        var importMode = string.Equals(mode, "upsert", StringComparison.OrdinalIgnoreCase) ? ImportMode.Upsert : ImportMode.Create;
+        if (importMode == ImportMode.Upsert && !ioObject.CanUpsert)
+        {
+            return ValidationFailure("mode", "That object can't be updated by import. Use create-only.");
+        }
+
+        // Upsert requires a mapping — the Record ID must be mapped so rows can be matched to existing
+        // records. Create-only can fall back to header auto-match with no mapping at all.
+        if (importMode == ImportMode.Upsert && string.IsNullOrWhiteSpace(mapping))
+        {
+            return ValidationFailure("mapping", "Map columns (including Record ID) to update existing records.");
+        }
+
         // Validate the wizard mapping at the boundary (before streaming): every mapped field must belong
         // to the object, and every required field must be mapped. Absent mapping → header auto-match.
-        if (!string.IsNullOrWhiteSpace(mapping) && !TryValidateMapping(ioObject, mapping, out var mappingError))
+        if (!string.IsNullOrWhiteSpace(mapping) && !TryValidateMapping(ioObject, mapping, importMode, out var mappingError))
         {
             return ValidationFailure("mapping", mappingError);
         }
@@ -129,7 +143,7 @@ public sealed class ImportExportController : ControllerBase
         var mappingJson = string.IsNullOrWhiteSpace(mapping) ? null : mapping;
         var result = await _imports.StartAsync(
             workspaceId, fileName, stream, _currentUser.UserId, OperationId(), ioObject.ObjectType, mappingJson,
-            cancellationToken);
+            importMode, cancellationToken);
 
         return result.Outcome switch
         {
@@ -207,6 +221,7 @@ public sealed class ImportExportController : ControllerBase
         ioObject.Label,
         ioObject.CanImport,
         ioObject.CanExport,
+        ioObject.CanUpsert,
         ioObject.ImportFields.Select(ToFieldDto).ToList(),
         exportFields.Select(ToFieldDto).ToList());
 
@@ -217,8 +232,9 @@ public sealed class ImportExportController : ControllerBase
         field.AlwaysIncluded ? true : null);
 
     /// <summary>Validate the wizard mapping against the object: parse to a non-empty array, every field
-    /// key must belong to the object's import fields, and every required import field must be mapped.</summary>
-    private static bool TryValidateMapping(IIoObject ioObject, string mappingJson, out string error)
+    /// key must belong to the object's import fields, and every required import field must be mapped. In
+    /// upsert mode, "id" (the Record ID match target) is also a valid mapping key and must be mapped.</summary>
+    private static bool TryValidateMapping(IIoObject ioObject, string mappingJson, ImportMode mode, out string error)
     {
         List<ImportColumnMapping>? mapping;
         try
@@ -239,6 +255,11 @@ public sealed class ImportExportController : ControllerBase
         }
 
         var importKeys = new HashSet<string>(ioObject.ImportFields.Select(field => field.Key), StringComparer.Ordinal);
+        if (mode == ImportMode.Upsert)
+        {
+            importKeys.Add("id"); // the Record ID match target — valid only in upsert.
+        }
+
         var mappedKeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in mapping)
         {
@@ -249,6 +270,12 @@ public sealed class ImportExportController : ControllerBase
             }
 
             mappedKeys.Add(entry.FieldKey);
+        }
+
+        if (mode == ImportMode.Upsert && !mappedKeys.Contains("id"))
+        {
+            error = "Map a column to Record ID so rows can be matched to existing records.";
+            return false;
         }
 
         var missingRequired = ioObject.ImportFields.FirstOrDefault(field => field.Required && !mappedKeys.Contains(field.Key));

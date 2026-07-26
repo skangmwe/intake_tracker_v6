@@ -946,6 +946,8 @@ public sealed class ImportJobRow
     public int TotalRows { get; set; }
     public int LandedRows { get; set; }
     public int FlaggedRows { get; set; }
+    public int CreatedRows { get; set; }
+    public int UpdatedRows { get; set; }
     public Guid StartedByUserId { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }

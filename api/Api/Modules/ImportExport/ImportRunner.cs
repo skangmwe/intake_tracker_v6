@@ -51,12 +51,12 @@ public sealed class ImportRunner : IImportRunner
             .ConfigureAwait(false);
         if (descriptor is not IIoImporter importer)
         {
-            await CompleteAsync(message.ImportId, "Failed", 0, 0, 0, cancellationToken).ConfigureAwait(false);
+            await CompleteAsync(message.ImportId, "Failed", 0, 0, 0, 0, 0, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         var actorEmail = await ResolveActorEmailAsync(message.StartedByUserId, cancellationToken).ConfigureAwait(false);
-        var context = new ImportRowContext(message.WorkspaceId, message.StartedByUserId, actorEmail, message.OperationId);
+        var context = new ImportRowContext(message.WorkspaceId, message.StartedByUserId, actorEmail, message.OperationId, message.Mode);
 
         string[] headers;
         var records = new List<string?[]>();
@@ -68,7 +68,7 @@ public sealed class ImportRunner : IImportRunner
             if (!await csv.ReadAsync().ConfigureAwait(false) || !csv.ReadHeader() || csv.HeaderRecord is null)
             {
                 // No header row means nothing to import — a permanent failure, not a retry.
-                await CompleteAsync(message.ImportId, "Failed", 0, 0, 0, cancellationToken).ConfigureAwait(false);
+                await CompleteAsync(message.ImportId, "Failed", 0, 0, 0, 0, 0, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
@@ -92,12 +92,14 @@ public sealed class ImportRunner : IImportRunner
         var total = 0;
         var landed = 0;
         var flagged = 0;
+        var created = 0;
+        var updated = 0;
 
         for (var index = 0; index < records.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var rowIndex = index + 1;
-            var (outcome, recordId, reasons) = await ProcessRowAsync(
+            var (outcome, recordId, reasons, action) = await ProcessRowAsync(
                 importer, context, headers, records[index], mapping, message.ImportId, rowIndex, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -107,6 +109,14 @@ public sealed class ImportRunner : IImportRunner
             if (outcome == ImportRowResult.Landed)
             {
                 landed++;
+                if (action == ImportAction.Updated)
+                {
+                    updated++;
+                }
+                else
+                {
+                    created++;
+                }
             }
 
             if (reasons.Count > 0)
@@ -116,10 +126,10 @@ public sealed class ImportRunner : IImportRunner
         }
 
         var status = ImportOutcomeMapper.DecideStatus(total, flagged, parseFailed: false);
-        await CompleteAsync(message.ImportId, status, total, landed, flagged, cancellationToken).ConfigureAwait(false);
+        await CompleteAsync(message.ImportId, status, total, landed, flagged, created, updated, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<(string Outcome, string? RecordId, IReadOnlyList<ImportReasonDto> Reasons)> ProcessRowAsync(
+    private async Task<(string Outcome, string? RecordId, IReadOnlyList<ImportReasonDto> Reasons, ImportAction Action)> ProcessRowAsync(
         IIoImporter importer, ImportRowContext context, string[] headers, string?[] values,
         IReadOnlyList<ImportColumnMapping>? mapping, Guid importId, int rowIndex, CancellationToken cancellationToken)
     {
@@ -131,14 +141,14 @@ public sealed class ImportRunner : IImportRunner
                 : CsvRowMapper.AutoMatchValues(headers, values);
 
             var result = await importer.ImportRowAsync(context, fieldValues, cancellationToken).ConfigureAwait(false);
-            return (result.Outcome, result.RecordId, result.Reasons);
+            return (result.Outcome, result.RecordId, result.Reasons, result.Action);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             // One malformed row never aborts the batch — flag it and continue. Log the row index only
             // (no CSV content / PII).
             _logger.LogWarning("Import {ImportId} row {RowIndex} failed to process and was flagged.", importId, rowIndex);
-            return (ImportRowResult.Flagged, null, ImportOutcomeMapper.GenericFailure());
+            return (ImportRowResult.Flagged, null, ImportOutcomeMapper.GenericFailure(), ImportAction.None);
         }
     }
 
@@ -191,10 +201,11 @@ public sealed class ImportRunner : IImportRunner
     }
 
     private async Task CompleteAsync(
-        Guid importId, string status, int total, int landed, int flagged, CancellationToken cancellationToken)
+        Guid importId, string status, int total, int landed, int flagged, int created, int updated,
+        CancellationToken cancellationToken)
     {
         await _db.Database.ExecuteSqlRawAsync(
-            "EXEC dbo.usp_CompleteImport @ImportId, @Status, @TotalRows, @LandedRows, @FlaggedRows",
+            "EXEC dbo.usp_CompleteImport @ImportId, @Status, @TotalRows, @LandedRows, @FlaggedRows, @CreatedRows, @UpdatedRows",
             new[]
             {
                 new SqlParameter("@ImportId", importId),
@@ -202,6 +213,8 @@ public sealed class ImportRunner : IImportRunner
                 new SqlParameter("@TotalRows", total),
                 new SqlParameter("@LandedRows", landed),
                 new SqlParameter("@FlaggedRows", flagged),
+                new SqlParameter("@CreatedRows", created),
+                new SqlParameter("@UpdatedRows", updated),
             },
             cancellationToken).ConfigureAwait(false);
     }

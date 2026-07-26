@@ -6,6 +6,7 @@
 
 import type {
   ImportColumnMapping,
+  ImportMode,
   ImportStatusDto,
   ImportStartResponse,
   IoObjectDto,
@@ -22,6 +23,7 @@ export function startImport(
   file: File,
   objectType?: string,
   mapping?: ImportColumnMapping[],
+  mode?: ImportMode,
 ): Promise<ImportStartResponse> {
   const form = new FormData();
   form.append('file', file, file.name);
@@ -30,6 +32,9 @@ export function startImport(
   }
   if (mapping && mapping.length > 0) {
     form.append('mapping', JSON.stringify(mapping));
+  }
+  if (mode && mode !== 'create') {
+    form.append('mode', mode);
   }
   return apiFetch<ImportStartResponse>(`/v1/workspaces/${workspaceId}/imports/csv`, {
     method: 'POST',

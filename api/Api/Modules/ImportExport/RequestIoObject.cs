@@ -66,6 +66,8 @@ public sealed class RequestIoObject : IIoObject, IIoImporter
 
     public bool CanExport => true;
 
+    public bool CanUpsert => false;
+
     public IReadOnlyList<IoFieldSpec> ImportFields => ImportFieldSpecs;
 
     // Request's catalog comes from stored FieldDefinition rows (per-workspace), not a code manifest, so

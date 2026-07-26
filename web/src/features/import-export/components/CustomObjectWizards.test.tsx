@@ -27,6 +27,7 @@ const VENDOR: IoObjectDto = {
   label: 'Vendors',
   canImport: true,
   canExport: true,
+  canUpsert: false,
   importFields: [{ key: 'name', label: 'Name', required: true }],
   exportFields: [
     { key: 'id', label: 'Record ID', alwaysIncluded: true },
@@ -102,5 +103,17 @@ describe('custom object in the IO wizards', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Vendors' })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('ImportWizard — custom object with canUpsert — shows the import mode toggle', () => {
+    // Arrange — canUpsert is registry-driven metadata; a custom object carrying it should light up the
+    // same mode toggle as a built-in object, with zero wizard changes per object type.
+    mockObjects([{ ...VENDOR, canUpsert: true }]);
+
+    // Act
+    render(<ImportWizard workspaceId={WORKSPACE} />);
+
+    // Assert
+    expect(screen.getByRole('combobox', { name: 'Import mode' })).toBeInTheDocument();
   });
 });

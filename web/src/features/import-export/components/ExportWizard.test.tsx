@@ -23,6 +23,7 @@ const REQUEST: IoObjectDto = {
   label: 'Requests',
   canImport: true,
   canExport: true,
+  canUpsert: false,
   importFields: [],
   exportFields: [
     { key: 'id', label: 'Record ID', alwaysIncluded: true },
@@ -36,6 +37,7 @@ const FEATURE: IoObjectDto = {
   label: 'Features',
   canImport: true,
   canExport: true,
+  canUpsert: false,
   importFields: [],
   exportFields: [
     { key: 'id', label: 'Record ID', alwaysIncluded: true },

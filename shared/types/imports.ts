@@ -19,6 +19,8 @@ export interface ImportStatusDto {
   status: ImportStatus;
   totalRows: number;
   landedRows: number;
+  createdRows: number;
+  updatedRows: number;
   /** Flagged rows — schema failures + Requestor-fallback warnings. */
   flaggedRows: ImportFlaggedRow[];
 }
@@ -32,7 +34,9 @@ export interface ImportFlaggedRow {
       | "requestor-fallback"
       | "invalid-value"
       | "missing-required"
-      | "unresolved-user";
+      | "unresolved-user"
+      | "invalid-id"
+      | "record-not-found";
     message: string;
     field?: string;
   }>;
@@ -70,6 +74,7 @@ export interface IoObjectDto {
   label: string;
   canImport: boolean;
   canExport: boolean;
+  canUpsert: boolean;
   importFields: IoFieldSpec[];
   exportFields: IoFieldSpec[];
 }
@@ -85,3 +90,5 @@ export interface ObjectExportRequest {
   objectType: string;
   fieldKeys: string[];
 }
+
+export type ImportMode = "create" | "upsert";

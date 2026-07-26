@@ -30,7 +30,7 @@ public interface IImportService
 {
     Task<ImportStartResult> StartAsync(
         Guid workspaceId, string fileName, Stream content, Guid userId, string operationId,
-        string objectType, string? mappingJson, CancellationToken cancellationToken);
+        string objectType, string? mappingJson, ImportMode mode, CancellationToken cancellationToken);
 
     /// <summary>Status + per-row report. Null → 403 (forbidden/non-existent import — never disclosed).</summary>
     Task<ImportStatusResponse?> GetStatusAsync(Guid importId, Guid userId, CancellationToken cancellationToken);
@@ -53,7 +53,7 @@ public sealed class ImportService : IImportService
 
     public async Task<ImportStartResult> StartAsync(
         Guid workspaceId, string fileName, Stream content, Guid userId, string operationId,
-        string objectType, string? mappingJson, CancellationToken cancellationToken)
+        string objectType, string? mappingJson, ImportMode mode, CancellationToken cancellationToken)
     {
         var importId = Guid.NewGuid();
         var blobPath = $"imports/{workspaceId:D}/{importId:D}.csv";
@@ -94,7 +94,7 @@ public sealed class ImportService : IImportService
         }
 
         await _queue.EnqueueAsync(
-            new ImportJobMessage(importId, workspaceId, userId, blobPath, fileName, operationId, objectType, mappingJson),
+            new ImportJobMessage(importId, workspaceId, userId, blobPath, fileName, operationId, objectType, mappingJson, mode),
             cancellationToken).ConfigureAwait(false);
 
         return new ImportStartResult(ImportStartOutcome.Success, importId);
@@ -134,6 +134,8 @@ public sealed class ImportService : IImportService
             job.Status,
             job.TotalRows,
             job.LandedRows,
+            job.CreatedRows,
+            job.UpdatedRows,
             flagged);
     }
 

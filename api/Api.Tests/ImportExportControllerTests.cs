@@ -74,6 +74,22 @@ public sealed class ImportExportControllerTests
         };
     }
 
+    /// <summary>Registers a "Thing" descriptor with <c>CanUpsert = true</c> (standing in for a custom
+    /// object) — the Request mock in the constructor is create-only, matching the built-ins.</summary>
+    private void RegisterUpsertableObject()
+    {
+        var upsertable = new Mock<IIoObject>();
+        upsertable.SetupGet(item => item.ObjectType).Returns("Thing");
+        upsertable.SetupGet(item => item.Label).Returns("Things");
+        upsertable.SetupGet(item => item.CanImport).Returns(true);
+        upsertable.SetupGet(item => item.CanExport).Returns(false);
+        upsertable.SetupGet(item => item.CanUpsert).Returns(true);
+        upsertable.SetupGet(item => item.ImportFields).Returns(new[] { new IoFieldSpec("name", "Name") });
+        _registry
+            .Setup(registry => registry.FindForWorkspaceAsync(It.IsAny<Guid>(), "Thing", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(upsertable.Object);
+    }
+
     [Fact]
     public async Task ImportCsv_NonAdmin_Returns403AndNeverStarts()
     {
@@ -88,7 +104,7 @@ public sealed class ImportExportControllerTests
         // Assert
         Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
         _imports.Verify(
-            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -123,7 +139,7 @@ public sealed class ImportExportControllerTests
         // Arrange
         AllowAdmin();
         _imports
-            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ImportStartResult(ImportStartOutcome.Success, ImportId));
 
         // Act
@@ -141,7 +157,7 @@ public sealed class ImportExportControllerTests
     {
         AllowAdmin();
         _imports
-            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ImportStartResult(ImportStartOutcome.BlobFailed));
 
         var result = await Build().ImportCsv(WorkspaceId, CsvFile(), null, null, CancellationToken.None);
@@ -153,7 +169,7 @@ public sealed class ImportExportControllerTests
     {
         // Arrange
         var status = new ImportStatusResponse(
-            ImportId, WorkspaceId, UserId, DateTime.UtcNow, "Completed", 3, 3, System.Array.Empty<ImportFlaggedRowDto>());
+            ImportId, WorkspaceId, UserId, DateTime.UtcNow, "Completed", 3, 3, 3, 0, System.Array.Empty<ImportFlaggedRowDto>());
         _imports.Setup(service => service.GetStatusAsync(ImportId, UserId, It.IsAny<CancellationToken>())).ReturnsAsync(status);
 
         // Act
@@ -234,7 +250,7 @@ public sealed class ImportExportControllerTests
     {
         AllowAdmin();
         _imports
-            .Setup(service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Setup(service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -257,7 +273,7 @@ public sealed class ImportExportControllerTests
         // Assert
         Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
         _imports.Verify(
-            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -274,7 +290,7 @@ public sealed class ImportExportControllerTests
         // Assert
         Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
         _imports.Verify(
-            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -285,7 +301,7 @@ public sealed class ImportExportControllerTests
         AllowAdmin();
         const string mapping = "[{\"columnIndex\":0,\"fieldKey\":\"name\"}]";
         _imports
-            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), "Request", mapping, It.IsAny<CancellationToken>()))
+            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), "Request", mapping, It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ImportStartResult(ImportStartOutcome.Success, ImportId));
 
         // Act
@@ -294,7 +310,62 @@ public sealed class ImportExportControllerTests
         // Assert — the resolved object type + mapping reached the service verbatim.
         Assert.IsType<AcceptedResult>(result);
         _imports.Verify(
-            service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), "Request", mapping, It.IsAny<CancellationToken>()),
+            service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), "Request", mapping, It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ImportCsv_UpsertOnNonUpsertableObject_Returns400AndNeverStarts()
+    {
+        // Arrange — admin, Request is create-only (CanUpsert defaults false in the constructor mock).
+        AllowAdmin();
+
+        // Act — mode=upsert against the Request object.
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), "Request", null, CancellationToken.None, "upsert");
+
+        // Assert
+        Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
+        _imports.Verify(
+            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ImportCsv_UpsertMappingOmitsRecordId_Returns400AndNeverStarts()
+    {
+        // Arrange — admin, an upsertable object, but the mapping never maps "id".
+        AllowAdmin();
+        RegisterUpsertableObject();
+        const string mapping = "[{\"columnIndex\":0,\"fieldKey\":\"name\"}]";
+
+        // Act
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), "Thing", mapping, CancellationToken.None, "upsert");
+
+        // Assert
+        Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
+        _imports.Verify(
+            service => service.StartAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<ImportMode>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ImportCsv_UpsertMappingIncludesRecordId_Returns202WithUpsertMode()
+    {
+        // Arrange — admin, an upsertable object, mapping includes "id".
+        AllowAdmin();
+        RegisterUpsertableObject();
+        const string mapping = "[{\"columnIndex\":0,\"fieldKey\":\"id\"}]";
+        _imports
+            .Setup(service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), "Thing", mapping, ImportMode.Upsert, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ImportStartResult(ImportStartOutcome.Success, ImportId));
+
+        // Act
+        var result = await Build().ImportCsv(WorkspaceId, CsvFile(), "Thing", mapping, CancellationToken.None, "upsert");
+
+        // Assert — the resolved object type + mapping + upsert mode reached the service verbatim.
+        Assert.IsType<AcceptedResult>(result);
+        _imports.Verify(
+            service => service.StartAsync(WorkspaceId, It.IsAny<string>(), It.IsAny<Stream>(), UserId, It.IsAny<string>(), "Thing", mapping, ImportMode.Upsert, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

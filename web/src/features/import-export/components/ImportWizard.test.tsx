@@ -24,6 +24,7 @@ const REQUEST: IoObjectDto = {
   label: 'Requests',
   canImport: true,
   canExport: true,
+  canUpsert: false,
   importFields: [
     { key: 'name', label: 'Name', required: true },
     { key: 'description', label: 'Description' },
@@ -36,11 +37,22 @@ const FEATURE: IoObjectDto = {
   label: 'Features',
   canImport: true,
   canExport: true,
+  canUpsert: false,
   importFields: [
     { key: 'name', label: 'Name', required: true },
     { key: 'featureType', label: 'Type', required: true },
     { key: 'oneLiner', label: 'One-liner' },
   ],
+  exportFields: [],
+};
+
+const UPSERTABLE: IoObjectDto = {
+  objectType: 'vendor',
+  label: 'Vendors',
+  canImport: true,
+  canExport: true,
+  canUpsert: true,
+  importFields: [{ key: 'name', label: 'Name', required: true }],
   exportFields: [],
 };
 
@@ -158,5 +170,51 @@ describe('ImportWizard', () => {
     // Assert — on the map step, Continue is disabled and the required-field hint shows.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled());
     expect(screen.getByText(/Map a column to: Name/)).toBeInTheDocument();
+  });
+
+  it('ImportWizard — non-upsertable object — hides the import mode toggle', () => {
+    mockObjects({ data: [REQUEST] });
+    render(<ImportWizard workspaceId={WORKSPACE} />);
+    expect(screen.queryByRole('combobox', { name: 'Import mode' })).not.toBeInTheDocument();
+  });
+
+  it('ImportWizard — canUpsert object — shows the import mode toggle', () => {
+    mockObjects({ data: [UPSERTABLE] });
+    render(<ImportWizard workspaceId={WORKSPACE} />);
+    expect(screen.getByRole('combobox', { name: 'Import mode' })).toBeInTheDocument();
+  });
+
+  it('ImportWizard — upsert mode selected — Map-columns step requires a Record ID mapping', async () => {
+    // Arrange
+    mockObjects({ data: [UPSERTABLE] });
+    const { container } = render(<ImportWizard workspaceId={WORKSPACE} />);
+
+    // Act — pick upsert mode, then upload a file whose second column doesn't auto-map to Record ID.
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: 'Import mode' }),
+      'upsert',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.upload(
+      screen.getByLabelText('CSV file'),
+      csvFile('Name,ExternalId\nAlpha,123\n'),
+    );
+    await screen.findByText(/Preview — first 1 row/);
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    // Assert — the map step shows a Record ID target, and Continue is blocked until it is mapped.
+    expect(screen.getByRole('combobox', { name: /Map column ExternalId/ })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled());
+    expect(screen.getByText(/Map a column to: Record ID/)).toBeInTheDocument();
+
+    // Act — map the unmatched column to Record ID.
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /Map column ExternalId/ }),
+      'id',
+    );
+
+    // Assert — Continue is enabled now that every required target (Name + Record ID) is mapped.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled());
   });
 });

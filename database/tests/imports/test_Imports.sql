@@ -111,6 +111,28 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE ImportsTests.[test_CompleteStampsCreatedAndUpdatedRows]
+AS
+BEGIN
+    -- Arrange
+    INSERT INTO dbo.Imports (ImportId, WorkspaceId, FileName, BlobPath, Status, StartedByUserId, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES ('33333333-3333-4333-8333-333333333333', '1A150000-0000-4000-8000-000000000001', N'r.csv', N'p', N'Processing',
+            '00000000-0000-4000-8000-0000000000aa', 0, N'aa', N'aa');
+
+    -- Act — an upsert import: 3 new records created, 2 existing records updated.
+    EXEC dbo.usp_CompleteImport
+        @ImportId = '33333333-3333-4333-8333-333333333333',
+        @Status = N'Completed', @TotalRows = 5, @LandedRows = 5, @FlaggedRows = 0,
+        @CreatedRows = 3, @UpdatedRows = 2;
+
+    -- Assert
+    DECLARE @Created INT = (SELECT CreatedRows FROM dbo.Imports WHERE ImportId = '33333333-3333-4333-8333-333333333333');
+    DECLARE @Updated INT = (SELECT UpdatedRows FROM dbo.Imports WHERE ImportId = '33333333-3333-4333-8333-333333333333');
+    EXEC tSQLt.AssertEquals @Expected = 3, @Actual = @Created;
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = @Updated;
+END;
+GO
+
 CREATE PROCEDURE ImportsTests.[test_GetImportByIdResolvesForAdminDeniesNonAdmin]
 AS
 BEGIN
@@ -121,15 +143,15 @@ BEGIN
 
     -- Act (admin)
     CREATE TABLE #Admin (ImportId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, FileName NVARCHAR(400),
-        Status NVARCHAR(24), TotalRows INT, LandedRows INT, FlaggedRows INT, StartedByUserId UNIQUEIDENTIFIER,
-        StartedAt DATETIME2, CompletedAt DATETIME2);
+        Status NVARCHAR(24), TotalRows INT, LandedRows INT, FlaggedRows INT, CreatedRows INT, UpdatedRows INT,
+        StartedByUserId UNIQUEIDENTIFIER, StartedAt DATETIME2, CompletedAt DATETIME2);
     INSERT INTO #Admin
     EXEC dbo.usp_GetImportById @ImportId = '33333333-3333-4333-8333-333333333333', @UserId = '00000000-0000-4000-8000-0000000000aa';
 
     -- Act (non-admin member)
     CREATE TABLE #Member (ImportId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, FileName NVARCHAR(400),
-        Status NVARCHAR(24), TotalRows INT, LandedRows INT, FlaggedRows INT, StartedByUserId UNIQUEIDENTIFIER,
-        StartedAt DATETIME2, CompletedAt DATETIME2);
+        Status NVARCHAR(24), TotalRows INT, LandedRows INT, FlaggedRows INT, CreatedRows INT, UpdatedRows INT,
+        StartedByUserId UNIQUEIDENTIFIER, StartedAt DATETIME2, CompletedAt DATETIME2);
     INSERT INTO #Member
     EXEC dbo.usp_GetImportById @ImportId = '33333333-3333-4333-8333-333333333333', @UserId = '00000000-0000-4000-8000-0000000000bb';
 
