@@ -37,6 +37,21 @@ internal static class FieldValuesProjector
         return cells;
     }
 
+    /// <summary>Project an already-parsed FieldValues map into a mutable cell dict keyed by field key,
+    /// formatting each value for a CSV cell. Unlike the JSON-string overload it does NOT set an identity
+    /// column — the caller injects "id"/"name" (custom records carry a first-class Name column). Used by
+    /// CustomObjectIoObject, whose records service returns Fields already parsed to JsonElements.</summary>
+    public static Dictionary<string, object?> Project(IReadOnlyDictionary<string, JsonElement> fields)
+    {
+        var cells = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var (key, value) in fields)
+        {
+            cells[key] = FormatValue(value);
+        }
+
+        return cells;
+    }
+
     /// <summary>Materialise a JSON value into a CSV cell value: strings as-is, numbers as their numeric
     /// value (invariant-formatted downstream), booleans as Yes/No, arrays joined, objects as raw JSON,
     /// null/absent as null (an empty cell).</summary>
