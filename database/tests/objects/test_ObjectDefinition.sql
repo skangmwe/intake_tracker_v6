@@ -480,3 +480,51 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT FieldsCount  FROM #Counts WHERE ObjectDefinitionId = @Obj);
 END;
 GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_ListGlobal_ReturnsOnlyActiveGlobalObjects]
+AS
+BEGIN
+    -- Arrange — one active Global row, one active LocalWorkspace row (excluded — not Global), and
+    -- one soft-deleted Global row (excluded — not active). Distinct ObjectKeys per row.
+    DECLARE @Ws UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES
+        (NEWID(), NULL, N'firm-policy', N'Firm Policy', N'Firm Policies', N'Global',        0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed'),
+        (NEWID(), @Ws,  N'local-only',  N'Local Only',  N'Local Onlys',  N'LocalWorkspace', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed'),
+        (NEWID(), NULL, N'gone-global', N'Gone Global', N'Gone Globals', N'Global',         1, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act
+    CREATE TABLE #Global (ObjectDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER,
+        ObjectKey NVARCHAR(64), Name NVARCHAR(120), PluralLabel NVARCHAR(120), Location NVARCHAR(20),
+        Description NVARCHAR(500), ShowInSidebar BIT, SidebarCategory NVARCHAR(80));
+    INSERT INTO #Global EXEC dbo.usp_ListGlobalObjectDefinitions;
+
+    -- Assert — only the one active Global row; the local row and the soft-deleted Global row are excluded.
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #Global);
+    EXEC tSQLt.AssertEqualsString @Expected = N'Firm Policy', @Actual = (SELECT TOP 1 Name FROM #Global);
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Delete_NullWorkspace_SoftDeletesGlobalRow]
+AS
+BEGIN
+    -- Arrange — an active Global row (WorkspaceId NULL).
+    DECLARE @Id UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000D3';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Id, NULL, N'firm-policy', N'Firm Policy', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act — a platform delete passes @WorkspaceId = NULL.
+    EXEC dbo.usp_DeleteObjectDefinition
+        @ObjectDefinitionId = @Id, @WorkspaceId = NULL, @ActorUserId = N'platform-admin';
+
+    -- Assert — the Global row is soft-deleted (still present, IsDeleted = 1, DeletedAt set).
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (
+        SELECT COUNT(*) FROM dbo.ObjectDefinition
+        WHERE ObjectDefinitionId = @Id AND IsDeleted = 1 AND DeletedAt IS NOT NULL);
+END;
+GO
