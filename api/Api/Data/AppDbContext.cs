@@ -202,6 +202,12 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<McDermott.AiTracker.Api.Modules.CustomRecords.CustomRecordQueryRow>()
             .HasNoKey().ToView((string?)null);
 
+        // AI-assist retrieval (Phase 4, Slice 2) — keyless projections read via stored procedures.
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Ai.Retrieval.EmbeddingCandidateRow>()
+            .HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<McDermott.AiTracker.Api.Modules.Ai.Retrieval.RetrievalCandidateRow>()
+            .HasNoKey().ToView((string?)null);
+
         modelBuilder.Entity<WorkspaceMembership>(entity =>
         {
             entity.ToTable("WorkspaceMembership");

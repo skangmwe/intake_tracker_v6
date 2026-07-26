@@ -216,6 +216,18 @@ builder.Services.AddSingleton<McDermott.AiTracker.Api.Modules.Ai.Providers.IEmbe
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Config.IAiConfigService,
     McDermott.AiTracker.Api.Modules.Ai.Config.AiConfigService>();
 
+// ─── AI-assist retrieval (Phase 4, Slice 2) — the embedding store, the once-daily refresh sweep
+//     (hosted, in-process, like ScheduledTriggerService), and the permission-safe hybrid retriever ─
+builder.Services.Configure<McDermott.AiTracker.Api.Modules.Ai.Embedding.EmbeddingRefreshOptions>(
+    builder.Configuration.GetSection(McDermott.AiTracker.Api.Modules.Ai.Embedding.EmbeddingRefreshOptions.SectionName));
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Retrieval.IRecordEmbeddingStore,
+    McDermott.AiTracker.Api.Modules.Ai.Retrieval.RecordEmbeddingStore>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Retrieval.IRecordRetriever,
+    McDermott.AiTracker.Api.Modules.Ai.Retrieval.RecordRetriever>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Embedding.IEmbeddingRefreshEvaluator,
+    McDermott.AiTracker.Api.Modules.Ai.Embedding.EmbeddingRefreshEvaluator>();
+builder.Services.AddHostedService<McDermott.AiTracker.Api.Modules.Ai.Embedding.EmbeddingRefreshService>();
+
 // ─── Feature Catalog + Saved views (slice 14) — Features depends on Requests / Drafts / TypedLinks
 //     (all registered above); Saved views is presentation metadata over the list surfaces ─
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Features.IFeaturesService,
