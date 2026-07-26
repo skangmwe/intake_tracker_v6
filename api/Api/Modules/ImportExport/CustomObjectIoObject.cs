@@ -58,6 +58,10 @@ public sealed class CustomObjectIoObject : IIoObject, IIoImporter
 
     public bool CanExport => true;
 
+    // Upsert matching (Record ID lookup) is not yet implemented in ImportRowAsync below — this stays
+    // create-only until a later task wires the match-by-Record-ID path, then flips to true.
+    public bool CanUpsert => false;
+
     public IReadOnlyList<IoFieldSpec> ImportFields => _importFields;
 
     // Custom-object fields are stored FieldDefinition rows surfaced by FieldSchemaService — nothing is

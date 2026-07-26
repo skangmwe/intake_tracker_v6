@@ -134,6 +134,8 @@ public sealed class ImportService : IImportService
             job.Status,
             job.TotalRows,
             job.LandedRows,
+            job.CreatedRows,
+            job.UpdatedRows,
             flagged);
     }
 

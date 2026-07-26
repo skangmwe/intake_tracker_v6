@@ -207,6 +207,7 @@ public sealed class ImportExportController : ControllerBase
         ioObject.Label,
         ioObject.CanImport,
         ioObject.CanExport,
+        ioObject.CanUpsert,
         ioObject.ImportFields.Select(ToFieldDto).ToList(),
         exportFields.Select(ToFieldDto).ToList());
 

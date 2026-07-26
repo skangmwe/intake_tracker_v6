@@ -153,7 +153,7 @@ public sealed class ImportExportControllerTests
     {
         // Arrange
         var status = new ImportStatusResponse(
-            ImportId, WorkspaceId, UserId, DateTime.UtcNow, "Completed", 3, 3, System.Array.Empty<ImportFlaggedRowDto>());
+            ImportId, WorkspaceId, UserId, DateTime.UtcNow, "Completed", 3, 3, 3, 0, System.Array.Empty<ImportFlaggedRowDto>());
         _imports.Setup(service => service.GetStatusAsync(ImportId, UserId, It.IsAny<CancellationToken>())).ReturnsAsync(status);
 
         // Act
