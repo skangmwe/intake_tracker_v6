@@ -51,6 +51,7 @@ public sealed class CustomObjectIoObjectTests
         Assert.Equal("Vendors", sut.Label);
         Assert.True(sut.CanImport);
         Assert.True(sut.CanExport);
+        Assert.True(sut.CanUpsert);
         Assert.Empty(sut.CatalogFields);
         Assert.Equal(new[] { "name", "vendorName", "seatCount" }, sut.ImportFields.Select(f => f.Key));
     }
@@ -219,5 +220,102 @@ public sealed class CustomObjectIoObjectTests
 
         Assert.NotNull(dataset);
         Assert.Equal(40, dataset!.Rows.Count);
+    }
+
+    private static ImportRowContext UpsertCtx(Guid ws) =>
+        new(ws, Guid.NewGuid(), "admin@firm.com", "op", ImportMode.Upsert);
+
+    [Fact]
+    public async Task ImportRowAsync_Upsert_BlankId_CreatesRecord()
+    {
+        var ws = Guid.NewGuid();
+        var records = new Mock<ICustomRecordsService>();
+        records.Setup(s => s.CreateAsync(ws, ObjectId, It.IsAny<CustomRecordWriteRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CustomRecordWriteResult(CustomRecordWriteOutcome.Success,
+                new CustomRecordDto(Guid.NewGuid(), ObjectId, "Acme", new Dictionary<string, JsonElement>(), default, default, "u", "e")));
+        var sut = Build(records);
+
+        var result = await sut.ImportRowAsync(UpsertCtx(ws),
+            new Dictionary<string, string?> { ["name"] = "Acme", ["vendorName"] = "Acme Inc" }, CancellationToken.None);
+
+        Assert.Equal(ImportRowResult.Landed, result.Outcome);
+        Assert.Equal(ImportAction.Created, result.Action);
+        records.Verify(s => s.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ImportRowAsync_Upsert_FoundId_MergesAndUpdates()
+    {
+        var ws = Guid.NewGuid();
+        var recordId = Guid.Parse("dddddddd-0000-4000-8000-000000000abc");
+        var records = new Mock<ICustomRecordsService>();
+        records.Setup(s => s.GetByIdAsync(ws, ObjectId, recordId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CustomRecordDto(recordId, ObjectId, "Old name",
+                new Dictionary<string, JsonElement> { ["vendorName"] = Str("Old vendor"), ["seatCount"] = Str("9") },
+                default, default, "u", "e"));
+        CustomRecordWriteRequest? patched = null;
+        records.Setup(s => s.PatchAsync(ws, ObjectId, recordId, It.IsAny<CustomRecordWriteRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, Guid, Guid, CustomRecordWriteRequest, Guid, CancellationToken>((_, _, _, req, _, _) => patched = req)
+            .ReturnsAsync(new CustomRecordWriteResult(CustomRecordWriteOutcome.Success,
+                new CustomRecordDto(recordId, ObjectId, "New name", new Dictionary<string, JsonElement>(), default, default, "u", "e")));
+        var sut = Build(records);
+
+        // CSV maps id + name + vendorName (not seatCount) → seatCount preserved, vendorName overwritten, name updated.
+        var result = await sut.ImportRowAsync(UpsertCtx(ws),
+            new Dictionary<string, string?> { ["id"] = recordId.ToString(), ["name"] = "New name", ["vendorName"] = "New vendor" },
+            CancellationToken.None);
+
+        Assert.Equal(ImportRowResult.Landed, result.Outcome);
+        Assert.Equal(ImportAction.Updated, result.Action);
+        Assert.Equal("New name", patched!.Name);
+        Assert.True(patched.Fields!.ContainsKey("seatCount"));   // preserved from existing
+        Assert.True(patched.Fields!.ContainsKey("vendorName"));  // overwritten
+        Assert.False(patched.Fields!.ContainsKey("id"));         // id never written as data
+    }
+
+    [Fact]
+    public async Task ImportRowAsync_Upsert_FoundId_NoNameColumn_KeepsExistingName()
+    {
+        var ws = Guid.NewGuid();
+        var recordId = Guid.Parse("dddddddd-0000-4000-8000-000000000def");
+        var records = new Mock<ICustomRecordsService>();
+        records.Setup(s => s.GetByIdAsync(ws, ObjectId, recordId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CustomRecordDto(recordId, ObjectId, "Keep me", new Dictionary<string, JsonElement>(), default, default, "u", "e"));
+        CustomRecordWriteRequest? patched = null;
+        records.Setup(s => s.PatchAsync(ws, ObjectId, recordId, It.IsAny<CustomRecordWriteRequest>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, Guid, Guid, CustomRecordWriteRequest, Guid, CancellationToken>((_, _, _, req, _, _) => patched = req)
+            .ReturnsAsync(new CustomRecordWriteResult(CustomRecordWriteOutcome.Success,
+                new CustomRecordDto(recordId, ObjectId, "Keep me", new Dictionary<string, JsonElement>(), default, default, "u", "e")));
+        var sut = Build(records);
+
+        await sut.ImportRowAsync(UpsertCtx(ws),
+            new Dictionary<string, string?> { ["id"] = recordId.ToString(), ["vendorName"] = "x" }, CancellationToken.None);
+
+        Assert.Equal("Keep me", patched!.Name); // no name column → existing name kept
+    }
+
+    [Fact]
+    public async Task ImportRowAsync_Upsert_InvalidGuid_Flags()
+    {
+        var sut = Build(new Mock<ICustomRecordsService>());
+        var result = await sut.ImportRowAsync(UpsertCtx(Guid.NewGuid()),
+            new Dictionary<string, string?> { ["id"] = "not-a-guid", ["name"] = "x" }, CancellationToken.None);
+        Assert.Equal(ImportRowResult.Flagged, result.Outcome);
+        Assert.Contains(result.Reasons, r => r.Code == "invalid-id");
+    }
+
+    [Fact]
+    public async Task ImportRowAsync_Upsert_DeadId_Flags()
+    {
+        var ws = Guid.NewGuid();
+        var recordId = Guid.Parse("dddddddd-0000-4000-8000-0000000000ff");
+        var records = new Mock<ICustomRecordsService>();
+        records.Setup(s => s.GetByIdAsync(ws, ObjectId, recordId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CustomRecordDto?)null);
+        var sut = Build(records);
+        var result = await sut.ImportRowAsync(UpsertCtx(ws),
+            new Dictionary<string, string?> { ["id"] = recordId.ToString(), ["name"] = "x" }, CancellationToken.None);
+        Assert.Equal(ImportRowResult.Flagged, result.Outcome);
+        Assert.Contains(result.Reasons, r => r.Code == "record-not-found");
     }
 }
