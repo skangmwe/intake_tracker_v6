@@ -73,7 +73,7 @@ export function ImportRunStep({
 
   const modeCopy =
     mode === 'upsert'
-      ? 'Rows with a Record ID update existing records; rows without one are created.'
+      ? 'Rows with a Record ID update existing records; rows without one are created. Blank cells keep a record’s existing value.'
       : 'Each row becomes a new record.';
 
   return (

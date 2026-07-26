@@ -82,7 +82,7 @@ public sealed record ImportRowContext(
     ImportMode Mode = ImportMode.Create);
 
 /// <summary>The outcome of importing one CSV row through a descriptor. <c>Outcome</c> is
-/// <see cref="Landed"/> (a record was created) or <see cref="Flagged"/> (nothing created, or created
+/// <see cref="Landed"/> (a record was created or updated) or <see cref="Flagged"/> (nothing created, or created
 /// with a caveat). A landed row may still carry <c>Reasons</c> — e.g. a requestor-fallback warning —
 /// which the runner tallies as flagged for the report (BS §13, never silent).</summary>
 public sealed record ImportRowResult(
