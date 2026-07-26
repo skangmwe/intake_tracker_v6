@@ -14,6 +14,13 @@
 --              Error contract:
 --                50080 → object definition not found (update path).
 --                50081 → an active object with the same name already exists in the workspace.
+--
+--              Updated 2026-07-26 (SP3b Slice 1) — @WorkspaceId may be NULL to create/patch a
+--              Global custom object (Location='Global'). Name-uniqueness, slug disambiguation, and
+--              the update-path existence check all operate on "the same namespace as the row being
+--              written": the calling workspace when @WorkspaceId is supplied, or the Global
+--              namespace (all rows with Location='Global') when @WorkspaceId is NULL. Workspace
+--              create/patch is unaffected — it always passes a real @WorkspaceId.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_UpsertObjectDefinition
     @ObjectDefinitionId    UNIQUEIDENTIFIER = NULL,   -- NULL → create; non-null → patch existing
@@ -46,12 +53,12 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Name uniqueness (active rows), excluding the row being patched.
+        -- Name uniqueness (active rows), excluding the row being patched. Scoped to the calling
+        -- workspace, or to the Global namespace when @Ws IS NULL.
         IF EXISTS (
             SELECT 1 FROM dbo.ObjectDefinition
-            WHERE WorkspaceId = @Ws
-              AND Name        = @Nm
-              AND IsDeleted   = 0
+            WHERE ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws)
+              AND Name = @Nm AND IsDeleted = 0
               AND (@Id IS NULL OR ObjectDefinitionId <> @Id))
             THROW 50081, 'An object with this name already exists in this workspace.', 1;
 
@@ -91,7 +98,8 @@ BEGIN
             DECLARE @Suffix INT          = 1;
             WHILE EXISTS (
                 SELECT 1 FROM dbo.ObjectDefinition
-                WHERE WorkspaceId = @Ws AND ObjectKey = @Slug AND IsDeleted = 0)
+                WHERE ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws)
+                  AND ObjectKey = @Slug AND IsDeleted = 0)
             BEGIN
                 SET @Suffix += 1;
                 SET @Slug = @BaseSlug + N'-' + CAST(@Suffix AS NVARCHAR(8));
@@ -111,7 +119,8 @@ BEGIN
             -- UPDATE path. ObjectKey is immutable — a rename never repoints field rows/records.
             IF NOT EXISTS (
                 SELECT 1 FROM dbo.ObjectDefinition
-                WHERE ObjectDefinitionId = @Id AND WorkspaceId = @Ws AND IsDeleted = 0)
+                WHERE ObjectDefinitionId = @Id
+                  AND ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws) AND IsDeleted = 0)
                 THROW 50080, 'Object definition not found.', 1;
 
             UPDATE dbo.ObjectDefinition
@@ -123,7 +132,8 @@ BEGIN
                    SidebarCategory = @Category,
                    UpdatedBy       = @Actor,
                    UpdatedAt       = @Now
-             WHERE ObjectDefinitionId = @Id AND WorkspaceId = @Ws;
+             WHERE ObjectDefinitionId = @Id
+               AND ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws);
         END
 
         COMMIT TRANSACTION;

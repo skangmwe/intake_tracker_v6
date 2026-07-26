@@ -80,6 +80,33 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE CustomRecordsTests.[test_Create_AgainstGlobalObject_InsertsWithCallerWorkspace]
+AS
+BEGIN
+    -- Arrange — a Global object (WorkspaceId NULL, Location='Global') — SP3b Slice 1 lets any
+    -- workspace target it. The inserted record must still carry the CALLER's own @WorkspaceId.
+    DECLARE @Ws  UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000001';
+    DECLARE @Obj UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-0000000000D1';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Obj, NULL, N'firm-policy', N'Firm Policy', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+    DECLARE @Id UNIQUEIDENTIFIER;
+
+    -- Act
+    EXEC dbo.usp_CreateCustomRecord
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Name = N'Q4 Retention Policy',
+        @FieldValuesJson = N'{}', @ActorUserId = N'u1', @RecordId = @Id OUTPUT;
+
+    -- Assert — the row exists, scoped to the caller's workspace, against the Global object.
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (
+        SELECT COUNT(*) FROM dbo.CustomRecords
+        WHERE RecordId = @Id AND WorkspaceId = @Ws AND ObjectDefinitionId = @Obj
+          AND Name = N'Q4 Retention Policy' AND IsDeleted = 0);
+END;
+GO
+
 CREATE PROCEDURE CustomRecordsTests.[test_Create_UnknownObject_Throws50083]
 AS
 BEGIN

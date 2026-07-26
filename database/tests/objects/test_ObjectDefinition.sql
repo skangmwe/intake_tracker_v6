@@ -192,15 +192,18 @@ GO
 CREATE PROCEDURE ObjectDefinitionTests.[test_List_ExcludesDeleted_OrderedByName]
 AS
 BEGIN
-    -- Arrange — two active objects (out of alphabetical order) + one soft-deleted.
+    -- Arrange — two active objects (out of alphabetical order) + one soft-deleted. Distinct
+    -- ObjectKey values are required: the list proc dedups local-wins PARTITION BY ObjectKey, and
+    -- FakeTable drops the NOT NULL constraint, so leaving ObjectKey unset would collapse the two
+    -- active rows into the same NULL partition and hide one of them.
     DECLARE @Ws UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
     INSERT INTO dbo.ObjectDefinition
-        (ObjectDefinitionId, WorkspaceId, Name, PluralLabel, Location, Description,
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, Description,
          ShowInSidebar, SidebarCategory, IsDeleted, CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
     VALUES
-        (NEWID(), @Ws, N'Zebra',  N'Zebras',  N'LocalWorkspace', NULL, 0, NULL, 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed'),
-        (NEWID(), @Ws, N'Apple',  N'Apples',  N'LocalWorkspace', NULL, 0, NULL, 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed'),
-        (NEWID(), @Ws, N'Gone',   N'Gones',   N'LocalWorkspace', NULL, 0, NULL, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+        (NEWID(), @Ws, N'zebra', N'Zebra',  N'Zebras',  N'LocalWorkspace', NULL, 0, NULL, 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed'),
+        (NEWID(), @Ws, N'apple', N'Apple',  N'Apples',  N'LocalWorkspace', NULL, 0, NULL, 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed'),
+        (NEWID(), @Ws, N'gone',  N'Gone',   N'Gones',   N'LocalWorkspace', NULL, 0, NULL, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
 
     -- Act
     CREATE TABLE #List (ObjectDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER,
@@ -311,5 +314,169 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = 2, @Actual = (SELECT RecordsCount FROM #Counts WHERE ObjectDefinitionId = @Obj);
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT FieldsCount  FROM #Counts WHERE ObjectDefinitionId = @Empty);
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT RecordsCount FROM #Counts WHERE ObjectDefinitionId = @Empty);
+END;
+GO
+
+-- =============================================
+-- Global custom objects (SP3b Slice 1) — surfaced/resolved/upserted from any workspace.
+-- =============================================
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_List_IncludesGlobalObject_ForNonOwningWorkspace]
+AS
+BEGIN
+    -- Arrange — a Global object (WorkspaceId NULL) plus a local object owned by a DIFFERENT
+    -- workspace than the caller. The caller owns neither, so only the Global row should surface.
+    DECLARE @Ws     UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
+    DECLARE @OtherWs UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000FE';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES
+        (NEWID(), NULL,      N'firm-policy', N'Firm Policy', N'Firm Policies', N'Global',        0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed'),
+        (NEWID(), @OtherWs,  N'other-only',  N'Other Only',  N'Other Onlys',   N'LocalWorkspace', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act
+    CREATE TABLE #List (ObjectDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER,
+        ObjectKey NVARCHAR(64), Name NVARCHAR(120), PluralLabel NVARCHAR(120), Location NVARCHAR(20),
+        Description NVARCHAR(500), ShowInSidebar BIT, SidebarCategory NVARCHAR(80));
+    INSERT INTO #List EXEC dbo.usp_ListObjectDefinitions @WorkspaceId = @Ws;
+
+    -- Assert — the Global object surfaces; the other workspace's local object does not.
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #List);
+    EXEC tSQLt.AssertEqualsString @Expected = N'Firm Policy', @Actual = (SELECT TOP 1 Name FROM #List);
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_List_LocalObjectShadowsSameSlugGlobal]
+AS
+BEGIN
+    -- Arrange — a Global object and a local object in the caller's own workspace that share the
+    -- same ObjectKey slug. Local must win the dedup — the caller sees its own row, not the Global one.
+    DECLARE @Ws  UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES
+        (NEWID(), NULL, N'vendor', N'Global Vendor', N'Global Vendors', N'Global',        0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed'),
+        (NEWID(), @Ws,  N'vendor', N'Local Vendor',  N'Local Vendors',  N'LocalWorkspace', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act
+    CREATE TABLE #List (ObjectDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER,
+        ObjectKey NVARCHAR(64), Name NVARCHAR(120), PluralLabel NVARCHAR(120), Location NVARCHAR(20),
+        Description NVARCHAR(500), ShowInSidebar BIT, SidebarCategory NVARCHAR(80));
+    INSERT INTO #List EXEC dbo.usp_ListObjectDefinitions @WorkspaceId = @Ws;
+
+    -- Assert — exactly one row for the shared slug, and it is the local one.
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #List WHERE ObjectKey = N'vendor');
+    EXEC tSQLt.AssertEqualsString @Expected = N'Local Vendor', @Actual = (
+        SELECT Name FROM #List WHERE ObjectKey = N'vendor');
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_GetById_ResolvesGlobalObject_ForNonOwningWorkspace]
+AS
+BEGIN
+    -- Arrange — a Global object, and a caller workspace that does not own it.
+    DECLARE @Ws  UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
+    DECLARE @Id  UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000D1';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Id, NULL, N'firm-policy', N'Firm Policy', N'Firm Policies', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act
+    CREATE TABLE #Row (ObjectDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER,
+        ObjectKey NVARCHAR(64), Name NVARCHAR(120), PluralLabel NVARCHAR(120), Location NVARCHAR(20),
+        Description NVARCHAR(500), ShowInSidebar BIT, SidebarCategory NVARCHAR(80));
+    INSERT INTO #Row EXEC dbo.usp_GetObjectDefinitionById @ObjectDefinitionId = @Id, @WorkspaceId = @Ws;
+
+    -- Assert — resolves despite the caller not owning it.
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM #Row WHERE ObjectDefinitionId = @Id);
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Upsert_NullWorkspace_CreatesGlobalRow]
+AS
+BEGIN
+    -- Arrange
+    DECLARE @Id UNIQUEIDENTIFIER;
+
+    -- Act — @WorkspaceId = NULL creates a Global object.
+    EXEC dbo.usp_UpsertObjectDefinition
+        @ObjectDefinitionId = NULL,
+        @WorkspaceId        = NULL,
+        @Name               = N'Firm Policy',
+        @PluralLabel        = N'Firm Policies',
+        @Location           = N'Global',
+        @ActorUserId        = N'platform-admin',
+        @NewObjectDefinitionId = @Id OUTPUT;
+
+    -- Assert — a NULL-workspace row with a unique slug in the Global namespace.
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (
+        SELECT COUNT(*) FROM dbo.ObjectDefinition
+        WHERE ObjectDefinitionId = @Id AND WorkspaceId IS NULL AND Location = N'Global'
+          AND Name = N'Firm Policy' AND IsDeleted = 0);
+    EXEC tSQLt.AssertEqualsString @Expected = N'firm-policy', @Actual = (
+        SELECT ObjectKey FROM dbo.ObjectDefinition WHERE ObjectDefinitionId = @Id);
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Upsert_NullWorkspace_DisambiguatesWithinGlobalNamespace]
+AS
+BEGIN
+    -- Arrange — an existing active Global row that already owns the slug 'vendor'. Its Name
+    -- differs so the name-uniqueness guard does not fire; this isolates slug disambiguation
+    -- within the Global namespace (not the calling workspace's, since @Ws is NULL).
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), NULL, N'vendor', N'Vendor Master', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act
+    DECLARE @Id UNIQUEIDENTIFIER;
+    EXEC dbo.usp_UpsertObjectDefinition
+        @ObjectDefinitionId = NULL, @WorkspaceId = NULL, @Name = N'Vendor',
+        @Location = N'Global', @ActorUserId = N'platform-admin', @NewObjectDefinitionId = @Id OUTPUT;
+
+    -- Assert — disambiguated within the Global namespace.
+    EXEC tSQLt.AssertEqualsString @Expected = N'vendor-2', @Actual = (
+        SELECT ObjectKey FROM dbo.ObjectDefinition WHERE ObjectDefinitionId = @Id);
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_CustomObjectCounts_GlobalObject_ReturnsCallingWorkspaceRecordCount]
+AS
+BEGIN
+    -- Arrange — a Global object with records in TWO different workspaces; the calling workspace
+    -- must see only its own record count (never the other workspace's, and never a NULL/zero
+    -- artifact from correlating on o.WorkspaceId, which is NULL for a Global object).
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.CustomRecords';
+    DECLARE @Ws      UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-000000000001';
+    DECLARE @OtherWs UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000FE';
+    DECLARE @Obj     UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000D2';
+
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Obj, NULL, N'firm-policy', N'Firm Policy', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- 2 active records in the calling workspace, 1 active in another workspace, 1 deleted.
+    INSERT INTO dbo.CustomRecords (RecordId, ObjectDefinitionId, WorkspaceId, Name, FieldValues, IsDeleted, CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (NEWID(), @Obj, @Ws,      N'r1', N'{}', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's'),
+           (NEWID(), @Obj, @Ws,      N'r2', N'{}', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's'),
+           (NEWID(), @Obj, @Ws,      N'r3', N'{}', 1, SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's'),
+           (NEWID(), @Obj, @OtherWs, N'r4', N'{}', 0, SYSUTCDATETIME(), SYSUTCDATETIME(), N's', N's');
+
+    -- Act
+    CREATE TABLE #Counts (ObjectDefinitionId UNIQUEIDENTIFIER, FieldsCount INT, RecordsCount INT);
+    INSERT INTO #Counts EXEC dbo.usp_GetCustomObjectCounts @WorkspaceId = @Ws;
+
+    -- Assert — 2 records for the calling workspace; 0 fields (Slice 1 has no Global fields).
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = (SELECT RecordsCount FROM #Counts WHERE ObjectDefinitionId = @Obj);
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT FieldsCount  FROM #Counts WHERE ObjectDefinitionId = @Obj);
 END;
 GO
