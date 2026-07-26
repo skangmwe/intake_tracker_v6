@@ -1,0 +1,156 @@
+/* Duplicate-check surfaces (Phase 4, §14). Tokens only. The per-match rationale uses the pale-blue AI surface
+   with theme-stable navy text (ai-trust-and-provenance.md). */
+
+.ai-duplicates__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ai-duplicates__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.ai-duplicates__dots {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-teal);
+  animation: ai-duplicates-pulse 1s ease-in-out infinite;
+}
+
+.ai-duplicates__empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.ai-duplicates__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ai-duplicates__match {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.ai-duplicates__match-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.ai-duplicates__match-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+.ai-duplicates__strength {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ai-duplicates__rationale {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--color-pale-blue);
+  border-radius: var(--radius);
+  color: var(--color-navy);
+  font-size: 13px;
+  overflow-wrap: break-word;
+}
+
+.ai-duplicates__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-navy);
+}
+
+.ai-duplicates__match-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ai-duplicates__open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--accent-interactive);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ai-duplicates__open:hover,
+.ai-duplicates__open:focus-visible {
+  text-decoration: underline;
+}
+
+.ai-duplicates__panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ai-duplicates__modal-rationale {
+  padding: var(--space-3);
+  background: var(--color-pale-blue);
+  border-radius: var(--radius);
+  color: var(--color-navy);
+  font-size: 13px;
+}
+
+@keyframes ai-duplicates-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-duplicates__dots {
+    animation: none;
+    opacity: 0.7;
+  }
+}

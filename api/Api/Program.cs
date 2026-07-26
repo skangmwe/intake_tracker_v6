@@ -236,6 +236,8 @@ builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Chat.IAskService,
     McDermott.AiTracker.Api.Modules.Ai.Chat.AskService>();
 builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Drafting.IFieldSuggestionService,
     McDermott.AiTracker.Api.Modules.Ai.Drafting.FieldSuggestionService>();
+builder.Services.AddScoped<McDermott.AiTracker.Api.Modules.Ai.Duplicates.IDuplicateCheckService,
+    McDermott.AiTracker.Api.Modules.Ai.Duplicates.DuplicateCheckService>();
 
 // ─── Feature Catalog + Saved views (slice 14) — Features depends on Requests / Drafts / TypedLinks
 //     (all registered above); Saved views is presentation metadata over the list surfaces ─
