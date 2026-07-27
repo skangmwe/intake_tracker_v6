@@ -271,6 +271,71 @@ public sealed class ExportServiceTests
         Assert.DoesNotContain("Name", text);
     }
 
+    /// <summary>Register a Request-like object with id (identity) + three orderable columns.</summary>
+    private void SetupOrderableObject()
+    {
+        var ioObject = new Mock<IIoObject>();
+        ioObject.SetupGet(item => item.ObjectType).Returns("Request");
+        ioObject.SetupGet(item => item.CanExport).Returns(true);
+        var exportFields = new[]
+        {
+            new IoFieldSpec("id", "Record ID", AlwaysIncluded: true),
+            new IoFieldSpec("alpha", "Alpha"),
+            new IoFieldSpec("beta", "Beta"),
+            new IoFieldSpec("gamma", "Gamma"),
+        };
+        ioObject.Setup(item => item.GetExportFieldsAsync(WorkspaceId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(exportFields);
+        ioObject.Setup(item => item.BuildExportAsync(WorkspaceId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExportDataset(exportFields, new IReadOnlyDictionary<string, object?>[]
+            {
+                new Dictionary<string, object?> { ["id"] = "AIS-1", ["alpha"] = "a", ["beta"] = "b", ["gamma"] = "g" },
+            }));
+        _registry.Setup(registry => registry.FindForWorkspaceAsync(WorkspaceId, "Request", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ioObject.Object);
+    }
+
+    private static string HeaderLine(byte[] csvBytes)
+    {
+        // Strip the UTF-8 BOM the writer prepends, then take the first line.
+        var text = Encoding.UTF8.GetString(csvBytes);
+        return text.TrimStart('﻿').Split('\n')[0].TrimEnd('\r');
+    }
+
+    [Fact]
+    public async Task ExportObjectAsync_ColumnsFollowRequestedOrder_IdentityFirst()
+    {
+        // Arrange
+        SetupOrderableObject();
+        _accessGuard.Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var service = Build();
+
+        // Act — request gamma, then alpha (deliberately not registry order; beta omitted).
+        var result = await service.ExportObjectAsync(WorkspaceId, "Request", new[] { "gamma", "alpha" }, UserId, CancellationToken.None);
+
+        // Assert — identity ("Record ID") first, then the requested fields in the requested order.
+        Assert.Equal(ExportOutcome.Success, result.Outcome);
+        Assert.Equal("Record ID,Gamma,Alpha", HeaderLine(result.Content!));
+    }
+
+    [Fact]
+    public async Task ExportObjectAsync_IdentityKeyInRequest_NotDuplicated()
+    {
+        // Arrange
+        SetupOrderableObject();
+        _accessGuard.Setup(guard => guard.HasWorkspaceLevelAsync(UserId, WorkspaceId, WorkspaceLevel.Viewer, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var service = Build();
+
+        // Act — caller redundantly includes the identity key "id".
+        var result = await service.ExportObjectAsync(WorkspaceId, "Request", new[] { "id", "beta" }, UserId, CancellationToken.None);
+
+        // Assert — identity appears once, at the front.
+        Assert.Equal(ExportOutcome.Success, result.Outcome);
+        Assert.Equal("Record ID,Beta", HeaderLine(result.Content!));
+    }
+
     [Fact]
     public async Task ExportObjectAsync_DescriptorDeniesAccess_ReturnsDenied()
     {

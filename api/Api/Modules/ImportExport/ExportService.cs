@@ -96,10 +96,16 @@ public sealed class ExportService : IExportService
             return new ExportResult(ExportOutcome.Unsupported);
         }
 
-        // Identity columns are always emitted (even if unchecked); order follows the object's field list.
-        var columns = exportFields
-            .Where(field => field.AlwaysIncluded || requested.Contains(field.Key))
-            .ToList();
+        // Identity columns are always emitted first, in the object's field order. The remaining columns
+        // follow the caller's requested order (the export wizard's Selected-column order), de-duped
+        // against identity so a redundant identity key in the request never doubles the column.
+        var identity = exportFields.Where(field => field.AlwaysIncluded).ToList();
+        var identityKeys = new HashSet<string>(identity.Select(field => field.Key), StringComparer.Ordinal);
+        var byKey = exportFields.ToDictionary(field => field.Key, StringComparer.Ordinal);
+        var selectedColumns = (fieldKeys ?? Array.Empty<string>())
+            .Where(key => !identityKeys.Contains(key) && byKey.ContainsKey(key))
+            .Select(key => byKey[key]);
+        var columns = identity.Concat(selectedColumns).ToList();
         if (columns.Count == 0)
         {
             return new ExportResult(ExportOutcome.Unsupported);
