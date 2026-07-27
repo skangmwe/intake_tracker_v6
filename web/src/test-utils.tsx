@@ -417,6 +417,11 @@ interface ProviderOptions {
 
 export function renderWithProviders(ui: ReactElement, options: ProviderOptions = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // staleTime: Infinity on the me key stops the seeded /users/me query from refetching on mount.
+  // Tests that exercise the me loading/error states render without seedMe (unchanged); a suite that
+  // broadly stubs apiFetch and doesn't want the ActiveWorkspaceProvider's useMe() to consume a
+  // queued response seeds me explicitly so the query is a fresh cache hit that never fetches.
+  queryClient.setQueryDefaults(ME_QUERY_KEY, { staleTime: Infinity });
   if (options.seedMe) {
     queryClient.setQueryData(ME_QUERY_KEY, options.seedMe);
   }

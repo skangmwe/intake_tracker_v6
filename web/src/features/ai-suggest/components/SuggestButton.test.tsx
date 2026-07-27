@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import type { WorkspaceId } from '@shared/types';
 
-import { buildFieldDefinition, renderWithProviders } from '@/test-utils';
+import { buildFieldDefinition, buildMe, renderWithProviders } from '@/test-utils';
 
 import { apiFetch } from '@/shared/http/apiClient';
 import type { FieldSuggestContext } from '../types';
@@ -46,6 +46,9 @@ function configEnabled(enabled: boolean) {
 function renderButton(onAccept = jest.fn()) {
   const view = renderWithProviders(
     <SuggestButton field={FIELD} context={CONTEXT} onAccept={onAccept} />,
+    // Seed me so the ActiveWorkspaceProvider's useMe() is a cache hit and does not consume a queued
+    // apiFetch mock response (this suite stubs apiFetch at the HTTP boundary with ...ValueOnce).
+    { seedMe: buildMe() },
   );
   return { onAccept, ...view };
 }
@@ -172,6 +175,7 @@ describe('SuggestButton', () => {
     const onAccept = jest.fn();
     renderWithProviders(
       <SuggestButton field={selectField} context={CONTEXT} onAccept={onAccept} />,
+      { seedMe: buildMe() },
     );
     const user = userEvent.setup();
 
