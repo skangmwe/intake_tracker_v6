@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 
 import { buildInitialForm } from '../fieldForm';
@@ -58,5 +59,32 @@ describe('FieldObjectAndLocationFields', () => {
       />,
     );
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('FieldObjectAndLocationFields — selecting a custom object forces LocalWorkspace and disables Location', async () => {
+    // Arrange — a Global custom object is offered like any other custom object.
+    const user = userEvent.setup();
+    const { props } = renderFields({
+      customObjectOptions: [{ value: 'vendorReview', label: 'Vendor Review' }],
+    });
+
+    // Act — pick the custom object.
+    await user.selectOptions(screen.getByLabelText('Object'), 'vendorReview');
+
+    // Assert — the form is patched to the workspace-local scope, and Location is locked.
+    expect(props.onPatch).toHaveBeenCalledWith(
+      expect.objectContaining({ object: 'vendorReview', location: 'LocalWorkspace' }),
+    );
+  });
+
+  it('FieldObjectAndLocationFields — a custom-object form disables the Location select', () => {
+    // Arrange / Act — a form already scoped to a custom object.
+    renderFields({
+      form: { ...buildInitialForm(null, 'vendorReview', FIELD_TYPE_OPTIONS), location: 'LocalWorkspace' },
+      customObjectOptions: [{ value: 'vendorReview', label: 'Vendor Review' }],
+    });
+
+    // Assert
+    expect(screen.getByLabelText('Location')).toBeDisabled();
   });
 });
