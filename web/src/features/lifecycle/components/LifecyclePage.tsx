@@ -8,6 +8,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { UserId, WorkspaceId } from '@shared/types';
 
 import { useMe } from '@/features/users/useMe';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { AUTOSAVE_DEBOUNCE_MS } from '../constants';
 import {
@@ -29,12 +30,10 @@ import { Button } from '@/shared/components/Button';
 
 export function LifecyclePage() {
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
-  const adminMemberships = (me?.memberships ?? []).filter(
-    (membership) => membership.level === 'WorkspaceAdmin',
+  const workspaceId = useActiveWorkspaceId();
+  const isAdmin = (me?.memberships ?? []).some(
+    (membership) => membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
   );
-
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<WorkspaceId | null>(null);
-  const workspaceId = selectedWorkspaceId ?? adminMemberships[0]?.workspaceId ?? null;
   const wsId = (workspaceId ?? '') as WorkspaceId;
 
   const { data: config, isLoading, isError } = useLifecycleConfig(workspaceId ?? undefined);
@@ -100,7 +99,7 @@ export function LifecyclePage() {
     );
   }
 
-  if (adminMemberships.length === 0 || workspaceId === null) {
+  if (!workspaceId || !isAdmin) {
     return (
       <section className="mws-empty mws-empty--zero">
         <p className="body">
@@ -154,27 +153,6 @@ export function LifecyclePage() {
           />
         )}
       </header>
-
-      {adminMemberships.length > 1 && (
-        <label className="mws-field">
-          <span className="caption">Workspace</span>
-          <select
-            className="mws-select"
-            data-ds="select"
-            value={workspaceId}
-            onChange={(event) => {
-              seededWorkspaceRef.current = null;
-              setSelectedWorkspaceId(event.target.value as WorkspaceId);
-            }}
-          >
-            {adminMemberships.map((membership) => (
-              <option key={membership.workspaceId} value={membership.workspaceId}>
-                {membership.workspaceName}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
 
       {isLoading && (
         <p className="caption" role="status">

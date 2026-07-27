@@ -1,22 +1,18 @@
-// Workspace-admin AI settings surface (Phase 4, §14). Gates on workspace-admin membership and picks the
-// workspace (mirrors TriggersAdminPage); the panel lives in AiConfigPanel. The surface title/lead render
-// in the shared SideNavLayout header.
-
-import { useState } from 'react';
-import type { WorkspaceId } from '@shared/types';
+// Workspace-admin AI settings surface (Phase 4, §14). Gates on workspace-admin membership of the
+// active workspace (mirrors TriggersAdminPage / UsersAccessPage); the panel lives in AiConfigPanel.
+// The surface title/lead render in the shared SideNavLayout header.
 
 import { useMe } from '@/features/users/useMe';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { AiConfigPanel } from './AiConfigPanel';
 
 export function AiSettingsPage() {
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
-  const adminMemberships = (me?.memberships ?? []).filter(
-    (membership) => membership.level === 'WorkspaceAdmin',
+  const workspaceId = useActiveWorkspaceId();
+  const isAdmin = (me?.memberships ?? []).some(
+    (membership) => membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
   );
-
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<WorkspaceId | null>(null);
-  const workspaceId = selectedWorkspaceId ?? adminMemberships[0]?.workspaceId ?? null;
 
   if (isMeLoading && !me) {
     return (
@@ -34,7 +30,7 @@ export function AiSettingsPage() {
     );
   }
 
-  if (adminMemberships.length === 0 || workspaceId === null) {
+  if (!workspaceId || !isAdmin) {
     return (
       <section className="mws-empty mws-empty--zero">
         <p className="body">
@@ -46,23 +42,6 @@ export function AiSettingsPage() {
 
   return (
     <section aria-label="AI settings">
-      {adminMemberships.length > 1 && (
-        <label className="mws-field">
-          <span className="caption">Workspace</span>
-          <select
-            className="mws-select"
-            value={workspaceId}
-            onChange={(event) => setSelectedWorkspaceId(event.target.value as WorkspaceId)}
-          >
-            {adminMemberships.map((membership) => (
-              <option key={membership.workspaceId} value={membership.workspaceId}>
-                {membership.workspaceName}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
       <AiConfigPanel workspaceId={workspaceId} />
     </section>
   );
