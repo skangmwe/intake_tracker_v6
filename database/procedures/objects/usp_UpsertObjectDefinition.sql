@@ -21,6 +21,13 @@
 --              written": the calling workspace when @WorkspaceId is supplied, or the Global
 --              namespace (all rows with Location='Global') when @WorkspaceId is NULL. Workspace
 --              create/patch is unaffected — it always passes a real @WorkspaceId.
+--
+--              Updated 2026-07-27 (restrict-global-object-authoring) — the @Ws IS NULL ("platform
+--              caller") branch is now gated on ownership (WorkspaceId IS NULL), not the Location
+--              label alone. A workspace-owned row that is mislabelled Location='Global' (the
+--              defect this fix closes) must never match a platform (@Ws IS NULL) write. For a real
+--              workspace caller (@Ws NOT NULL) this is behavior-preserving — the first arm is
+--              always false and the predicate reduces to WorkspaceId = @Ws.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_UpsertObjectDefinition
     @ObjectDefinitionId    UNIQUEIDENTIFIER = NULL,   -- NULL → create; non-null → patch existing
@@ -57,7 +64,7 @@ BEGIN
         -- workspace, or to the Global namespace when @Ws IS NULL.
         IF EXISTS (
             SELECT 1 FROM dbo.ObjectDefinition
-            WHERE ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws)
+            WHERE ((@Ws IS NULL AND WorkspaceId IS NULL AND Location = N'Global') OR WorkspaceId = @Ws)
               AND Name = @Nm AND IsDeleted = 0
               AND (@Id IS NULL OR ObjectDefinitionId <> @Id))
             THROW 50081, 'An object with this name already exists in this workspace.', 1;
@@ -98,7 +105,7 @@ BEGIN
             DECLARE @Suffix INT          = 1;
             WHILE EXISTS (
                 SELECT 1 FROM dbo.ObjectDefinition
-                WHERE ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws)
+                WHERE ((@Ws IS NULL AND WorkspaceId IS NULL AND Location = N'Global') OR WorkspaceId = @Ws)
                   AND ObjectKey = @Slug AND IsDeleted = 0)
             BEGIN
                 SET @Suffix += 1;
@@ -120,7 +127,7 @@ BEGIN
             IF NOT EXISTS (
                 SELECT 1 FROM dbo.ObjectDefinition
                 WHERE ObjectDefinitionId = @Id
-                  AND ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws) AND IsDeleted = 0)
+                  AND ((@Ws IS NULL AND WorkspaceId IS NULL AND Location = N'Global') OR WorkspaceId = @Ws) AND IsDeleted = 0)
                 THROW 50080, 'Object definition not found.', 1;
 
             UPDATE dbo.ObjectDefinition
@@ -133,7 +140,7 @@ BEGIN
                    UpdatedBy       = @Actor,
                    UpdatedAt       = @Now
              WHERE ObjectDefinitionId = @Id
-               AND ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws);
+               AND ((@Ws IS NULL AND WorkspaceId IS NULL AND Location = N'Global') OR WorkspaceId = @Ws);
         END
 
         COMMIT TRANSACTION;

@@ -12,6 +12,11 @@
 --              Updated 2026-07-26 (SP3b Slice 1) — a platform delete of a Global object passes
 --              @WorkspaceId = NULL; the existence check and the update accept a Global row
 --              (Location='Global') in that case, alongside the normal own-workspace match.
+--
+--              Updated 2026-07-27 (restrict-global-object-authoring) — the @Ws IS NULL branch is
+--              now gated on ownership (WorkspaceId IS NULL), not the Location label alone, so a
+--              workspace-owned row mislabelled Location='Global' can never be deleted by a platform
+--              (@Ws IS NULL) caller. Behavior-preserving for a real workspace caller.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_DeleteObjectDefinition
     @ObjectDefinitionId UNIQUEIDENTIFIER,
@@ -33,7 +38,7 @@ BEGIN
         IF NOT EXISTS (
             SELECT 1 FROM dbo.ObjectDefinition
             WHERE ObjectDefinitionId = @Id
-              AND ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws) AND IsDeleted = 0)
+              AND ((@Ws IS NULL AND WorkspaceId IS NULL AND Location = N'Global') OR WorkspaceId = @Ws) AND IsDeleted = 0)
             THROW 50080, 'Object definition not found.', 1;
 
         UPDATE dbo.ObjectDefinition
@@ -42,7 +47,7 @@ BEGIN
                UpdatedBy = @Actor,
                UpdatedAt = @Now
          WHERE ObjectDefinitionId = @Id
-           AND ((@Ws IS NULL AND Location = N'Global') OR WorkspaceId = @Ws);
+           AND ((@Ws IS NULL AND WorkspaceId IS NULL AND Location = N'Global') OR WorkspaceId = @Ws);
 
         COMMIT TRANSACTION;
     END TRY

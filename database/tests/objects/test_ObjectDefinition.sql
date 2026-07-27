@@ -568,3 +568,160 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #Global WHERE ObjectDefinitionId = @Id);
 END;
 GO
+
+-- =============================================
+-- restrict-global-object-authoring — the object write procs' Global branch is gated on ownership
+-- (WorkspaceId IS NULL), never the Location label alone. Mirrors the just-shipped FIELD-proc fix.
+-- =============================================
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Upsert_NullWorkspace_DoesNotUpdateMislabelledWorkspaceOwnedRow]
+AS
+BEGIN
+    -- Arrange — a workspace-OWNED row mislabelled Location='Global' (the defect this fix closes:
+    -- a real WorkspaceId, not NULL).
+    DECLARE @OwnerWs UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000B1';
+    DECLARE @Id      UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000B9';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Id, @OwnerWs, N'ws-global', N'Workspace Global', N'Workspace Globals', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Assert — a platform caller (@WorkspaceId = NULL) must not match the mislabelled row; the
+    -- existence check fails and the proc reports not-found per its contract.
+    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%not found%';
+
+    -- Act
+    DECLARE @Out UNIQUEIDENTIFIER;
+    EXEC dbo.usp_UpsertObjectDefinition
+        @ObjectDefinitionId = @Id, @WorkspaceId = NULL, @Name = N'Hijacked',
+        @Location = N'Global', @ActorUserId = N'platform-admin', @NewObjectDefinitionId = @Out OUTPUT;
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Upsert_NullWorkspace_MislabelledRowLeftUnchanged_AfterFailedPlatformUpdate]
+AS
+BEGIN
+    -- Arrange — same mislabelled row as above.
+    DECLARE @OwnerWs UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000B2';
+    DECLARE @Id      UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000BA';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Id, @OwnerWs, N'ws-global-2', N'Workspace Global', N'Workspace Globals', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act — a platform update attempt throws (caught here so we can assert the row afterward).
+    DECLARE @Out UNIQUEIDENTIFIER;
+    BEGIN TRY
+        EXEC dbo.usp_UpsertObjectDefinition
+            @ObjectDefinitionId = @Id, @WorkspaceId = NULL, @Name = N'Hijacked',
+            @Location = N'Global', @ActorUserId = N'platform-admin', @NewObjectDefinitionId = @Out OUTPUT;
+    END TRY
+    BEGIN CATCH
+        -- Expected — swallow so the assert below runs.
+    END CATCH;
+
+    -- Assert — the row is completely unchanged (Name, UpdatedBy untouched).
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (
+        SELECT COUNT(*) FROM dbo.ObjectDefinition
+        WHERE ObjectDefinitionId = @Id AND Name = N'Workspace Global' AND UpdatedBy = N'seed');
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Delete_NullWorkspace_DoesNotDeleteMislabelledWorkspaceOwnedRow]
+AS
+BEGIN
+    -- Arrange — a workspace-OWNED row mislabelled Location='Global'.
+    DECLARE @OwnerWs UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000B3';
+    DECLARE @Id      UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000BB';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Id, @OwnerWs, N'ws-global-3', N'Workspace Global', N'Workspace Globals', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act — a platform delete attempt throws (caught so we can assert the row afterward).
+    BEGIN TRY
+        EXEC dbo.usp_DeleteObjectDefinition
+            @ObjectDefinitionId = @Id, @WorkspaceId = NULL, @ActorUserId = N'platform-admin';
+    END TRY
+    BEGIN CATCH
+        -- Expected — swallow so the assert below runs.
+    END CATCH;
+
+    -- Assert — the mislabelled row is still active (not soft-deleted).
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (
+        SELECT COUNT(*) FROM dbo.ObjectDefinition
+        WHERE ObjectDefinitionId = @Id AND IsDeleted = 0 AND DeletedAt IS NULL);
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Delete_NullWorkspace_ThrowsNotFound_ForMislabelledWorkspaceOwnedRow]
+AS
+BEGIN
+    -- Arrange — a workspace-OWNED row mislabelled Location='Global'.
+    DECLARE @OwnerWs UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000B4';
+    DECLARE @Id      UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000BC';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Id, @OwnerWs, N'ws-global-4', N'Workspace Global', N'Workspace Globals', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Assert — reports the same not-found contract as a genuinely missing row.
+    EXEC tSQLt.ExpectException @ExpectedMessagePattern = '%not found%';
+
+    -- Act
+    EXEC dbo.usp_DeleteObjectDefinition
+        @ObjectDefinitionId = @Id, @WorkspaceId = NULL, @ActorUserId = N'platform-admin';
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Upsert_NullWorkspace_UpdatesGenuinePlatformOwnedRow]
+AS
+BEGIN
+    -- Regression — a platform caller (@WorkspaceId = NULL) DOES still operate on a genuine
+    -- platform-owned row (WorkspaceId IS NULL, Location='Global').
+    DECLARE @Id UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000BD';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Id, NULL, N'firm-policy-2', N'Firm Policy', N'Firm Policies', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act
+    DECLARE @Out UNIQUEIDENTIFIER;
+    EXEC dbo.usp_UpsertObjectDefinition
+        @ObjectDefinitionId = @Id, @WorkspaceId = NULL, @Name = N'Firm Policy Renamed',
+        @Location = N'Global', @ActorUserId = N'platform-admin', @NewObjectDefinitionId = @Out OUTPUT;
+
+    -- Assert
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (
+        SELECT COUNT(*) FROM dbo.ObjectDefinition
+        WHERE ObjectDefinitionId = @Id AND Name = N'Firm Policy Renamed' AND UpdatedBy = N'platform-admin');
+END;
+GO
+
+CREATE PROCEDURE ObjectDefinitionTests.[test_Delete_NullWorkspace_DeletesGenuinePlatformOwnedRow]
+AS
+BEGIN
+    -- Regression — a platform caller (@WorkspaceId = NULL) DOES still soft-delete a genuine
+    -- platform-owned row (WorkspaceId IS NULL, Location='Global').
+    DECLARE @Id UNIQUEIDENTIFIER = 'A2000000-0000-4000-8000-0000000000BE';
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, PluralLabel, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Id, NULL, N'firm-policy-3', N'Firm Policy', N'Firm Policies', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    -- Act
+    EXEC dbo.usp_DeleteObjectDefinition
+        @ObjectDefinitionId = @Id, @WorkspaceId = NULL, @ActorUserId = N'platform-admin';
+
+    -- Assert
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (
+        SELECT COUNT(*) FROM dbo.ObjectDefinition
+        WHERE ObjectDefinitionId = @Id AND IsDeleted = 1 AND DeletedAt IS NOT NULL);
+END;
+GO
