@@ -3,7 +3,7 @@
 // happy-path stepping + export call, and jest-axe across meaningfully different states.
 
 import { axe } from 'jest-axe';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { IoObjectDto, WorkspaceId } from '@shared/types';
@@ -45,6 +45,13 @@ const FEATURE: IoObjectDto = {
     { key: 'oneLiner', label: 'One-liner' },
   ],
 };
+
+function availableList() {
+  return screen.getByRole('listbox', { name: /available/i });
+}
+function selectedList() {
+  return screen.getByRole('listbox', { name: /selected/i });
+}
 
 function mockObjects(state: { data?: IoObjectDto[]; isLoading?: boolean; isError?: boolean }) {
   mockedIoObjects.mockReturnValue({
@@ -99,10 +106,10 @@ describe('ExportWizard', () => {
     mockExport({ mutate } as Partial<ReturnType<typeof useExportObject>>);
     const { container } = render(<ExportWizard workspaceId={WORKSPACE} />);
 
-    // Act — step to fields, choose Name, step to download, export.
+    // Act — step to fields, move Name into Selected via the transfer, step to download, export.
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(await axe(container)).toHaveNoViolations(); // fields step
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Name' }));
+    await userEvent.dblClick(within(availableList()).getByText('Name'));
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
 
@@ -118,16 +125,44 @@ describe('ExportWizard', () => {
     mockExport({ mutate } as Partial<ReturnType<typeof useExportObject>>);
     const { container } = render(<ExportWizard workspaceId={WORKSPACE} />);
 
-    // Act — choose Feature, step to its fields, pick "One-liner", download.
+    // Act — choose Feature, step to its fields, move "One-liner" into Selected, download.
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Object to export' }), 'Feature');
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(await axe(container)).toHaveNoViolations(); // Feature fields step
-    await userEvent.click(screen.getByRole('checkbox', { name: 'One-liner' }));
+    await userEvent.dblClick(within(availableList()).getByText('One-liner'));
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
 
     // Assert — the Feature object + its chosen column are sent (identity id is implicit).
     expect(mutate).toHaveBeenCalledWith({ objectType: 'Feature', fieldKeys: ['oneLiner'] });
+  });
+
+  it('ExportWizard — reordered selection — exports fieldKeys in Selected order', async () => {
+    // Arrange — Request carries two orderable fields (name, stage) beyond its locked identity column.
+    const mutate = jest.fn();
+    mockObjects({ data: [REQUEST] });
+    mockExport({ mutate } as Partial<ReturnType<typeof useExportObject>>);
+    render(<ExportWizard workspaceId={WORKSPACE} />);
+
+    // Act — step to Fields, move Name then Stage into Selected (Selected order: [name, stage]).
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.dblClick(within(availableList()).getByText('Name'));
+    await userEvent.dblClick(within(availableList()).getByText('Stage'));
+
+    // Act — reorder: focus Name (currently first) and push it down one, past Stage, via the
+    // transfer's keyboard-accessible reorder (Alt+ArrowDown) — Selected order becomes [stage, name].
+    const name = within(selectedList()).getByText('Name');
+    name.focus();
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+
+    // Act — step to Download, export.
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    // Assert — fieldKeys reflect the reordered Selected order, not the order fields were added.
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ objectType: 'Request', fieldKeys: ['stage', 'name'] }),
+    );
   });
 
   it('ExportWizard — export success — shows the downloaded note', async () => {

@@ -13,7 +13,7 @@ import { Stepper } from '@/shared/components/Feedback';
 import { problemMessage } from '@/shared/http/problemMessage';
 
 import { useExportObject, useIoObjects } from '../useImportExport';
-import { ExportFieldPicker } from './ExportFieldPicker';
+import { ExportFieldTransfer } from './ExportFieldTransfer';
 
 const STEPS = [{ label: 'Object' }, { label: 'Fields' }, { label: 'Download' }];
 
@@ -23,7 +23,7 @@ export function ExportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
 
   const [stepIndex, setStepIndex] = useState(0);
   const [objectType, setObjectType] = useState('');
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const exportMutation = useExportObject(workspaceId);
 
   const active: IoObjectDto | undefined =
@@ -31,24 +31,12 @@ export function ExportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
 
   const chooseObject = (value: string) => {
     setObjectType(value);
-    setSelected(new Set()); // fields differ per object — reset the selection.
-  };
-
-  const toggleField = (fieldKey: string) => {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(fieldKey)) {
-        next.delete(fieldKey);
-      } else {
-        next.add(fieldKey);
-      }
-      return next;
-    });
+    setSelectedKeys([]); // fields differ per object — reset the selection.
   };
 
   const onExport = () => {
     if (active) {
-      exportMutation.mutate({ objectType: active.objectType, fieldKeys: [...selected] });
+      exportMutation.mutate({ objectType: active.objectType, fieldKeys: selectedKeys });
     }
   };
 
@@ -96,10 +84,10 @@ export function ExportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
 
       {stepIndex === 1 && (
         <div className="ie-wizard__step">
-          <ExportFieldPicker
+          <ExportFieldTransfer
             fields={active.exportFields}
-            selected={selected}
-            onToggle={toggleField}
+            selectedKeys={selectedKeys}
+            onChange={setSelectedKeys}
           />
         </div>
       )}
@@ -107,8 +95,9 @@ export function ExportWizard({ workspaceId }: { workspaceId: WorkspaceId }) {
       {stepIndex === 2 && (
         <div className="ie-wizard__step">
           <p className="caption">
-            Exporting <strong>{active.label}</strong> with {selected.size + countLocked(active)}{' '}
-            {selected.size + countLocked(active) === 1 ? 'column' : 'columns'}.
+            Exporting <strong>{active.label}</strong> with{' '}
+            {selectedKeys.length + countLocked(active)}{' '}
+            {selectedKeys.length + countLocked(active) === 1 ? 'column' : 'columns'}.
           </p>
           <Button variant="secondary" onClick={onExport} disabled={exportMutation.isPending}>
             {exportMutation.isPending ? 'Preparing…' : 'Export CSV'}

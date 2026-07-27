@@ -320,3 +320,95 @@
   color: var(--text-secondary);
   font-size: 13px;
 }
+
+/* Export field transfer — dual-list shuttle (Available <-> Selected) */
+.ie-transfer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-4);
+}
+.ie-transfer__col {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  padding: var(--space-3);
+}
+.ie-transfer__col-head {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.ie-transfer__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 0 var(--space-3);
+  color: var(--text-secondary);
+}
+.ie-transfer__search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  height: var(--control-h-compact);
+  color: var(--text-primary);
+}
+.ie-transfer__search-input:focus-visible {
+  outline: none;
+}
+.ie-transfer__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  max-height: 320px;
+  min-height: 120px;
+}
+.ie-transfer__item {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.ie-transfer__item:hover {
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+}
+.ie-transfer__item--hi {
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+}
+.ie-transfer__item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.ie-transfer__item--locked {
+  cursor: default;
+  color: var(--text-secondary);
+}
+.ie-transfer__note {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.ie-transfer__controls {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-2);
+}
+@media (max-width: 640px) {
+  .ie-transfer__controls {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
