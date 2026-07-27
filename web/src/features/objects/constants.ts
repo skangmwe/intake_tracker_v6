@@ -3,11 +3,23 @@
 
 import type { ObjectLocation } from '@shared/types';
 
-/** Location options for the editor Select and the Location funnel. Local Workspace leads (the default). */
+/**
+ * Full set of Location values an object can display as. Used for the read-only display label and
+ * the Location funnel — a platform-owned Global object still appears (read-only) in a workspace's
+ * object list and must still label and filter as "Global". This list is NOT the authoring list; see
+ * `WORKSPACE_ONLY_LOCATION` for what a workspace may actually set.
+ */
 export const LOCATION_OPTIONS: readonly { value: ObjectLocation; label: string }[] = [
   { value: 'LocalWorkspace', label: 'Local Workspace' },
   { value: 'Global', label: 'Global' },
 ];
+
+/**
+ * The one Location a workspace may author. "Global" means platform-owned (WorkspaceId IS NULL) —
+ * only platform admins create Global objects (via the Platform schema surface), never a
+ * workspace's own object editor.
+ */
+export const WORKSPACE_ONLY_LOCATION: ObjectLocation = 'LocalWorkspace';
 
 export function locationLabel(location: string): string {
   return LOCATION_OPTIONS.find((option) => option.value === location)?.label ?? location;

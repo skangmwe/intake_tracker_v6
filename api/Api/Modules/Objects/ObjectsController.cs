@@ -14,7 +14,10 @@ namespace McDermott.AiTracker.Api.Modules.Objects;
 [Route("api/v1")]
 public sealed class ObjectsController : ControllerBase
 {
-    private static readonly string[] ValidLocations = ["Global", "LocalWorkspace"];
+    // Workspaces can only ever author LOCAL objects. "Global" means platform-owned
+    // (WorkspaceId IS NULL) — Global objects are created only via PlatformSchemaController /
+    // ObjectSchemaService, never through this workspace-scoped controller.
+    private static readonly string[] WorkspaceCreatableLocations = ["LocalWorkspace"];
 
     private readonly IObjectSchemaService _service;
     private readonly IAccessGuard _accessGuard;
@@ -83,7 +86,7 @@ public sealed class ObjectsController : ControllerBase
         CancellationToken cancellationToken)
     {
         // Validate only fields the caller is actually setting (sparse patch).
-        if (request.Location is not null && !ValidLocations.Contains(request.Location))
+        if (request.Location is not null && !WorkspaceCreatableLocations.Contains(request.Location))
         {
             return LocationProblem();
         }
@@ -146,8 +149,8 @@ public sealed class ObjectsController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(request.Name))
             errors["name"] = ["Name is required."];
-        if (!ValidLocations.Contains(request.Location))
-            errors["location"] = ["Location must be Global or LocalWorkspace."];
+        if (!WorkspaceCreatableLocations.Contains(request.Location))
+            errors["location"] = ["Location must be LocalWorkspace. Workspaces can only create local objects; Global objects are managed by platform admins."];
 
         if (errors.Count == 0) return null;
 
@@ -166,7 +169,7 @@ public sealed class ObjectsController : ControllerBase
 
     private BadRequestObjectResult LocationProblem()
     {
-        ModelState.AddModelError("location", "Location must be Global or LocalWorkspace.");
+        ModelState.AddModelError("location", "Location must be LocalWorkspace. Workspaces can only create local objects; Global objects are managed by platform admins.");
         return ValidationProblem400();
     }
 
