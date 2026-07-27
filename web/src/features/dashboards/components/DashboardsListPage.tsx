@@ -3,7 +3,6 @@
 // user bound to a single dashboard (Dashboard-viewer) is redirected to the read-only S16 viewer instead
 // of the list. Renders explicit loading / error / no-workspace / empty states (web-component-architecture.md).
 
-import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ChartBar, CaretRight } from '@phosphor-icons/react';
 
@@ -12,7 +11,7 @@ import type { AnnouncementAudienceKind, DashboardListItemDto } from '@shared/typ
 import { StatusPill } from '@/shared/components/Feedback';
 import { EmptyListZeroData } from '@/shared/components/EdgeStates';
 import { useMe } from '@/features/users/useMe';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { useDashboardList } from '../useDashboards';
 import { DashboardViewerPage } from './DashboardViewerPage';
@@ -47,7 +46,7 @@ function DashboardRow({ item }: { item: DashboardListItemDto }) {
 
 export function DashboardsListPage() {
   const { data: me, isLoading: meLoading, isError: meError } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const workspaceId = useActiveWorkspaceId();
   const boundDashboardId = me?.boundDashboardId ?? null;
 
   const list = useDashboardList(boundDashboardId ? null : workspaceId);

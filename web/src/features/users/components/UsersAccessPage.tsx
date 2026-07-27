@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 
 import { useMe } from '@/features/users/useMe';
 import { Tabs } from '@/shared/components/Feedback';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { USERS_ACCESS_TABS, type UsersAccessTab } from '../constants';
 import { ApproverTeamsPanel } from './ApproverTeamsPanel';
@@ -17,7 +17,7 @@ import { MembersPanel } from './MembersPanel';
 
 export function UsersAccessPage() {
   const { data: me, isLoading: meLoading, isError: meError } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const workspaceId = useActiveWorkspaceId();
   const isAdmin = useMemo(
     () =>
       (me?.memberships ?? []).some(

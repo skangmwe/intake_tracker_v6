@@ -4,9 +4,8 @@
 // error / disabled / empty / streaming / answered states are all rendered explicitly
 // (web-component-architecture.md).
 
-import { useMe } from '@/features/users/useMe';
 import { useAiConfig } from '@/features/ai-config';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { useAskConversation } from '../askModel';
 
@@ -17,8 +16,7 @@ import { FirstUseDisclosure } from './FirstUseDisclosure';
 import '../ask.css';
 
 export function AskPage() {
-  const { data: me } = useMe();
-  const workspaceId = resolveActiveWorkspaceId(me?.memberships) ?? undefined;
+  const workspaceId = useActiveWorkspaceId() ?? undefined;
 
   const { data: config, isLoading, isError } = useAiConfig(workspaceId);
   const { turns, isStreaming, ask, stop, rate } = useAskConversation(workspaceId);

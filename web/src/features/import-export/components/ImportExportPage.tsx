@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react';
 
 import { Tabs } from '@/shared/components/Feedback';
 import { useMe } from '@/features/users/useMe';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { ExportPanel } from './ExportPanel';
 import { ExportWizard } from './ExportWizard';
@@ -21,7 +21,7 @@ const TABS = [
 
 export function ImportExportPage() {
   const { data: me, isLoading, isError } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const workspaceId = useActiveWorkspaceId();
   const isAdmin = useMemo(
     () =>
       (me?.memberships ?? []).some(

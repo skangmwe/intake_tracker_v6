@@ -3,26 +3,19 @@
 // opens the S27 results page. The query is scoped + access-gated server-side (BS §9.5). Replaces the
 // slice-2 stub.
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MagnifyingGlass } from '@phosphor-icons/react';
-
-import type { WorkspaceId } from '@shared/types';
 
 import { SEARCH_DEBOUNCE_MS, SEARCH_MIN_QUERY_LENGTH } from '@/shared/constants';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useDismissable } from '@/shared/hooks/useDismissable';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
-import { useMe } from '@/features/users/useMe';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import { useQuickSearch } from '@/features/search/useSearch';
 
 export function WorkspaceSearch() {
   const navigate = useNavigate();
-  const me = useMe();
-  const workspaceId = useMemo(
-    () => resolveActiveWorkspaceId(me.data?.memberships) as WorkspaceId | null,
-    [me.data],
-  );
+  const workspaceId = useActiveWorkspaceId();
 
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);

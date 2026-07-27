@@ -5,7 +5,7 @@
 // empty note.
 
 import { useMe } from '@/features/users/useMe';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { useHome } from './useHome';
 import { ActivityPanel } from './components/ActivityPanel';
@@ -17,7 +17,7 @@ import { WorkPanel } from './components/WorkPanel';
 
 export function HomeView() {
   const me = useMe();
-  const workspaceId = resolveActiveWorkspaceId(me.data?.memberships);
+  const workspaceId = useActiveWorkspaceId();
   const home = useHome(workspaceId);
 
   return (

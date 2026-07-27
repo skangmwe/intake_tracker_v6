@@ -1,11 +1,12 @@
 import { axe } from 'jest-axe';
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import type { PaginatedResponse, RequestListRow } from '@shared/types';
+import type { PaginatedResponse, RequestListRow, WorkspaceId } from '@shared/types';
 
 import { renderWithProviders, buildMe, buildMembership, buildRequestListRow } from '@/test-utils';
 import { useMe } from '@/features/users/useMe';
+import { ACTIVE_WORKSPACE_STORAGE_KEY } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { RequestsListPage, parseNumberExpression } from './RequestsListPage';
 import { useRequestsList } from '../useRequests';
@@ -68,8 +69,8 @@ interface ListState {
   error?: unknown;
 }
 
-function mockHooks(list: ListState) {
-  mockedUseMe.mockReturnValue({ data: me, isLoading: false, isError: false } as ReturnType<
+function mockHooks(list: ListState, meOverride: ReturnType<typeof buildMe> = me) {
+  mockedUseMe.mockReturnValue({ data: meOverride, isLoading: false, isError: false } as ReturnType<
     typeof useMe
   >);
   mockedUseRequestsList.mockReturnValue({
@@ -81,6 +82,7 @@ function mockHooks(list: ListState) {
 }
 
 describe('RequestsListPage', () => {
+  beforeEach(() => localStorage.clear());
   afterEach(() => jest.clearAllMocks());
 
   it('RequestsListPage — renders a row per request with ID, name and aging suffix', async () => {
@@ -393,6 +395,33 @@ describe('RequestsListPage', () => {
 
     // Assert
     expect(mockNavigate).toHaveBeenCalledWith('/requests/AIS-00000001');
+  });
+
+  it('RequestsListPage — active workspace switched — queries the switched workspace', async () => {
+    // Arrange — the caller belongs to two workspaces; localStorage holds the switcher's choice
+    // (the non-default, non-ai-solutions one), so the query must follow it rather than the
+    // resolveActiveWorkspaceId default (the ai-solutions hub).
+    localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, 'ws-lit');
+    const switchedMe = buildMe({
+      memberships: [
+        buildMembership({ workspaceId: 'ws-ai' as WorkspaceId, workspaceKind: 'ai-solutions' }),
+        buildMembership({
+          workspaceId: 'ws-lit' as WorkspaceId,
+          workspaceName: 'Litigation',
+          workspaceKind: 'pg-dept',
+        }),
+      ],
+    });
+    mockHooks({ data: page([buildRequestListRow()]) }, switchedMe);
+
+    // Act
+    renderWithProviders(<RequestsListPage />, { route: '/requests' });
+
+    // Assert — the list-fetch hook's first argument is the workspace id it queries against.
+    await waitFor(() => {
+      const calls = mockedUseRequestsList.mock.calls;
+      expect(calls[calls.length - 1]?.[0]).toBe('ws-lit');
+    });
   });
 });
 

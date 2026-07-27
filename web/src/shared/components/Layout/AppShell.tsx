@@ -11,7 +11,7 @@ import { useAiConfig } from '@/features/ai-config';
 import { useFocusTrap } from '@/shared/hooks/useFocusTrap';
 import { getActiveTheme } from '@/shared/theme/theme';
 import { useTheme } from '@/shared/theme/useTheme';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -34,7 +34,7 @@ export function AppShell() {
 
   // Gate the Ask nav item on the active workspace's AI-assist config (Phase 4). The API is the real
   // boundary; a disabled workspace simply never shows the entry.
-  const activeWorkspaceId = resolveActiveWorkspaceId(memberships) ?? undefined;
+  const activeWorkspaceId = useActiveWorkspaceId() ?? undefined;
   const { data: aiConfig } = useAiConfig(activeWorkspaceId);
 
   const { theme, setTheme, toggleTheme } = useTheme();

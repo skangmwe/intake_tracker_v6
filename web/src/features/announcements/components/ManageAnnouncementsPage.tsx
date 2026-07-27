@@ -15,7 +15,7 @@ import type { AnnouncementAudience, WorkspaceId } from '@shared/types';
 import { Button } from '@/shared/components/Button';
 import type { SelectOption } from '@/shared/components/Form';
 import { type FilterValue, type SortState, TableFooter } from '@/shared/components/Table';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import { useMe } from '@/features/users/useMe';
 import { useMembers } from '@/features/users/useMembers';
 
@@ -43,7 +43,7 @@ export function ManageAnnouncementsPage() {
   // Scope to the workspace the admin is in (the active workspace), mirroring WorkspaceAuditPage —
   // not a picker across every workspace they administer. Posting is offered only when the caller is a
   // WorkspaceAdmin of that active workspace.
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const workspaceId = useActiveWorkspaceId();
   const isActiveWorkspaceAdmin = useMemo(
     () =>
       (me?.memberships ?? []).some(

@@ -24,7 +24,7 @@ import {
 import { SAVE_DEBOUNCE_MS } from '@/shared/constants';
 import { formatDateTime } from '@/shared/utils/dateFormat';
 import { useMe } from '@/features/users/useMe';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import { useWorkspaceObjects } from '@/features/objects';
 import { useWorkspaceFields } from '@/features/fields';
 
@@ -43,8 +43,8 @@ function MetaItem({ label, value }: { label: string; value: string }) {
 export function CustomRecordDetailPage() {
   const navigate = useNavigate();
   const { objectKey = '', recordId = '' } = useParams<{ objectKey: string; recordId: string }>();
-  const { data: me, isLoading: isMeLoading } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const { isLoading: isMeLoading } = useMe();
+  const workspaceId = useActiveWorkspaceId();
 
   const objects = useWorkspaceObjects(workspaceId ?? undefined);
   const object = objects.data?.find((candidate) => candidate.objectKey === objectKey);
