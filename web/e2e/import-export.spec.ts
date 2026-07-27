@@ -194,3 +194,56 @@ test('admin steps the Import wizard, sees the per-row report, then exports a sav
   const results = await new AxeBuilder({ page }).include('.import-export-page').analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('admin picks fields, reorders them, and exports the object wizard columns in that order', async ({
+  page,
+}) => {
+  // Capture the export request body so the assertion is grounded in what actually went over the
+  // wire, not just what the UI displays. Registered here (after beforeEach's route for the same
+  // pattern) so it wins — Playwright routes run last-registered-first.
+  let exportRequestBody: { objectType: string; fieldKeys: string[] } | null = null;
+  await page.route(/\/api\/v1\/workspaces\/[^/]+\/exports\/object$/, (route) => {
+    exportRequestBody = route.request().postDataJSON();
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/csv',
+      body: 'Record ID,Stage,Name\r\nAIS-00000001,Backlog,Helper\r\n',
+    });
+  });
+
+  await page.goto('/admin/import-export');
+  await page.getByRole('tab', { name: 'Export' }).click();
+
+  const availableList = () => page.getByRole('listbox', { name: /available/i });
+  const selectedList = () => page.getByRole('listbox', { name: /selected/i });
+
+  // Object step — Request carries two orderable export fields (Name, Stage) beyond its locked
+  // identity column, which is what this flow needs to exercise a reorder.
+  await page.getByRole('combobox', { name: 'Object to export' }).selectOption('Request');
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  // Fields step — move both orderable fields into Selected via double-click (the reliable
+  // single-item move gesture; see ExportFieldTransfer.tsx).
+  await availableList().getByText('Name', { exact: true }).dblclick();
+  await availableList().getByText('Stage', { exact: true }).dblclick();
+
+  // Reorder — focus "Name" (added first, so currently ahead of "Stage" in Selected) and push it
+  // down one via the keyboard-accessible path (Alt+ArrowDown). Native drag-and-drop is flaky under
+  // Playwright, so the keyboard reorder is the reliable, accessible equivalent exercised here.
+  await selectedList().getByText('Name', { exact: true }).focus();
+  await page.keyboard.press('Alt+ArrowDown');
+
+  // Assert the Selected list's visible order reflects the reorder before export runs: the locked
+  // identity column stays pinned first, then Stage, then Name.
+  await expect(selectedList().getByRole('option')).toHaveText([/Record ID/, 'Stage', 'Name']);
+
+  // Download step — trigger the export.
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Export CSV' }).click();
+
+  await expect(page.getByText('Your export has downloaded.')).toBeVisible();
+  expect(exportRequestBody).toEqual({ objectType: 'Request', fieldKeys: ['stage', 'name'] });
+
+  const results = await new AxeBuilder({ page }).include('.import-export-page').analyze();
+  expect(results.violations).toEqual([]);
+});
