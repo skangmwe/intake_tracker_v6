@@ -90,12 +90,12 @@ describe('PlatformLayout', () => {
     // Assert — the side list (six links) plus the active surface in the content column
     const nav = screen.getByRole('navigation', { name: 'Platform settings' });
     expect(within(nav).getAllByRole('link')).toHaveLength(6);
-    expect(screen.getByRole('link', { name: 'Field schema' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Fields & objects' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    // The shared header shows the surface's header title, which differs from its short nav label
-    // ("Field schema" nav → "Fields & objects" header).
+    // The rail label and the header title agree for this surface ("Fields & objects"); other surfaces
+    // (e.g. "Audit log" nav → "Firm-wide audit" header) still differ.
     expect(screen.getByRole('heading', { name: 'Fields & objects' })).toBeInTheDocument();
     expect(screen.getByText('Field schema surface')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -114,7 +114,9 @@ describe('PlatformLayout', () => {
       'aria-current',
       'page',
     );
-    expect(screen.getByRole('link', { name: 'Field schema' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Fields & objects' })).not.toHaveAttribute(
+      'aria-current',
+    );
     expect(screen.getByText('Crossing map surface')).toBeInTheDocument();
   });
 });
