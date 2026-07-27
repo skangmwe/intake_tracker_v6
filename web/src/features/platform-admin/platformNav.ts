@@ -2,10 +2,15 @@
 // side list is data, not inline JSX (web-component-architecture.md). One "Platform" sidebar entry
 // lands on this area; this list is the secondary navigation between the surfaces. Each item also
 // carries the header title + one-line lead that SideNavLayout renders in the full-width header, so
-// the pages themselves no longer render their own title. Rail labels mirror the workspace-admin nav
-// where a surface corresponds (Fields & objects, Users & access, Audit log). The header title may
-// differ from the rail label when scope needs spelling out (e.g. "Audit log" nav → "Firm-wide audit"
-// header).
+// the pages themselves no longer render their own title.
+//
+// Order mirrors the workspace-admin nav (adminNav.ts): the surfaces that have a workspace
+// counterpart come first, in the same sequence the workspace nav shows them — Users & access,
+// Fields & objects, Announcements, Audit log. (The workspace-only surfaces Views & dashboards,
+// Lifecycle & gates, Triggers, AI assist, and Import & export have no platform equivalent.) The two
+// platform-only surfaces — Crossing map and Workspaces — are grouped at the end. Rail labels match
+// the workspace nav where a surface corresponds; the header title may differ from the rail label
+// when scope needs spelling out (e.g. "Audit log" nav → "Firm-wide audit" header).
 
 export interface PlatformNavEntry {
   to: string;
@@ -18,19 +23,14 @@ export interface PlatformNavEntry {
 
 export const PLATFORM_NAV: PlatformNavEntry[] = [
   {
-    to: '/platform/fields',
-    label: 'Fields & objects',
-    lead: 'Platform-level field definitions inherited by every workspace.',
-  },
-  {
-    to: '/platform/crossing-map',
-    label: 'Crossing map',
-    lead: 'How PG/Dept request fields map to AI Solutions fields when a request is escalated. Propose a new mapping, then confirm it to make it live.',
-  },
-  {
     to: '/platform/access',
     label: 'Users & access',
     lead: 'Who holds firm-wide Platform-admin access and which workspaces have admins.',
+  },
+  {
+    to: '/platform/fields',
+    label: 'Fields & objects',
+    lead: 'Platform-level field definitions inherited by every workspace.',
   },
   {
     to: '/platform/announcements',
@@ -38,15 +38,20 @@ export const PLATFORM_NAV: PlatformNavEntry[] = [
     lead: 'Post a notice to every workspace or specific ones. Each targeted workspace receives it in its members’ bell.',
   },
   {
-    to: '/platform/workspaces',
-    label: 'Workspaces',
-    title: 'Workspace provisioning',
-    lead: 'Stand up a new PG/Dept workspace by cloning the template — name, prefix, and initial admin.',
-  },
-  {
     to: '/platform/audit',
     label: 'Audit log',
     title: 'Firm-wide audit',
     lead: 'Every change across every workspace — field edits, gate decisions, config changes, escalations, and platform edits — newest first. Append-only and uneditable.',
+  },
+  {
+    to: '/platform/crossing-map',
+    label: 'Crossing map',
+    lead: 'How PG/Dept request fields map to AI Solutions fields when a request is escalated. Propose a new mapping, then confirm it to make it live.',
+  },
+  {
+    to: '/platform/workspaces',
+    label: 'Workspaces',
+    title: 'Workspace provisioning',
+    lead: 'Stand up a new PG/Dept workspace by cloning the template — name, prefix, and initial admin.',
   },
 ];
