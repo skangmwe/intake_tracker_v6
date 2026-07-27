@@ -197,11 +197,34 @@
   margin: 0;
 }
 
+/* Deliberate-edit action row — Edit (locked) or Cancel + Save (editing), right-aligned. */
+.record-intake__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* At most two fields per row; long-text fields take their own full row (see --full below). */
 .record-intake__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
   min-width: 0;
+}
+
+.record-intake__field {
+  min-width: 0;
+}
+
+.record-intake__grid > .record-intake__field--full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .record-intake__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ─── Escalated record (S5) ─── */

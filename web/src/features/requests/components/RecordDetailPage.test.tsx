@@ -1,9 +1,10 @@
 // Tests for the S4 Record detail page (non-escalated). Mocks the Requests hooks and the field-schema
-// API so the component's own composition, autosave debounce, and 403 no-access surface are exercised
-// without the network. Every rendered state carries a jest-axe assertion (web-testing.md).
+// API so the component's own composition, the deliberate whole-tab Edit toggle, and the 403 no-access
+// surface are exercised without the network. Every rendered state carries a jest-axe assertion
+// (web-testing.md).
 
 import { Route, Routes } from 'react-router-dom';
-import { act, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -21,7 +22,7 @@ import * as fieldsApi from '@/features/fields/api';
 import * as useMeModule from '@/features/users/useMe';
 
 import * as useRequests from '../useRequests';
-import { RecordDetailPage, SAVE_DEBOUNCE_MS } from './RecordDetailPage';
+import { RecordDetailPage } from './RecordDetailPage';
 
 expect.extend(toHaveNoViolations);
 
@@ -77,7 +78,10 @@ jest.mock('@/features/relationships/api', () => ({
   deleteRelationshipLink: jest.fn(),
 }));
 
-const patchMutate = jest.fn();
+// The patch mock invokes the per-call onSuccess so Save re-locks the tab (mirrors the real mutation).
+const patchMutate = jest.fn((_payload: unknown, opts?: { onSuccess?: () => void }) =>
+  opts?.onSuccess?.(),
+);
 const setStageMutate = jest.fn();
 const setStatusHoldMutate = jest.fn();
 
@@ -120,7 +124,7 @@ function errorResult(error: unknown) {
 }
 
 function asMutation(mutate: jest.Mock) {
-  return { mutate, isError: false, isPending: false, error: null };
+  return { mutate, isError: false, isPending: false, error: null, reset: jest.fn() };
 }
 
 function seedDefaults() {
@@ -252,7 +256,7 @@ describe('RecordDetailPage', () => {
     expect(screen.queryByText('On track')).not.toBeInTheDocument();
   });
 
-  it('RecordDetailPage — Intake tab renders editable fields seeded from the record', async () => {
+  it('RecordDetailPage — Intake tab loads read-only: fields seeded but locked behind Edit', async () => {
     // Arrange
     jest
       .mocked(useRequests.useRequest)
@@ -265,9 +269,12 @@ describe('RecordDetailPage', () => {
     // Act
     const { container } = renderPage();
 
-    // Assert
+    // Assert — the field shows its saved value but is locked; the deliberate Edit action is offered.
     const nameInput = await screen.findByLabelText('Name');
     expect(nameInput).toHaveValue('Meeting notes');
+    expect(nameInput).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Edit fields' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument();
     // Record metadata (Submitted / Lifecycle) lives in the Intake tab's read-only block.
     expect(screen.getByText('Submitted')).toBeInTheDocument();
     expect(screen.getByText('Lifecycle')).toBeInTheDocument();
@@ -275,30 +282,106 @@ describe('RecordDetailPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('RecordDetailPage — editing a field debounces one patch and shows the saved indicator', async () => {
-    // Arrange
+  it('RecordDetailPage — Edit unlocks the fields; Save commits one patch and re-locks with the saved indicator', async () => {
+    // Arrange — a whole-tab Edit toggle replaces autosave: fields stay locked until Edit, then Save
+    // fires a single patch. The mocked patch invokes onSuccess, so the tab re-locks on success.
+    const user = userEvent.setup();
     jest
       .mocked(useRequests.useRequest)
       .mockReturnValue(queryResult(buildRequestDto({ fields: { name: 'Meeting notes' } })));
     const { container } = renderPage();
-    const nameInput = await screen.findByLabelText('Name');
 
-    jest.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    // Act — enter edit mode, change the field, and save.
+    await user.click(await screen.findByRole('button', { name: 'Edit fields' }));
+    const nameInput = screen.getByLabelText('Name');
+    expect(nameInput).toBeEnabled();
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Updated notes');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    // Assert — exactly one patch with the edited value + the record's ETag; then re-locked + saved.
+    expect(patchMutate).toHaveBeenCalledTimes(1);
+    expect(patchMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fields: expect.objectContaining({ name: 'Updated notes' }),
+        ifMatch: expect.any(String),
+      }),
+      expect.anything(),
+    );
+    expect(screen.getByText('All changes saved')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit fields' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toBeDisabled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('RecordDetailPage — Cancel discards edits and re-locks without patching', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    jest
+      .mocked(useRequests.useRequest)
+      .mockReturnValue(queryResult(buildRequestDto({ fields: { name: 'Meeting notes' } })));
+    renderPage();
+
+    // Act — edit a field, then cancel.
+    await user.click(await screen.findByRole('button', { name: 'Edit fields' }));
+    await user.type(screen.getByLabelText('Name'), ' draft');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // Assert — no patch, back to read-only, and the field reverts to its saved value.
+    expect(patchMutate).not.toHaveBeenCalled();
+    const reverted = screen.getByLabelText('Name');
+    expect(reverted).toBeDisabled();
+    expect(reverted).toHaveValue('Meeting notes');
+    expect(screen.getByRole('button', { name: 'Edit fields' })).toBeInTheDocument();
+  });
+
+  it('RecordDetailPage — the Lifecycle & status group (Stage / Hold / Blocked) is hidden from the Intake grid', async () => {
+    // Arrange — a schema that also carries the seeded Lifecycle & status fields. They are edited on the
+    // Status tab from the record's first-class columns, so they must not appear as intake fields.
+    jest.mocked(fieldsApi.fetchWorkspaceFields).mockResolvedValue({
+      workspaceId: 'ws-1' as WorkspaceId,
+      objectType: 'Request',
+      platformFields: [],
+      fields: [
+        buildFieldDefinition({
+          fieldKey: 'name',
+          displayName: 'Name',
+          fieldType: 'ShortText',
+          sortOrder: 1,
+        }),
+        buildFieldDefinition({
+          id: '00000000-0000-0000-0000-0000000000e1' as ReturnType<
+            typeof buildFieldDefinition
+          >['id'],
+          fieldKey: 'stage',
+          displayName: 'Stage',
+          fieldType: 'ShortText',
+          section: 'Lifecycle & status',
+          isRequired: false,
+          sortOrder: 1,
+        }),
+        buildFieldDefinition({
+          id: '00000000-0000-0000-0000-0000000000e2' as ReturnType<
+            typeof buildFieldDefinition
+          >['id'],
+          fieldKey: 'holdBlocked',
+          displayName: 'Hold / Blocked',
+          fieldType: 'Boolean',
+          section: 'Lifecycle & status',
+          isRequired: false,
+          sortOrder: 2,
+        }),
+      ],
+    });
 
     // Act
-    await user.type(nameInput, '!');
+    renderPage();
 
-    // Assert — not fired until the debounce elapses
-    expect(patchMutate).not.toHaveBeenCalled();
-    act(() => {
-      jest.advanceTimersByTime(SAVE_DEBOUNCE_MS);
-    });
-    expect(patchMutate).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('All changes saved')).toBeInTheDocument();
-
-    jest.useRealTimers();
-    expect(await axe(container)).toHaveNoViolations();
+    // Assert — the normal field renders, but the Lifecycle & status group is absent entirely.
+    expect(await screen.findByLabelText('Name')).toBeInTheDocument();
+    expect(screen.queryByText('Lifecycle & status')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Stage')).not.toBeInTheDocument();
+    expect(screen.queryByText('Hold / Blocked')).not.toBeInTheDocument();
   });
 
   it('RecordDetailPage — Status tab: choosing On hold (Active group) and updating calls setStatusHold with the note + ETag', async () => {
@@ -459,13 +542,16 @@ describe('RecordDetailPage', () => {
       .mockReturnValue(queryResult(escalatedRecord({ workspaceId: PG_WORKSPACE })));
 
     // Act
+    const user = userEvent.setup();
     const { container } = renderPage();
 
-    // Assert — the "Escalated · [origin]" pill, the slim mirror note, and a disabled crossed field.
+    // Assert — the "Escalated · [origin]" pill, the slim mirror note, and the crossing field which
+    // stays locked even after entering edit mode (the API rejects PG-side edits).
     // The note lives inside the schema-gated Intake tab, so await it (the schema query resolves async).
     expect(await screen.findByText('Escalated · Litigation')).toBeInTheDocument();
     const note = await screen.findByRole('complementary', { name: 'Escalation bridge' });
     expect(note).toHaveTextContent('AI Solutions Status');
+    await user.click(screen.getByRole('button', { name: 'Edit fields' }));
     expect(screen.getByLabelText('Name')).toBeDisabled();
     expect(screen.getByText('Crossed · locked on PG')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -476,10 +562,12 @@ describe('RecordDetailPage', () => {
     jest.mocked(useRequests.useRequest).mockReturnValue(queryResult(escalatedRecord()));
 
     // Act
+    const user = userEvent.setup();
     renderPage();
 
-    // Assert — the marker still shows, but the field is editable (fully editable AI-side).
+    // Assert — the marker still shows; after Edit the field is editable (fully editable AI-side).
     expect(await screen.findByText('Crossed · locked on PG')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Edit fields' }));
     expect(screen.getByLabelText('Name')).toBeEnabled();
   });
 

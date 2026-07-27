@@ -4,10 +4,10 @@
 // land in later slices. The API returns 403 for both forbidden and non-existent records, so a 403 is
 // rendered as a no-access surface, never a 404 (never discloses existence). See BS §17, S4.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowsLeftRight, CaretRight, CloudCheck } from '@phosphor-icons/react';
+import { ArrowsLeftRight, CaretRight, CloudCheck, PencilSimple } from '@phosphor-icons/react';
 
 import type {
   FieldDefinitionDto,
@@ -56,8 +56,12 @@ import {
 import { problemMessage } from '../problemMessage';
 import '../recordDetail.css';
 
-/** Autosave debounce — a field edit schedules one patch, coalescing rapid keystrokes. */
-export const SAVE_DEBOUNCE_MS = 600;
+// The Intake tab loads read-only and edits behind a deliberate whole-tab Edit action (see IntakeTab),
+// so there is no autosave debounce here. `Lifecycle & status` (Stage / Hold / Blocked) is edited on
+// the Status tab from the record's first-class columns, so its schema fields are hidden from this grid.
+const HIDDEN_INTAKE_SECTIONS = new Set(['Lifecycle & status']);
+/** Long-text field types each take their own full grid row, per the two-up intake layout. */
+const FULL_WIDTH_FIELD_TYPES = new Set(['LongText', 'RichText']);
 
 type StatusKind = 'info' | 'success' | 'warning' | 'error' | 'neutral';
 
@@ -188,7 +192,8 @@ interface IntakeTabProps {
   schemaLoading: boolean;
   schemaError: boolean;
   patch: ReturnType<typeof usePatchRequest>;
-  onFirstEdit: () => void;
+  onEditStart: () => void;
+  onSaved: () => void;
 }
 
 function IntakeTab({
@@ -197,39 +202,24 @@ function IntakeTab({
   schemaLoading,
   schemaError,
   patch,
-  onFirstEdit,
+  onEditStart,
+  onSaved,
 }: IntakeTabProps) {
-  const [values, setValues] = useState<FieldValueMap>(() => ({ ...request.fields }));
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The record loads read-only so its content can't be changed inadvertently. Editing is a deliberate
+  // whole-tab action: Edit unlocks every control, Save commits one patch, Cancel reverts. This
+  // replaces the previous per-keystroke autosave.
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<FieldValueMap>(() => ({ ...request.fields }));
 
-  // Re-seed only when the record identity changes — NOT on every `request` reference change. A
-  // successful patch re-writes the cached record (same id); depending on request.fields would clobber
-  // in-flight edits. Documented deviation from exhaustive-deps per web-component-architecture.md.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => setValues({ ...request.fields }), [request.id]);
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
-
-  const handleChange = (fieldKey: string, value: unknown) => {
-    onFirstEdit();
-    const next: FieldValueMap = { ...values, [fieldKey]: value };
-    setValues(next);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const payload: RequestPatchRequest = {
-        name: typeof next.name === 'string' ? next.name : request.name,
-        description: typeof next.description === 'string' ? next.description : request.description,
-        fields: next,
-        ifMatch: request.eTag,
-      };
-      patch.mutate(payload);
-    }, SAVE_DEBOUNCE_MS);
-  };
+  // Re-lock and drop any unsaved buffer when the record identity changes — navigating between records
+  // must never carry a stale edit buffer. A successful patch re-writes the cached record (same id), so
+  // this does NOT depend on `request.fields`. Documented deviation from exhaustive-deps per
+  // web-component-architecture.md.
+  useEffect(() => {
+    setIsEditing(false);
+    setDraft({ ...request.fields });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request.id]);
 
   if (schemaLoading) {
     return (
@@ -246,7 +236,10 @@ function IntakeTab({
     );
   }
 
-  const conditions = evaluateFieldConditions(fields, values);
+  // While locked, the read-only view always reflects the latest saved record; the editable buffer is
+  // only in play in edit mode.
+  const displayValues = isEditing ? draft : request.fields;
+  const conditions = evaluateFieldConditions(fields, displayValues);
   const stage = request.stage;
 
   // Escalated records: the crossing fields carry the "⇄ Crossed · locked on PG" marker. They lock
@@ -256,68 +249,129 @@ function IntakeTab({
   const onAiSide = bridge ? request.workspaceId === bridge.aiWorkspaceId : false;
   const crossingKeys = bridge ? new Set(bridge.lockedFields) : null;
 
+  const startEditing = () => {
+    setDraft({ ...request.fields });
+    setIsEditing(true);
+    patch.reset();
+    onEditStart();
+  };
+
+  const cancelEditing = () => {
+    setDraft({ ...request.fields });
+    setIsEditing(false);
+    patch.reset();
+  };
+
+  const handleChange = (fieldKey: string, value: unknown) => {
+    setDraft((prev) => ({ ...prev, [fieldKey]: value }));
+  };
+
+  const saveChanges = () => {
+    const payload: RequestPatchRequest = {
+      name: typeof draft.name === 'string' ? draft.name : request.name,
+      description: typeof draft.description === 'string' ? draft.description : request.description,
+      fields: draft,
+      ifMatch: request.eTag,
+    };
+    patch.mutate(payload, {
+      onSuccess: () => {
+        setIsEditing(false);
+        onSaved();
+      },
+    });
+  };
+
   return (
     <div className="record-intake">
+      <div className="record-intake__actions">
+        {isEditing ? (
+          <>
+            <Button variant="secondary" onClick={cancelEditing} disabled={patch.isPending}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={saveChanges} disabled={patch.isPending}>
+              {patch.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+          </>
+        ) : (
+          <Button variant="secondary" onClick={startEditing}>
+            <PencilSimple size={16} weight="regular" aria-hidden /> Edit fields
+          </Button>
+        )}
+      </div>
+
       {bridge && <EscalatedIntakeNote bridge={bridge} />}
-      {groupFieldsBySection(fields).map((group) => {
-        const visible = group.fields.filter((field) => {
-          if (
-            field.isReadOnly ||
-            field.fieldType === 'Calculation' ||
-            field.fieldType === 'DerivedCategory'
-          )
-            return false;
-          if (conditions.hidden.has(field.fieldKey)) return false;
+      {groupFieldsBySection(fields)
+        .filter((group) => !HIDDEN_INTAKE_SECTIONS.has(group.section))
+        .map((group) => {
+          const visible = group.fields.filter((field) => {
+            if (
+              field.isReadOnly ||
+              field.fieldType === 'Calculation' ||
+              field.fieldType === 'DerivedCategory'
+            )
+              return false;
+            if (conditions.hidden.has(field.fieldKey)) return false;
+            return (
+              field.visibleStages == null || (stage != null && field.visibleStages.includes(stage))
+            );
+          });
+          if (visible.length === 0) return null;
           return (
-            field.visibleStages == null || (stage != null && field.visibleStages.includes(stage))
+            <section
+              key={group.section}
+              className="record-intake__section"
+              aria-label={group.section}
+            >
+              <h2 className="record-intake__heading">{group.section}</h2>
+              <div className="record-intake__grid">
+                {visible.map((field) => {
+                  const crossed = crossingKeys?.has(field.fieldKey) ?? false;
+                  const fullWidth = FULL_WIDTH_FIELD_TYPES.has(field.fieldType);
+                  const wrapperClass = fullWidth
+                    ? 'record-intake__field record-intake__field--full'
+                    : 'record-intake__field';
+                  const control = (
+                    <RequestFieldControl
+                      field={field}
+                      value={displayValues[field.fieldKey]}
+                      onChange={(value) => handleChange(field.fieldKey, value)}
+                      required={conditions.required.has(field.fieldKey)}
+                      disabled={!isEditing || (crossed && !onAiSide)}
+                      suggest={{
+                        workspaceId: request.workspaceId as WorkspaceId,
+                        objectType: 'Request',
+                        recordId: request.id,
+                        siblingValues: draft,
+                      }}
+                    />
+                  );
+                  if (!crossed) {
+                    return (
+                      <div key={field.fieldKey} className={wrapperClass}>
+                        {control}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={field.fieldKey} className={`record-crossed ${wrapperClass}`}>
+                      <span className="record-crossed__marker">
+                        <ArrowsLeftRight size={14} weight="regular" aria-hidden />
+                        Crossed · locked on PG
+                      </span>
+                      {control}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           );
-        });
-        if (visible.length === 0) return null;
-        return (
-          <section
-            key={group.section}
-            className="record-intake__section"
-            aria-label={group.section}
-          >
-            <h2 className="record-intake__heading">{group.section}</h2>
-            <div className="record-intake__grid">
-              {visible.map((field) => {
-                const crossed = crossingKeys?.has(field.fieldKey) ?? false;
-                const control = (
-                  <RequestFieldControl
-                    field={field}
-                    value={values[field.fieldKey]}
-                    onChange={(value) => handleChange(field.fieldKey, value)}
-                    required={conditions.required.has(field.fieldKey)}
-                    disabled={crossed && !onAiSide}
-                    suggest={{
-                      workspaceId: request.workspaceId as WorkspaceId,
-                      objectType: 'Request',
-                      recordId: request.id,
-                      siblingValues: values,
-                    }}
-                  />
-                );
-                if (!crossed) return <div key={field.fieldKey}>{control}</div>;
-                return (
-                  <div key={field.fieldKey} className="record-crossed">
-                    <span className="record-crossed__marker">
-                      <ArrowsLeftRight size={14} weight="regular" aria-hidden />
-                      Crossed · locked on PG
-                    </span>
-                    {control}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
+        })}
 
       <div className="record-intake__readonly">
         <span className="record-intake__ro-label">Priority at escalation</span>
         <span className="record-intake__ro-value record-meta__value--mono">
-          {computePriorityScore(values)}
+          {computePriorityScore(displayValues)}
         </span>
         <span className="record-intake__ro-label">SLA status</span>
         <span className="record-intake__ro-value">
@@ -333,8 +387,8 @@ function IntakeTab({
       </div>
 
       {patch.isError && (
-        <p className="mws-alert mws-alert--warning" role="status">
-          {problemMessage(patch.error, 'Your latest change has not saved yet — it will retry.')}
+        <p className="mws-alert mws-alert--error" role="alert">
+          {problemMessage(patch.error, 'Your changes could not be saved. Try again.')}
         </p>
       )}
     </div>
@@ -642,7 +696,8 @@ export function RecordDetailPage() {
             schemaLoading={schema.isLoading}
             schemaError={schema.isError}
             patch={patch}
-            onFirstEdit={() => setSavedVisible(true)}
+            onEditStart={() => setSavedVisible(false)}
+            onSaved={() => setSavedVisible(true)}
           />
         )}
         {activeTab === 'status' && (
