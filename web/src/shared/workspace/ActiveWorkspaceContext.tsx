@@ -23,6 +23,9 @@ const ActiveWorkspaceContext = createContext<ActiveWorkspaceValue | null>(null);
 function readStoredWorkspaceId(): WorkspaceId | null {
   try {
     const value = localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+    // localStorage returns a raw string; WorkspaceId is a compile-time brand. Safe because
+    // activeWorkspaceId re-validates this against the caller's current memberships below
+    // before it can become active.
     return value ? (value as WorkspaceId) : null;
   } catch {
     return null;

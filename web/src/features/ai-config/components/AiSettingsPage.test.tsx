@@ -15,6 +15,8 @@ jest.mock('../api');
 const mockedApi = api as jest.Mocked<typeof api>;
 
 describe('AiSettingsPage', () => {
+  beforeEach(() => localStorage.clear());
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockedApi.fetchAiConfig.mockResolvedValue({ enabled: false, contentFieldAllowlist: ['Name'] });
