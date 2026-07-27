@@ -38,6 +38,10 @@
 --              comment) — a Global field carrying conditional rules (@DependenciesJson non-empty)
 --              now upserts successfully instead of failing the NOT NULL/FK constraint at INSERT.
 --
+--              Updated 2026-07-26 (SP3b Slice 2b) — symmetric cross-namespace collision guard
+--              (THROW 50011): a platform-owned Global field and a workspace-local field on the same
+--              Global custom object may never share (ObjectType, FieldKey). No-op on built-ins.
+--
 --              JSON params:
 --                @OptionsJson      = [{"value","label","sortOrder"}]
 --                @RulesJson        = [{"action","whenFieldKey","comparator","compareValue","produceValue","sortOrder"}]
@@ -93,6 +97,29 @@ BEGIN
 
         IF @IsPlatformDefined = 1
             THROW 50010, 'This field is platform-defined and is governed centrally (S34); it cannot be edited here.', 1;
+
+        -- SP3b Slice 2b — symmetric cross-namespace collision guard. On a Global custom object the
+        -- CustomRecords.FieldValues JSON is keyed by FieldKey, so a platform-owned Global field
+        -- (WorkspaceId NULL, Location='Global') and a workspace-local field (WorkspaceId=<ws>,
+        -- Location='LocalWorkspace') must never share (ObjectType, FieldKey). No filtered unique
+        -- index can express this (they partition on Location='Global' vs WorkspaceId IS NOT NULL),
+        -- so it is enforced here. Runs AFTER @FieldDefinitionId is resolved so a legitimate re-save
+        -- of the field itself (which matched only its own namespace's row above) never trips its
+        -- opposite-namespace check. Inherently scoped to Global custom objects: WorkspaceId-NULL
+        -- FieldDefinition rows exist only for them (migration 101), so the workspace-side check is a
+        -- no-op on built-ins (whose workspace-authored Global fields are WorkspaceId=<ws>,
+        -- Location='Global', never WorkspaceId NULL — the "Platform-location" feature is unaffected).
+        IF @WorkspaceIdLocal IS NOT NULL
+           AND EXISTS (SELECT 1 FROM dbo.FieldDefinition
+                       WHERE WorkspaceId IS NULL AND Location = N'Global'
+                         AND ObjectType = @ObjectTypeLocal AND FieldKey = @FieldKeyLocal AND IsDeleted = 0)
+            THROW 50011, 'A field with this key already exists on this object as a platform-defined field. Choose a different key.', 1;
+
+        IF @WorkspaceIdLocal IS NULL
+           AND EXISTS (SELECT 1 FROM dbo.FieldDefinition
+                       WHERE WorkspaceId IS NOT NULL
+                         AND ObjectType = @ObjectTypeLocal AND FieldKey = @FieldKeyLocal AND IsDeleted = 0)
+            THROW 50011, 'A field with this key already exists on this object as a workspace field. Choose a different key.', 1;
 
         IF @FieldDefinitionId IS NULL
         BEGIN

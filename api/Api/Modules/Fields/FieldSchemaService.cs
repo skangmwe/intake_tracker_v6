@@ -3,6 +3,8 @@
 // projections; writes go through usp_UpsertFieldDefinition / usp_RetireFieldDefinition. Before
 // persisting a field, the dependency graph is validated acyclic + depth<=3 via the ConditionEngine
 // (§3.1). Every successful config change emits one event on the spine (audit consumer, BS §11.1).
+// SP3b Slice 2b: both upsert paths map usp_UpsertFieldDefinition's THROW 50011 (a Global/local
+// field-key collision on a Global custom object) to a Conflict outcome (→ 409).
 
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -94,6 +96,10 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
 
     private static readonly IReadOnlyDictionary<string, string> FieldTypeToTaskLibraryType =
         TaskLibraryTypeToFieldType.ToDictionary(pair => pair.Value, pair => pair.Key);
+
+    // usp_UpsertFieldDefinition raises this when a platform-owned Global field and a workspace-local
+    // field on the same Global custom object would share (ObjectType, FieldKey) — see SP3b Slice 2b.
+    private const int GlobalLocalKeyCollisionError = 50011;
 
     private readonly AppDbContext _db;
     private readonly IConditionEngine _conditionEngine;
@@ -198,7 +204,17 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
             return new FieldOperationResult(FieldOperationOutcome.ValidationFailed, Errors: validationErrors);
         }
 
-        await ExecuteUpsertAsync(workspaceId, request, dependencies, actorUserId, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await ExecuteUpsertAsync(workspaceId, request, dependencies, actorUserId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (SqlException ex) when (ex.Number == GlobalLocalKeyCollisionError)
+        {
+            // A platform-owned Global field with this key was created between the union pre-check
+            // above and this write (concurrency race) — surface it as a Conflict, not a 500.
+            return new FieldOperationResult(FieldOperationOutcome.Conflict);
+        }
+
         await EmitAsync(workspaceId, isCreate ? "field.created" : "field.updated", fieldKey, objectType, actorUserId, operationId, cancellationToken).ConfigureAwait(false);
 
         var refreshed = await ReadFieldsAsync(workspaceId, objectType, cancellationToken).ConfigureAwait(false);
@@ -301,7 +317,16 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
         if (validationErrors.Count > 0)
             return new FieldOperationResult(FieldOperationOutcome.ValidationFailed, Errors: validationErrors);
 
-        await ExecuteUpsertAsync(null, request, dependencies, actorUserId, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await ExecuteUpsertAsync(null, request, dependencies, actorUserId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (SqlException ex) when (ex.Number == GlobalLocalKeyCollisionError)
+        {
+            // A workspace already uses this key locally on this Global object — reject the platform
+            // field as a Conflict (there is no cross-namespace pre-check on this path).
+            return new FieldOperationResult(FieldOperationOutcome.Conflict);
+        }
 
         var refreshed = await ReadFieldsAsync(Guid.Empty, objectKey, cancellationToken).ConfigureAwait(false);
         var saved = refreshed.First(field => field.FieldKey == fieldKey);

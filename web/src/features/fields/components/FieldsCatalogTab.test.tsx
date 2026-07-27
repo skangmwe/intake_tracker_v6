@@ -114,6 +114,35 @@ describe('FieldsCatalogTab', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('FieldsCatalogTab — a Global custom object is offered as a New-field target', async () => {
+    // Arrange — a platform-owned Global custom object is inherited into the workspace.
+    mockedUseWorkspaceObjects.mockReturnValue({
+      data: [
+        buildObjectDefinition({
+          objectKey: 'vendorReview',
+          name: 'Vendor Review',
+          isSystem: false,
+          location: 'Global',
+        }),
+      ],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useWorkspaceObjects>);
+    const user = userEvent.setup();
+    const { container } = renderWithProviders(<FieldsCatalogTab workspaceId={WS} />);
+    await screen.findByRole('table');
+
+    // Act — open the create editor.
+    await user.click(screen.getByRole('button', { name: /new field/i }));
+
+    // Assert — the Global object appears as a selectable field target (a workspace admin can add a
+    // LocalWorkspace field to it); the editor is accessible.
+    const dialog = await screen.findByRole('dialog', { name: 'Add field' });
+    expect(await screen.findByRole('option', { name: 'Vendor Review' })).toBeInTheDocument();
+    expect(dialog).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it('FieldsCatalogTab — clicking a system row opens the unified read-only sheet', async () => {
     const user = userEvent.setup();
     const { container } = renderWithProviders(<FieldsCatalogTab workspaceId={WS} />);
