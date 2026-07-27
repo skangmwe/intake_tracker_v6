@@ -113,4 +113,33 @@ public sealed class WorkspacesControllerTests
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             Build(service, isPlatformAdmin: true).ProvisionWorkspace(Request(), cts.Token));
     }
+
+    [Fact]
+    public async Task ListWorkspaces_NotAdmin_Returns403()
+    {
+        var service = new Mock<IWorkspaceProvisioningService>();
+
+        var result = await Build(service, isPlatformAdmin: false).ListWorkspaces(CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        service.Verify(candidate => candidate.ListAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ListWorkspaces_Admin_ReturnsRows()
+    {
+        var service = new Mock<IWorkspaceProvisioningService>();
+        var rows = new List<WorkspaceListRow>
+        {
+            new(Guid.NewGuid(), "Litigation", "pg-dept", "LIT", "Grace Lin", 64,
+                new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), false),
+        };
+        service.Setup(candidate => candidate.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(rows);
+
+        var result = await Build(service, isPlatformAdmin: true).ListWorkspaces(CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(rows, ok.Value);
+    }
 }

@@ -30,3 +30,14 @@ public sealed class WorkspaceProvisionRequest
 
 /// <summary>The provisioned workspace summary (mirrors WorkspaceProvisionResult).</summary>
 public sealed record WorkspaceProvisionResponse(Guid Id, string Name, string Kind, string Prefix);
+
+/// <summary>One row of the Platform → Workspaces list (mirrors WorkspaceListRow in shared/types).</summary>
+public sealed record WorkspaceListRow(
+    Guid Id,
+    string Name,
+    string Kind,
+    string Prefix,
+    string? OwnerDisplayName,
+    int MemberCount,
+    DateTime ProvisionedAt,
+    bool IsArchived);

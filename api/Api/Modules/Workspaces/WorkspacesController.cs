@@ -52,6 +52,21 @@ public sealed class WorkspacesController : ControllerBase
         };
     }
 
+    /// <summary>The rich Platform → Workspaces list (Platform admin only).</summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<WorkspaceListRow>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ListWorkspaces(CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.IsPlatformAdminAsync(_currentUser.UserId, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var rows = await _provisioning.ListAsync(cancellationToken);
+        return Ok(rows);
+    }
+
     private string OperationId() =>
         HttpContext.Items.TryGetValue(OperationIdMiddleware.HeaderName, out var value) && value is string operationId
             ? operationId
