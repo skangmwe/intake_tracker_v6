@@ -1,6 +1,7 @@
-// Model-validation tests for SavedViewUpsertRequest.ObjectType (Slice A / Task A6). The regex was
-// widened to admit a custom object slug alongside the four named built-ins, so per-object saved views
-// work for custom objects. Validity of the slug itself is app-enforced, not checked here.
+// Model-validation tests for SavedViewUpsertRequest.ObjectType. The enumerating regex was dropped in
+// favour of [MaxLength(64)] (mirroring FieldDefinitionUpsertRequest.ObjectType): the ObjectKey slug
+// generator can emit apostrophes/punctuation (e.g. "O'Brien Vendors" -> "o'brien-vendors") that a
+// charset regex would wrongly reject, so only length is bounded here — validity is app-enforced.
 
 using System.ComponentModel.DataAnnotations;
 using McDermott.AiTracker.Api.Modules.SavedViews;
@@ -50,10 +51,20 @@ public sealed class SavedViewUpsertValidationTests
     }
 
     [Fact]
-    public void ObjectType_MalformedSlug_IsInvalid()
+    public void ObjectType_PunctuationSlug_IsValid()
     {
-        // Upper-case / spaces / punctuation are not a valid slug and not a named built-in.
-        var results = Validate(Request("Bad Slug!"));
+        // The ObjectKey generator keeps apostrophes/punctuation (only whitespace/_/&/ become '-'), so a
+        // slug like "o'brien-vendors" is legitimate. The old enumerating regex 400'd it — the fix accepts it.
+        var results = Validate(Request("o'brien-vendors"));
+
+        Assert.DoesNotContain(results, result => result.MemberNames.Contains(nameof(SavedViewUpsertRequest.ObjectType)));
+    }
+
+    [Fact]
+    public void ObjectType_TooLong_IsInvalid()
+    {
+        // Length is still bounded to the SavedView.ObjectType column width (64).
+        var results = Validate(Request(new string('a', 65)));
 
         Assert.Contains(results, result => result.MemberNames.Contains(nameof(SavedViewUpsertRequest.ObjectType)));
     }

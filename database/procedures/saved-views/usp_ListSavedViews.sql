@@ -6,10 +6,14 @@
 --              is verified API-side before this runs; the personal/shared visibility rule is the
 --              access boundary applied here. Scoped by (workspace, object type) so a Request view
 --              never appears on the Features picker. Ordered by name for a stable picker.
+--
+--              Updated 2026-07-27 — @ObjectType widened NVARCHAR(16) -> NVARCHAR(64) to match the
+--              SavedView.ObjectType column (migration 086) so a custom slug > 16 chars matches its
+--              rows instead of silently truncating the filter to 16 chars (matching nothing / wrong rows).
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_ListSavedViews
     @WorkspaceId UNIQUEIDENTIFIER,
-    @ObjectType  NVARCHAR(16),
+    @ObjectType  NVARCHAR(64),
     @UserId      UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -17,7 +21,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @Ws      UNIQUEIDENTIFIER = @WorkspaceId;
-    DECLARE @ObjType NVARCHAR(16)     = @ObjectType;
+    DECLARE @ObjType NVARCHAR(64)     = @ObjectType;
     DECLARE @User    UNIQUEIDENTIFIER = @UserId;
 
     SELECT

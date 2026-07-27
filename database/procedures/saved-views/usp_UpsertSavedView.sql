@@ -8,11 +8,15 @@
 --              on the SAME surface (OwnerUserId + WorkspaceId + ObjectType) is cleared so exactly
 --              one default stands per user per list surface. Returns the id via OUTPUT.
 --              Columns / Filters / Sort are opaque JSON validated by the table CHECK constraints.
+--
+--              Updated 2026-07-27 — @ObjectType widened NVARCHAR(16) -> NVARCHAR(64) to match the
+--              SavedView.ObjectType column (widened by migration 086) so a per-object custom slug
+--              longer than 16 chars is stored/matched without silent truncation.
 -- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_UpsertSavedView
     @SavedViewId   UNIQUEIDENTIFIER = NULL,
     @WorkspaceId   UNIQUEIDENTIFIER,
-    @ObjectType    NVARCHAR(16),
+    @ObjectType    NVARCHAR(64),
     @Name          NVARCHAR(200),
     @Scope         NVARCHAR(16),
     @OwnerUserId   UNIQUEIDENTIFIER,
@@ -29,7 +33,7 @@ BEGIN
 
     DECLARE @IdLocal   UNIQUEIDENTIFIER = @SavedViewId;
     DECLARE @Ws        UNIQUEIDENTIFIER = @WorkspaceId;
-    DECLARE @ObjType   NVARCHAR(16)     = @ObjectType;
+    DECLARE @ObjType   NVARCHAR(64)     = @ObjectType;
     DECLARE @NameLocal NVARCHAR(200)    = @Name;
     DECLARE @ScopeLoc  NVARCHAR(16)     = @Scope;
     DECLARE @Owner     UNIQUEIDENTIFIER = @OwnerUserId;
