@@ -114,7 +114,7 @@ export function App() {
                   <Route path="audit" element={<WorkspaceAuditPage />} />
                 </Route>
                 <Route path="/platform" element={<PlatformLayout />}>
-                  <Route index element={<Navigate to="fields" replace />} />
+                  <Route index element={<Navigate to="access" replace />} />
                   <Route path="fields" element={<PlatformFieldsPage />} />
                   <Route path="crossing-map" element={<CrossingMapPage />} />
                   <Route path="access" element={<AccessPage />} />
