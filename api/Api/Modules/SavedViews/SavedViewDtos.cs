@@ -31,11 +31,15 @@ public sealed record SavedViewResponse(
 /// <summary>POST /workspaces/{id}/saved-views or PATCH /saved-views/{id} (mirrors SavedViewUpsertRequest).</summary>
 public sealed class SavedViewUpsertRequest
 {
-    // The four named built-ins, or a custom object slug (lowercase, matching ObjectDefinition.ObjectKey)
-    // so per-object saved views work for custom objects. Validity of a slug is app-enforced, not checked
-    // here — a stray saved view is inert and never widens access (BS §22.4).
+    // The four named built-ins, or a custom object slug (matching ObjectDefinition.ObjectKey) so
+    // per-object saved views work for custom objects. Only length is bounded here (MaxLength 64 —
+    // matching the SavedView.ObjectType column and FieldDefinitionUpsertRequest.ObjectType). The slug
+    // charset is deliberately NOT enumerated: the ObjectKey generator can emit apostrophes/punctuation
+    // (e.g. "O'Brien Vendors" -> "o'brien-vendors"), which an enumerating regex would wrongly 400.
+    // Validity of a slug is app-enforced, not model-checked — a stray saved view is inert and never
+    // widens access (BS §22.4).
     [Required]
-    [RegularExpression("^(Request|Feature|Task|Announcement|[a-z0-9][a-z0-9-]{0,63})$")]
+    [MaxLength(64)]
     public string? ObjectType { get; set; }
 
     [Required]

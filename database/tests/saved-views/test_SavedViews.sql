@@ -119,3 +119,43 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Flag;
 END;
 GO
+
+CREATE PROCEDURE SavedViewTests.[test_UpsertAndListPreserveLongCustomObjectSlug]
+AS
+BEGIN
+    -- A custom object slug can exceed 16 chars. Before the proc widths were widened 16->64, the upsert
+    -- silently truncated @ObjectType to 16 at the parameter boundary (storing 'quarterly-vendor'), and
+    -- the list filter likewise truncated. Prove the FULL slug survives the write, and round-trips
+    -- through the list filter.
+    -- Arrange
+    EXEC tSQLt.FakeTable @TableName = 'dbo.SavedView', @Defaults = 1;
+    DECLARE @Slug NVARCHAR(64) = N'quarterly-vendor-reviews';  -- 24 chars, > 16
+    DECLARE @Out UNIQUEIDENTIFIER;
+
+    -- Act — create a view on the long-slug surface.
+    EXEC dbo.usp_UpsertSavedView
+        @SavedViewId = NULL, @WorkspaceId = '1A150000-0000-4000-8000-000000000001',
+        @ObjectType = @Slug, @Name = N'Q reviews', @Scope = N'personal',
+        @OwnerUserId = '00000000-0000-4000-8000-0000000000aa', @IsDefault = 0,
+        @ColumnsJson = N'[]', @FiltersJson = N'{}', @SortJson = N'[]',
+        @ActorUserId = N'aa', @OutSavedViewId = @Out OUTPUT;
+
+    -- Assert (write) — the stored ObjectType is the FULL slug, not truncated to 16.
+    DECLARE @Stored NVARCHAR(64) = (SELECT ObjectType FROM dbo.SavedView WHERE SavedViewId = @Out);
+    EXEC tSQLt.AssertEqualsString @Expected = N'quarterly-vendor-reviews', @Actual = @Stored;
+
+    -- Act (read) — list the long-slug surface. #Rows.ObjectType is 64 so the test can't itself truncate.
+    CREATE TABLE #Rows (SavedViewId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, ObjectType NVARCHAR(64),
+        Name NVARCHAR(200), Scope NVARCHAR(16), OwnerUserId UNIQUEIDENTIFIER, IsDefault BIT,
+        ColumnsJson NVARCHAR(MAX), FiltersJson NVARCHAR(MAX), SortJson NVARCHAR(MAX),
+        CreatedBy NVARCHAR(256), CreatedAt DATETIME2, UpdatedAt DATETIME2);
+    INSERT INTO #Rows
+    EXEC dbo.usp_ListSavedViews
+        @WorkspaceId = '1A150000-0000-4000-8000-000000000001', @ObjectType = @Slug,
+        @UserId = '00000000-0000-4000-8000-0000000000aa';
+
+    -- Assert (read) — the view is found by the full slug (the list @ObjectType matched all 24 chars).
+    DECLARE @Found SQL_VARIANT = (SELECT COUNT(*) FROM #Rows WHERE ObjectType = @Slug AND Name = N'Q reviews');
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Found;
+END;
+GO
