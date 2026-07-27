@@ -2,14 +2,9 @@
 .wsl-header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-4);
   margin-bottom: var(--space-5);
-}
-.wsl-header__lead {
-  color: var(--text-secondary);
-  max-width: 60ch;
-  margin-top: var(--space-2);
 }
 .wsl-header__action {
   flex-shrink: 0;

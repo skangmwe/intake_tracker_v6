@@ -80,12 +80,6 @@ export function WorkspacesListPage() {
   return (
     <PlatformGate>
       <div className="wsl-header">
-        <div>
-          <p className="wsl-header__lead body">
-            Every practice group or department gets its own workspace, provisioned from a base
-            template. The hub workspace aggregates records across all of them.
-          </p>
-        </div>
         <Link to="/platform/workspaces/new" className="mws-btn mws-btn--primary wsl-header__action" data-ds="btn">
           <Plus size={18} weight="regular" aria-hidden /> New workspace
         </Link>
