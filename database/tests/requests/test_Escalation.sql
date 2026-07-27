@@ -221,6 +221,35 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE EscalationTests.[test_GetBridgeEmptyForNativeAiRecord]
+AS
+BEGIN
+    -- Arrange — a NATIVE ai-solutions request: it lives ONLY in the AI Solutions workspace and was
+    -- never escalated from anywhere, so there is no PG-side row. The caller is a member of the AI
+    -- workspace (its own side). Regression guard for the false-escalation bug: the proc used to gate
+    -- only on (@CallerWs, @AiWs) and would emit ONE row with a NULL OriginWorkspaceId, which the
+    -- non-nullable BridgeRow.OriginWorkspaceId read threw on (GetById → 500). It must emit ZERO rows.
+    INSERT INTO dbo.Requests (RecordId, WorkspaceId, LifecycleId, Origin, Name, Description, Stage, FieldValues, IsDeleted, CreatedBy, UpdatedBy)
+    VALUES (N'AIS-00000009', 'A1150000-0000-4000-8000-000000000001', 'C1000000-0000-4000-8000-000000000003',
+            N'AI Solutions', N'Native AI request', N'Built here, never escalated.', N'intake',
+            N'{"requestor":"user-1"}', 0, N'seed', N'seed');
+
+    INSERT INTO dbo.WorkspaceMembership (WorkspaceId, UserId, Level, IsDeleted)
+    VALUES ('A1150000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000aa', N'Member', 0);
+
+    -- Act
+    CREATE TABLE #Bridge (
+        RecordId NVARCHAR(20), OriginWorkspaceId UNIQUEIDENTIFIER, OriginWorkspaceName NVARCHAR(200),
+        AiWorkspaceId UNIQUEIDENTIFIER, EscalatedAt DATETIME2, AiStage NVARCHAR(64), AiFieldValues NVARCHAR(MAX),
+        CallerWorkspaceId UNIQUEIDENTIFIER, CallerOnAiSide BIT, LockedFieldKeysJson NVARCHAR(MAX));
+    INSERT INTO #Bridge
+    EXEC dbo.usp_GetBridgeForRecord @RecordId = N'AIS-00000009', @UserId = '00000000-0000-4000-8000-0000000000aa';
+
+    -- Assert — a native AI request has no cross-workspace bridge to surface.
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = (SELECT COUNT(*) FROM #Bridge);
+END;
+GO
+
 CREATE PROCEDURE EscalationTests.[test_EscalateCarriesAttachmentsToAiSide]
 AS
 BEGIN
