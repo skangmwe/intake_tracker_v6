@@ -5,10 +5,39 @@
 import { FIELD_TYPE_OPTIONS } from './constants';
 import { buildFieldDefinition } from '@/test-utils';
 
-import { buildInitialForm, buildFormFromCatalogRow, formToRequest, type FieldForm } from './fieldForm';
+import {
+  buildInitialForm,
+  buildFormFromCatalogRow,
+  deriveFieldKey,
+  formToRequest,
+  type FieldForm,
+} from './fieldForm';
 import type { FieldCatalogRowDto } from '@shared/types';
 
 const TYPES = FIELD_TYPE_OPTIONS;
+
+describe('deriveFieldKey', () => {
+  it('deriveFieldKey — multi-word name — camelCases the words', () => {
+    // Arrange / Act / Assert
+    expect(deriveFieldKey('Client contact')).toBe('clientContact');
+  });
+
+  it('deriveFieldKey — punctuation and extra spaces — split cleanly', () => {
+    // Arrange / Act / Assert
+    expect(deriveFieldKey('  Business value / effort  ')).toBe('businessValueEffort');
+  });
+
+  it('deriveFieldKey — leading digits — dropped so the key starts with a letter', () => {
+    // Arrange / Act / Assert
+    expect(deriveFieldKey('3rd party name')).toBe('rdPartyName');
+  });
+
+  it('deriveFieldKey — empty or symbol-only input — returns an empty string', () => {
+    // Arrange / Act / Assert
+    expect(deriveFieldKey('   ')).toBe('');
+    expect(deriveFieldKey('!!!')).toBe('');
+  });
+});
 
 function baseForm(overrides: Partial<FieldForm> = {}): FieldForm {
   return {

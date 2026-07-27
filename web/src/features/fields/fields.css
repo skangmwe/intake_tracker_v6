@@ -141,11 +141,86 @@
   align-items: center;
 }
 
-.fields-rule-row {
+/* Conditional-rule card — each rule is a bordered card with vertically stacked controls. */
+.fields-rule-card {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.fields-rule-card__value {
+  display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.fields-rule-card__value--empty {
+  justify-content: flex-end;
+}
+
+.fields-rule-card__value .mws-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Full-width "Add rule" button below the rule cards. */
+.fields-rule-add {
+  display: flex;
+}
+
+.fields-rule-add .mws-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Optional / helper text under a label, and inline "(optional)" markers. */
+.fields-optional {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+/* Auto-generated, read-only field key — a subtle filled box rather than a faded disabled input. */
+.fields-key-input:disabled {
+  opacity: 1;
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+/* Required row — label + helper on the left, switch on the right. */
+.fields-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.fields-toggle-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Bordered grouping fieldset (Visible on stages, Conditional rules). */
+.fields-fieldset {
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.fields-fieldset__legend {
+  padding: 0 var(--space-1);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .fields-sheet__footer-spacer {

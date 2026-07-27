@@ -18,6 +18,8 @@ interface FieldEditorFooterProps {
   onRequestDelete?: (() => void) | undefined;
   confirmingDelete?: boolean | undefined;
   isSaving: boolean;
+  /** Disable Save independent of the saving spinner — e.g. no display name yet. */
+  disableSubmit?: boolean;
   onClose: () => void;
 }
 
@@ -29,6 +31,7 @@ export function FieldEditorFooter({
   onRequestDelete,
   confirmingDelete = false,
   isSaving,
+  disableSubmit = false,
   onClose,
 }: FieldEditorFooterProps) {
   if (readOnly) {
@@ -58,7 +61,7 @@ export function FieldEditorFooter({
       <Button variant="secondary" onClick={onClose}>
         Cancel
       </Button>
-      <Button type="submit" disabled={isSaving}>
+      <Button type="submit" disabled={isSaving || disableSubmit}>
         {isSaving ? 'Saving…' : 'Save field'}
       </Button>
     </footer>

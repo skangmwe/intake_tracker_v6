@@ -204,7 +204,7 @@ describe('PlatformFieldsCatalogTab', () => {
 
     // Assert — Object is fixed (no select), no Location control, and it's labelled "Vendor". Scope
     // to the dialog — the toolbar's own object picker also renders the text "Vendor" as an option.
-    const dialog = await screen.findByRole('dialog', { name: 'Add field' });
+    const dialog = await screen.findByRole('dialog', { name: 'New field' });
     expect(within(dialog).queryByLabelText('Object')).not.toBeInTheDocument();
     expect(within(dialog).queryByLabelText('Location')).not.toBeInTheDocument();
     expect(within(dialog).getByText('Vendor')).toBeInTheDocument();
@@ -223,8 +223,8 @@ describe('PlatformFieldsCatalogTab', () => {
     // Act
     await user.selectOptions(screen.getByLabelText(/global object for new field/i), 'vendor');
     await user.click(screen.getByRole('button', { name: /new field/i }));
+    // The field key is derived from the display name ("Region" → "region") and is read-only.
     await user.type(await screen.findByLabelText('Display name'), 'Region');
-    await user.type(screen.getByLabelText('Field key'), 'region');
     await user.click(screen.getByRole('button', { name: 'Save field' }));
 
     // Assert

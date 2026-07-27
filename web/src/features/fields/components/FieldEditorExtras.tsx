@@ -76,9 +76,9 @@ export function FieldEditorExtras({ form, onPatch, disabled = false }: FieldEdit
         </label>
       )}
 
-      <fieldset className="mws-field">
-        <legend className="caption">Visible on stages</legend>
-        <p className="caption">Leave all unchecked to show on every stage.</p>
+      <fieldset className="mws-field fields-fieldset">
+        <legend className="fields-fieldset__legend">Visible on stages</legend>
+        <p className="fields-optional">Leave all unchecked to show on every stage.</p>
         <div className="fields-stage-grid">
           {STAGE_KEYS.map((stage) => (
             <label key={stage} className="mws-check">
@@ -94,6 +94,7 @@ export function FieldEditorExtras({ form, onPatch, disabled = false }: FieldEdit
                   })
                 }
               />
+              <span className="mws-check__box" aria-hidden="true" />
               <span className="caption">{stage}</span>
             </label>
           ))}

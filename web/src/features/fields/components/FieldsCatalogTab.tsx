@@ -20,7 +20,7 @@ import {
   isFilterActive,
   selectCatalogView,
 } from '../fieldCatalogView';
-import { buildFormFromCatalogRow } from '../fieldForm';
+import { buildFormFromCatalogRow, type FieldKeyOption } from '../fieldForm';
 import { useFieldCatalog, useRetireField, useSaveField } from '../useFields';
 import { FieldCatalogTable } from './FieldCatalogTable';
 import { FieldEditLoader } from './FieldEditLoader';
@@ -48,9 +48,9 @@ export function FieldsCatalogTab({ workspaceId }: { workspaceId: WorkspaceId }) 
   const view = useMemo(() => selectCatalogView(allRows, sort, filters), [allRows, sort, filters]);
 
   const availableKeysByObject = useMemo(() => {
-    const map: Partial<Record<FieldObjectType, string[]>> = {};
+    const map: Partial<Record<FieldObjectType, FieldKeyOption[]>> = {};
     for (const row of allRows) {
-      (map[row.objectType] ??= []).push(row.fieldKey);
+      (map[row.objectType] ??= []).push({ key: row.fieldKey, label: row.displayName });
     }
     return map;
   }, [allRows]);
