@@ -15,7 +15,12 @@ import {
   DEFAULT_SIDEBAR_CATEGORY,
   LOCATION_OPTIONS,
   NEW_CATEGORY_VALUE,
+  WORKSPACE_ONLY_LOCATION,
 } from '../constants';
+
+// A workspace can only ever author LOCAL objects — "Global" means platform-owned and is created
+// only via the Platform schema surface. The editable path below never shows a Location control;
+// it always saves WORKSPACE_ONLY_LOCATION.
 
 // A platform-owned Global custom object has no owning workspace, so it surfaces in every workspace
 // with WorkspaceId = Guid.Empty (set by the API's MapCustom only for NULL-workspace rows). That empty
@@ -48,7 +53,7 @@ function initialDraft(object: ObjectDefinitionDto | null): ObjectFormValue {
     return {
       name: '',
       pluralLabel: '',
-      location: 'LocalWorkspace',
+      location: WORKSPACE_ONLY_LOCATION,
       description: '',
       showInSidebar: true,
       sidebarCategory: DEFAULT_SIDEBAR_CATEGORY,
@@ -123,7 +128,15 @@ export function ObjectEditorSheet({
     const resolvedCategory = isNewCategory
       ? newCategory.trim() || DEFAULT_SIDEBAR_CATEGORY
       : draft.sidebarCategory;
-    onSave({ ...draft, name: draft.name.trim(), sidebarCategory: resolvedCategory });
+    // Defense-in-depth: the editable path never offers a Location control (see below), but always
+    // send the one workspace-creatable value regardless of whatever `draft.location` holds — only
+    // platform admins can author Global objects.
+    onSave({
+      ...draft,
+      name: draft.name.trim(),
+      location: WORKSPACE_ONLY_LOCATION,
+      sidebarCategory: resolvedCategory,
+    });
   };
 
   const navHint = readOnly
@@ -175,33 +188,44 @@ export function ObjectEditorSheet({
           />
         </label>
 
-        <div className="fields-inline-pair">
+        {readOnly ? (
+          // Read-only path (built-in or a foreign platform-owned Global object): show the real
+          // Location so a Global object still displays and labels as "Global" here.
+          <div className="fields-inline-pair">
+            <label className="mws-field">
+              <span className="caption">Plural label</span>
+              <input
+                className="mws-input"
+                value={draft.pluralLabel}
+                disabled
+                placeholder="e.g. Vendors"
+              />
+            </label>
+            <label className="mws-field">
+              <span className="caption">Location</span>
+              <select className="mws-select" value={draft.location} disabled>
+                {LOCATION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : (
+          // Editable path: a workspace can only ever author a LocalWorkspace object, so there is
+          // nothing to choose — omit the Location control entirely rather than show a one-option
+          // dropdown. The saved value is hard-set to WORKSPACE_ONLY_LOCATION in `submit` above.
           <label className="mws-field">
             <span className="caption">Plural label</span>
             <input
               className="mws-input"
               value={draft.pluralLabel}
-              disabled={readOnly}
               placeholder="e.g. Vendors"
               onChange={(event) => patch({ pluralLabel: event.target.value })}
             />
           </label>
-          <label className="mws-field">
-            <span className="caption">Location</span>
-            <select
-              className="mws-select"
-              value={draft.location}
-              disabled={readOnly}
-              onChange={(event) => patch({ location: event.target.value as ObjectLocation })}
-            >
-              {LOCATION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        )}
 
         <label className="mws-field">
           <span className="caption">Description</span>

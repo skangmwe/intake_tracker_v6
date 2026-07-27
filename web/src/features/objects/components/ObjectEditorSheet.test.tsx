@@ -111,6 +111,51 @@ describe('ObjectEditorSheet', () => {
     expect(banner).toHaveTextContent('edited here');
   });
 
+  it('ObjectEditorSheet — create mode — offers no Location control (workspaces can only create local objects)', () => {
+    // Arrange / Act — a workspace can only ever author LocalWorkspace objects, so the editable
+    // path omits the Location control entirely rather than offer a one-option (or worse,
+    // Global-including) dropdown.
+    renderSheet();
+
+    // Assert
+    expect(screen.queryByLabelText('Location')).not.toBeInTheDocument();
+    expect(screen.queryByText('Global')).not.toBeInTheDocument();
+  });
+
+  it('ObjectEditorSheet — own mislabelled-Global object — editable path still offers no Location control', () => {
+    // Arrange / Act — a workspace's own object mislabelled Location='Global' (the pre-fix defect
+    // state) is still editable (owner, not Guid.Empty) but the editor never lets the workspace
+    // choose Global — the editable path has no Location control at all.
+    renderSheet({
+      object: buildObjectDefinition({
+        name: 'Vendor',
+        location: 'Global',
+        isSystem: false,
+        workspaceId: 'ws-1',
+      }),
+    });
+
+    // Assert
+    expect(screen.queryByLabelText('Location')).not.toBeInTheDocument();
+  });
+
+  it('ObjectEditorSheet — foreign Global custom object — the read-only Location control still shows Global', () => {
+    // Arrange / Act
+    renderSheet({
+      object: buildObjectDefinition({
+        name: 'Vendor',
+        location: 'Global',
+        isSystem: false,
+        workspaceId: '00000000-0000-0000-0000-000000000000',
+      }),
+    });
+
+    // Assert — the read-only path still shows the real Location, disabled, labelled "Global".
+    const locationSelect = screen.getByLabelText('Location');
+    expect(locationSelect).toBeDisabled();
+    expect(locationSelect).toHaveValue('Global');
+  });
+
   it('ObjectEditorSheet — foreign Global custom object — is read-only with a firm-wide lock and no Save/Delete', () => {
     // Arrange / Act — a platform-owned Global custom object surfaces here with location Global,
     // isSystem false, workspaceId Guid.Empty (not owned by this workspace).
