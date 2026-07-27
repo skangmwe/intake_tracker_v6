@@ -86,6 +86,10 @@ BEGIN
         ISNULL(@LockedJson, N'[]')  AS LockedFieldKeysJson
     -- Zero rows (but the full column shape) when the caller is not a member of any side, or the
     -- record is not escalated — replaces the two early RETURNs above (see the note there).
-    WHERE @CallerWs IS NOT NULL AND @AiWs IS NOT NULL;
+    -- Escalation requires BOTH sides sharing the RecordId (an AI-side row AND a distinct PG-side
+    -- row): a NATIVE ai-solutions request has an AI-side row but no PG side, so @PgWs is NULL and
+    -- it must NOT surface a bridge block (OriginWorkspaceId would be NULL and the non-nullable
+    -- BridgeRow.OriginWorkspaceId read throws). Gate on @PgWs too, matching this proc's header.
+    WHERE @CallerWs IS NOT NULL AND @AiWs IS NOT NULL AND @PgWs IS NOT NULL;
 END;
 GO
