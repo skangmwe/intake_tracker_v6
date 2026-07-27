@@ -658,6 +658,61 @@ BEGIN
 END;
 GO
 
+CREATE PROCEDURE CustomRecordsTests.[test_Create_AgainstGlobalObject_WithGlobalField_QueryFiltersByFieldValue]
+AS
+BEGIN
+    -- Arrange — end-to-end record verification for SP3b Slice 2a Task 7's Step 2: a Global OBJECT
+    -- (WorkspaceId NULL, Location='Global') carrying a Global FIELD (WorkspaceId NULL,
+    -- Location='Global') on its own slug. A workspace creates a record against the Global object
+    -- (usp_CreateCustomRecord, proven separately by test_Create_AgainstGlobalObject_InsertsWith-
+    -- CallerWorkspace to insert under the CALLER's workspace) storing a value for the Global field,
+    -- and usp_QueryCustomRecords's ownership-keyed whitelist (Task 2) filters/sorts by it.
+    DECLARE @Ws  UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000001';
+    DECLARE @Obj UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-0000000000D2';
+
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Obj, NULL, N'firm-policy', N'Firm Policy', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    INSERT INTO dbo.FieldDefinition (WorkspaceId, ObjectType, FieldKey, FieldType, Location, IsDeleted, IsRetired)
+    VALUES (NULL, N'firm-policy', N'policyArea', N'ShortText', N'Global', 0, 0);
+
+    DECLARE @Id1 UNIQUEIDENTIFIER;
+    DECLARE @Id2 UNIQUEIDENTIFIER;
+
+    -- Act — create two records against the Global object, each carrying a value for the Global field.
+    EXEC dbo.usp_CreateCustomRecord
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Name = N'Retention Policy',
+        @FieldValuesJson = N'{"policyArea":"Compliance"}', @ActorUserId = N'u1', @RecordId = @Id1 OUTPUT;
+    EXEC dbo.usp_CreateCustomRecord
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Name = N'Travel Policy',
+        @FieldValuesJson = N'{"policyArea":"Operations"}', @ActorUserId = N'u1', @RecordId = @Id2 OUTPUT;
+
+    -- Assert — both records exist, scoped to the caller's workspace, against the Global object.
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = (
+        SELECT COUNT(*) FROM dbo.CustomRecords
+        WHERE WorkspaceId = @Ws AND ObjectDefinitionId = @Obj AND IsDeleted = 0);
+
+    -- Assert — filtering by the Global field's value narrows to the matching record only.
+    DECLARE @Act TABLE (RecordId UNIQUEIDENTIFIER, Name NVARCHAR(400), FieldValues NVARCHAR(MAX), RowVer VARBINARY(8), TotalCount INT);
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"policyArea":{"type":"text","contains":"Compliance"}}';
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM @Act);
+    EXEC tSQLt.AssertEqualsString @Expected = N'Retention Policy', @Actual = (SELECT TOP 1 Name FROM @Act);
+
+    -- Assert — sorting by the Global field orders both records by its value (desc: Operations, Compliance).
+    CREATE TABLE #act (Ord INT IDENTITY(1,1), RecordId UNIQUEIDENTIFIER, Name NVARCHAR(400), FieldValues NVARCHAR(MAX), RowVer VARBINARY(8), TotalCount INT);
+    INSERT INTO #act (RecordId, Name, FieldValues, RowVer, TotalCount) EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @SortColumn = N'policyArea', @SortDir = N'desc';
+    EXEC tSQLt.AssertEqualsString @Expected = N'Travel Policy', @Actual = (SELECT Name FROM #act WHERE Ord = 1);
+    EXEC tSQLt.AssertEqualsString @Expected = N'Retention Policy', @Actual = (SELECT Name FROM #act WHERE Ord = 2);
+END;
+GO
+
 CREATE PROCEDURE CustomRecordsTests.[test_Query_TextFilter_EscapesLikeWildcards]
 AS
 BEGIN

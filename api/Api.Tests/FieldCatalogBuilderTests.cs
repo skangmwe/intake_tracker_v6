@@ -206,6 +206,26 @@ public sealed class FieldCatalogBuilderTests
         Assert.Equal("User", row.Source);
     }
 
+    [Fact]
+    public void BuildCatalogRows_GlobalCustomObjectPlatformOwnedField_IsReadOnly()
+    {
+        // A Global custom object's platform-owned field (usp_GetWorkspaceFieldCatalog now surfaces
+        // it with IsLocal = 0, SP3b Slice 2a Task 7) renders under the object, foreign-Global /
+        // read-only — the same generic IsLocal-driven contract as a foreign workspace's Global
+        // field, just for a platform-owned (WorkspaceId IS NULL) row on a custom-object slug.
+        var rows = FieldSchemaService.BuildCatalogRows(
+            new[] { Stored("vendor", "firmTag", location: "Global", isLocal: false) },
+            Array.Empty<CatalogFieldSpec>(),
+            new[] { ("vendor", "Vendor") });
+
+        var row = Assert.Single(rows, candidate => candidate.FieldKey == "firmTag");
+        Assert.Equal("vendor", row.ObjectType);
+        Assert.Equal("Vendor", row.ObjectLabel);
+        Assert.Equal("User", row.Source);
+        Assert.Equal("Global", row.Location);
+        Assert.True(row.IsReadOnly);
+    }
+
     // ─── BuildPlatformCatalogRows (Slice B1 — Platform Fields catalog) ──────────────────────────
 
     private static PlatformFieldRow Platform(
