@@ -35,6 +35,7 @@ import type {
 
 import { AuthContext, type AuthContextValue } from '@/shared/auth/authContext';
 import { ME_QUERY_KEY } from '@/features/users/useMe';
+import { ActiveWorkspaceProvider } from '@/shared/workspace/ActiveWorkspaceContext';
 
 export function buildAuth(overrides: Partial<AuthContextValue> = {}): AuthContextValue {
   return {
@@ -425,7 +426,9 @@ export function renderWithProviders(ui: ReactElement, options: ProviderOptions =
     return (
       <QueryClientProvider client={queryClient}>
         <AuthContext.Provider value={auth}>
-          <MemoryRouter initialEntries={[options.route ?? '/']}>{children}</MemoryRouter>
+          <ActiveWorkspaceProvider>
+            <MemoryRouter initialEntries={[options.route ?? '/']}>{children}</MemoryRouter>
+          </ActiveWorkspaceProvider>
         </AuthContext.Provider>
       </QueryClientProvider>
     );
