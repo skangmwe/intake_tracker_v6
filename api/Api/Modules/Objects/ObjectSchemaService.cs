@@ -70,6 +70,11 @@ public sealed class ObjectSchemaService : IObjectSchemaService
     // Location value for a Global (platform-owned) custom object.
     private const string GlobalLocation = "Global";
 
+    // Location value for a workspace-owned custom object. Workspace objects are ALWAYS local — only
+    // platform admins author Global objects (via the platform Create/Update path). The workspace
+    // Update path forces this so a pre-normalisation mislabelled 'Global' row can never be re-persisted.
+    private const string LocalWorkspaceLocation = "LocalWorkspace";
+
     // The five built-in object types, in display order. Fixed ids so the client has a stable key;
     // built-ins are read-only, so these ids never reach the write procs. ObjectKey is the canonical
     // type key (matches FieldDefinition.ObjectType — note Toolkit item's key is "ToolkitItem"), the
@@ -168,7 +173,7 @@ public sealed class ObjectSchemaService : IObjectSchemaService
             objectId, workspaceId,
             request.Name ?? existing.Name,
             request.PluralLabel ?? existing.PluralLabel,
-            request.Location ?? existing.Location,
+            LocalWorkspaceLocation,
             request.Description ?? existing.Description,
             request.ShowInSidebar ?? existing.ShowInSidebar,
             request.SidebarCategory ?? existing.SidebarCategory,
