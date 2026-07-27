@@ -133,3 +133,35 @@ BEGIN
     EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @PriorityLocal;
 END;
 GO
+
+CREATE PROCEDURE GetWorkspaceFieldsTests.[test_IncludesNullWorkspacePlatformGlobalField_AsForeignReadOnly]
+AS
+BEGIN
+    -- Arrange — SP3b Slice 2a: a TRUE platform-owned Global field (WorkspaceId IS NULL, not just
+    -- a foreign workspace's Location='Global' row). A non-owning workspace's read must still
+    -- surface it, marked IsLocal = 0 (foreign/read-only).
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    EXEC tSQLt.FakeTable @TableName = 'dbo.DerivedField';
+    DECLARE @Ws UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
+
+    INSERT INTO dbo.FieldDefinition (FieldDefinitionId, WorkspaceId, ObjectType, FieldKey, DisplayName, FieldType, Category, Location, SortOrder, IsRequired, IsReadOnly, IsPlatformDefined, AllowNewValues, IsRetired, IsDeleted)
+    VALUES (NEWID(), NULL, N'Request', N'firmPolicyRef', N'Firm Policy Reference', N'ShortText', N'WorkspaceLocal', N'Global', 1, 0, 0, 0, 0, 0, 0);
+
+    -- Act
+    CREATE TABLE #Actual (FieldDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, ObjectType NVARCHAR(16),
+        FieldKey NVARCHAR(64), DisplayName NVARCHAR(200), FieldType NVARCHAR(32), Category NVARCHAR(16),
+        Section NVARCHAR(64), HelpText NVARCHAR(400), IsRequired BIT, IsReadOnly BIT, IsPlatformDefined BIT,
+        IsSystemProvisioned BIT, PlatformFieldKey NVARCHAR(64), Location NVARCHAR(20), VisibleStagesJson NVARCHAR(MAX), CrossingToFieldKey NVARCHAR(64),
+        MinValue DECIMAL(18,4), MaxValue DECIMAL(18,4), AllowNewValues BIT, SortOrder INT, IsRetired BIT, IsLocal BIT,
+        DerivedKind NVARCHAR(16), DerivedExpression NVARCHAR(1000), DerivedDefaultValue NVARCHAR(400),
+        CreatedAt DATETIME2, UpdatedAt DATETIME2);
+    INSERT INTO #Actual EXEC dbo.usp_GetWorkspaceFields @WorkspaceId = @Ws, @ObjectType = N'Request';
+
+    -- Assert — the NULL-workspace Global field surfaces, marked non-local.
+    DECLARE @Count INT = (SELECT COUNT(*) FROM #Actual WHERE FieldKey = N'firmPolicyRef');
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @Count;
+
+    DECLARE @IsLocal BIT = (SELECT IsLocal FROM #Actual WHERE FieldKey = N'firmPolicyRef');
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @IsLocal;
+END;
+GO

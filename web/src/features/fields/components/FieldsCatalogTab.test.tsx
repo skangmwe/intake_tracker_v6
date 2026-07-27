@@ -1,7 +1,12 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
-import type { WorkspaceFieldCatalogDto, WorkspaceFieldSchemaDto, WorkspaceId } from '@shared/types';
+import type {
+  FieldObjectType,
+  WorkspaceFieldCatalogDto,
+  WorkspaceFieldSchemaDto,
+  WorkspaceId,
+} from '@shared/types';
 
 import {
   buildFieldCatalogRow,
@@ -119,6 +124,39 @@ describe('FieldsCatalogTab', () => {
     expect(await screen.findByRole('heading', { name: 'Edit Record ID' })).toBeInTheDocument();
     expect(screen.getByRole('note')).toHaveTextContent(/system field, provisioned automatically/i);
     // Exact match — the header's "Close editor" icon button also matches a loose /close/i regex.
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save field/i })).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('FieldsCatalogTab — a Global custom object field (platform-owned, foreign) renders read-only', async () => {
+    // SP3b Slice 2a Task 7 — a Global custom object's platform-owned field now surfaces in the
+    // workspace catalog as a foreign-Global row: source "User" (not "System"/"Platform"),
+    // isReadOnly true, grouped under the custom object's slug. Clicking it must open the
+    // read-only sheet, not the editable one.
+    mockedApi.fetchFieldCatalog.mockResolvedValue({
+      workspaceId: WS,
+      rows: [
+        buildFieldCatalogRow({
+          id: 'global-vendor-firmTag',
+          fieldKey: 'firmTag',
+          displayName: 'Firm Tag',
+          objectType: 'vendor' as FieldObjectType,
+          objectLabel: 'Vendor',
+          source: 'User',
+          location: 'Global',
+          isReadOnly: true,
+        }),
+      ],
+    });
+    const user = userEvent.setup();
+    const { container } = renderWithProviders(<FieldsCatalogTab workspaceId={WS} />);
+    await screen.findByRole('table');
+
+    await user.click(screen.getByText('Firm Tag'));
+
+    expect(await screen.findByRole('heading', { name: 'Edit Firm Tag' })).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent(/global field owned by a workspace/i);
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /save field/i })).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();

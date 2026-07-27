@@ -12,16 +12,12 @@ import type {
 
 import { IconButton } from '@/shared/components/Button';
 
-import {
-  CATEGORY_OPTIONS,
-  FIELD_LOCATION_OPTIONS,
-  FIELD_TYPE_OPTIONS,
-  OBJECT_OPTIONS,
-  TASK_FIELD_TYPE_OPTIONS,
-} from '../constants';
+import { CATEGORY_OPTIONS, FIELD_TYPE_OPTIONS, TASK_FIELD_TYPE_OPTIONS } from '../constants';
 import { buildInitialForm, formToRequest, type FieldForm } from '../fieldForm';
+import { FieldDeleteConfirm } from './FieldDeleteConfirm';
 import { FieldEditorExtras } from './FieldEditorExtras';
 import { FieldEditorFooter } from './FieldEditorFooter';
+import { FieldObjectAndLocationFields } from './FieldObjectAndLocationFields';
 import { RulesEditor } from './RulesEditor';
 import { TypeAndCategoryFields } from './TypeAndCategoryFields';
 
@@ -47,6 +43,17 @@ interface FieldEditorSheetProps {
   lockMessage?: string;
   /** Seed form for a locked row that has no fetchable definition (System / foreign-Global). */
   readOnlyForm?: FieldForm;
+  /**
+   * SP3b Slice 2a — the platform Global-object field flow. When set, Object renders as a fixed
+   * label (no select — every field on this screen belongs to this one Global custom object) and
+   * the Location control is dropped entirely (always 'Global'), mirroring how
+   * PlatformObjectEditorSheet drops Location for a Global object.
+   */
+  fixedObject?: { objectType: FieldObjectTypeOrSlug; label: string } | undefined;
+  /** Confirmed destructive delete (Global-object field flow) — shows FieldDeleteConfirm
+   * (role="alertdialog") before calling. Distinct from onArchive, which fires immediately. */
+  onDelete?: (() => void) | undefined;
+  isDeleting?: boolean | undefined;
 }
 
 export function FieldEditorSheet({
@@ -63,13 +70,21 @@ export function FieldEditorSheet({
   readOnly = false,
   lockMessage,
   readOnlyForm,
+  fixedObject,
+  onDelete,
+  isDeleting = false,
 }: FieldEditorSheetProps) {
   const isCreate = !readOnly && field === null;
-  const [form, setForm] = useState<FieldForm>(() =>
-    readOnly && readOnlyForm
-      ? readOnlyForm
-      : buildInitialForm(field, initialObjectType, FIELD_TYPE_OPTIONS),
-  );
+  const [form, setForm] = useState<FieldForm>(() => {
+    const initial =
+      readOnly && readOnlyForm
+        ? readOnlyForm
+        : buildInitialForm(field, initialObjectType, FIELD_TYPE_OPTIONS);
+    return fixedObject
+      ? { ...initial, object: fixedObject.objectType, location: 'Global' }
+      : initial;
+  });
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -98,7 +113,6 @@ export function FieldEditorSheet({
     () => availableKeysByObject[form.object] ?? [],
     [availableKeysByObject, form.object],
   );
-  const isCustomObject = customObjectOptions.some((option) => option.value === form.object);
 
   return (
     <div
@@ -163,65 +177,14 @@ export function FieldEditorSheet({
           disabled={readOnly}
         />
 
-        <label className="mws-field">
-          <span className="caption">Object</span>
-          <select
-            className="mws-select"
-            aria-label="Object"
-            value={form.object}
-            disabled={readOnly || !isCreate}
-            onChange={(event) => {
-              const nextObject = event.target.value;
-              const nextIsCustom = customObjectOptions.some(
-                (option) => option.value === nextObject,
-              );
-              const nextOptions =
-                nextObject === 'Task' ? TASK_FIELD_TYPE_OPTIONS : FIELD_TYPE_OPTIONS;
-              const stillValid = nextOptions.some((option) => option.value === form.fieldType);
-              patch({
-                object: nextObject,
-                fieldType: stillValid ? form.fieldType : (nextOptions[0]?.value ?? 'ShortText'),
-                // Custom-object fields are workspace-local — force the scope when switching to one.
-                ...(nextIsCustom ? { location: 'LocalWorkspace' as const } : {}),
-              });
-            }}
-          >
-            {OBJECT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-            {customObjectOptions.length > 0 && (
-              <optgroup label="Custom objects">
-                {customObjectOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-        </label>
-
-        <label className="mws-field">
-          <span className="caption">Location</span>
-          <select
-            className="mws-select"
-            aria-label="Location"
-            value={form.location}
-            disabled={readOnly || isCustomObject}
-            onChange={(event) => patch({ location: event.target.value as FieldForm['location'] })}
-          >
-            {FIELD_LOCATION_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          {isCustomObject && (
-            <span className="caption">Custom-object fields are workspace-local.</span>
-          )}
-        </label>
+        <FieldObjectAndLocationFields
+          form={form}
+          isCreate={isCreate}
+          readOnly={readOnly}
+          customObjectOptions={customObjectOptions}
+          fixedObject={fixedObject}
+          onPatch={patch}
+        />
 
         <label className="mws-field">
           <span className="caption">Section (optional)</span>
@@ -252,11 +215,22 @@ export function FieldEditorSheet({
           disabled={readOnly}
         />
 
+        {onDelete && confirmingDelete && (
+          <FieldDeleteConfirm
+            fieldLabel={field?.displayName || form.displayName || 'this field'}
+            isDeleting={isDeleting}
+            onCancel={() => setConfirmingDelete(false)}
+            onConfirm={onDelete}
+          />
+        )}
+
         <FieldEditorFooter
           readOnly={readOnly}
           field={field}
           onArchive={onArchive}
           isArchiving={isArchiving}
+          onRequestDelete={onDelete ? () => setConfirmingDelete(true) : undefined}
+          confirmingDelete={confirmingDelete}
           isSaving={isSaving}
           onClose={onClose}
         />

@@ -2,8 +2,11 @@
 // SP3b). The Platform-admin gate and delegation to the reused services (the services and access guard
 // are mocked). Covers each endpoint's happy path, the non-admin 403, the object-CRUD status mapping
 // (200 / 400 / 404 / 409), and cancellation propagation. The Relationships tab is the read-only
-// system-seeded reference — no workspace picker, no workspaceId parameter.
+// system-seeded reference — no workspace picker, no workspaceId parameter. The field CRUD endpoints
+// (SP3b Slice 2a, Task 4) delegate to IFieldSchemaService's Global-object methods (Task 3) and are
+// covered the same way: mocked service, asserting the controller's status-code mapping only.
 
+using McDermott.AiTracker.Api.Modules.Fields;
 using McDermott.AiTracker.Api.Modules.Objects;
 using McDermott.AiTracker.Api.Modules.PlatformAdmin;
 using McDermott.AiTracker.Api.Modules.Relationships;
@@ -22,7 +25,8 @@ public sealed class PlatformSchemaControllerTests
     private static PlatformSchemaController Build(
         bool isPlatformAdmin,
         Mock<IObjectSchemaService>? objects = null,
-        Mock<IRelationshipsService>? relationships = null)
+        Mock<IRelationshipsService>? relationships = null,
+        Mock<IFieldSchemaService>? fields = null)
     {
         var accessGuard = new Mock<IAccessGuard>();
         accessGuard.Setup(guard => guard.IsPlatformAdminAsync(UserId, It.IsAny<CancellationToken>()))
@@ -33,6 +37,7 @@ public sealed class PlatformSchemaControllerTests
 
         return new PlatformSchemaController(
             (objects ?? new Mock<IObjectSchemaService>()).Object,
+            (fields ?? new Mock<IFieldSchemaService>()).Object,
             (relationships ?? new Mock<IRelationshipsService>()).Object,
             accessGuard.Object,
             currentUser.Object)
@@ -223,6 +228,328 @@ public sealed class PlatformSchemaControllerTests
         Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
         objects.Verify(service => service.DeleteGlobalAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ─── Field CRUD on a Global custom object (SP3b Slice 2a, Task 4) ──────────────────────────
+
+    private static FieldDefinitionDto SampleGlobalField(string fieldKey = "priority") => new(
+        Guid.NewGuid(), Guid.Empty, "vendor", fieldKey, "Priority", "ShortText", "WorkspaceLocal",
+        Section: null, HelpText: null, IsRequired: false, IsReadOnly: false, IsPlatformDefined: false,
+        IsSystemProvisioned: false, Location: "Global", IsLocal: true,
+        PlatformFieldKey: null, VisibleStages: null, CrossingToFieldKey: null, MinValue: null, MaxValue: null,
+        AllowNewValues: false, SortOrder: 1, IsRetired: false,
+        Options: Array.Empty<SelectOptionDto>(), Rules: Array.Empty<FieldRuleDto>(), Derived: null,
+        CreatedAt: DateTime.UtcNow, UpdatedAt: DateTime.UtcNow);
+
+    private static FieldDefinitionUpsertRequest SampleFieldRequest(string fieldKey = "priority") => new()
+    {
+        ObjectType = "vendor",
+        FieldKey = fieldKey,
+        DisplayName = "Priority",
+        FieldType = "ShortText",
+        Category = "WorkspaceLocal",
+    };
+
+    [Fact]
+    public async Task GetFields_NotAdmin_Returns403()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: false, fields: fields)
+            .GetFields("vendor", CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        fields.Verify(service => service.GetGlobalObjectFieldsAsync(
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetFields_Admin_ReturnsOkWithFields()
+    {
+        // Arrange
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.GetGlobalObjectFieldsAsync("vendor", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { SampleGlobalField() });
+
+        // Act
+        var result = await Build(isPlatformAdmin: true, fields: fields).GetFields("vendor", CancellationToken.None);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsAssignableFrom<IReadOnlyList<FieldDefinitionDto>>(ok.Value);
+        Assert.Single(payload);
+        Assert.Equal("priority", payload[0].FieldKey);
+    }
+
+    [Fact]
+    public async Task GetFields_NonGlobalObject_Returns404()
+    {
+        // Arrange — a null service result means objectKey did not resolve to a Global custom object.
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.GetGlobalObjectFieldsAsync("ghost", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyList<FieldDefinitionDto>?)null);
+
+        // Act
+        var result = await Build(isPlatformAdmin: true, fields: fields).GetFields("ghost", CancellationToken.None);
+
+        // Assert
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task GetFields_CancellationPropagates()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.GetGlobalObjectFieldsAsync("vendor", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            Build(isPlatformAdmin: true, fields: fields).GetFields("vendor", cts.Token));
+    }
+
+    [Fact]
+    public async Task CreateField_NotAdmin_Returns403()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: false, fields: fields)
+            .CreateField("vendor", SampleFieldRequest(), CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        fields.Verify(service => service.UpsertGlobalObjectFieldAsync(
+            It.IsAny<string>(), It.IsAny<FieldDefinitionUpsertRequest>(), It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateField_NotAdmin_Returns403()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: false, fields: fields)
+            .UpdateField("vendor", "priority", SampleFieldRequest(), CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        fields.Verify(service => service.UpsertGlobalObjectFieldAsync(
+            It.IsAny<string>(), It.IsAny<FieldDefinitionUpsertRequest>(), It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteField_NotAdmin_Returns403()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: false, fields: fields)
+            .DeleteField("vendor", "priority", CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        fields.Verify(service => service.RetireGlobalObjectFieldAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateField_Admin_ReturnsOkWithField()
+    {
+        var created = SampleGlobalField();
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.UpsertGlobalObjectFieldAsync(
+                "vendor", It.IsAny<FieldDefinitionUpsertRequest>(), true, UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(FieldOperationOutcome.Success, created));
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .CreateField("vendor", SampleFieldRequest(), CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(created, ok.Value);
+    }
+
+    [Fact]
+    public async Task CreateField_BadShape_Returns400()
+    {
+        // A Select field with no options is a shape the service rejects — the controller only needs
+        // to map ValidationFailed to 400 (the shape validation itself lives in FieldSchemaService).
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.UpsertGlobalObjectFieldAsync(
+                "vendor", It.IsAny<FieldDefinitionUpsertRequest>(), true, UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(
+                FieldOperationOutcome.ValidationFailed,
+                Errors: new[] { "A Select field requires at least one option." }));
+        var request = SampleFieldRequest();
+        request.FieldType = "SingleSelect";
+        request.Options = null;
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .CreateField("vendor", request, CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateField_DuplicateKey_Returns409()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.UpsertGlobalObjectFieldAsync(
+                "vendor", It.IsAny<FieldDefinitionUpsertRequest>(), true, UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(FieldOperationOutcome.Conflict));
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .CreateField("vendor", SampleFieldRequest(), CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateField_Admin_ReturnsOkAndSetsFieldKeyFromRoute()
+    {
+        var updated = SampleGlobalField("priority");
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.UpsertGlobalObjectFieldAsync(
+                "vendor", It.Is<FieldDefinitionUpsertRequest>(r => r.FieldKey == "priority"), false, UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(FieldOperationOutcome.Success, updated));
+
+        // The request body carries a different key; the route's fieldKey must win.
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .UpdateField("vendor", "priority", SampleFieldRequest("someOtherKey"), CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(updated, ok.Value);
+    }
+
+    [Theory]
+    [InlineData("1priority")] // must start with a letter
+    [InlineData("priority-x")] // hyphen not allowed
+    [InlineData("priority key")] // space not allowed
+    [InlineData("priority'x")] // punctuation not allowed
+    public async Task UpdateField_MalformedRouteFieldKey_Returns400(string malformedKey)
+    {
+        // Fix round 1, finding 2 — the route fieldKey overwrites the body's FieldKey after DTO model
+        // binding already ran, so a malformed route segment must be re-checked by hand or it reaches
+        // the service/SQL unvalidated.
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .UpdateField("vendor", malformedKey, SampleFieldRequest(), CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        fields.Verify(service => service.UpsertGlobalObjectFieldAsync(
+            It.IsAny<string>(), It.IsAny<FieldDefinitionUpsertRequest>(), It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory]
+    [InlineData("1priority")]
+    [InlineData("priority-x")]
+    [InlineData("priority key")]
+    [InlineData("priority'x")]
+    public async Task DeleteField_MalformedRouteFieldKey_Returns400(string malformedKey)
+    {
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .DeleteField("vendor", malformedKey, CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        fields.Verify(service => service.RetireGlobalObjectFieldAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateField_ValidRouteFieldKeyExceedsMaxLength_Returns400()
+    {
+        // 65 chars — one over FieldKey's [MaxLength(64)].
+        var overLong = "a" + new string('b', 64);
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .UpdateField("vendor", overLong, SampleFieldRequest(), CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        fields.Verify(service => service.UpsertGlobalObjectFieldAsync(
+            It.IsAny<string>(), It.IsAny<FieldDefinitionUpsertRequest>(), It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateField_NonGlobalObject_Returns404()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.UpsertGlobalObjectFieldAsync(
+                "ghost", It.IsAny<FieldDefinitionUpsertRequest>(), false, UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(FieldOperationOutcome.NotFound));
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .UpdateField("ghost", "priority", SampleFieldRequest(), CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteField_NonGlobalObject_Returns404()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.RetireGlobalObjectFieldAsync("ghost", "priority", UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(FieldOperationOutcome.NotFound));
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .DeleteField("ghost", "priority", CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteField_Admin_Returns204()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.RetireGlobalObjectFieldAsync("vendor", "priority", UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(FieldOperationOutcome.Success, SampleGlobalField() with { IsRetired = true }));
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .DeleteField("vendor", "priority", CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteField_StillReferenced_Returns400()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.RetireGlobalObjectFieldAsync("vendor", "priority", UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FieldOperationResult(
+                FieldOperationOutcome.ValidationFailed, Errors: new[] { "referenced" }));
+
+        var result = await Build(isPlatformAdmin: true, fields: fields)
+            .DeleteField("vendor", "priority", CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateField_CancellationPropagates()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.UpsertGlobalObjectFieldAsync(
+                "vendor", It.IsAny<FieldDefinitionUpsertRequest>(), true, UserId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            Build(isPlatformAdmin: true, fields: fields).CreateField("vendor", SampleFieldRequest(), cts.Token));
     }
 
     [Fact]

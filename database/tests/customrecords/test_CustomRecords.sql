@@ -568,6 +568,151 @@ BEGIN
 END;
 GO
 
+-- =============================================
+-- usp_QueryCustomRecords — Global-field whitelist + cross-tenant leak exclusion (SP3b Slice 2a)
+-- =============================================
+
+CREATE PROCEDURE CustomRecordsTests.[test_Query_WhitelistsGlobalFieldAndOwnLocalField_ExcludesMislabelledForeignRow]
+AS
+BEGIN
+    -- Arrange — workspace A's own local field, a TRUE platform Global field (WorkspaceId IS NULL,
+    -- Location='Global'), and a DIFFERENT workspace B's row that is WORKSPACE-OWNED but
+    -- MISLABELLED Location='Global' (WorkspaceId=@OtherWs, not NULL — FieldDefinition places no
+    -- server-side constraint tying Location to WorkspaceId, so this row can exist). Filtering by
+    -- A's own field or the true platform Global field must narrow the result set (they're in A's
+    -- effective whitelist); filtering by B's mislabelled row must NOT narrow it — the Global arm
+    -- requires WorkspaceId IS NULL, not Location alone, so B's row never leaks into A's whitelist
+    -- even though it claims Location='Global' (mirrors test_ObjectDefinition.sql's
+    -- test_WorkspaceOwnedRowMislabelledGlobal_DoesNotLeakCrossTenant).
+    DECLARE @Ws  UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000001';
+    DECLARE @OtherWs UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000002';
+    DECLARE @Obj UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-0000000000AA';
+    EXEC CustomRecordsTests.SeedObject @Obj, @Ws;
+
+    INSERT INTO dbo.FieldDefinition (WorkspaceId, ObjectType, FieldKey, FieldType, Location, IsDeleted, IsRetired)
+    VALUES
+        (@Ws,      N'vendor', N'regionA', N'ShortText', N'LocalWorkspace', 0, 0), -- A's own local field
+        (NULL,     N'vendor', N'firmTag', N'ShortText', N'Global',         0, 0), -- TRUE platform Global field
+        (@OtherWs, N'vendor', N'regionB', N'ShortText', N'Global',         0, 0); -- B's row, MISLABELLED Global
+
+    EXEC CustomRecordsTests.SeedRecord @Obj, @Ws, N'One', N'{"regionA":"East","firmTag":"Compliance","regionB":"West"}';
+    EXEC CustomRecordsTests.SeedRecord @Obj, @Ws, N'Two', N'{"regionA":"West","firmTag":"Ops","regionB":"East"}';
+
+    DECLARE @Act TABLE (RecordId UNIQUEIDENTIFIER, Name NVARCHAR(400), FieldValues NVARCHAR(MAX), RowVer VARBINARY(8), TotalCount INT);
+
+    -- Act + Assert 1 — the TRUE platform Global field narrows A's result set (it IS whitelisted).
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"firmTag":{"type":"text","contains":"Compliance"}}';
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM @Act);
+    EXEC tSQLt.AssertEqualsString @Expected = N'One', @Actual = (SELECT TOP 1 Name FROM @Act);
+    DELETE FROM @Act;
+
+    -- Act + Assert 2 — A's own local field narrows A's result set (it IS whitelisted).
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"regionA":{"type":"text","contains":"East"}}';
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM @Act);
+    EXEC tSQLt.AssertEqualsString @Expected = N'One', @Actual = (SELECT TOP 1 Name FROM @Act);
+    DELETE FROM @Act;
+
+    -- Act + Assert 3 — workspace B's MISLABELLED-Global row does NOT narrow A's result set. It is
+    -- workspace-owned (WorkspaceId=@OtherWs, not NULL), so the Global arm's WorkspaceId IS NULL
+    -- guard excludes it from A's whitelist — the predicate is a no-op (same as an unknown key) and
+    -- every in-scope row still returns. This is the leak this fix closes: Location alone is not
+    -- sufficient ownership evidence.
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"regionB":{"type":"text","contains":"West"}}';
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = (SELECT COUNT(*) FROM @Act);
+END;
+GO
+
+CREATE PROCEDURE CustomRecordsTests.[test_Query_LocalFieldOverridesGlobalFieldOfSameKey_NoWhitelistCollision]
+AS
+BEGIN
+    -- Arrange — A's own local field shares a FieldKey with a platform Global field on the same
+    -- slug (usp_GetWorkspaceFields's "local override" case). The @Fields whitelist population must
+    -- de-dupe by key (local wins) rather than violate its PRIMARY KEY on the duplicate FieldKey.
+    DECLARE @Ws  UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000001';
+    DECLARE @Obj UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-0000000000AA';
+    EXEC CustomRecordsTests.SeedObject @Obj, @Ws;
+
+    INSERT INTO dbo.FieldDefinition (WorkspaceId, ObjectType, FieldKey, FieldType, Location, IsDeleted, IsRetired)
+    VALUES
+        (@Ws,  N'vendor', N'priority', N'ShortText', N'LocalWorkspace', 0, 0), -- A's own local override
+        (NULL, N'vendor', N'priority', N'Number',     N'Global',        0, 0); -- platform Global (different type)
+
+    EXEC CustomRecordsTests.SeedRecord @Obj, @Ws, N'Alpha', N'{"priority":"High"}';
+
+    -- Act — filtering as text (matching the LOCAL override's type) must not error and must match.
+    DECLARE @Act TABLE (RecordId UNIQUEIDENTIFIER, Name NVARCHAR(400), FieldValues NVARCHAR(MAX), RowVer VARBINARY(8), TotalCount INT);
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"priority":{"type":"text","contains":"High"}}';
+
+    -- Assert — no whitelist-insert collision (the proc would throw before returning anything), and
+    -- the local field's semantics (text contains) governed the match.
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM @Act);
+    EXEC tSQLt.AssertEqualsString @Expected = N'Alpha', @Actual = (SELECT TOP 1 Name FROM @Act);
+END;
+GO
+
+CREATE PROCEDURE CustomRecordsTests.[test_Create_AgainstGlobalObject_WithGlobalField_QueryFiltersByFieldValue]
+AS
+BEGIN
+    -- Arrange — end-to-end record verification for SP3b Slice 2a Task 7's Step 2: a Global OBJECT
+    -- (WorkspaceId NULL, Location='Global') carrying a Global FIELD (WorkspaceId NULL,
+    -- Location='Global') on its own slug. A workspace creates a record against the Global object
+    -- (usp_CreateCustomRecord, proven separately by test_Create_AgainstGlobalObject_InsertsWith-
+    -- CallerWorkspace to insert under the CALLER's workspace) storing a value for the Global field,
+    -- and usp_QueryCustomRecords's ownership-keyed whitelist (Task 2) filters/sorts by it.
+    DECLARE @Ws  UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-000000000001';
+    DECLARE @Obj UNIQUEIDENTIFIER = 'E0000000-0000-4000-8000-0000000000D2';
+
+    INSERT INTO dbo.ObjectDefinition
+        (ObjectDefinitionId, WorkspaceId, ObjectKey, Name, Location, IsDeleted,
+         CreatedAt, UpdatedAt, CreatedBy, UpdatedBy)
+    VALUES (@Obj, NULL, N'firm-policy', N'Firm Policy', N'Global', 0,
+            SYSUTCDATETIME(), SYSUTCDATETIME(), N'seed', N'seed');
+
+    INSERT INTO dbo.FieldDefinition (WorkspaceId, ObjectType, FieldKey, FieldType, Location, IsDeleted, IsRetired)
+    VALUES (NULL, N'firm-policy', N'policyArea', N'ShortText', N'Global', 0, 0);
+
+    DECLARE @Id1 UNIQUEIDENTIFIER;
+    DECLARE @Id2 UNIQUEIDENTIFIER;
+
+    -- Act — create two records against the Global object, each carrying a value for the Global field.
+    EXEC dbo.usp_CreateCustomRecord
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Name = N'Retention Policy',
+        @FieldValuesJson = N'{"policyArea":"Compliance"}', @ActorUserId = N'u1', @RecordId = @Id1 OUTPUT;
+    EXEC dbo.usp_CreateCustomRecord
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Name = N'Travel Policy',
+        @FieldValuesJson = N'{"policyArea":"Operations"}', @ActorUserId = N'u1', @RecordId = @Id2 OUTPUT;
+
+    -- Assert — both records exist, scoped to the caller's workspace, against the Global object.
+    EXEC tSQLt.AssertEquals @Expected = 2, @Actual = (
+        SELECT COUNT(*) FROM dbo.CustomRecords
+        WHERE WorkspaceId = @Ws AND ObjectDefinitionId = @Obj AND IsDeleted = 0);
+
+    -- Assert — filtering by the Global field's value narrows to the matching record only.
+    DECLARE @Act TABLE (RecordId UNIQUEIDENTIFIER, Name NVARCHAR(400), FieldValues NVARCHAR(MAX), RowVer VARBINARY(8), TotalCount INT);
+    INSERT INTO @Act EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @FiltersJson = N'{"policyArea":{"type":"text","contains":"Compliance"}}';
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = (SELECT COUNT(*) FROM @Act);
+    EXEC tSQLt.AssertEqualsString @Expected = N'Retention Policy', @Actual = (SELECT TOP 1 Name FROM @Act);
+
+    -- Assert — sorting by the Global field orders both records by its value (desc: Operations, Compliance).
+    CREATE TABLE #act (Ord INT IDENTITY(1,1), RecordId UNIQUEIDENTIFIER, Name NVARCHAR(400), FieldValues NVARCHAR(MAX), RowVer VARBINARY(8), TotalCount INT);
+    INSERT INTO #act (RecordId, Name, FieldValues, RowVer, TotalCount) EXEC dbo.usp_QueryCustomRecords
+        @WorkspaceId = @Ws, @ObjectDefinitionId = @Obj, @Page = 1, @PageSize = 25,
+        @SortColumn = N'policyArea', @SortDir = N'desc';
+    EXEC tSQLt.AssertEqualsString @Expected = N'Travel Policy', @Actual = (SELECT Name FROM #act WHERE Ord = 1);
+    EXEC tSQLt.AssertEqualsString @Expected = N'Retention Policy', @Actual = (SELECT Name FROM #act WHERE Ord = 2);
+END;
+GO
+
 CREATE PROCEDURE CustomRecordsTests.[test_Query_TextFilter_EscapesLikeWildcards]
 AS
 BEGIN

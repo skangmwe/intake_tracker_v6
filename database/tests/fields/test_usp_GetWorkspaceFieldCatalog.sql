@@ -1,8 +1,10 @@
 -- =============================================
 -- tSQLt tests for dbo.usp_GetWorkspaceFieldCatalog (Fields tab reconciliation).
--- Covers: the flat, all-object-types read returns ONLY this workspace's own fields (its Local
--- fields and any Global fields it owns, IsLocal = 1), excludes Global fields owned by other
--- workspaces, excludes platform-defined fields, and excludes soft-deleted rows.
+-- Covers: the flat, all-object-types read returns this workspace's own fields (its Local fields
+-- and any Global fields it owns, IsLocal = 1) plus every truly platform-owned Global field
+-- (WorkspaceId IS NULL, IsLocal = 0 — a Global custom object's fields, SP3b Slice 2a), excludes
+-- Global fields owned by other workspaces (including one mislabelled Location='Global'), excludes
+-- platform-defined fields, and excludes soft-deleted rows.
 -- database-testing.md (AAA, FakeTable, AssertEquals — assign to a local, never inline @Actual=(SELECT)).
 -- =============================================
 
@@ -79,6 +81,44 @@ BEGIN
     -- The soft-deleted row is excluded.
     DECLARE @DeadCount INT = (SELECT COUNT(*) FROM #Actual WHERE FieldKey = N'dead');
     EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @DeadCount;
+END;
+GO
+
+CREATE PROCEDURE GetWorkspaceFieldCatalogTests.[test_IncludesTruePlatformGlobalField_AsForeignReadOnly_ExcludesMislabelledWorkspaceRow]
+AS
+BEGIN
+    -- Arrange — a Global custom object's platform-owned field (WorkspaceId IS NULL, Location =
+    -- 'Global' — SP3b Slice 2a's UpsertGlobalObjectFieldAsync shape) must now surface in the
+    -- workspace's own flat Fields catalog as a foreign / read-only row (IsLocal = 0), the same
+    -- contract usp_GetWorkspaceFields already gives the record-editing form. A DIFFERENT
+    -- workspace's row that merely claims Location='Global' but is still WORKSPACE-OWNED
+    -- (WorkspaceId = @OtherWs, not NULL) must stay excluded — the platform arm is gated on
+    -- WorkspaceId IS NULL, not Location alone (Task 2's ownership-keyed leak fix).
+    EXEC tSQLt.FakeTable @TableName = 'dbo.FieldDefinition';
+    DECLARE @Ws      UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000001';
+    DECLARE @OtherWs UNIQUEIDENTIFIER = '1A150000-0000-4000-8000-000000000099';
+
+    INSERT INTO dbo.FieldDefinition (FieldDefinitionId, WorkspaceId, ObjectType, FieldKey, DisplayName, FieldType, Category, Location, SortOrder, IsRequired, IsReadOnly, IsPlatformDefined, IsSystemProvisioned, AllowNewValues, IsRetired, IsDeleted)
+    VALUES
+        (NEWID(), NULL,     N'vendor', N'firmTag',       N'Firm Tag',     N'ShortText', N'WorkspaceLocal', N'Global',         1, 0, 0, 0, 0, 0, 0, 0), -- TRUE platform Global field — included, IsLocal = 0
+        (NEWID(), @OtherWs, N'vendor', N'mislabelled',   N'Mislabelled',  N'ShortText', N'WorkspaceLocal', N'Global',         2, 0, 0, 0, 0, 0, 0, 0); -- workspace-owned, mislabelled Global — still excluded
+
+    -- Act
+    CREATE TABLE #Actual (FieldDefinitionId UNIQUEIDENTIFIER, WorkspaceId UNIQUEIDENTIFIER, ObjectType NVARCHAR(16),
+        FieldKey NVARCHAR(64), DisplayName NVARCHAR(200), FieldType NVARCHAR(32), Location NVARCHAR(20),
+        IsRequired BIT, IsReadOnly BIT, IsPlatformDefined BIT, IsSystemProvisioned BIT, IsRetired BIT, IsLocal BIT);
+    INSERT INTO #Actual EXEC dbo.usp_GetWorkspaceFieldCatalog @WorkspaceId = @Ws;
+
+    -- Assert — the true platform Global field is present and flagged foreign (IsLocal = 0).
+    DECLARE @FirmTagCount INT = (SELECT COUNT(*) FROM #Actual WHERE FieldKey = N'firmTag');
+    EXEC tSQLt.AssertEquals @Expected = 1, @Actual = @FirmTagCount;
+
+    DECLARE @FirmTagLocal BIT = (SELECT IsLocal FROM #Actual WHERE FieldKey = N'firmTag');
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @FirmTagLocal;
+
+    -- The mislabelled workspace-owned row does not leak in via the platform arm.
+    DECLARE @MislabelledCount INT = (SELECT COUNT(*) FROM #Actual WHERE FieldKey = N'mislabelled');
+    EXEC tSQLt.AssertEquals @Expected = 0, @Actual = @MislabelledCount;
 END;
 GO
 

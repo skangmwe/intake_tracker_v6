@@ -206,6 +206,26 @@ public sealed class FieldCatalogBuilderTests
         Assert.Equal("User", row.Source);
     }
 
+    [Fact]
+    public void BuildCatalogRows_GlobalCustomObjectPlatformOwnedField_IsReadOnly()
+    {
+        // A Global custom object's platform-owned field (usp_GetWorkspaceFieldCatalog now surfaces
+        // it with IsLocal = 0, SP3b Slice 2a Task 7) renders under the object, foreign-Global /
+        // read-only — the same generic IsLocal-driven contract as a foreign workspace's Global
+        // field, just for a platform-owned (WorkspaceId IS NULL) row on a custom-object slug.
+        var rows = FieldSchemaService.BuildCatalogRows(
+            new[] { Stored("vendor", "firmTag", location: "Global", isLocal: false) },
+            Array.Empty<CatalogFieldSpec>(),
+            new[] { ("vendor", "Vendor") });
+
+        var row = Assert.Single(rows, candidate => candidate.FieldKey == "firmTag");
+        Assert.Equal("vendor", row.ObjectType);
+        Assert.Equal("Vendor", row.ObjectLabel);
+        Assert.Equal("User", row.Source);
+        Assert.Equal("Global", row.Location);
+        Assert.True(row.IsReadOnly);
+    }
+
     // ─── BuildPlatformCatalogRows (Slice B1 — Platform Fields catalog) ──────────────────────────
 
     private static PlatformFieldRow Platform(
@@ -309,5 +329,105 @@ public sealed class FieldCatalogBuilderTests
         var nameRows = rows.Where(row => row.ObjectType == "Request" && row.FieldKey == "name").ToList();
         Assert.Single(nameRows);
         Assert.Equal("System", nameRows[0].Source);
+    }
+
+    // ─── Global custom objects (SP3b Slice 2a — Task 5) ─────────────────────────────────────────
+
+    private static FieldDefinitionDto GlobalCustomField(
+        string objectKey, string fieldKey, string display, bool isRequired = false, bool isRetired = false,
+        bool isPlatformDefined = false, string location = "Global") => new(
+        Guid.NewGuid(), Guid.Empty, objectKey, fieldKey, display, "ShortText", "WorkspaceLocal",
+        Section: null, HelpText: null, IsRequired: isRequired, IsReadOnly: false, IsPlatformDefined: isPlatformDefined,
+        IsSystemProvisioned: false, Location: location, IsLocal: true,
+        PlatformFieldKey: null, VisibleStages: null, CrossingToFieldKey: null, MinValue: null, MaxValue: null,
+        AllowNewValues: false, SortOrder: 1, IsRetired: isRetired,
+        Options: Array.Empty<SelectOptionDto>(), Rules: Array.Empty<FieldRuleDto>(), Derived: null,
+        CreatedAt: DateTime.UtcNow, UpdatedAt: DateTime.UtcNow);
+
+    [Fact]
+    public void BuildPlatformCatalogRows_GlobalCustomObject_FieldIsEditableGroupedUnderObject()
+    {
+        // Arrange — a Global custom object "vendor" with one platform-owned Global field.
+        var globalCustomObjects = new (string ObjectKey, string ObjectLabel, IReadOnlyList<FieldDefinitionDto> Fields)[]
+        {
+            ("vendor", "Vendor", new[] { GlobalCustomField("vendor", "rating", "Rating") }),
+        };
+
+        // Act
+        var rows = FieldSchemaService.BuildPlatformCatalogRows(
+            Array.Empty<FieldCatalogRow>(), Array.Empty<PlatformFieldRow>(), globalCustomObjects);
+
+        // Assert — five read-only system auto-fields under "vendor" ...
+        var vendorRows = rows.Where(row => row.ObjectType == "vendor").ToList();
+        var vendorSystemRows = vendorRows.Where(row => row.Source == "System").ToList();
+        Assert.Equal(5, vendorSystemRows.Count);
+        Assert.All(vendorSystemRows, row =>
+        {
+            Assert.True(row.IsReadOnly);
+            Assert.Equal("Vendor", row.ObjectLabel);
+        });
+
+        // ... plus the one editable custom field, grouped under the same object.
+        var rating = Assert.Single(vendorRows, row => row.FieldKey == "rating");
+        Assert.Equal("Vendor", rating.ObjectLabel);
+        Assert.Equal("User", rating.Source);
+        Assert.Equal("Active", rating.Status);
+        Assert.False(rating.IsReadOnly);
+    }
+
+    [Fact]
+    public void BuildPlatformCatalogRows_GlobalCustomObjectField_AlsoInGlobalStored_RendersOnceAsEditable()
+    {
+        // Arrange — usp_GetPlatformFieldCatalog scopes on Location='Global' with no ObjectType
+        // restriction, so it also returns a Global custom object's platform-owned field row
+        // (WorkspaceId NULL). Simulate that here to prove the composition dedupes it away from the
+        // read-only band and keeps only the editable copy from the Global-custom-object band.
+        var duplicateInGlobalStored = new FieldCatalogRow
+        {
+            FieldDefinitionId = Guid.NewGuid(),
+            WorkspaceId = null,
+            ObjectType = "vendor",
+            FieldKey = "rating",
+            DisplayName = "Rating",
+            FieldType = "ShortText",
+            Location = "Global",
+            IsRequired = false,
+            IsReadOnly = false,
+            IsPlatformDefined = false,
+            IsSystemProvisioned = false,
+            IsRetired = false,
+            IsLocal = true,
+        };
+        var globalCustomObjects = new (string ObjectKey, string ObjectLabel, IReadOnlyList<FieldDefinitionDto> Fields)[]
+        {
+            ("vendor", "Vendor", new[] { GlobalCustomField("vendor", "rating", "Rating") }),
+        };
+
+        // Act
+        var rows = FieldSchemaService.BuildPlatformCatalogRows(
+            new[] { duplicateInGlobalStored }, Array.Empty<PlatformFieldRow>(), globalCustomObjects);
+
+        // Assert — exactly one "rating" row, and it is the editable copy, not the read-only one.
+        var ratingRows = rows.Where(row => row.ObjectType == "vendor" && row.FieldKey == "rating").ToList();
+        var rating = Assert.Single(ratingRows);
+        Assert.False(rating.IsReadOnly);
+        Assert.Equal("User", rating.Source);
+    }
+
+    [Fact]
+    public void BuildPlatformCatalogRows_GlobalCustomObjectWithNoFields_StillSynthesizesSystemFields()
+    {
+        // A Global custom object with zero custom fields still contributes its five system rows.
+        var globalCustomObjects = new (string ObjectKey, string ObjectLabel, IReadOnlyList<FieldDefinitionDto> Fields)[]
+        {
+            ("empty", "Empty Object", Array.Empty<FieldDefinitionDto>()),
+        };
+
+        var rows = FieldSchemaService.BuildPlatformCatalogRows(
+            Array.Empty<FieldCatalogRow>(), Array.Empty<PlatformFieldRow>(), globalCustomObjects);
+
+        var emptyRows = rows.Where(row => row.ObjectType == "empty").ToList();
+        Assert.Equal(5, emptyRows.Count);
+        Assert.All(emptyRows, row => Assert.True(row.IsReadOnly));
     }
 }

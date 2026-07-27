@@ -8,10 +8,17 @@
 --              them; the editor loads them per object type on open).
 --
 --              Scope: this workspace's own fields only — its Local fields and any Global fields
---              it owns (WorkspaceId = @WorkspaceId). Fields owned by other workspaces and
---              platform-defined fields (IsPlatformDefined = 1) are excluded here — those surface
---              on the Platform Fields & objects screen (S34), not the workspace one. A same-key
---              collision within the workspace still resolves to one row (IsLocal-first).
+--              it owns (WorkspaceId = @WorkspaceId) — PLUS every truly platform-owned Global field
+--              (WorkspaceId IS NULL AND Location = 'Global'), i.e. a Global custom object's fields
+--              (SP3b Slice 2a). The platform arm is ownership-keyed on WorkspaceId IS NULL, not
+--              Location alone (mirrors usp_ListObjectDefinitions / usp_GetWorkspaceFields / the
+--              usp_QueryCustomRecords whitelist fix), so a workspace-owned row mislabelled
+--              Location='Global' never leaks in this way. Fields owned by OTHER workspaces and
+--              platform-defined fields (IsPlatformDefined = 1) are still excluded here — those
+--              surface on the Platform Fields & objects screen (S34), not the workspace one. A
+--              same-key collision within the workspace still resolves to one row (IsLocal-first);
+--              a platform-owned Global field surfaces with IsLocal = 0 (foreign / read-only, same
+--              contract as usp_GetWorkspaceFields).
 --
 --              The five read-only system auto-fields (Record ID / Name / Date created / Last
 --              updated / Created by) are NOT returned here — they are synthesised per object in
@@ -48,8 +55,9 @@ BEGIN
                 ORDER BY CASE WHEN d.WorkspaceId = @WorkspaceIdLocal THEN 0 ELSE 1 END) AS RowRank
         FROM dbo.FieldDefinition AS d
         WHERE d.IsDeleted = 0
-          AND d.WorkspaceId = @WorkspaceIdLocal
           AND d.IsPlatformDefined = 0
+          AND (d.WorkspaceId = @WorkspaceIdLocal
+               OR (d.WorkspaceId IS NULL AND d.Location = N'Global'))
     )
     SELECT
         s.FieldDefinitionId    AS FieldDefinitionId,

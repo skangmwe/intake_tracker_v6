@@ -12,6 +12,32 @@
 --              platform-defined field. Child rows are soft-deleted then re-inserted
 --              (the WHERE IsDeleted=0 filtered unique indexes allow value re-use).
 --
+--              Updated 2026-07-26 (SP3b Slice 2a) — @WorkspaceId may be NULL to create/patch a
+--              Global (platform-owned) field (WorkspaceId=NULL, Location='Global'). The lookup
+--              that resolves the existing row (serving both as the update-path existence check
+--              and, implicitly, the create-path key-uniqueness check — a second create of the
+--              same key hits the same row and becomes an update) operates on "the same
+--              namespace as the row being written": the calling workspace when @WorkspaceId is
+--              supplied, or ONLY truly platform-owned rows (WorkspaceId IS NULL AND
+--              Location='Global') when @WorkspaceId is NULL. The Global-namespace row predicate
+--              requires WorkspaceId IS NULL, not Location alone — Location is caller-supplied and
+--              unvalidated against WorkspaceId, so a workspace call could otherwise produce (and a
+--              platform call with @WorkspaceId=NULL could otherwise match/patch) a mislabelled
+--              row that a tenant owns (WorkspaceId=<real ws>, Location='Global'). Workspace
+--              create/patch is unaffected — it always passes a real @WorkspaceId and still matches
+--              only its own WorkspaceId. A duplicate Global-namespace key is still caught by the
+--              pre-existing UX_FieldDefinition_Global_Object_Key filtered unique index
+--              (migration 072) — a second create of the same (ObjectType, FieldKey) Global field
+--              throws at the index rather than the app layer.
+--
+--              Updated 2026-07-26 (SP3b Slice 2a, Task 2 fix pass) — dbo.FieldRuleDependency.WorkspaceId
+--              is now nullable (migration 102), so a Global field's rule dependency edges store
+--              with WorkspaceId=NULL, same namespace as the field itself. The dependency
+--              soft-delete/re-insert block matches on WorkspaceId = @WorkspaceIdLocal for a real
+--              workspace, or WorkspaceId IS NULL when @WorkspaceIdLocal IS NULL (see inline
+--              comment) — a Global field carrying conditional rules (@DependenciesJson non-empty)
+--              now upserts successfully instead of failing the NOT NULL/FK constraint at INSERT.
+--
 --              JSON params:
 --                @OptionsJson      = [{"value","label","sortOrder"}]
 --                @RulesJson        = [{"action","whenFieldKey","comparator","compareValue","produceValue","sortOrder"}]
@@ -61,7 +87,8 @@ BEGIN
 
         SELECT @FieldDefinitionId = FieldDefinitionId, @IsPlatformDefined = IsPlatformDefined
         FROM dbo.FieldDefinition
-        WHERE WorkspaceId = @WorkspaceIdLocal AND ObjectType = @ObjectTypeLocal
+        WHERE (WorkspaceId = @WorkspaceIdLocal OR (@WorkspaceIdLocal IS NULL AND WorkspaceId IS NULL AND Location = N'Global'))
+          AND ObjectType = @ObjectTypeLocal
           AND FieldKey = @FieldKeyLocal AND IsDeleted = 0;
 
         IF @IsPlatformDefined = 1
@@ -120,9 +147,16 @@ BEGIN
             INSERT INTO dbo.DerivedField (FieldDefinitionId, Kind, Expression, DefaultValue, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
             VALUES (@FieldDefinitionId, @DerivedKind, @DerivedExpression, @DerivedDefaultValue, @Actor, @Actor, @Now, @Now);
 
-        -- Rewrite this field's outgoing dependency edges (soft-delete then insert).
+        -- Rewrite this field's outgoing dependency edges (soft-delete then insert). Match on
+        -- WorkspaceId = @WorkspaceIdLocal for a real workspace, or WorkspaceId IS NULL when this
+        -- is a Global field (@WorkspaceIdLocal IS NULL) — a plain WorkspaceId = @WorkspaceIdLocal
+        -- would never match existing NULL-workspace rows (NULL = NULL is UNKNOWN, not TRUE),
+        -- silently accumulating duplicate live edges on every Global-field re-save. There is no
+        -- Location column here to mislabel, so this predicate is not an ownership-leak concern —
+        -- WorkspaceId is the sole source of truth for whose edges these are.
         UPDATE dbo.FieldRuleDependency SET IsDeleted = 1, DeletedAt = @Now, UpdatedBy = @Actor, UpdatedAt = @Now
-        WHERE WorkspaceId = @WorkspaceIdLocal AND ObjectType = @ObjectTypeLocal
+        WHERE (WorkspaceId = @WorkspaceIdLocal OR (@WorkspaceIdLocal IS NULL AND WorkspaceId IS NULL))
+          AND ObjectType = @ObjectTypeLocal
           AND FromFieldKey = @FieldKeyLocal AND IsDeleted = 0;
 
         IF @DependenciesJson IS NOT NULL

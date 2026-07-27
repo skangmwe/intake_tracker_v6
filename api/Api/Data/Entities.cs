@@ -162,7 +162,7 @@ public sealed class AuditEntry : AuditableEntity
 public sealed class FieldDefinitionRow
 {
     public Guid FieldDefinitionId { get; set; }
-    public Guid WorkspaceId { get; set; }
+    public Guid? WorkspaceId { get; set; }
     public string ObjectType { get; set; } = string.Empty;
     public string FieldKey { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
@@ -198,7 +198,11 @@ public sealed class FieldDefinitionRow
 public sealed class FieldCatalogRow
 {
     public Guid FieldDefinitionId { get; set; }
-    public Guid WorkspaceId { get; set; }
+    // Nullable: usp_GetPlatformFieldCatalog also surfaces a platform-owned Global custom object's
+    // fields (SP3b Slice 2a), whose FieldDefinition.WorkspaceId is NULL (mirrors ObjectDefinitionRow's
+    // identical nullable-WorkspaceId pattern for a Global custom object). usp_GetWorkspaceFieldCatalog
+    // never produces NULL here (its WHERE filters on WorkspaceId = @WorkspaceId).
+    public Guid? WorkspaceId { get; set; }
     public string ObjectType { get; set; } = string.Empty;
     public string FieldKey { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
