@@ -251,6 +251,66 @@ public sealed class PlatformSchemaControllerTests
     };
 
     [Fact]
+    public async Task GetFields_NotAdmin_Returns403()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+
+        var result = await Build(isPlatformAdmin: false, fields: fields)
+            .GetFields("vendor", CancellationToken.None);
+
+        var problem = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, problem.StatusCode);
+        fields.Verify(service => service.GetGlobalObjectFieldsAsync(
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetFields_Admin_ReturnsOkWithFields()
+    {
+        // Arrange
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.GetGlobalObjectFieldsAsync("vendor", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { SampleGlobalField() });
+
+        // Act
+        var result = await Build(isPlatformAdmin: true, fields: fields).GetFields("vendor", CancellationToken.None);
+
+        // Assert
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsAssignableFrom<IReadOnlyList<FieldDefinitionDto>>(ok.Value);
+        Assert.Single(payload);
+        Assert.Equal("priority", payload[0].FieldKey);
+    }
+
+    [Fact]
+    public async Task GetFields_NonGlobalObject_Returns404()
+    {
+        // Arrange — a null service result means objectKey did not resolve to a Global custom object.
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.GetGlobalObjectFieldsAsync("ghost", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyList<FieldDefinitionDto>?)null);
+
+        // Act
+        var result = await Build(isPlatformAdmin: true, fields: fields).GetFields("ghost", CancellationToken.None);
+
+        // Assert
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task GetFields_CancellationPropagates()
+    {
+        var fields = new Mock<IFieldSchemaService>();
+        fields.Setup(service => service.GetGlobalObjectFieldsAsync("vendor", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            Build(isPlatformAdmin: true, fields: fields).GetFields("vendor", cts.Token));
+    }
+
+    [Fact]
     public async Task CreateField_NotAdmin_Returns403()
     {
         var fields = new Mock<IFieldSchemaService>();

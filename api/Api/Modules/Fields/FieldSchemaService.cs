@@ -68,6 +68,15 @@ public interface IFieldSchemaService
     /// <summary>Retires a field on a Global custom object.</summary>
     Task<FieldOperationResult> RetireGlobalObjectFieldAsync(
         string objectKey, string fieldKey, Guid actorUserId, CancellationToken cancellationToken);
+
+    /// <summary>The stored fields on a Global custom object — full definitions, including options
+    /// and rules (SP3b Slice 2a, Task 6). The flat platform catalog row is deliberately lossy (no
+    /// options/rules), and the upsert replaces both wholesale on every save, so the admin editor
+    /// must seed an edit from this, not from a catalog row, or it silently clears them. Returns
+    /// null when objectKey does not resolve to a Global custom object (mirrors the Upsert/Retire
+    /// guard) — the controller maps that to 404.</summary>
+    Task<IReadOnlyList<FieldDefinitionDto>?> GetGlobalObjectFieldsAsync(
+        string objectKey, CancellationToken cancellationToken);
 }
 
 public sealed partial class FieldSchemaService : IFieldSchemaService
@@ -343,6 +352,21 @@ public sealed partial class FieldSchemaService : IFieldSchemaService
 
         // No event — platform ops are firm-wide, not per-workspace (mirrors Slice 1's platform object CRUD).
         return new FieldOperationResult(FieldOperationOutcome.Success, current with { IsRetired = true });
+    }
+
+    public async Task<IReadOnlyList<FieldDefinitionDto>?> GetGlobalObjectFieldsAsync(
+        string objectKey, CancellationToken cancellationToken)
+    {
+        // Mirrors UpsertGlobalObjectFieldAsync/RetireGlobalObjectFieldAsync's guard.
+        var globals = await _objects.ListGlobalAsync(cancellationToken).ConfigureAwait(false);
+        if (!globals.Any(o => o is { IsSystem: false, Location: "Global" } && o.ObjectKey == objectKey))
+        {
+            return null;
+        }
+
+        // Guid.Empty owns no rows, so only this object's Location='Global' rows surface — the same
+        // read the catalog builder and the upsert/retire guards already use.
+        return await ReadFieldsAsync(Guid.Empty, objectKey, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task EmitAsync(

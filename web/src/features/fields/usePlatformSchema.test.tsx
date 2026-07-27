@@ -5,13 +5,20 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { fetchPlatformObjects, fetchPlatformRelationships } from './platformSchema';
-import { usePlatformObjects, usePlatformRelationships } from './usePlatformSchema';
+import {
+  fetchPlatformObjectFields,
+  fetchPlatformObjects,
+  fetchPlatformRelationships,
+} from './platformSchema';
+import { usePlatformObjectFields, usePlatformObjects, usePlatformRelationships } from './usePlatformSchema';
 
 jest.mock('./platformSchema');
 const mockedObjects = fetchPlatformObjects as jest.MockedFunction<typeof fetchPlatformObjects>;
 const mockedRelationships = fetchPlatformRelationships as jest.MockedFunction<
   typeof fetchPlatformRelationships
+>;
+const mockedObjectFields = fetchPlatformObjectFields as jest.MockedFunction<
+  typeof fetchPlatformObjectFields
 >;
 
 function makeWrapper() {
@@ -26,6 +33,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockedObjects.mockResolvedValue([]);
   mockedRelationships.mockResolvedValue([]);
+  mockedObjectFields.mockResolvedValue([]);
 });
 
 describe('usePlatformSchema hooks', () => {
@@ -49,5 +57,23 @@ describe('usePlatformSchema hooks', () => {
   it('usePlatformRelationships — does not fetch when disabled', () => {
     renderHook(() => usePlatformRelationships(false), { wrapper: makeWrapper() });
     expect(mockedRelationships).not.toHaveBeenCalled();
+  });
+
+  // ─── Fields on a Global custom object (SP3b Slice 2a, Task 6) ────────────────────────────────
+  // The mutation hooks (create/update/delete) are covered end-to-end via PlatformFieldsCatalogTab's
+  // tests (component-level, real invalidation effects) — mirrors how the sibling object mutation
+  // hooks are covered only through PlatformObjectsTab, not in isolation here.
+
+  it('usePlatformObjectFields — fetches when given an objectKey', async () => {
+    const { result } = renderHook(() => usePlatformObjectFields('vendor'), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockedObjectFields).toHaveBeenCalled();
+  });
+
+  it('usePlatformObjectFields — does not fetch when objectKey is null', () => {
+    renderHook(() => usePlatformObjectFields(null), { wrapper: makeWrapper() });
+    expect(mockedObjectFields).not.toHaveBeenCalled();
   });
 });

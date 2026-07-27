@@ -132,6 +132,27 @@ public sealed class PlatformSchemaController : ControllerBase
         };
     }
 
+    /// <summary>The full stored field definitions (options/rules included) on a Global custom object
+    /// (platform admin). Used to seed the admin editor before an edit — the flat platform catalog row
+    /// omits options/rules, and the upsert replaces both wholesale, so editing from the catalog row
+    /// alone would silently clear them. <paramref name="objectKey"/> must resolve to a Global,
+    /// non-system object — any other value returns 404, never disclosing which slugs exist.</summary>
+    [HttpGet("objects/{objectKey}/fields")]
+    [ProducesResponseType(typeof(IReadOnlyList<FieldDefinitionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetFields(
+        [FromRoute] string objectKey, CancellationToken cancellationToken)
+    {
+        if (!await _accessGuard.IsPlatformAdminAsync(_currentUser.UserId, cancellationToken))
+        {
+            return AccessDenied();
+        }
+
+        var fields = await _fields.GetGlobalObjectFieldsAsync(objectKey, cancellationToken);
+        return fields is null ? NotFound() : Ok(fields);
+    }
+
     /// <summary>Create a field on a Global custom object (platform admin). <paramref name="objectKey"/>
     /// must resolve to a Global, non-system object — any other value (built-in, LocalWorkspace object,
     /// unknown slug) returns 404, never disclosing which slugs exist.</summary>

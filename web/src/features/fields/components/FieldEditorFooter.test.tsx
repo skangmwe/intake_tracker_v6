@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 
 import { buildFieldDefinition } from '@/test-utils';
@@ -48,6 +49,29 @@ describe('FieldEditorFooter', () => {
 
     // Assert
     expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
+  });
+
+  it('FieldEditorFooter — editable, with onRequestDelete — offers Delete', async () => {
+    // Arrange
+    const onRequestDelete = jest.fn();
+    const user = userEvent.setup();
+    renderFooter({ onRequestDelete });
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+
+    // Assert — the footer's Delete only opens the confirm, it never deletes directly.
+    expect(onRequestDelete).toHaveBeenCalled();
+  });
+
+  it('FieldEditorFooter — confirmingDelete — hides the Delete trigger (the confirm block owns it)', () => {
+    // Arrange / Act
+    renderFooter({ onRequestDelete: () => {}, confirmingDelete: true });
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    // Save/Cancel remain — the confirm sits above this footer, not in place of it.
+    expect(screen.getByRole('button', { name: 'Save field' })).toBeInTheDocument();
   });
 
   it('FieldEditorFooter — no axe violations (readOnly and editable)', async () => {

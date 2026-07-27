@@ -193,4 +193,68 @@ public sealed class FieldSchemaServiceGlobalFieldTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             sut.RetireGlobalObjectFieldAsync("vendorReview", "priority", UserId, cts.Token));
     }
+
+    // ─── GetGlobalObjectFieldsAsync — NotFound guard (no DB access) — Task 6 ───────────────────
+    // Seeds the admin editor's edit flow with full field definitions (options/rules). Same guard
+    // as Upsert/Retire above; the DB-backed success path (ReadFieldsAsync) is not unit-testable
+    // without a real relational provider — see the platform controller tests (Task 4/6) instead.
+
+    [Fact]
+    public async Task GetGlobalObjectFieldsAsync_UnresolvableObjectKey_ReturnsNull()
+    {
+        // Arrange
+        var (sut, _) = Build(globals: new[] { GlobalCustomObject("vendorReview") });
+
+        // Act
+        var result = await sut.GetGlobalObjectFieldsAsync("unknownSlug", CancellationToken.None);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetGlobalObjectFieldsAsync_BuiltInGlobalObjectKey_ReturnsNull()
+    {
+        // Arrange
+        var builtIn = ObjectSchemaService.GetGlobalSystemObjects().Single(o => o.ObjectKey == "Request");
+        var (sut, _) = Build(globals: new[] { builtIn });
+
+        // Act
+        var result = await sut.GetGlobalObjectFieldsAsync("Request", CancellationToken.None);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetGlobalObjectFieldsAsync_LocalWorkspaceObjectKey_ReturnsNull()
+    {
+        // Arrange
+        var (sut, _) = Build(globals: new[] { LocalWorkspaceObject("vendorReview") });
+
+        // Act
+        var result = await sut.GetGlobalObjectFieldsAsync("vendorReview", CancellationToken.None);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetGlobalObjectFieldsAsync_CancelledToken_Propagates()
+    {
+        // Arrange
+        var (sut, objects) = Build();
+        objects.Setup(service => service.ListGlobalAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken token) =>
+            {
+                token.ThrowIfCancellationRequested();
+                return Task.FromResult<IReadOnlyList<ObjectDefinitionDto>>(Array.Empty<ObjectDefinitionDto>());
+            });
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act + Assert — exits via the cancellation exception, never reaching _db.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            sut.GetGlobalObjectFieldsAsync("vendorReview", cts.Token));
+    }
 }

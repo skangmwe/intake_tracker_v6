@@ -5,10 +5,14 @@ import { apiFetch } from '@/shared/http/apiClient';
 
 import {
   createPlatformObject,
+  createPlatformObjectField,
   deletePlatformObject,
+  deletePlatformObjectField,
+  fetchPlatformObjectFields,
   fetchPlatformObjects,
   fetchPlatformRelationships,
   updatePlatformObject,
+  updatePlatformObjectField,
 } from './platformSchema';
 
 jest.mock('@/shared/http/apiClient');
@@ -103,6 +107,79 @@ describe('platformSchema api', () => {
 
     // Assert
     expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects/vendor', {
+      method: 'DELETE',
+    });
+  });
+
+  // ─── Fields on a Global custom object (SP3b Slice 2a, Task 6) ────────────────────────────────
+
+  it('fetchPlatformObjectFields — calls the object fields endpoint', async () => {
+    // Act
+    await fetchPlatformObjectFields('vendor');
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects/vendor/fields', {});
+  });
+
+  it('fetchPlatformObjectFields — forwards an abort signal when given', async () => {
+    // Arrange
+    const controller = new AbortController();
+
+    // Act
+    await fetchPlatformObjectFields('vendor', controller.signal);
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects/vendor/fields', {
+      signal: controller.signal,
+    });
+  });
+
+  it('createPlatformObjectField — POSTs the request to the object fields endpoint', async () => {
+    // Arrange
+    const request = {
+      objectType: 'vendor',
+      fieldKey: 'priority',
+      displayName: 'Priority',
+      fieldType: 'ShortText' as const,
+      category: 'WorkspaceLocal' as const,
+    };
+
+    // Act
+    await createPlatformObjectField('vendor', request);
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects/vendor/fields', {
+      method: 'POST',
+      body: request,
+    });
+  });
+
+  it('updatePlatformObjectField — PATCHes the request to the field by key', async () => {
+    // Arrange
+    const request = {
+      objectType: 'vendor',
+      fieldKey: 'priority',
+      displayName: 'Priority Level',
+      fieldType: 'ShortText' as const,
+      category: 'WorkspaceLocal' as const,
+    };
+
+    // Act
+    await updatePlatformObjectField('vendor', 'priority', request);
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects/vendor/fields/priority', {
+      method: 'PATCH',
+      body: request,
+    });
+  });
+
+  it('deletePlatformObjectField — DELETEs the field by key', async () => {
+    // Act
+    await deletePlatformObjectField('vendor', 'priority');
+
+    // Assert
+    expect(mockedApiFetch).toHaveBeenCalledWith('/v1/platform/objects/vendor/fields/priority', {
       method: 'DELETE',
     });
   });
