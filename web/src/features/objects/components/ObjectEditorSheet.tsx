@@ -145,6 +145,22 @@ export function ObjectEditorSheet({
       : 'This built-in object always has a place in the navigation.'
     : 'Adds a navigation item for this object under a sidebar category.';
 
+  // Plural-label field — identical markup whether the sheet is read-only or editable (a disabled
+  // input simply ignores onChange), so it is defined once and placed either beside the read-only
+  // Location control or on its own in the editable path.
+  const pluralField = (
+    <label className="mws-field">
+      <span className="caption">Plural label</span>
+      <input
+        className="mws-input"
+        value={draft.pluralLabel}
+        placeholder="e.g. Vendors"
+        disabled={readOnly}
+        onChange={(event) => patch({ pluralLabel: event.target.value })}
+      />
+    </label>
+  );
+
   return (
     <div
       className="fields-sheet"
@@ -190,17 +206,9 @@ export function ObjectEditorSheet({
 
         {readOnly ? (
           // Read-only path (built-in or a foreign platform-owned Global object): show the real
-          // Location so a Global object still displays and labels as "Global" here.
+          // Location beside the plural label so a Global object still displays and labels as "Global".
           <div className="fields-inline-pair">
-            <label className="mws-field">
-              <span className="caption">Plural label</span>
-              <input
-                className="mws-input"
-                value={draft.pluralLabel}
-                disabled
-                placeholder="e.g. Vendors"
-              />
-            </label>
+            {pluralField}
             <label className="mws-field">
               <span className="caption">Location</span>
               <select className="mws-select" value={draft.location} disabled>
@@ -213,18 +221,10 @@ export function ObjectEditorSheet({
             </label>
           </div>
         ) : (
-          // Editable path: a workspace can only ever author a LocalWorkspace object, so there is
-          // nothing to choose — omit the Location control entirely rather than show a one-option
-          // dropdown. The saved value is hard-set to WORKSPACE_ONLY_LOCATION in `submit` above.
-          <label className="mws-field">
-            <span className="caption">Plural label</span>
-            <input
-              className="mws-input"
-              value={draft.pluralLabel}
-              placeholder="e.g. Vendors"
-              onChange={(event) => patch({ pluralLabel: event.target.value })}
-            />
-          </label>
+          // Editable path: a workspace can only ever author a LocalWorkspace object, so the Location
+          // control is omitted entirely (the saved value is hard-set to WORKSPACE_ONLY_LOCATION in
+          // `submit` above) and the plural label stands alone.
+          pluralField
         )}
 
         <label className="mws-field">
