@@ -4,4 +4,5 @@ export { PlatformLayout } from './components/PlatformLayout';
 export { CrossingMapPage } from './components/CrossingMapPage';
 export { AccessPage } from './components/AccessPage';
 export { FirmWideAuditPage } from './components/FirmWideAuditPage';
-export { WorkspaceProvisioningPage } from './components/WorkspaceProvisioningPage';
+export { WorkspacesListPage } from './components/WorkspacesListPage';
+export { NewWorkspacePage } from './components/NewWorkspacePage';

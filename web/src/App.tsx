@@ -45,8 +45,9 @@ import {
   AccessPage,
   CrossingMapPage,
   FirmWideAuditPage,
+  NewWorkspacePage,
   PlatformLayout,
-  WorkspaceProvisioningPage,
+  WorkspacesListPage,
 } from '@/features/platform-admin';
 import { UsersAccessPage } from '@/features/users';
 import { HomePage } from '@/pages/HomePage';
@@ -96,6 +97,7 @@ export function App() {
         <ActiveWorkspaceProvider>
           <BrowserRouter>
             <Routes>
+              <Route path="/platform/workspaces/new" element={<NewWorkspacePage />} />
               <Route element={<AppShell />}>
                 <Route path="/" element={<HomePage />} />
                 <Route
@@ -119,7 +121,7 @@ export function App() {
                   <Route path="crossing-map" element={<CrossingMapPage />} />
                   <Route path="access" element={<AccessPage />} />
                   <Route path="announcements" element={<PlatformAnnouncementsPage />} />
-                  <Route path="workspaces" element={<WorkspaceProvisioningPage />} />
+                  <Route path="workspaces" element={<WorkspacesListPage />} />
                   <Route path="audit" element={<FirmWideAuditPage />} />
                 </Route>
                 <Route path="/requests" element={<RequestsListPage />} />

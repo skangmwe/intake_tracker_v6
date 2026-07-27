@@ -51,7 +51,7 @@ export const PLATFORM_NAV: PlatformNavEntry[] = [
   {
     to: '/platform/workspaces',
     label: 'Workspaces',
-    title: 'Workspace provisioning',
-    lead: 'Stand up a new PG/Dept workspace by cloning the template — name, prefix, and initial admin.',
+    title: 'Workspaces',
+    lead: 'Every practice group or department has its own workspace, provisioned from a base template. Stand up a new one, or review the ones that exist.',
   },
 ];

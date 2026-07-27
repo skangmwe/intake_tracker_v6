@@ -124,6 +124,22 @@ export interface WorkspaceProvisionResult {
   prefix: string;
 }
 
+/**
+ * One row of the Platform → Workspaces list (GET /api/v1/workspaces, platform-admin only).
+ * `ownerDisplayName` is the earliest WorkspaceAdmin's display name, or null when the workspace has
+ * no admin yet. `isArchived` reflects the workspace's RetiredAt.
+ */
+export interface WorkspaceListRow {
+  id: WorkspaceId;
+  name: string;
+  kind: WorkspaceKind;
+  prefix: string;
+  ownerDisplayName: string | null;
+  memberCount: number;
+  provisionedAt: IsoDateTime;
+  isArchived: boolean;
+}
+
 /* ── Platform broadcast target picker ────────────────────────────────────── */
 
 /** A workspace a platform admin may broadcast to (GET /platform/workspaces — excludes the template). */

@@ -395,6 +395,19 @@ public sealed class WorkspaceProvisionRow
     public string Prefix { get; set; } = string.Empty;
 }
 
+/// <summary>One row from usp_ListWorkspacesForPlatform (S38 rich list). Keyless projection.</summary>
+public sealed class WorkspaceListReadRow
+{
+    public Guid WorkspaceId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+    public string Prefix { get; set; } = string.Empty;
+    public string? OwnerDisplayName { get; set; }
+    public int MemberCount { get; set; }
+    public DateTime ProvisionedAt { get; set; }
+    public bool IsArchived { get; set; }
+}
+
 // ─── Slice 5 (Requests core) — keyless read projections ────────────────────────────────
 // Requests and Drafts are read/written through stored procedures (mint + origin resolution,
 // optimistic-concurrency PATCH, multi-filter list → api-data-access.md). The API never tracks the

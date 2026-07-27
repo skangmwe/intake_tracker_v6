@@ -12,6 +12,7 @@ import type {
   PlatformAdminGrantRequest,
   PrivilegedGrantsListDto,
   UserId,
+  WorkspaceListRow,
   WorkspaceProvisionRequest,
   WorkspaceProvisionResult,
 } from '@shared/types';
@@ -57,6 +58,11 @@ export function revokeAccess(userId: UserId): Promise<void> {
 
 export function provisionWorkspace(body: WorkspaceProvisionRequest): Promise<WorkspaceProvisionResult> {
   return apiFetch<WorkspaceProvisionResult>('/v1/workspaces', { method: 'POST', body });
+}
+
+/** The rich Platform → Workspaces list (platform-admin only). */
+export function fetchWorkspacesList(signal?: AbortSignal): Promise<WorkspaceListRow[]> {
+  return apiFetch<WorkspaceListRow[]>('/v1/workspaces', signal ? { signal } : {});
 }
 
 /* ── S39 Firm-wide audit ──────────────────────────────────────────────────── */

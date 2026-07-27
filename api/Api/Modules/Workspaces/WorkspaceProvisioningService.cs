@@ -28,6 +28,8 @@ public interface IWorkspaceProvisioningService
 {
     Task<ProvisionResult> ProvisionAsync(
         WorkspaceProvisionRequest request, Guid actorUserId, string operationId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<WorkspaceListRow>> ListAsync(CancellationToken cancellationToken);
 }
 
 public sealed class WorkspaceProvisioningService : IWorkspaceProvisioningService
@@ -93,6 +95,20 @@ public sealed class WorkspaceProvisioningService : IWorkspaceProvisioningService
         {
             return new ProvisionResult(ProvisionOutcome.UnknownAdmin);
         }
+    }
+
+    public async Task<IReadOnlyList<WorkspaceListRow>> ListAsync(CancellationToken cancellationToken)
+    {
+        var rows = await _db.Set<WorkspaceListReadRow>()
+            .FromSqlRaw("EXEC dbo.usp_ListWorkspacesForPlatform")
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows
+            .Select(row => new WorkspaceListRow(
+                row.WorkspaceId, row.Name, row.Kind, row.Prefix,
+                row.OwnerDisplayName, row.MemberCount, row.ProvisionedAt, row.IsArchived))
+            .ToList();
     }
 
     private async Task EmitAsync(

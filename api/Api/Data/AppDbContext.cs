@@ -149,6 +149,7 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<PrivilegedGrantRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<PlatformAdminGrantResultRow>().HasNoKey().ToView((string?)null);
         modelBuilder.Entity<WorkspaceProvisionRow>().HasNoKey().ToView((string?)null);
+        modelBuilder.Entity<WorkspaceListReadRow>().HasNoKey().ToView((string?)null);
 
         // Slice 22 (Home surface) — keyless panel projections read via stored procedures.
         modelBuilder.Entity<HomeDecisionRow>().HasNoKey().ToView((string?)null);
