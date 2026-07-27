@@ -45,42 +45,27 @@ describe('FieldsAdminPage', () => {
     mockedObjectsApi.fetchObjects.mockResolvedValue([]);
   });
 
-  it('FieldsAdminPage — not a workspace admin — shows a no-access message', async () => {
+  it('FieldsAdminPage — active workspace is member-only — shows a no-access message', async () => {
+    // Arrange / Act
     const { container } = renderWithProviders(<FieldsAdminPage />, {
       seedMe: buildMe({ memberships: [buildMembership({ level: 'Member' })] }),
     });
+
+    // Assert
     expect(await screen.findByText(/need to be a workspace admin/i)).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('FieldsAdminPage — renders the flat field catalog table', async () => {
+  it('FieldsAdminPage — active workspace is admin — renders the flat field catalog table', async () => {
     const { container } = renderWithProviders(<FieldsAdminPage />, { seedMe: adminMe });
     expect(await screen.findByRole('table')).toBeInTheDocument();
     expect(screen.getByText('Severity')).toBeInTheDocument();
     // Object appears as a column, not an inner tab set.
     expect(screen.getByRole('columnheader', { name: /object/i })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /workspace/i })).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
-  });
-
-  it('FieldsAdminPage — multiple admin workspaces — shows a workspace selector', async () => {
-    // Arrange
-    const me = buildMe({
-      memberships: [
-        buildMembership({ level: 'WorkspaceAdmin', workspaceName: 'AI Solutions' }),
-        buildMembership({
-          level: 'WorkspaceAdmin',
-          workspaceId: 'ws-2' as never,
-          workspaceName: 'Litigation',
-        }),
-      ],
-    });
-
-    // Act
-    renderWithProviders(<FieldsAdminPage />, { seedMe: me });
-    await screen.findByRole('table');
-
-    // Assert
-    expect(screen.getByRole('combobox', { name: /workspace/i })).toBeInTheDocument();
   });
 
   it('FieldsAdminPage — Relationships tab shows the relationships admin surface', async () => {

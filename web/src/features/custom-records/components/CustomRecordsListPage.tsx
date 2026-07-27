@@ -37,7 +37,7 @@ import {
 } from '@/shared/components/Table';
 import { EmptyListFilteredToZero, EmptyListZeroData, NoAccessPage } from '@/shared/components/EdgeStates';
 import { useMe } from '@/features/users/useMe';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import { SavedViewEditor, toPickerView, useSavedViews, type ColumnOption } from '@/features/saved-views';
 import { useWorkspaceFields } from '@/features/fields';
 import { useWorkspaceObjects } from '@/features/objects';
@@ -94,7 +94,7 @@ export function CustomRecordsListPage() {
   const navigate = useNavigate();
   const { objectKey = '' } = useParams<{ objectKey: string }>();
   const { data: me, isLoading: isMeLoading } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const workspaceId = useActiveWorkspaceId();
   const isAdmin = useMemo(
     () =>
       (me?.memberships ?? []).some(

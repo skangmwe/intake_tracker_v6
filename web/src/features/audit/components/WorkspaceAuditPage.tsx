@@ -12,7 +12,7 @@ import { AUDIT_LOG_PAGE_SIZE } from '@/shared/constants';
 import { Button } from '@/shared/components/Button';
 import { EmptyListFilteredToZero } from '@/shared/components/EdgeStates';
 import type { SelectOption } from '@/shared/components/Form';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import { useMe } from '@/features/users/useMe';
 import { useMembers } from '@/features/users/useMembers';
 
@@ -27,7 +27,7 @@ import { useWorkspaceAudit } from '../useWorkspaceAudit';
 
 export function WorkspaceAuditPage() {
   const { data: me, isLoading: meLoading, isError: meError } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const workspaceId = useActiveWorkspaceId();
   const isAdmin = useMemo(
     () =>
       (me?.memberships ?? []).some(

@@ -11,6 +11,7 @@ import { SideNavLayout } from '@/shared/components/Layout/SideNavLayout';
 import { ADMIN_NAV } from '@/shared/components/Layout/adminNav';
 import { NAV_SECTIONS } from '@/shared/components/Layout/navItems';
 import { queryClient } from '@/shared/queryClient';
+import { ActiveWorkspaceProvider } from '@/shared/workspace/ActiveWorkspaceContext';
 import {
   AnnouncementDetailPage,
   AnnouncementsListPage,
@@ -92,64 +93,66 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<AppShell />}>
-              <Route path="/" element={<HomePage />} />
-              <Route
-                path="/admin"
-                element={<SideNavLayout navLabel="Workspace settings" items={ADMIN_NAV} />}
-              >
-                <Route index element={<Navigate to="users" replace />} />
-                <Route path="users" element={<UsersAccessPage />} />
-                <Route path="fields" element={<FieldsAdminPage />} />
-                <Route path="views" element={<ViewsDashboardsPage />} />
-                <Route path="lifecycle" element={<LifecyclePage />} />
-                <Route path="announcements" element={<ManageAnnouncementsPage />} />
-                <Route path="triggers" element={<TriggersAdminPage />} />
-                <Route path="ai" element={<AiSettingsPage />} />
-                <Route path="import-export" element={<ImportExportPage />} />
-                <Route path="audit" element={<WorkspaceAuditPage />} />
-              </Route>
-              <Route path="/platform" element={<PlatformLayout />}>
-                <Route index element={<Navigate to="fields" replace />} />
-                <Route path="fields" element={<PlatformFieldsPage />} />
-                <Route path="crossing-map" element={<CrossingMapPage />} />
-                <Route path="access" element={<AccessPage />} />
-                <Route path="announcements" element={<PlatformAnnouncementsPage />} />
-                <Route path="workspaces" element={<WorkspaceProvisioningPage />} />
-                <Route path="audit" element={<FirmWideAuditPage />} />
-              </Route>
-              <Route path="/requests" element={<RequestsListPage />} />
-              <Route path="/requests/new" element={<IntakeFormPage />} />
-              <Route path="/ask" element={<AskPage />} />
-              <Route path="/requests/:recordId" element={<RecordDetailPage />} />
-              <Route path="/drafts" element={<DraftsPage />} />
-              <Route path="/dashboards" element={<DashboardsListPage />} />
-              <Route path="/dashboards/:id" element={<DashboardPage />} />
-              <Route path="/feature-catalog" element={<FeatureCatalogPage />} />
-              <Route path="/feature-catalog/new" element={<AddToCatalogPage />} />
-              <Route path="/feature-catalog/:recordId" element={<FeatureDetailPage />} />
-              {/* Custom-object records (SP2). Placed above the catch-all; no plain /objects route
-                  exists (object admin lives under /admin/fields), so this does not shadow anything. */}
-              <Route path="/objects/:objectKey" element={<CustomRecordsListPage />} />
-              <Route path="/objects/:objectKey/new" element={<CustomRecordCreatePage />} />
-              <Route path="/objects/:objectKey/:recordId" element={<CustomRecordDetailPage />} />
-              <Route path="/toolkit" element={<ToolkitSurface />} />
-              <Route path="/search" element={<SearchResultsPage />} />
-              <Route path="/announcements" element={<AnnouncementsListPage />} />
-              <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
-              {PLACEHOLDER_ROUTES.map((item) => (
+        <ActiveWorkspaceProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route path="/" element={<HomePage />} />
                 <Route
-                  key={item.to}
-                  path={item.to}
-                  element={<PlaceholderPage title={item.label} />}
-                />
-              ))}
-              <Route path="*" element={<PlaceholderPage title="Page not found" />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+                  path="/admin"
+                  element={<SideNavLayout navLabel="Workspace settings" items={ADMIN_NAV} />}
+                >
+                  <Route index element={<Navigate to="users" replace />} />
+                  <Route path="users" element={<UsersAccessPage />} />
+                  <Route path="fields" element={<FieldsAdminPage />} />
+                  <Route path="views" element={<ViewsDashboardsPage />} />
+                  <Route path="lifecycle" element={<LifecyclePage />} />
+                  <Route path="announcements" element={<ManageAnnouncementsPage />} />
+                  <Route path="triggers" element={<TriggersAdminPage />} />
+                  <Route path="ai" element={<AiSettingsPage />} />
+                  <Route path="import-export" element={<ImportExportPage />} />
+                  <Route path="audit" element={<WorkspaceAuditPage />} />
+                </Route>
+                <Route path="/platform" element={<PlatformLayout />}>
+                  <Route index element={<Navigate to="fields" replace />} />
+                  <Route path="fields" element={<PlatformFieldsPage />} />
+                  <Route path="crossing-map" element={<CrossingMapPage />} />
+                  <Route path="access" element={<AccessPage />} />
+                  <Route path="announcements" element={<PlatformAnnouncementsPage />} />
+                  <Route path="workspaces" element={<WorkspaceProvisioningPage />} />
+                  <Route path="audit" element={<FirmWideAuditPage />} />
+                </Route>
+                <Route path="/requests" element={<RequestsListPage />} />
+                <Route path="/requests/new" element={<IntakeFormPage />} />
+                <Route path="/ask" element={<AskPage />} />
+                <Route path="/requests/:recordId" element={<RecordDetailPage />} />
+                <Route path="/drafts" element={<DraftsPage />} />
+                <Route path="/dashboards" element={<DashboardsListPage />} />
+                <Route path="/dashboards/:id" element={<DashboardPage />} />
+                <Route path="/feature-catalog" element={<FeatureCatalogPage />} />
+                <Route path="/feature-catalog/new" element={<AddToCatalogPage />} />
+                <Route path="/feature-catalog/:recordId" element={<FeatureDetailPage />} />
+                {/* Custom-object records (SP2). Placed above the catch-all; no plain /objects route
+                    exists (object admin lives under /admin/fields), so this does not shadow anything. */}
+                <Route path="/objects/:objectKey" element={<CustomRecordsListPage />} />
+                <Route path="/objects/:objectKey/new" element={<CustomRecordCreatePage />} />
+                <Route path="/objects/:objectKey/:recordId" element={<CustomRecordDetailPage />} />
+                <Route path="/toolkit" element={<ToolkitSurface />} />
+                <Route path="/search" element={<SearchResultsPage />} />
+                <Route path="/announcements" element={<AnnouncementsListPage />} />
+                <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
+                {PLACEHOLDER_ROUTES.map((item) => (
+                  <Route
+                    key={item.to}
+                    path={item.to}
+                    element={<PlaceholderPage title={item.label} />}
+                  />
+                ))}
+                <Route path="*" element={<PlaceholderPage title="Page not found" />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </ActiveWorkspaceProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

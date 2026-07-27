@@ -34,6 +34,7 @@ import {
 import { agingTintClass } from '@/shared/components/Feedback';
 import { EmptyListFilteredToZero, EmptyListZeroData } from '@/shared/components/EdgeStates';
 import { useMe } from '@/features/users/useMe';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import {
   SavedViewEditor,
   toPickerView,
@@ -45,7 +46,6 @@ import { useLifecycleConfig } from '@/features/lifecycle';
 import { formatDate } from '@/shared/utils/dateFormat';
 
 import { useRequestsList } from '../useRequests';
-import { resolveActiveWorkspaceId } from '../workspace';
 import { problemMessage } from '../problemMessage';
 import '../requestsList.css';
 
@@ -316,7 +316,7 @@ function RepoCell({ value }: { value: unknown }) {
 export function RequestsListPage() {
   const navigate = useNavigate();
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const workspaceId = useActiveWorkspaceId();
   const displayName = me?.user.displayName ?? '';
   const isAdmin = useMemo(
     () =>

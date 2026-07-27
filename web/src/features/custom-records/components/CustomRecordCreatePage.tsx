@@ -21,7 +21,7 @@ import {
   type FieldValueMap,
 } from '@/shared/fields/fieldForm';
 import { useMe } from '@/features/users/useMe';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import { useWorkspaceObjects } from '@/features/objects';
 import { useWorkspaceFields } from '@/features/fields';
 
@@ -31,8 +31,8 @@ import '../customRecords.css';
 export function CustomRecordCreatePage() {
   const navigate = useNavigate();
   const { objectKey = '' } = useParams<{ objectKey: string }>();
-  const { data: me, isLoading: isMeLoading } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const { isLoading: isMeLoading } = useMe();
+  const workspaceId = useActiveWorkspaceId();
 
   const objects = useWorkspaceObjects(workspaceId ?? undefined);
   const object = objects.data?.find((candidate) => candidate.objectKey === objectKey);

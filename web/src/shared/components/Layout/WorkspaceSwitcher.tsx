@@ -1,7 +1,6 @@
-// Workspace switcher (sidebar). SLICE-2 STUB: it lists the caller's memberships from
-// GET /users/me and marks the first as current; picking one just closes the menu. The full
-// switching flow (active-workspace context, scoped queries) is a later iteration — S8 is
-// tagged [deferred] in the slice plan.
+// Workspace switcher (sidebar). Lists the caller's memberships from GET /users/me; the current
+// selection and the click handler are backed by the ActiveWorkspaceContext, so picking a
+// workspace here sets it as active app-wide and persists the choice.
 //
 // The popover is portalled to <body> and positioned at the trigger so it can extend past the
 // sidebar's right edge (the sidebar is a scroll container that would otherwise clip it) and grow
@@ -15,6 +14,7 @@ import { Buildings, CaretUpDown, Check } from '@phosphor-icons/react';
 import type { WorkspaceKind, WorkspaceMembershipDto } from '@shared/types';
 
 import { useDismissable } from '@/shared/hooks/useDismissable';
+import { useActiveWorkspace } from '@/shared/workspace/ActiveWorkspaceContext';
 
 const KIND_LABEL: Record<WorkspaceKind, string> = {
   'ai-solutions': 'hub',
@@ -41,7 +41,9 @@ export function WorkspaceSwitcher({ memberships }: WorkspaceSwitcherProps) {
 
   // The PG/Dept template is a clone source, not a switchable workspace — never list it.
   const workspaces = memberships.filter((item) => item.workspaceKind !== 'pg-dept-template');
-  const current = workspaces[0];
+  const { activeWorkspaceId, setActiveWorkspaceId } = useActiveWorkspace();
+  const current =
+    workspaces.find((item) => item.workspaceId === activeWorkspaceId) ?? workspaces[0];
   const currentLabel = current ? current.workspaceName : 'No workspace';
 
   // Anchor the portalled popover to the trigger, and keep it aligned on scroll/resize.
@@ -95,23 +97,29 @@ export function WorkspaceSwitcher({ memberships }: WorkspaceSwitcherProps) {
             {workspaces.length === 0 && (
               <div className="ast-ws-empty">You are not a member of any workspace yet.</div>
             )}
-            {workspaces.map((membership, index) => (
-              <button
-                key={membership.workspaceId}
-                type="button"
-                role="menuitem"
-                className="ast-ws-menu__item"
-                onClick={() => setOpen(false)}
-              >
-                {index === 0 ? (
-                  <Check size={14} weight="regular" aria-hidden />
-                ) : (
-                  <span aria-hidden className="ast-ws-menu__item-spacer" />
-                )}
-                <span className="ast-ws-menu__item-name">{membership.workspaceName}</span>
-                <span className="ast-ws-menu__item-kind">{KIND_LABEL[membership.workspaceKind]}</span>
-              </button>
-            ))}
+            {workspaces.map((membership) => {
+              const isActive = membership.workspaceId === activeWorkspaceId;
+              return (
+                <button
+                  key={membership.workspaceId}
+                  type="button"
+                  role="menuitem"
+                  className="ast-ws-menu__item"
+                  onClick={() => {
+                    setActiveWorkspaceId(membership.workspaceId);
+                    setOpen(false);
+                  }}
+                >
+                  {isActive ? (
+                    <Check size={14} weight="regular" aria-hidden />
+                  ) : (
+                    <span aria-hidden className="ast-ws-menu__item-spacer" />
+                  )}
+                  <span className="ast-ws-menu__item-name">{membership.workspaceName}</span>
+                  <span className="ast-ws-menu__item-kind">{KIND_LABEL[membership.workspaceKind]}</span>
+                </button>
+              );
+            })}
           </div>,
           document.body,
         )}

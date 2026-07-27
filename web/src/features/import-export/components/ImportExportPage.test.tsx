@@ -3,12 +3,12 @@
 // mocked so this test focuses on the gate + tab switching. jest-axe runs on every rendered state.
 
 import { axe } from 'jest-axe';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { useMe } from '@/features/users/useMe';
 
-import { buildMe, buildMembership } from '@/test-utils';
+import { renderWithProviders, buildMe, buildMembership } from '@/test-utils';
 
 import { ImportExportPage } from './ImportExportPage';
 
@@ -36,14 +36,14 @@ beforeEach(() => jest.clearAllMocks());
 describe('ImportExportPage', () => {
   it('shows a loading state', async () => {
     mockMe({ isLoading: true, isError: false, data: undefined });
-    const { container } = render(<ImportExportPage />);
+    const { container } = renderWithProviders(<ImportExportPage />);
     expect(screen.getByRole('status')).toHaveTextContent('Loading…');
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it('shows an error state', async () => {
     mockMe({ isLoading: false, isError: true, data: undefined });
-    const { container } = render(<ImportExportPage />);
+    const { container } = renderWithProviders(<ImportExportPage />);
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -54,7 +54,7 @@ describe('ImportExportPage', () => {
       isError: false,
       data: buildMe({ memberships: [buildMembership({ level: 'Member' })] }),
     });
-    const { container } = render(<ImportExportPage />);
+    const { container } = renderWithProviders(<ImportExportPage />);
     expect(screen.getByRole('alert')).toHaveTextContent(/workspace admins/);
     expect(screen.queryByText('import-wizard')).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -62,7 +62,7 @@ describe('ImportExportPage', () => {
 
   it('shows the import wizard by default for a workspace admin', async () => {
     mockAdmin();
-    const { container } = render(<ImportExportPage />);
+    const { container } = renderWithProviders(<ImportExportPage />);
     expect(screen.getByRole('tab', { name: 'Import' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('import-wizard')).toBeInTheDocument();
     expect(screen.queryByText('export-wizard')).not.toBeInTheDocument();
@@ -71,7 +71,7 @@ describe('ImportExportPage', () => {
 
   it('switches to the Export tab and shows the wizard + saved-view panel', async () => {
     mockAdmin();
-    const { container } = render(<ImportExportPage />);
+    const { container } = renderWithProviders(<ImportExportPage />);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Export' }));
 

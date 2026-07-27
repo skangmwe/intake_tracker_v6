@@ -35,6 +35,7 @@ import type {
 
 import { AuthContext, type AuthContextValue } from '@/shared/auth/authContext';
 import { ME_QUERY_KEY } from '@/features/users/useMe';
+import { ActiveWorkspaceProvider } from '@/shared/workspace/ActiveWorkspaceContext';
 
 export function buildAuth(overrides: Partial<AuthContextValue> = {}): AuthContextValue {
   return {
@@ -416,6 +417,11 @@ interface ProviderOptions {
 
 export function renderWithProviders(ui: ReactElement, options: ProviderOptions = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // staleTime: Infinity on the me key stops the seeded /users/me query from refetching on mount.
+  // Tests that exercise the me loading/error states render without seedMe (unchanged); a suite that
+  // broadly stubs apiFetch and doesn't want the ActiveWorkspaceProvider's useMe() to consume a
+  // queued response seeds me explicitly so the query is a fresh cache hit that never fetches.
+  queryClient.setQueryDefaults(ME_QUERY_KEY, { staleTime: Infinity });
   if (options.seedMe) {
     queryClient.setQueryData(ME_QUERY_KEY, options.seedMe);
   }
@@ -425,7 +431,9 @@ export function renderWithProviders(ui: ReactElement, options: ProviderOptions =
     return (
       <QueryClientProvider client={queryClient}>
         <AuthContext.Provider value={auth}>
-          <MemoryRouter initialEntries={[options.route ?? '/']}>{children}</MemoryRouter>
+          <ActiveWorkspaceProvider>
+            <MemoryRouter initialEntries={[options.route ?? '/']}>{children}</MemoryRouter>
+          </ActiveWorkspaceProvider>
         </AuthContext.Provider>
       </QueryClientProvider>
     );

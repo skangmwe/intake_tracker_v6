@@ -25,6 +25,7 @@ import { Button } from '@/shared/components/Button';
 import { RangeSlider, Select } from '@/shared/components/Form';
 import { SIMILAR_DEBOUNCE_MS } from '@/shared/constants';
 import { useMe } from '@/features/users/useMe';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import { fetchWorkspaceFields } from '@/features/fields/api';
 import { useWorkspaceLifecycles } from '@/features/lifecycle/useLifecycle';
 
@@ -40,7 +41,6 @@ import {
   type FieldValueMap,
 } from '../requestForm';
 import { problemMessage } from '../problemMessage';
-import { resolveActiveWorkspaceId } from '../workspace';
 import { useCreateRequest, useSimilarRequests } from '../useRequests';
 import { useSaveDraft } from '../useDrafts';
 import '../intakeForm.css';
@@ -69,7 +69,7 @@ export function IntakeFormPage() {
   const draftId = searchParams.get('draftId');
 
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
-  const workspaceId = resolveActiveWorkspaceId(me?.memberships);
+  const workspaceId = useActiveWorkspaceId();
   const wsId = (workspaceId ?? '') as WorkspaceId;
 
   const schemaQuery = useQuery({

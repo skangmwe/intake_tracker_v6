@@ -1,17 +1,16 @@
 // S26 Drafts — the caller's personal, discardable intake drafts. Resume opens the intake form
 // prefilled; Discard hard-deletes. Deferred surface built minimally in slice 5 (data-model.md §Draft).
 
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import type { DraftId, WorkspaceId } from '@shared/types';
 
 import { Button } from '@/shared/components/Button';
 import { useMe } from '@/features/users/useMe';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import { formatDate } from '@/shared/utils/dateFormat';
 
 import { useDeleteDraft, useDrafts } from '../useDrafts';
-import { resolveActiveWorkspaceId } from '../workspace';
 import { problemMessage } from '../problemMessage';
 
 function formatEdited(iso: string): string {
@@ -23,8 +22,8 @@ function formatEdited(iso: string): string {
 
 export function DraftsPage() {
   const navigate = useNavigate();
-  const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const { isLoading: isMeLoading, isError: isMeError } = useMe();
+  const workspaceId = useActiveWorkspaceId();
 
   const { data: drafts, isLoading, isError, error } = useDrafts(workspaceId ?? undefined);
   const deleteDraft = useDeleteDraft((workspaceId ?? '') as WorkspaceId);

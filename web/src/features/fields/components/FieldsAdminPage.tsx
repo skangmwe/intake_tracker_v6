@@ -4,9 +4,9 @@
 
 import { useState } from 'react';
 import { type Icon, Graph, Stack, Textbox } from '@phosphor-icons/react';
-import type { WorkspaceId } from '@shared/types';
 
 import { useMe } from '@/features/users/useMe';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { RelationshipsAdminTab } from '@/features/relationships';
 import { ObjectsAdminTab } from '@/features/objects';
@@ -23,14 +23,12 @@ const S30_TABS: { value: S30Tab; label: string; Icon: Icon }[] = [
 
 export function FieldsAdminPage() {
   const { data: me, isLoading: isMeLoading, isError: isMeError } = useMe();
-  const adminMemberships = (me?.memberships ?? []).filter(
-    (membership) => membership.level === 'WorkspaceAdmin',
+  const workspaceId = useActiveWorkspaceId();
+  const isAdmin = (me?.memberships ?? []).some(
+    (membership) => membership.workspaceId === workspaceId && membership.level === 'WorkspaceAdmin',
   );
 
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<WorkspaceId | null>(null);
   const [s30Tab, setS30Tab] = useState<S30Tab>('fields');
-
-  const workspaceId = selectedWorkspaceId ?? adminMemberships[0]?.workspaceId ?? null;
 
   if (isMeLoading && !me) {
     return (
@@ -48,7 +46,7 @@ export function FieldsAdminPage() {
     );
   }
 
-  if (adminMemberships.length === 0 || workspaceId === null) {
+  if (!workspaceId || !isAdmin) {
     return (
       <section className="mws-empty mws-empty--zero">
         <p className="body">
@@ -59,26 +57,9 @@ export function FieldsAdminPage() {
   }
 
   // The surface title + lead render once in the shared SideNavLayout header (from the active nav
-  // item); this page composes only its workspace picker and the tab content.
+  // item); this page composes only the tab content, scoped to the active workspace.
   return (
     <section aria-label="Fields and objects">
-      {adminMemberships.length > 1 && (
-        <label className="mws-field">
-          <span className="caption">Workspace</span>
-          <select
-            className="mws-select"
-            value={workspaceId}
-            onChange={(event) => setSelectedWorkspaceId(event.target.value as WorkspaceId)}
-          >
-            {adminMemberships.map((membership) => (
-              <option key={membership.workspaceId} value={membership.workspaceId}>
-                {membership.workspaceName}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
       <div
         className="fields-tabbar"
         role="tablist"

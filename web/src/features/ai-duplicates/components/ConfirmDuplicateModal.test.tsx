@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import type { RecordId, WorkspaceId } from '@shared/types';
 
-import { renderWithProviders } from '@/test-utils';
+import { buildMe, renderWithProviders } from '@/test-utils';
 import { apiFetch } from '@/shared/http/apiClient';
 
 import { ConfirmDuplicateModal } from './ConfirmDuplicateModal';
@@ -35,6 +35,9 @@ function renderModal(overrides: { onClose?: jest.Mock; onConfirmed?: jest.Mock }
       onClose={onClose}
       onConfirmed={onConfirmed}
     />,
+    // Seed me so the ActiveWorkspaceProvider's useMe() is a cache hit and does not consume a queued
+    // apiFetch mock response (this suite stubs apiFetch with ...ValueOnce).
+    { seedMe: buildMe() },
   );
   return { onClose, onConfirmed, ...view };
 }

@@ -10,7 +10,7 @@ import { useMemo } from 'react';
 
 import type { SavedViewObjectType } from '@shared/types';
 
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 import { useMe } from '@/features/users/useMe';
 import { DashboardsManagementSection } from '@/features/dashboards';
 
@@ -20,7 +20,7 @@ const OBJECT_TYPES: readonly SavedViewObjectType[] = ['Request', 'Feature', 'Tas
 
 export function ViewsDashboardsPage() {
   const { data: me, isLoading: meLoading, isError: meError } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const workspaceId = useActiveWorkspaceId();
   const isAdmin = useMemo(
     () =>
       (me?.memberships ?? []).some(

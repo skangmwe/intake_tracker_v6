@@ -28,8 +28,7 @@ import {
 import { ViewModeToggle } from '@/shared/components/RecordViews';
 import { SEARCH_DEBOUNCE_MS } from '@/shared/constants';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
-import { useMe } from '@/features/users/useMe';
-import { resolveActiveWorkspaceId } from '@/features/requests/workspace';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { TOOLKIT_KINDS, TOOLKIT_STATUSES } from '../toolkitFormat';
 import { useToolkitList } from '../useToolkit';
@@ -85,8 +84,7 @@ function maintainerOptions(rows: ToolkitItemListRow[]) {
 }
 
 export function ToolkitSurface() {
-  const { data: me } = useMe();
-  const workspaceId = useMemo(() => resolveActiveWorkspaceId(me?.memberships), [me]);
+  const workspaceId = useActiveWorkspaceId();
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);

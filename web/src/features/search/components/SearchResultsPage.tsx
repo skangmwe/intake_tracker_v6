@@ -8,13 +8,12 @@ import { useMemo, type FormEvent, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { MagnifyingGlass } from '@phosphor-icons/react';
 
-import type { SearchResultDto, WorkspaceId } from '@shared/types';
+import type { SearchResultDto } from '@shared/types';
 
 import { SEARCH_MIN_QUERY_LENGTH, SEARCH_RESULTS_PAGE_SIZE } from '@/shared/constants';
 import { Button } from '@/shared/components/Button';
 import { StatusPill } from '@/shared/components/Feedback/StatusPill';
-import { resolveActiveWorkspaceId } from '@/shared/workspace/activeWorkspace';
-import { useMe } from '@/features/users/useMe';
+import { useActiveWorkspaceId } from '@/shared/workspace/ActiveWorkspaceContext';
 
 import { splitSnippet } from '../highlight';
 import { useFullSearch } from '../useSearch';
@@ -65,11 +64,7 @@ function highlight(text: string, query: string): ReactNode {
 }
 
 export function SearchResultsPage() {
-  const me = useMe();
-  const workspaceId = useMemo(
-    () => resolveActiveWorkspaceId(me.data?.memberships) as WorkspaceId | null,
-    [me.data],
-  );
+  const workspaceId = useActiveWorkspaceId();
 
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
