@@ -293,7 +293,17 @@ export function NewWorkspacePage() {
     );
   }
 
-  if (isError || !isPlatformAdmin) {
+  if (isError) {
+    return (
+      <div className="platform-admin">
+        <p className="mws-alert mws-alert--error" role="alert">
+          This page could not be loaded. Try again in a moment.
+        </p>
+      </div>
+    );
+  }
+
+  if (!isPlatformAdmin) {
     return (
       <div className="platform-admin">
         <p className="mws-alert mws-alert--warning" role="alert">

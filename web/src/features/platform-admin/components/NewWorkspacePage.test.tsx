@@ -101,6 +101,19 @@ it('NewWorkspacePage — create — provisions and navigates to the list', async
   );
 });
 
+it('NewWorkspacePage — load error — shows the error alert, not the admin-only message', async () => {
+  // Arrange — /users/me fails to load (unseeded, so useMe's query actually runs and rejects)
+  mockedFetchMe.mockRejectedValue(new Error('boom'));
+
+  // Act
+  const { container } = renderWithProviders(<NewWorkspacePage />);
+
+  // Assert
+  expect(await screen.findByRole('alert')).toHaveTextContent(/could not be loaded/i);
+  expect(screen.queryByText(/available to platform admins/i)).not.toBeInTheDocument();
+  expect(await axe(container)).toHaveNoViolations();
+});
+
 it('NewWorkspacePage — API error — surfaces inline on the details step', async () => {
   // Arrange
   mockedProvision.mockRejectedValue(new Error('Prefix already in use.'));
