@@ -13,7 +13,7 @@ function renderSheet(overrides: Partial<React.ComponentProps<typeof FieldEditorS
   const props: React.ComponentProps<typeof FieldEditorSheet> = {
     initialObjectType: 'Request',
     field: null,
-    availableKeysByObject: { Request: ['deptPgClient'] },
+    availableKeysByObject: { Request: [{ key: 'deptPgClient', label: 'Dept/PG/Client' }] },
     customObjectOptions: [],
     saveError: null,
     isSaving: false,
@@ -25,12 +25,26 @@ function renderSheet(overrides: Partial<React.ComponentProps<typeof FieldEditorS
 }
 
 describe('FieldEditorSheet', () => {
-  it('FieldEditorSheet — create mode — shows the add-field dialog with Object and Location', () => {
+  it('FieldEditorSheet — create mode — shows the new-field dialog with Object and Location', () => {
     renderSheet();
-    expect(screen.getByRole('dialog', { name: 'Add field' })).toBeInTheDocument();
-    // The reconciled sheet adds an Object picker and a Location picker.
+    expect(screen.getByRole('dialog', { name: 'New field' })).toBeInTheDocument();
+    // The reconciled sheet pairs Type|Object and Location|Section.
     expect(screen.getByLabelText('Object')).toBeInTheDocument();
     expect(screen.getByLabelText('Location')).toBeInTheDocument();
+  });
+
+  it('FieldEditorSheet — create mode — derives the read-only field key from the display name', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    renderSheet();
+
+    // Act — the analyst never types the key; it is generated from the display name.
+    const keyInput = screen.getByPlaceholderText('Generated from the display name');
+    expect(keyInput).toBeDisabled();
+    await user.type(screen.getByLabelText('Display name'), 'Client contact');
+
+    // Assert
+    expect(keyInput).toHaveValue('clientContact');
   });
 
   it('FieldEditorSheet — edit mode — pre-fills the field, locks the key, and locks the object', () => {
@@ -92,9 +106,8 @@ describe('FieldEditorSheet', () => {
     const user = userEvent.setup();
     renderSheet({ onSave });
 
-    // Act
+    // Act — the field key is derived from the display name ("Severity" → "severity").
     await user.type(screen.getByLabelText('Display name'), 'Severity');
-    await user.type(screen.getByLabelText('Field key'), 'severity');
     await user.selectOptions(screen.getByLabelText('Location'), 'Global');
     await user.click(screen.getByRole('button', { name: 'Save field' }));
 
@@ -163,7 +176,6 @@ describe('FieldEditorSheet', () => {
 
     // Act — switch the type to Number, fill the field, set bounds, save.
     await user.type(screen.getByLabelText('Display name'), 'Business Value');
-    await user.type(screen.getByLabelText('Field key'), 'businessValue');
     await user.selectOptions(screen.getByLabelText('Type'), 'Number');
     await user.type(screen.getByLabelText('Min value'), '1');
     await user.type(screen.getByLabelText('Max value'), '5');
@@ -185,7 +197,6 @@ describe('FieldEditorSheet', () => {
 
     // Act
     await user.type(screen.getByLabelText('Display name'), 'Timing');
-    await user.type(screen.getByLabelText('Field key'), 'timing');
     await user.selectOptions(screen.getByLabelText('Type'), 'SingleSelect');
     await user.click(screen.getByRole('button', { name: /add option/i }));
     await user.type(screen.getByPlaceholderText('Value'), 'Urgent');
@@ -207,7 +218,6 @@ describe('FieldEditorSheet', () => {
 
     // Act
     await user.type(screen.getByLabelText('Display name'), 'Priority Score');
-    await user.type(screen.getByLabelText('Field key'), 'priorityScore');
     await user.selectOptions(screen.getByLabelText('Type'), 'Calculation');
     await user.type(screen.getByLabelText('Expression'), 'a + b');
     await user.click(screen.getByRole('button', { name: 'Save field' }));
@@ -226,11 +236,10 @@ describe('FieldEditorSheet', () => {
     // Arrange
     const onSave = jest.fn();
     const user = userEvent.setup();
-    renderSheet({ onSave, availableKeysByObject: { Request: ['deptPgClient'] } });
+    renderSheet({ onSave, availableKeysByObject: { Request: [{ key: 'deptPgClient', label: 'Dept/PG/Client' }] } });
 
     // Act
     await user.type(screen.getByLabelText('Display name'), 'Client number');
-    await user.type(screen.getByLabelText('Field key'), 'clientNumber');
     await user.click(screen.getByLabelText('execution'));
     await user.click(screen.getByRole('button', { name: /add rule/i }));
     await user.click(screen.getByRole('button', { name: 'Save field' }));
@@ -264,7 +273,7 @@ describe('FieldEditorSheet', () => {
           fieldType: 'SingleSelect',
           options: [{ id: 'o', value: 'A', label: 'A', sortOrder: 0 }],
         })}
-        availableKeysByObject={{ Request: ['deptPgClient'] }}
+        availableKeysByObject={{ Request: [{ key: 'deptPgClient', label: 'Dept/PG/Client' }] }}
         customObjectOptions={[]}
         saveError="Something went wrong."
         isSaving={false}

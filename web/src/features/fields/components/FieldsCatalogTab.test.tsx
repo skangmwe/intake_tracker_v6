@@ -93,7 +93,7 @@ describe('FieldsCatalogTab', () => {
 
     await user.click(screen.getByRole('button', { name: /new field/i }));
 
-    expect(await screen.findByRole('dialog', { name: 'Add field' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'New field' })).toBeInTheDocument();
   });
 
   it('FieldsCatalogTab — New field with a custom object — shows it in the Object dropdown', async () => {
@@ -108,7 +108,7 @@ describe('FieldsCatalogTab', () => {
 
     await user.click(screen.getByRole('button', { name: /new field/i }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Add field' });
+    const dialog = await screen.findByRole('dialog', { name: 'New field' });
     expect(await screen.findByRole('option', { name: 'Vendor' })).toBeInTheDocument();
     expect(dialog).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -137,7 +137,7 @@ describe('FieldsCatalogTab', () => {
 
     // Assert — the Global object appears as a selectable field target (a workspace admin can add a
     // LocalWorkspace field to it); the editor is accessible.
-    const dialog = await screen.findByRole('dialog', { name: 'Add field' });
+    const dialog = await screen.findByRole('dialog', { name: 'New field' });
     expect(await screen.findByRole('option', { name: 'Vendor Review' })).toBeInTheDocument();
     expect(dialog).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -214,8 +214,8 @@ describe('FieldsCatalogTab', () => {
     await screen.findByRole('table');
 
     await user.click(screen.getByRole('button', { name: /new field/i }));
+    // The field key is derived from the display name ("New field" → "newField") and is read-only.
     await user.type(screen.getByLabelText('Display name'), 'New field');
-    await user.type(screen.getByLabelText('Field key'), 'newField');
     await user.click(screen.getByRole('button', { name: 'Save field' }));
 
     await waitFor(() => expect(mockedApi.createField).toHaveBeenCalled());

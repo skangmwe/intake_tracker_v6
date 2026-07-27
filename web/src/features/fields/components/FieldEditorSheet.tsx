@@ -12,21 +12,28 @@ import type {
 
 import { IconButton } from '@/shared/components/Button';
 
-import { CATEGORY_OPTIONS, FIELD_TYPE_OPTIONS, TASK_FIELD_TYPE_OPTIONS } from '../constants';
-import { buildInitialForm, formToRequest, type FieldForm } from '../fieldForm';
+import { FIELD_TYPE_OPTIONS, TASK_FIELD_TYPE_OPTIONS } from '../constants';
+import {
+  buildInitialForm,
+  deriveFieldKey,
+  formToRequest,
+  type FieldForm,
+  type FieldKeyOption,
+} from '../fieldForm';
 import { FieldDeleteConfirm } from './FieldDeleteConfirm';
 import { FieldEditorExtras } from './FieldEditorExtras';
 import { FieldEditorFooter } from './FieldEditorFooter';
-import { FieldObjectAndLocationFields } from './FieldObjectAndLocationFields';
+import { LocationAndSectionFields } from './LocationAndSectionFields';
 import { RulesEditor } from './RulesEditor';
-import { TypeAndCategoryFields } from './TypeAndCategoryFields';
+import { TypeAndObjectFields } from './TypeAndObjectFields';
 
 interface FieldEditorSheetProps {
   /** Default object for a new field. Existing fields carry their own object. */
   initialObjectType: FieldObjectTypeOrSlug;
   field: FieldDefinitionDto | null;
-  /** Field keys available to rule conditions, per object — the current object's set is used. */
-  availableKeysByObject: Partial<Record<string, string[]>>;
+  /** Fields available to rule conditions, per object — the current object's set is used. Each
+   * carries the immutable key plus the analyst-facing label the rule dropdown shows. */
+  availableKeysByObject: Partial<Record<string, FieldKeyOption[]>>;
   /** Custom (non-built-in) objects the workspace has defined — surfaced in the Object dropdown.
    * Only meaningful in the workspace create/edit flow; defaults to none (platform/read-only). */
   customObjectOptions?: readonly { value: string; label: string }[];
@@ -128,7 +135,7 @@ export function FieldEditorSheet({
             ? `Edit ${form.displayName}`
             : field
               ? `Edit ${field.displayName}`
-              : 'Add field'}
+              : 'New field'}
         </h2>
         <IconButton icon={X} label="Close editor" onClick={onClose} />
       </header>
@@ -150,35 +157,35 @@ export function FieldEditorSheet({
           <span className="caption">Display name</span>
           <input
             className="mws-input"
+            placeholder="What analysts see"
             value={form.displayName}
             required
             disabled={readOnly}
-            onChange={(event) => patch({ displayName: event.target.value })}
+            onChange={(event) => {
+              const displayName = event.target.value;
+              // The key is derived from the display name on create and frozen thereafter.
+              patch(isCreate ? { displayName, fieldKey: deriveFieldKey(displayName) } : { displayName });
+            }}
           />
         </label>
 
         <label className="mws-field">
           <span className="caption">Field key</span>
           <input
-            className="mws-input"
+            className="mws-input fields-key-input"
+            placeholder="Generated from the display name"
             value={form.fieldKey}
-            required
-            disabled={readOnly || !isCreate}
-            pattern="[A-Za-z][A-Za-z0-9]*"
-            onChange={(event) => patch({ fieldKey: event.target.value })}
+            disabled
           />
+          <span className="fields-optional">
+            The key is set when the field is created and can&rsquo;t be changed — it&rsquo;s
+            referenced by data and integrations.
+          </span>
         </label>
 
-        <TypeAndCategoryFields
+        <TypeAndObjectFields
           form={form}
           fieldTypeOptions={fieldTypeOptions}
-          categoryOptions={CATEGORY_OPTIONS}
-          onPatch={patch}
-          disabled={readOnly}
-        />
-
-        <FieldObjectAndLocationFields
-          form={form}
           isCreate={isCreate}
           readOnly={readOnly}
           customObjectOptions={customObjectOptions}
@@ -186,31 +193,38 @@ export function FieldEditorSheet({
           onPatch={patch}
         />
 
-        <label className="mws-field">
-          <span className="caption">Section (optional)</span>
-          <input
-            className="mws-input"
-            value={form.section}
-            disabled={readOnly}
-            onChange={(event) => patch({ section: event.target.value })}
-          />
-        </label>
+        <LocationAndSectionFields
+          form={form}
+          readOnly={readOnly}
+          customObjectOptions={customObjectOptions}
+          fixedObject={fixedObject}
+          onPatch={patch}
+        />
 
-        <label className="mws-field mws-check">
-          <input
-            type="checkbox"
-            checked={form.isRequired}
-            disabled={readOnly}
-            onChange={(event) => patch({ isRequired: event.target.checked })}
-          />
-          <span className="caption">Required</span>
-        </label>
+        <div className="fields-toggle-row" data-ds="toggle">
+          <span className="fields-toggle-row__text">
+            <span className="caption">Required</span>
+            <span className="fields-optional">Analysts must fill this in before saving the record.</span>
+          </span>
+          <label className="mws-switch">
+            <input
+              type="checkbox"
+              aria-label="Required"
+              checked={form.isRequired}
+              disabled={readOnly}
+              onChange={(event) => patch({ isRequired: event.target.checked })}
+            />
+            <span className="mws-switch__track">
+              <span className="mws-switch__thumb" />
+            </span>
+          </label>
+        </div>
 
         <FieldEditorExtras form={form} onPatch={patch} disabled={readOnly} />
 
         <RulesEditor
           rows={form.rules}
-          fieldKeys={availableFieldKeys}
+          fieldOptions={availableFieldKeys}
           onChange={(rules) => patch({ rules })}
           disabled={readOnly}
         />
@@ -232,6 +246,7 @@ export function FieldEditorSheet({
           onRequestDelete={onDelete ? () => setConfirmingDelete(true) : undefined}
           confirmingDelete={confirmingDelete}
           isSaving={isSaving}
+          disableSubmit={form.displayName.trim().length === 0}
           onClose={onClose}
         />
       </form>

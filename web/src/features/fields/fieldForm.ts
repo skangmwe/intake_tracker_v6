@@ -16,6 +16,13 @@ import { NUMERIC_TYPES, SELECT_TYPES } from './constants';
 import type { OptionRow } from './components/OptionsEditor';
 import type { RuleRow } from './components/RulesEditor';
 
+/** A field a rule condition can key on — the immutable key plus the analyst-facing display name.
+ * Rule dropdowns show the label; the stored value is the key. */
+export interface FieldKeyOption {
+  key: string;
+  label: string;
+}
+
 export interface FieldForm {
   object: FieldObjectTypeOrSlug;
   location: FieldLocation;
@@ -32,6 +39,24 @@ export interface FieldForm {
   rules: RuleRow[];
   expression: string;
   defaultValue: string;
+}
+
+/**
+ * Derive an immutable field key from the display name (create flow only). Analysts never type the
+ * key — it is generated here and shown read-only, then frozen once the field is created. Produces a
+ * camelCase identifier matching the server contract `[A-Za-z][A-Za-z0-9]*`: split on any non-alnum
+ * run, camel-join, then strip a leading digit run so the key always begins with a letter.
+ */
+export function deriveFieldKey(displayName: string): string {
+  const words = displayName.trim().split(/[^A-Za-z0-9]+/).filter((word) => word.length > 0);
+  const camel = words
+    .map((word, index) =>
+      index === 0
+        ? word.charAt(0).toLowerCase() + word.slice(1)
+        : word.charAt(0).toUpperCase() + word.slice(1),
+    )
+    .join('');
+  return camel.replace(/^[0-9]+/, '');
 }
 
 export function buildInitialForm(

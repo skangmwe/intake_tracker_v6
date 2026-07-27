@@ -8,6 +8,7 @@ import type { RuleAction, RuleComparator } from '@shared/types';
 import { Button, IconButton } from '@/shared/components/Button';
 
 import { COMPARATOR_OPTIONS, RULE_ACTION_OPTIONS } from '../constants';
+import type { FieldKeyOption } from '../fieldForm';
 
 export interface RuleRow {
   id: string;
@@ -19,14 +20,15 @@ export interface RuleRow {
 
 interface RulesEditorProps {
   rows: RuleRow[];
-  fieldKeys: string[];
+  /** Fields a rule can key on — the dropdown shows each label, the stored value is the key. */
+  fieldOptions: FieldKeyOption[];
   onChange: (rows: RuleRow[]) => void;
   disabled?: boolean;
 }
 
 const COMPARATORS_WITHOUT_VALUE: readonly RuleComparator[] = ['isSet', 'isNotSet'];
 
-export function RulesEditor({ rows, fieldKeys, onChange, disabled = false }: RulesEditorProps) {
+export function RulesEditor({ rows, fieldOptions, onChange, disabled = false }: RulesEditorProps) {
   const update = (id: string, patch: Partial<RuleRow>) =>
     onChange(rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
 
@@ -38,29 +40,29 @@ export function RulesEditor({ rows, fieldKeys, onChange, disabled = false }: Rul
       {
         id: crypto.randomUUID(),
         action: 'Show',
-        whenFieldKey: fieldKeys[0] ?? '',
+        whenFieldKey: fieldOptions[0]?.key ?? '',
         comparator: 'eq',
         compareValue: '',
       },
     ]);
 
   return (
-    <fieldset className="mws-field">
-      <legend className="caption">Conditional rules</legend>
+    <fieldset className="mws-field fields-fieldset">
+      <legend className="fields-fieldset__legend">Conditional rules</legend>
       {rows.length === 0 && (
-        <p className="caption">
+        <p className="fields-optional">
           No rules. Add a rule to show, hide, or require this field based on another field.
         </p>
       )}
       <ul className="fields-rule-list">
         {rows.map((row, index) => (
-          <li key={row.id} className="fields-rule-row">
+          <li key={row.id} className="fields-rule-card">
             <label className="visually-hidden" htmlFor={`rule-action-${row.id}`}>
               Rule {index + 1} action
             </label>
             <select
               id={`rule-action-${row.id}`}
-              className="mws-select mws-input--compact"
+              className="mws-select"
               value={row.action}
               disabled={disabled}
               onChange={(event) => update(row.id, { action: event.target.value as RuleAction })}
@@ -71,20 +73,20 @@ export function RulesEditor({ rows, fieldKeys, onChange, disabled = false }: Rul
                 </option>
               ))}
             </select>
-            <span className="caption">when</span>
+            <span className="fields-optional">when</span>
             <label className="visually-hidden" htmlFor={`rule-field-${row.id}`}>
               Rule {index + 1} field
             </label>
             <select
               id={`rule-field-${row.id}`}
-              className="mws-select mws-input--compact"
+              className="mws-select"
               value={row.whenFieldKey}
               disabled={disabled}
               onChange={(event) => update(row.id, { whenFieldKey: event.target.value })}
             >
-              {fieldKeys.map((key) => (
-                <option key={key} value={key}>
-                  {key}
+              {fieldOptions.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -93,7 +95,7 @@ export function RulesEditor({ rows, fieldKeys, onChange, disabled = false }: Rul
             </label>
             <select
               id={`rule-cmp-${row.id}`}
-              className="mws-select mws-input--compact"
+              className="mws-select"
               value={row.comparator}
               disabled={disabled}
               onChange={(event) =>
@@ -107,32 +109,44 @@ export function RulesEditor({ rows, fieldKeys, onChange, disabled = false }: Rul
               ))}
             </select>
             {!COMPARATORS_WITHOUT_VALUE.includes(row.comparator) && (
-              <>
+              <div className="fields-rule-card__value">
                 <label className="visually-hidden" htmlFor={`rule-val-${row.id}`}>
                   Rule {index + 1} value
                 </label>
                 <input
                   id={`rule-val-${row.id}`}
-                  className="mws-input mws-input--compact"
-                  placeholder="Value"
+                  className="mws-input"
+                  placeholder="value"
                   value={row.compareValue}
                   disabled={disabled}
                   onChange={(event) => update(row.id, { compareValue: event.target.value })}
                 />
-              </>
+                <IconButton
+                  icon={Trash}
+                  label={`Remove rule ${index + 1}`}
+                  onClick={() => remove(row.id)}
+                  disabled={disabled}
+                />
+              </div>
             )}
-            <IconButton
-              icon={Trash}
-              label={`Remove rule ${index + 1}`}
-              onClick={() => remove(row.id)}
-              disabled={disabled}
-            />
+            {COMPARATORS_WITHOUT_VALUE.includes(row.comparator) && (
+              <div className="fields-rule-card__value fields-rule-card__value--empty">
+                <IconButton
+                  icon={Trash}
+                  label={`Remove rule ${index + 1}`}
+                  onClick={() => remove(row.id)}
+                  disabled={disabled}
+                />
+              </div>
+            )}
           </li>
         ))}
       </ul>
-      <Button variant="secondary" compact onClick={add} disabled={disabled}>
-        <Plus size={16} aria-hidden /> Add rule
-      </Button>
+      <div className="fields-rule-add">
+        <Button variant="secondary" onClick={add} disabled={disabled}>
+          <Plus size={16} aria-hidden /> Add rule
+        </Button>
+      </div>
     </fieldset>
   );
 }

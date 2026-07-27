@@ -20,7 +20,7 @@ import {
   isFilterActive,
   selectCatalogView,
 } from '../fieldCatalogView';
-import { buildFormFromCatalogRow } from '../fieldForm';
+import { buildFormFromCatalogRow, type FieldKeyOption } from '../fieldForm';
 import { useGlobalObjectFieldEditor } from '../useGlobalObjectFieldEditor';
 import { usePlatformFieldCatalog, usePlatformFields, useUpdatePlatformField } from '../useFields';
 import { usePlatformObjects } from '../usePlatformSchema';
@@ -60,9 +60,9 @@ export function PlatformFieldsCatalogTab() {
     [objects.data],
   );
   const availableKeysByObject = useMemo(() => {
-    const map: Record<string, string[]> = {};
+    const map: Record<string, FieldKeyOption[]> = {};
     for (const row of allRows) {
-      (map[row.objectType] ??= []).push(row.fieldKey);
+      (map[row.objectType] ??= []).push({ key: row.fieldKey, label: row.displayName });
     }
     return map;
   }, [allRows]);

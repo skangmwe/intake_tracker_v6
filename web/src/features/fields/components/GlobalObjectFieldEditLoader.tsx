@@ -11,6 +11,7 @@ import type { FieldDefinitionUpsertRequest } from '@shared/types';
 
 import { IconButton } from '@/shared/components/Button';
 
+import type { FieldKeyOption } from '../fieldForm';
 import { usePlatformObjectFields } from '../usePlatformSchema';
 import { FieldEditorSheet } from './FieldEditorSheet';
 
@@ -18,7 +19,7 @@ interface GlobalObjectFieldEditLoaderProps {
   objectKey: string;
   objectLabel: string;
   fieldKey: string;
-  availableKeysByObject: Partial<Record<string, string[]>>;
+  availableKeysByObject: Partial<Record<string, FieldKeyOption[]>>;
   saveError: string | null;
   isSaving: boolean;
   onSave: (fieldKey: string, request: FieldDefinitionUpsertRequest, isCreate: boolean) => void;

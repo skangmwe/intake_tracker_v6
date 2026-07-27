@@ -13,6 +13,7 @@ import type {
 
 import { IconButton } from '@/shared/components/Button';
 
+import type { FieldKeyOption } from '../fieldForm';
 import { useWorkspaceFields } from '../useFields';
 import { FieldEditorSheet } from './FieldEditorSheet';
 
@@ -20,7 +21,7 @@ interface FieldEditLoaderProps {
   workspaceId: WorkspaceId;
   objectType: FieldObjectTypeOrSlug;
   fieldKey: string;
-  availableKeysByObject: Partial<Record<string, string[]>>;
+  availableKeysByObject: Partial<Record<string, FieldKeyOption[]>>;
   /** Custom (non-built-in) objects the workspace has defined — forwarded to the editor sheet. */
   customObjectOptions: readonly { value: string; label: string }[];
   saveError: string | null;
