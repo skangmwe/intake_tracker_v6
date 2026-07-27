@@ -2,8 +2,10 @@
 // side list is data, not inline JSX (web-component-architecture.md). One "Platform" sidebar entry
 // lands on this area; this list is the secondary navigation between the surfaces. Each item also
 // carries the header title + one-line lead that SideNavLayout renders in the full-width header, so
-// the pages themselves no longer render their own title. The nav label is short (fits the rail); the
-// header title may differ (e.g. "Field schema" nav → "Fields & objects" header).
+// the pages themselves no longer render their own title. Rail labels mirror the workspace-admin nav
+// where a surface corresponds (Fields & objects, Users & access, Audit log). The header title may
+// differ from the rail label when scope needs spelling out (e.g. "Audit log" nav → "Firm-wide audit"
+// header).
 
 export interface PlatformNavEntry {
   to: string;
@@ -17,8 +19,7 @@ export interface PlatformNavEntry {
 export const PLATFORM_NAV: PlatformNavEntry[] = [
   {
     to: '/platform/fields',
-    label: 'Field schema',
-    title: 'Fields & objects',
+    label: 'Fields & objects',
     lead: 'Platform-level field definitions inherited by every workspace.',
   },
   {
@@ -28,7 +29,7 @@ export const PLATFORM_NAV: PlatformNavEntry[] = [
   },
   {
     to: '/platform/access',
-    label: 'Access provisioning',
+    label: 'Users & access',
     lead: 'Who holds firm-wide Platform-admin access and which workspaces have admins.',
   },
   {
@@ -44,7 +45,8 @@ export const PLATFORM_NAV: PlatformNavEntry[] = [
   },
   {
     to: '/platform/audit',
-    label: 'Firm-wide audit',
+    label: 'Audit log',
+    title: 'Firm-wide audit',
     lead: 'Every change across every workspace — field edits, gate decisions, config changes, escalations, and platform edits — newest first. Append-only and uneditable.',
   },
 ];

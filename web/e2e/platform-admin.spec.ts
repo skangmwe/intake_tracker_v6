@@ -109,14 +109,14 @@ test('a platform admin reads the crossing map', async ({ page }) => {
 });
 
 test('a platform admin reads the privileged-grants directory', async ({ page }) => {
-  await page.getByRole('link', { name: 'Access provisioning' }).click();
+  await page.getByRole('link', { name: 'Users & access' }).click();
   await expect(page).toHaveURL(/\/platform\/access$/);
   await expect(page.getByText('Dana Admin')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Revoke' })).toBeVisible();
 });
 
 test('a platform admin reads the firm-wide audit log', async ({ page }) => {
-  await page.getByRole('link', { name: 'Firm-wide audit' }).click();
+  await page.getByRole('link', { name: 'Audit log' }).click();
   await expect(page).toHaveURL(/\/platform\/audit$/);
   await expect(page.getByRole('table', { name: /firm-wide audit/i })).toBeVisible();
   await expect(page.getByRole('cell', { name: 'AIS-00000001' })).toBeVisible();
