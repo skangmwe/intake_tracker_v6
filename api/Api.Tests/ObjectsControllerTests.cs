@@ -116,6 +116,23 @@ public sealed class ObjectsControllerTests
     }
 
     [Fact]
+    public async Task Create_GlobalLocation_Returns400()
+    {
+        // Arrange — workspaces can only author LocalWorkspace objects; Global is platform-only
+        // (via PlatformSchemaController), never reachable through this workspace-scoped endpoint.
+        var service = new Mock<IObjectSchemaService>();
+        var request = new ObjectDefinitionCreateRequest("Vendor", "Vendors", "Global", null, false, null);
+
+        // Act
+        var result = await Build(service).Create(WorkspaceId, request, CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<BadRequestObjectResult>(result);
+        var details = Assert.IsType<ValidationProblemDetails>(problem.Value);
+        Assert.Contains("location", details.Errors.Keys);
+    }
+
+    [Fact]
     public async Task Create_DuplicateName_Returns409()
     {
         // Arrange — the service maps proc 50081 to InvalidState.
@@ -175,6 +192,23 @@ public sealed class ObjectsControllerTests
         // Act — an explicit invalid location on the patch.
         var result = await Build(service).Update(ObjectId, WorkspaceId,
             new ObjectDefinitionPatchRequest(null, null, "Bogus", null, null, null), CancellationToken.None);
+
+        // Assert
+        var problem = Assert.IsType<BadRequestObjectResult>(result);
+        var details = Assert.IsType<ValidationProblemDetails>(problem.Value);
+        Assert.Contains("location", details.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task Update_GlobalLocation_Returns400()
+    {
+        // Arrange — a workspace patch may not set Location='Global' either; only platform admins
+        // (via PlatformSchemaController) can create/own Global objects.
+        var service = new Mock<IObjectSchemaService>();
+
+        // Act
+        var result = await Build(service).Update(ObjectId, WorkspaceId,
+            new ObjectDefinitionPatchRequest(null, null, "Global", null, null, null), CancellationToken.None);
 
         // Assert
         var problem = Assert.IsType<BadRequestObjectResult>(result);
