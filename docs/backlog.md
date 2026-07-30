@@ -130,4 +130,15 @@ applied to a record but there's no surface to manage the bundle library itself.
 
 ## Cleanup (other)
 
-_(items to add)_
+### 12. Remove the duplicative "Approver teams" section (§3) from the Lifecycle page
+The Lifecycle editor's third section (`ApproverTeamsEditor`, "3 · Approver teams") only
+add/removes team members against the **same** roster already managed under
+**Users & Access → Approver teams** — same data, same workspace-admin backend. It's a
+redundant duplicate. **Decision: remove it.** The Lifecycle page keeps Stages + Gates
+(define the flow and assign a team to each gate transition); staffing the teams lives solely
+under Users & Access as the single source of truth.
+
+- **Considered alternatives (not chosen):** make §3 read-only with a "Manage teams" link to
+  Users & Access; or leave as-is for in-context convenience.
+- **On removal:** the numbered sections become Stages (1) + Gates (2); check nothing else
+  depends on §3's add/remove-member handlers being reachable from this page.
