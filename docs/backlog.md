@@ -22,6 +22,14 @@ A record can't move to the next stage until every task in the prior stage(s) is 
 ### 2. "Status changes dynamically" based on task completion
 Likely the same feature as #1 — confirm whether "status" means the **stage stepper** advancing, or the **In progress / On hold status** reacting to task state. (Currently stage and status are separate concepts.)
 
+### 21. Assign tasks to other workspace members
+Let a task be **assigned to another person who has access to the workspace**, not just handled
+by whoever's on the record — an assignee picker limited to active workspace members.
+
+- **To decide:** where the assignee shows (task row + Tasks & gates), whether the assignee is
+  notified, whether it drives any "my tasks" filtering, and how it interacts with task
+  completion permissions (can only the assignee check it off, or anyone?).
+
 ### 5. Show the lifecycle's gates by default when a request is created
 When a request is created, the gates defined on its default lifecycle should appear in the
 **Tasks & gates** page from the start — as pending/upcoming rows — rather than only becoming
