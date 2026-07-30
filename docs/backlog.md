@@ -193,6 +193,18 @@ Goal: real flexibility over the request page without a code change per adjustmen
   built-in tabs (Status, Tasks & gates, Attachments) coexist with admin-defined ones, and
   versioning/migration when the layout changes under existing records.
 
+### 27. Make the create forms configurable too — new request / new feature / new item
+Companion to [#26](#26-admin-page-to-configure-the-request-page--tabs-field-layout--order):
+extend the same admin configurability to the **create/intake forms** — **New request**,
+**New feature**, and **New item** — so admins control which fields appear, their order/grouping,
+and which are required, without a code change.
+
+- **Access:** available to **workspace admins and platform admins**.
+- **To decide:** whether create-form config is the same data model as the request-page config
+  (#26) or a separate "form layout" per object type; how platform-admin (global) config vs
+  workspace-admin (local) config layer; and how required-field rules here interact with
+  validation.
+
 ### 11. Workspace-admin screen to manage task bundles / templates
 Add a **workspace admin** screen to create, edit, rename, and delete the **task bundles**
 (templates) that the Tasks & gates composer's "Add bundle" applies. Today bundles can be
