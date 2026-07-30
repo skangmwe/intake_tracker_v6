@@ -178,6 +178,27 @@ existing **PG / dept** field and **AI solutions** field.
 
 ---
 
+## Record Detail
+
+### 17. Put the escalation note inline in the metadata row (don't take a row below)
+The "Escalated from Litigation" (or similar) note should sit in the **same row** as the record
+metadata — display status, assigned analyst, priority score, etc. — rather than getting its own
+block below. Goal: stop losing vertical real estate under the header to that one message.
+
+- **To decide:** how it fits alongside the other metadata (chip/badge vs inline text), and
+  behavior when the note is long or absent (row shouldn't jump).
+
+### 18. Keep the edit-fields controls in view as you scroll a long record
+Make the edit affordance (Edit / Save / Cancel — the field-editing controls) **follow the page
+as it scrolls** so that near the bottom of a long record you can fix a field without scrolling
+back to the top. E.g. a sticky/floating action bar.
+
+- **To decide:** sticky header controls vs a floating action button vs a sticky footer bar;
+  and that it only shows when the section is actually editable (and stays out of the way of
+  content on small screens).
+
+---
+
 ## Cleanup (other)
 
 ### 12. Remove the duplicative "Approver teams" section (§3) from the Lifecycle page
