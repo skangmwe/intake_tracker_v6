@@ -235,6 +235,20 @@ rather than something a workspace has to opt into.
 
 ## Platform
 
+### 28. Expose "Dashboard only" when creating / editing a user account (membership)
+Add a **"Dashboard only"** option in the user-account / workspace-membership **create + edit**
+flow, alongside the access level (Viewer / Member / Workspace admin). It sets the existing
+`isDashboardViewer` flag + `boundDashboardId` so a viewer is bound to a **single dashboard as
+their sole surface**.
+
+- **Context:** the data model and the bound-viewer surface already exist
+  (`DashboardViewerPage`), but there's **no admin control to set it** today — Users & Access
+  member add/edit doesn't expose it.
+- **To decide:** UI is a "Dashboard only" toggle that, when on, requires picking **which
+  dashboard** to bind; only valid for the **Viewer** level; how it interacts with the switcher /
+  nav (bound users see just that dashboard). Ties to platform-first user provisioning
+  ([#14](#14-add-platform-users-directly-without-them-first-existing-in-a-workspace-platform-first)).
+
 ### 14. Add platform users directly, without them first existing in a workspace ("platform first")
 Let a **platform admin** add users at the **platform level** — by name/email — without requiring
 that person to already exist in (or be added to) a workspace. Provision the person at the
