@@ -80,6 +80,20 @@ it. Restricted to **workspace admins**; regular users cannot reopen a closed rec
 
 ---
 
+## Records & Linking
+
+### 8. "Link a record" — record ID as a dropdown of available records
+On the **Link a record** action, the record-ID field should be a **dropdown** of available
+record IDs rather than a free-text entry. Each option shows the **record ID and the request
+name** (e.g. `AIS-00000012 — Deposition summarizer`) so the user can recognize what they're
+linking.
+
+- **To decide:** which records populate the list (current workspace only? exclude the record
+  itself and already-linked records?), and whether the dropdown is searchable/typeahead for
+  large sets.
+
+---
+
 ## Cleanup (other)
 
 _(items to add)_
