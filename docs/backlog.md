@@ -128,6 +128,22 @@ applied to a record but there's no surface to manage the bundle library itself.
 
 ---
 
+## AI Assist
+
+### 13. Show the AI-assist "Ask" star next to the workspace search box, on by default
+Surface the AI-assist **Ask** entry point (star icon) **by default** next to the
+"Search this workspace" box at the **top-right of every page**, and have it **on by default**
+rather than something a workspace has to opt into.
+
+- **Note / open decision:** this reverses the current model, where AI assist is a
+  **default-off, per-workspace opt-in** (`AiAssistEnabled`). Turning it on by default is a
+  policy change — confirm that's intended given the content-field allowlist / data-handling
+  guardrails, and whether platform admins still need a global kill-switch.
+- **To decide:** exact placement/spacing beside the search box in the app header, and whether
+  the star opens the Ask surface inline (popover) or routes to the Ask page.
+
+---
+
 ## Cleanup (other)
 
 ### 12. Remove the duplicative "Approver teams" section (§3) from the Lifecycle page
