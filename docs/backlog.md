@@ -252,6 +252,22 @@ back to the top. E.g. a sticky/floating action bar.
 
 ---
 
+## Attachments
+
+### 25. Rename attachments and give uploaded documents some structure (folders)
+For attachments, let the user **rename a file** and organize uploads into some **structure**
+(rename/create folders, move files between them) rather than a flat list.
+
+- **Context:** today Tier 1 attachments are stored flat (opaque GUID key, no folder tree); the
+  display name comes from the SQL row, so a **rename** is a metadata change on that row, not a
+  blob move. A folder structure is net-new (the document-pipeline has a folder tree, but that's
+  the heavier Tier 1+ pipeline — decide whether to bring a light version here).
+- **To decide:** rename = edit the stored `FileName` only; whether folders are real records
+  (like the pipeline's SQL folder tree) or just a display grouping; and per-folder filename
+  uniqueness.
+
+---
+
 ## Cleanup (other)
 
 ### 12. Remove the duplicative "Approver teams" section (§3) from the Lifecycle page
