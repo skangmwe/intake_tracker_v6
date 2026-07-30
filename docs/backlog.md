@@ -94,6 +94,26 @@ linking.
 
 ---
 
+## Watchers
+
+### 9. Add watcher emails for people who aren't workspace users
+Allow adding a **watcher by email** even when that email doesn't belong to a workspace user —
+so external or not-yet-provisioned people can be watchers, not just existing members.
+
+- **To decide:** how a non-user watcher is stored (free email string vs a lightweight
+  contact record), how they receive watcher notifications (email-only, since there's no in-app
+  account), and whether any domain/allow-list or admin approval gates who can be added.
+
+### 10. Remove watchers as the request progresses
+Give the ability to **remove a watcher** at any point while the request moves through its
+lifecycle — so people who no longer need updates can be taken off, not just added at intake.
+
+- **To decide:** who can remove a watcher (any member, the person who added them, admins
+  only), whether removal is audited, and whether a removed watcher gets a final "you've been
+  removed" notification or none.
+
+---
+
 ## Cleanup (other)
 
 _(items to add)_
