@@ -52,6 +52,15 @@ Pairs with the task-line rework ([#22](#22-rework-the-task-line--drop-promote-sh
 - **To decide:** the edit surface (inline on the task line vs a task detail sheet), who can
   edit (any workspace member, the assignee, admins), and whether edits are audited.
 
+### 24. Give each task a stable, human-readable identity (request number + task number)
+On the backend, identify each task by its **request number plus a unique task number**
+(e.g. `AIS-00000012-T003`) so that when all data is exported it's easy to **map and track**
+each task back to its request.
+
+- **To decide:** the exact format/scheme (per-request sequential task number vs global), that
+  the number is stable and never reused after delete, and surfacing it in the Task CSV export
+  columns.
+
 ### 5. Show the lifecycle's gates by default when a request is created
 When a request is created, the gates defined on its default lifecycle should appear in the
 **Tasks & gates** page from the start — as pending/upcoming rows — rather than only becoming
