@@ -78,6 +78,13 @@ use — rather than only through the field-definition editor.
   and whether inline-added options need any confirmation before they persist to the field
   definition.
 
+### 19. Make the request "Tech / stack" field multiple-choice
+The **Tech / stack** field on requests should allow **multiple** selections (multi-select),
+not a single value — a request commonly spans more than one technology.
+
+- **To decide:** how multi-values render in the list/table columns and CSV export (e.g.
+  comma-joined), and whether existing single-value entries migrate cleanly to the multi-select.
+
 ### 7. Reopen a closed record (admin-only status override)
 Allow a **closed** record to be turned back to an active status — a status override that reopens
 it. Restricted to **workspace admins**; regular users cannot reopen a closed record.
