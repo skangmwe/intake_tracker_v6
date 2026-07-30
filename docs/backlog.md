@@ -22,6 +22,29 @@ A record can't move to the next stage until every task in the prior stage(s) is 
 ### 2. "Status changes dynamically" based on task completion
 Likely the same feature as #1 — confirm whether "status" means the **stage stepper** advancing, or the **In progress / On hold status** reacting to task state. (Currently stage and status are separate concepts.)
 
+### 5. Show the lifecycle's gates by default when a request is created
+When a request is created, the gates defined on its default lifecycle should appear in the
+**Tasks & gates** page from the start — as pending/upcoming rows — rather than only becoming
+visible when the record crosses the gate's stage transition. Today a gate only surfaces once
+the record is moved across the exact from→to transition it's attached to, so a brand-new
+request shows no gates even though its lifecycle has them.
+
+- **To decide:** whether up-front gates render as a read-only "upcoming" preview (not yet
+  actionable) vs. actionable immediately, and how this interacts with #1 (task-gated
+  advancement).
+
+---
+
+## Navigation
+
+### 6. Switching the active workspace lands on that workspace's Requests list
+When the user changes the active workspace (top-left switcher), the app should navigate to that
+workspace's **Requests list** page by default, rather than staying on whatever page/record was
+open (which belongs to the previous workspace).
+
+- **To decide:** whether this applies from every surface, or only when the current route is
+  workspace-scoped and would otherwise show stale/foreign data after the switch.
+
 ---
 
 ## UI Cleanup
@@ -46,6 +69,14 @@ use — rather than only through the field-definition editor.
 - **To decide:** where the new option is scoped (workspace-local vs platform/global choice list),
   and whether inline-added options need any confirmation before they persist to the field
   definition.
+
+### 7. Reopen a closed record (admin-only status override)
+Allow a **closed** record to be turned back to an active status — a status override that reopens
+it. Restricted to **workspace admins**; regular users cannot reopen a closed record.
+
+- **To decide:** which active status a reopened record lands on (e.g. back to In progress, or a
+  chooser), whether the reopen is audited, and whether it reactivates the prior stage/tasks or
+  starts fresh.
 
 ---
 
