@@ -55,6 +55,14 @@ When a column filter is opened (e.g. the **NAME** filter on **Users & access →
 - **Fix direction:** filter popovers should render fully visible, escaping the clipping container (portal to `<body>`), consistent with the switcher-popover-portal fix already applied elsewhere in the app.
 - **Scope check:** confirm whether this affects every gallery/table filter (Requests, Feature Catalog, etc.) or only the Users & access members table.
 
+### 16. Platform announcements — drop "broadcast" wording, keep it "Announcements"
+On the platform announcements surface, the user-facing copy uses "broadcast" (e.g. broadcast
+label/action). Keep the vocabulary consistent with the rest of the app — call it
+**Announcements** everywhere the user sees it.
+
+- **Scope:** UI copy only — the underlying `BroadcastId` fan-out mechanism can keep its
+  internal name; this is about labels/buttons/headings the user reads, not the data model.
+
 ---
 
 ## Fields & Admin
