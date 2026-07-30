@@ -55,6 +55,13 @@ When a column filter is opened (e.g. the **NAME** filter on **Users & access →
 - **Fix direction:** filter popovers should render fully visible, escaping the clipping container (portal to `<body>`), consistent with the switcher-popover-portal fix already applied elsewhere in the app.
 - **Scope check:** confirm whether this affects every gallery/table filter (Requests, Feature Catalog, etc.) or only the Users & access members table.
 
+### 20. Toolkit "new item" should be its own page, not a side popup
+The Toolkit's **new item** action currently opens a side popup/sheet. Make it its **own full
+page** (route), consistent with the other new-item / new-request create actions in the app.
+
+- **To decide:** the route (e.g. `/toolkit/new`) and whether it mirrors the new-request page
+  layout/steps; retire the side-sheet create path once the page exists.
+
 ### 16. Platform announcements — drop "broadcast" wording, keep it "Announcements"
 On the platform announcements surface, the user-facing copy uses "broadcast" (e.g. broadcast
 label/action). Keep the vocabulary consistent with the rest of the app — call it
