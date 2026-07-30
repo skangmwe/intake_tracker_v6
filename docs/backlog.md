@@ -30,6 +30,20 @@ by whoever's on the record — an assignee picker limited to active workspace me
   notified, whether it drives any "my tasks" filtering, and how it interacts with task
   completion permissions (can only the assignee check it off, or anyone?).
 
+### 22. Rework the task line — drop "Promote", show assignee / status / due date / notes
+On the task line **in the AI Solutions workspace**, remove the **Promote** button. Promote-to-
+request is a **PG/dept, request-level** feature — it doesn't belong at the **task** level.
+
+Instead, each task line should display:
+- **Assignee** (see [#21](#21-assign-tasks-to-other-workspace-members))
+- **Status**
+- **Due date** — when one is set
+- A small **note/comment icon** that opens the task's notes / comments
+
+- **To decide:** whether "Promote" is hidden only for the AI Solutions workspace vs removed
+  from the task level entirely; the per-task **status** value set; and the notes/comments
+  storage + surface (popover vs inline) for a task.
+
 ### 5. Show the lifecycle's gates by default when a request is created
 When a request is created, the gates defined on its default lifecycle should appear in the
 **Tasks & gates** page from the start — as pending/upcoming rows — rather than only becoming
