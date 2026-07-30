@@ -177,6 +177,22 @@ lifecycle — so people who no longer need updates can be taken off, not just ad
 
 ## Admin Screens
 
+### 26. Admin page to configure the request page — tabs, field layout & order
+Add a **workspace-admin** page that makes the **request detail page** configurable, rather than
+fixed in code. It should let an admin:
+- **Reorder and lay out fields** within a tab (e.g. the Intake tab — control which fields
+  appear and in what order/grouping).
+- **Add / rename / remove / reorder tabs** (e.g. add a new **"QA bugs"** tab).
+- Choose what content each tab surfaces.
+
+Goal: real flexibility over the request page without a code change per adjustment.
+
+- **Big item — likely its own design cycle.** To decide: the config data model (tab list +
+  per-tab field/section layout, workspace-scoped vs global), how a **new tab like "QA bugs"**
+  gets its own content/fields (ties to the fields catalog + custom objects/records work), how
+  built-in tabs (Status, Tasks & gates, Attachments) coexist with admin-defined ones, and
+  versioning/migration when the layout changes under existing records.
+
 ### 11. Workspace-admin screen to manage task bundles / templates
 Add a **workspace admin** screen to create, edit, rename, and delete the **task bundles**
 (templates) that the Tasks & gates composer's "Add bundle" applies. Today bundles can be
