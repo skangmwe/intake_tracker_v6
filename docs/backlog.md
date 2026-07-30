@@ -158,6 +158,16 @@ platform tier first; they can then be granted into workspaces afterward.
   entry is by email (directory lookup) vs a free name, and how this reconciles with the
   first-sign-in auto-provisioning so the same person doesn't get duplicated on first login.
 
+### 15. Platform crossing map — make workspace name selectable, and clarify field sources
+On the platform **crossing map**, allow selecting by **workspace name** in addition to the
+existing **PG / dept** field and **AI solutions** field.
+
+- **Also:** it's not readily apparent where the PG/dept and AI-solutions field values come
+  from — clarify/label their source on the screen (which catalog/field feeds each), so the
+  map's inputs are self-explanatory.
+- **To decide:** whether workspace is a third independent selector or a filter that scopes the
+  other two, and the source-of-truth for each field's option list.
+
 ---
 
 ## Cleanup (other)
