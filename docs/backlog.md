@@ -44,6 +44,14 @@ Instead, each task line should display:
   from the task level entirely; the per-task **status** value set; and the notes/comments
   storage + surface (popover vs inline) for a task.
 
+### 23. Edit a task — modify everything about it after creation
+Add the ability to **update/modify a task** after it's created — its **content/title**,
+**assigned user**, **due date**, phase, and any other task attributes — not just check it off.
+Pairs with the task-line rework ([#22](#22-rework-the-task-line--drop-promote-show-assignee--status--due-date--notes)).
+
+- **To decide:** the edit surface (inline on the task line vs a task detail sheet), who can
+  edit (any workspace member, the assignee, admins), and whether edits are audited.
+
 ### 5. Show the lifecycle's gates by default when a request is created
 When a request is created, the gates defined on its default lifecycle should appear in the
 **Tasks & gates** page from the start — as pending/upcoming rows — rather than only becoming
