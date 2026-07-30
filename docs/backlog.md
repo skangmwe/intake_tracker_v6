@@ -114,6 +114,20 @@ lifecycle — so people who no longer need updates can be taken off, not just ad
 
 ---
 
+## Admin Screens
+
+### 11. Workspace-admin screen to manage task bundles / templates
+Add a **workspace admin** screen to create, edit, rename, and delete the **task bundles**
+(templates) that the Tasks & gates composer's "Add bundle" applies. Today bundles can be
+applied to a record but there's no surface to manage the bundle library itself.
+
+- **To decide:** what a bundle definition holds (ordered task titles, phases, due-date offsets,
+  typed fields), whether bundles are workspace-local or can be platform/global, and whether
+  editing a bundle affects records that already applied it (it should not — applied tasks are
+  copies).
+
+---
+
 ## Cleanup (other)
 
 _(items to add)_
