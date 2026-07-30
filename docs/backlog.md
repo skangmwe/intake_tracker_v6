@@ -144,6 +144,22 @@ rather than something a workspace has to opt into.
 
 ---
 
+## Platform
+
+### 14. Add platform users directly, without them first existing in a workspace ("platform first")
+Let a **platform admin** add users at the **platform level** — by name/email — without requiring
+that person to already exist in (or be added to) a workspace. Provision the person at the
+platform tier first; they can then be granted into workspaces afterward.
+
+- **Why:** today a user effectively comes into being via workspace membership (and first-auth
+  provisioning). This flips it so platform admins can seed people up front, independent of any
+  workspace.
+- **To decide:** how a platform-first user is stored before any workspace grant, whether the
+  entry is by email (directory lookup) vs a free name, and how this reconciles with the
+  first-sign-in auto-provisioning so the same person doesn't get duplicated on first login.
+
+---
+
 ## Cleanup (other)
 
 ### 12. Remove the duplicative "Approver teams" section (§3) from the Lifecycle page
