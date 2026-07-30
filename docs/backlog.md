@@ -34,6 +34,21 @@ When a column filter is opened (e.g. the **NAME** filter on **Users & access →
 
 ---
 
+## Fields & Admin
+
+### 4. Add choice-field options inline from the field dropdown
+For choice (select/option) fields, give **platform and workspace admins** the ability to add a
+new choice directly from the field's dropdown — an "+ Add option" affordance at the point of
+use — rather than only through the field-definition editor.
+
+- **Permission gate:** only platform admins and workspace admins see the inline add; regular
+  users get the plain dropdown.
+- **To decide:** where the new option is scoped (workspace-local vs platform/global choice list),
+  and whether inline-added options need any confirmation before they persist to the field
+  definition.
+
+---
+
 ## Cleanup (other)
 
 _(items to add)_
