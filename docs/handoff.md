@@ -120,19 +120,37 @@ Shared surface for all of these:
 
 ---
 
-## Cluster E · Stage / gate automation — items 1, 2, 5
-**Effort: L. Needs product decisions before build. Depends on task-completion state from cluster D — do D first.**
+## Cluster E · Derived-stage automation — items 1, 2, 5 — ✅ DECISIONS LOCKED
+**Effort: L+ (bigger than it looks — a server-side derivation engine + removing the manual advance path). Depends on cluster D (task state). Build D first.**
 
-- **#5 — Show lifecycle gates by default** in Tasks & gates when a request is created (as read-only "upcoming" rows), instead of only on transition. Reconcile with the gates-are-transition-interceptors model.
-- **#1 — Task-gated stage advancement** — can't advance a stage until prior-stage tasks are complete. **Product decision required:** _block manual advance_ vs _auto-advance_ vs _auto-advance + gates_; empty-stage behavior; do completed gates also count.
-- **#2** — likely the same as #1; confirm "status" = stage stepper vs In-progress/On-hold before building.
+**The model (decided): a record's current stage is DERIVED from its task + gate state, not set manually. The record always parks at the earliest stage with unfinished work, and moves BOTH directions automatically.**
 
-**Entry points**
-- Web: `web/src/features/requests/useRequests.ts` (`useSetStage`) + `api.ts` (`setRequestStage` → `POST /v1/requests/{id}/stage`); `web/src/features/gates/*`; `web/src/features/tasks/taskView.ts` (completion state).
-- API/DB: the stage-transition controller/service under `api/Api/Modules/Requests/*` and its stored proc in `database/procedures/requests/`; gates procs in `database/procedures/gates/`.
-- Rules: `api-record-access.md`, `database-stored-procedures.md`, `web-testing.md`.
+**Derivation rule** (server-side, single source of truth — scan the lifecycle's stages in order):
+1. For each stage S in order: if S has any **incomplete task** → current stage = S, stop.
+2. If S's tasks are all complete, look at the gate on the S→next transition:
+   - Gate exists and **not approved** → record sits at S, that gate is **open/pending**, stop.
+   - No gate, or gate **approved** → advance to next stage, continue.
+3. Reach the end (all tasks done, all gates approved) → final stage / ready to close.
 
-**Recommendation:** get the #1 product decision (block vs auto) locked before `/plan`, since it changes both the proc and the stepper UI.
+**Behaviors (all decided):**
+- **Fully automatic — no manual "Advance" button.** The stepper becomes a **read-only reflection** of the derived stage (it moves both ways); it's a trail, not a control (`steppers-and-wizards.md`).
+- **Empty stages auto-skip** — a stage with no tasks and no gate is passed through on entry; a new request can cascade through empty early stages instantly to the first stage that has tasks or a gate.
+- **Auto-advance forward** when the last incomplete task in the current stage is checked off (re-derive → move; open the gate if the next transition has one; on gate approval, auto-advance).
+- **Tasks AND gates are both prerequisites** to cross a transition. Gate approval stays a human action; once approved the record auto-advances.
+- **Auto-revert backward:** adding a task to (or un-checking a completed task in) an already-passed stage makes that stage have incomplete work → re-derive → the record moves BACK to that stage. Completing it re-advances.
+- **Gate approvals persist across revert** — re-crossing a previously-approved gate does NOT re-open it.
+- **Terminal (Closed/Delivered) records do NOT auto-revert.** Derivation applies to in-flight records only; adding a task to a closed record does not change its stage. Reopening stays the admin action (backlog **#7**). *(Implementation: block adding tasks to a closed record, or allow-but-don't-derive — recommend block.)*
+- **#5 — gates up front:** on creation, list all the lifecycle's gates in Tasks & gates as **greyed read-only "upcoming" rows**; a gate becomes actionable/open only when the record derives to that transition.
+- **#2 — "status":** this is the **stage stepper** reflecting the derived stage. The **In progress / On hold** status stays a separate manual concept, and **On hold still pauses task completion** → no auto-advance/revert while on hold.
+
+**Build notes**
+- **Recompute the derived stage server-side on every trigger:** task create / complete / uncomplete / delete, gate approval, lifecycle change. **Persist** the derived stage on the record; the stepper just reads it. Do **not** compute in the client (guard against drift).
+- Auto-opening a gate **reuses today's gate machinery** (`database/procedures/gates/*`, the `ApprovalRequest` / `usp_SubmitDecision` path) — just triggered by derivation instead of a manual advance click.
+- **Remove the manual advance path** (`useSetStage` / `setRequestStage` / `POST /v1/requests/{id}/stage` + the stepper's advance control), or reduce it to an admin-only override — confirm. Existing records need a **one-time backfill** that derives their stage under the new rule (a data migration).
+- Entry points: `web/src/features/requests/useRequests.ts` + `api.ts`, `web/src/features/gates/*`, `web/src/features/tasks/*` (`taskView.ts` completion), `web/src/features/lifecycle/*`; API `api/Api/Modules/{Requests,Tasks,Gates}/*`; procs under `database/procedures/{requests,tasks,gates}/`; **new migration ≥ 104** for the persisted derived stage + backfill.
+- Rules: `api-record-access.md`, `database-stored-procedures.md`, `database-migrations.md`, `web-testing.md`, `steppers-and-wizards.md`.
+
+**Sequencing:** build **Cluster D first** — derivation reads task state (completion, add/remove). Then the derivation engine, then the UI (read-only stepper + #5 upcoming gates).
 
 ---
 
