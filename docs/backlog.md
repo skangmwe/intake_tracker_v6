@@ -8,19 +8,26 @@ _Last updated: 2026-07-30_
 
 ## Tasks & Stages
 
-### 1. Task-completion-gated stage advancement
-A record can't move to the next stage until every task in the prior stage(s) is completed.
+### 1. Task/gate-derived stage advancement — DECIDED (full spec in handoff.md → Cluster E)
+A record's current stage is **derived from its task + gate state**, not set manually — it parks at
+the **earliest stage with unfinished work** and moves **both directions** automatically.
 
-**Open decisions (settle before building):**
-- **How the move happens:**
-  - _Block manual advance_ — user clicks advance on the stepper; it's blocked (with a clear message) until all prior-stage tasks are done. Nothing moves on its own.
-  - _Auto-advance_ — the record jumps to the next stage the instant the last task in a stage is checked off.
-  - _Auto-advance + gates_ — auto-advance on task completion, but if the transition has an approval gate, open the gate instead of moving.
-- **Empty stage** — what happens when a stage has zero tasks (auto-pass, or nothing to block?).
-- **Gates as a prerequisite** — should completed approval gates also count alongside tasks?
+**Decided design:**
+- **Fully automatic, no manual advance.** The stepper is a read-only reflection of the derived stage.
+- **Auto-advance forward** when the last incomplete task in the current stage is checked off; if the
+  next transition has a **gate**, open it and advance on approval. **Tasks AND gates** are both
+  prerequisites.
+- **Empty stages auto-skip** — a new request cascades to the first stage with tasks / a gate.
+- **Auto-revert backward** when a task is added to (or un-checked in) an already-passed stage.
+- **Gate approvals persist** across revert — re-crossing an approved gate does not re-open it.
+- **Terminal (Closed/Delivered) records do NOT auto-revert** — reopening stays the admin action (#7).
+- Recompute server-side on every task/gate change; persist the derived stage. Full spec + code
+  pointers in `handoff.md` → **Cluster E**.
 
-### 2. "Status changes dynamically" based on task completion
-Likely the same feature as #1 — confirm whether "status" means the **stage stepper** advancing, or the **In progress / On hold status** reacting to task state. (Currently stage and status are separate concepts.)
+### 2. "Status changes dynamically" — DECIDED: stage stepper only
+Resolved with #1: "status" means the **stage stepper** reflecting the derived stage. The
+**In progress / On hold** status stays a separate manual concept (On hold still pauses task
+completion → no auto-advance while on hold).
 
 ### 21. Assign tasks to other workspace members
 Let a task be **assigned to another person who has access to the workspace**, not just handled
@@ -61,16 +68,10 @@ each task back to its request.
   the number is stable and never reused after delete, and surfacing it in the Task CSV export
   columns.
 
-### 5. Show the lifecycle's gates by default when a request is created
-When a request is created, the gates defined on its default lifecycle should appear in the
-**Tasks & gates** page from the start — as pending/upcoming rows — rather than only becoming
-visible when the record crosses the gate's stage transition. Today a gate only surfaces once
-the record is moved across the exact from→to transition it's attached to, so a brand-new
-request shows no gates even though its lifecycle has them.
-
-- **To decide:** whether up-front gates render as a read-only "upcoming" preview (not yet
-  actionable) vs. actionable immediately, and how this interacts with #1 (task-gated
-  advancement).
+### 5. Show the lifecycle's gates by default when a request is created — DECIDED
+On creation, list all the lifecycle's gates in **Tasks & gates** as **greyed read-only "upcoming"
+rows**. A gate becomes actionable/open only when the record derives to that transition. Part of the
+Cluster E derived-stage model (#1) — full spec in `handoff.md` → Cluster E.
 
 ---
 
