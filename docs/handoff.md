@@ -100,8 +100,16 @@ If the developer is **not** using this Claude harness, they still follow the sam
 
 ---
 
-## Cluster D · Task system overhaul — items 24, 21, 22, 23, 11
+## Cluster D · Task system overhaul — items 24, 21, 22, 23, 11 — ✅ DECISIONS LOCKED
 **Effort: L. One cohesive body of work. Build in the order below.**
+
+**Decided (locked):**
+- **Task status set = `Open · Locked · Done · Waived`.**
+  - **Locked is DERIVED, not a stored value** — a task in a stage the record hasn't reached yet renders Locked (greyed, not actionable) and **auto-unlocks to Open** when the record derives into its stage (Cluster E). Do **not** store "Locked" as a status; compute it. Stored status is effectively `{Open, Done, Waived}`.
+  - **Open** = current stage, actionable, **blocks** advancing out of that stage. **Done** = complete (resolved). **Waived** = resolved-but-not-done (advance past a task that doesn't apply, without marking it Done). For the Cluster E engine, a stage is "clear" when every task is **Done or Waived**.
+- **Full task CRUD: create / edit (#23) / delete / complete / waive.** **Delete = soft-delete** (`IsDeleted` + `DeletedAt`, `database-coding-standards.md`) — add `usp_DeleteTask`. Deleting the last **Open** task in the current stage re-derives (may auto-advance). Task numbers (#24) are never reused after delete.
+- **Permissions:** any workspace **Member** can create / edit / complete / delete / waive; **admins** always; all **audited**. Assignee (#21) is responsibility + notified on assignment.
+- **#11 bundles = workspace-local** (editing a bundle does not change records that already applied it — copies). **#24 numbering = per-request sequential** `AIS-…-T003`, stable, never reused, in the CSV export.
 
 Shared surface for all of these:
 - **Web:** `web/src/features/tasks/*` — `TasksTab.tsx`, `TaskRow.tsx`, `TaskGroup.tsx`, `TaskComposer.tsx`, `useTasks.ts`, `taskView.ts`, `api.ts`.
@@ -112,11 +120,11 @@ Shared surface for all of these:
 **Build order:**
 1. **#24 — Stable task identity (schema first).** Add a per-request sequential task number → surface as `AIS-00000012-T003`. **Migration `104`** (add column + backfill in a separate data migration; never reuse numbers after delete). Add it to the Task CSV export columns (`api/Api/Modules/ImportExport/*`).
 2. **#21 — Assign to a workspace member.** Add `AssigneeUserId` to the task; assignee picker limited to **active** members (reuse the member-options pattern from `web/src/features/users/components/ApproverMemberCombobox.tsx`). Extend `usp_CreateTask` / `usp_PatchTask`.
-3. **#22 — Task-line rework.** Drop the **Promote** button in the AI Solutions workspace (`usePromoteTask` in `useTasks.ts`; hide by workspace kind `ai-solutions`). Show **assignee / status / due date / notes icon** on `TaskRow.tsx`. Notes/comments → reuse the **comments** feature (`web/src/features/comments/*`, `usp_*Comment` procs) scoped to a task.
-4. **#23 — Edit a task.** Full edit (title, assignee, due date, phase, typed fields) via `usp_PatchTask` — likely a task detail sheet. Decide who can edit + whether audited.
+3. **#22 — Task-line rework.** Drop the **Promote** button in the AI Solutions workspace (`usePromoteTask` in `useTasks.ts`; hide by workspace kind `ai-solutions`). Show **assignee / status / due date / notes icon** on `TaskRow.tsx`. Status pill uses the `Open · Locked · Done · Waived` set above (Locked = greyed/non-actionable, derived). Notes/comments → reuse the **comments** feature (`web/src/features/comments/*`, `usp_*Comment` procs) scoped to a task.
+4. **#23 — Edit + delete a task.** Full edit (title, assignee, due date, phase, typed fields) via `usp_PatchTask`, **plus soft-delete via a new `usp_DeleteTask`** — a task detail sheet with a Delete action. Any Member; admins always; audited (per Decided block).
 5. **#11 — Manage task bundles (admin screen).** New workspace-admin surface to CRUD bundle templates (today only `usp_ApplyTaskBundle` / `usp_GetTaskBundleTemplates` exist — **you'll add bundle CRUD procs + a migration** for editable bundles). Editing a bundle must **not** retroactively change records that already applied it (applied tasks are copies).
 
-**Watch-outs:** #21/#22/#23 all edit `TaskRow`/`TasksTab` — build them as one slice to avoid three passes over the same files. Per-task status (#22) needs a defined value set — confirm with product.
+**Watch-outs:** #21/#22/#23 all edit `TaskRow`/`TasksTab` — build them as one slice to avoid three passes over the same files. **Locked is computed by the Cluster E engine, not stored** — keep the two in sync. **Waived** must count as "resolved" everywhere the engine checks stage completion.
 
 ---
 
@@ -135,18 +143,19 @@ Shared surface for all of these:
 **Behaviors (all decided):**
 - **Fully automatic — no manual "Advance" button.** The stepper becomes a **read-only reflection** of the derived stage (it moves both ways); it's a trail, not a control (`steppers-and-wizards.md`).
 - **Empty stages auto-skip** — a stage with no tasks and no gate is passed through on entry; a new request can cascade through empty early stages instantly to the first stage that has tasks or a gate.
+- **Task status ↔ engine:** a stage is "clear" (its tasks don't block) when every task is **Done or Waived**; an **Open** task blocks; **Locked** is the derived label for tasks in stages the record hasn't reached yet (auto-unlocks to Open on arrival). Full status set is in Cluster D.
 - **Auto-advance forward** when the last incomplete task in the current stage is checked off (re-derive → move; open the gate if the next transition has one; on gate approval, auto-advance).
 - **Tasks AND gates are both prerequisites** to cross a transition. Gate approval stays a human action; once approved the record auto-advances.
 - **Auto-revert backward:** adding a task to (or un-checking a completed task in) an already-passed stage makes that stage have incomplete work → re-derive → the record moves BACK to that stage. Completing it re-advances.
 - **Gate approvals persist across revert** — re-crossing a previously-approved gate does NOT re-open it.
-- **Terminal (Closed/Delivered) records do NOT auto-revert.** Derivation applies to in-flight records only; adding a task to a closed record does not change its stage. Reopening stays the admin action (backlog **#7**). *(Implementation: block adding tasks to a closed record, or allow-but-don't-derive — recommend block.)*
+- **Terminal (Closed/Delivered) records do NOT auto-revert.** Derivation applies to in-flight records only; adding a task to a closed record does not change its stage. Reopening stays the admin action (backlog **#7**). **Decided: block adding tasks to a closed record.**
 - **#5 — gates up front:** on creation, list all the lifecycle's gates in Tasks & gates as **greyed read-only "upcoming" rows**; a gate becomes actionable/open only when the record derives to that transition.
 - **#2 — "status":** this is the **stage stepper** reflecting the derived stage. The **In progress / On hold** status stays a separate manual concept, and **On hold still pauses task completion** → no auto-advance/revert while on hold.
 
 **Build notes**
 - **Recompute the derived stage server-side on every trigger:** task create / complete / uncomplete / delete, gate approval, lifecycle change. **Persist** the derived stage on the record; the stepper just reads it. Do **not** compute in the client (guard against drift).
 - Auto-opening a gate **reuses today's gate machinery** (`database/procedures/gates/*`, the `ApprovalRequest` / `usp_SubmitDecision` path) — just triggered by derivation instead of a manual advance click.
-- **Remove the manual advance path** (`useSetStage` / `setRequestStage` / `POST /v1/requests/{id}/stage` + the stepper's advance control), or reduce it to an admin-only override — confirm. Existing records need a **one-time backfill** that derives their stage under the new rule (a data migration).
+- **Remove the manual advance path** (`useSetStage` / `setRequestStage` / `POST /v1/requests/{id}/stage` + the stepper's advance control) for regular users; **Decided: keep a thin admin-only stage override** for edge cases. Existing records need a **one-time backfill** that derives their stage under the new rule (a data migration).
 - Entry points: `web/src/features/requests/useRequests.ts` + `api.ts`, `web/src/features/gates/*`, `web/src/features/tasks/*` (`taskView.ts` completion), `web/src/features/lifecycle/*`; API `api/Api/Modules/{Requests,Tasks,Gates}/*`; procs under `database/procedures/{requests,tasks,gates}/`; **new migration ≥ 104** for the persisted derived stage + backfill.
 - Rules: `api-record-access.md`, `database-stored-procedures.md`, `database-migrations.md`, `web-testing.md`, `steppers-and-wizards.md`.
 
