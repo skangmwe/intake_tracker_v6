@@ -33,9 +33,8 @@ completion → no auto-advance while on hold).
 Let a task be **assigned to another person who has access to the workspace**, not just handled
 by whoever's on the record — an assignee picker limited to active workspace members.
 
-- **To decide:** where the assignee shows (task row + Tasks & gates), whether the assignee is
-  notified, whether it drives any "my tasks" filtering, and how it interacts with task
-  completion permissions (can only the assignee check it off, or anyone?).
+- **DECIDED:** shows on the task row; **any workspace Member can complete** a task (assignee = responsibility,
+  not exclusive); assignee is **notified on assignment**. ("My tasks" filtering optional, later.)
 
 ### 22. Rework the task line — drop "Promote", show assignee / status / due date / notes
 On the task line **in the AI Solutions workspace**, remove the **Promote** button. Promote-to-
@@ -43,30 +42,30 @@ request is a **PG/dept, request-level** feature — it doesn't belong at the **t
 
 Instead, each task line should display:
 - **Assignee** (see [#21](#21-assign-tasks-to-other-workspace-members))
-- **Status**
+- **Status** — `Open · Locked · Done · Waived` (see below)
 - **Due date** — when one is set
-- A small **note/comment icon** that opens the task's notes / comments
+- A small **note/comment icon** that opens the task's notes / comments (reuse the comments feature)
 
-- **To decide:** whether "Promote" is hidden only for the AI Solutions workspace vs removed
-  from the task level entirely; the per-task **status** value set; and the notes/comments
-  storage + surface (popover vs inline) for a task.
+- **DECIDED — status set = `Open · Locked · Done · Waived`:** **Locked** is *derived* (future-stage
+  tasks; greyed/non-actionable; auto-unlocks to **Open** when the record reaches that stage). **Open**
+  blocks advancement; **Done**/**Waived** count as resolved (Waived = doesn't-apply, advanced without
+  marking Done). **Promote** is hidden in the AI Solutions workspace. Full spec in `handoff.md` → Cluster D.
 
-### 23. Edit a task — modify everything about it after creation
-Add the ability to **update/modify a task** after it's created — its **content/title**,
-**assigned user**, **due date**, phase, and any other task attributes — not just check it off.
+### 23. Edit (and delete) a task — modify everything about it after creation
+Add the ability to **update/modify a task** after it's created — **content/title**, **assigned user**,
+**due date**, phase, and any other attributes — plus **delete** a task. Not just check it off.
 Pairs with the task-line rework ([#22](#22-rework-the-task-line--drop-promote-show-assignee--status--due-date--notes)).
 
-- **To decide:** the edit surface (inline on the task line vs a task detail sheet), who can
-  edit (any workspace member, the assignee, admins), and whether edits are audited.
+- **DECIDED:** task **detail sheet** for edit; **any Member** can edit/delete (admins always); **audited**.
+  **Delete = soft-delete** (`IsDeleted` + `DeletedAt`); task numbers never reused. Full spec in `handoff.md` → Cluster D.
 
 ### 24. Give each task a stable, human-readable identity (request number + task number)
 On the backend, identify each task by its **request number plus a unique task number**
 (e.g. `AIS-00000012-T003`) so that when all data is exported it's easy to **map and track**
 each task back to its request.
 
-- **To decide:** the exact format/scheme (per-request sequential task number vs global), that
-  the number is stable and never reused after delete, and surfacing it in the Task CSV export
-  columns.
+- **DECIDED:** **per-request sequential** number (`AIS-…-T003`), stable, **never reused** after delete;
+  surfaced in the Task CSV export columns.
 
 ### 5. Show the lifecycle's gates by default when a request is created — DECIDED
 On creation, list all the lifecycle's gates in **Tasks & gates** as **greyed read-only "upcoming"
@@ -211,10 +210,9 @@ Add a **workspace admin** screen to create, edit, rename, and delete the **task 
 (templates) that the Tasks & gates composer's "Add bundle" applies. Today bundles can be
 applied to a record but there's no surface to manage the bundle library itself.
 
-- **To decide:** what a bundle definition holds (ordered task titles, phases, due-date offsets,
-  typed fields), whether bundles are workspace-local or can be platform/global, and whether
-  editing a bundle affects records that already applied it (it should not — applied tasks are
-  copies).
+- **DECIDED:** bundles are **workspace-local** (platform/global is a later add); **editing a bundle
+  does not change records that already applied it** (applied tasks are copies). Still to spec: what a
+  bundle definition holds (ordered task titles, phases, due-date offsets, typed fields).
 
 ---
 
