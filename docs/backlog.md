@@ -135,9 +135,8 @@ not a single value — a request commonly spans more than one technology.
 Allow a **closed** record to be turned back to an active status — a status override that reopens
 it. Restricted to **workspace admins**; regular users cannot reopen a closed record.
 
-- **To decide:** which active status a reopened record lands on (e.g. back to In progress, or a
-  chooser), whether the reopen is audited, and whether it reactivates the prior stage/tasks or
-  starts fresh.
+- **DECIDED:** WorkspaceAdmin-only; reopen → status **In progress** and the **Cluster E engine
+  re-derives** the stage from task/gate state; **audited**. (handoff-p2.md → Cluster G; depends on P1 Cluster E.)
 
 ---
 
@@ -149,9 +148,8 @@ record IDs rather than a free-text entry. Each option shows the **record ID and 
 name** (e.g. `AIS-00000012 — Deposition summarizer`) so the user can recognize what they're
 linking.
 
-- **To decide:** which records populate the list (current workspace only? exclude the record
-  itself and already-linked records?), and whether the dropdown is searchable/typeahead for
-  large sets.
+- **DECIDED:** candidates = **current workspace only**, exclude the record itself + already-linked
+  records; **typeahead** search. (handoff-p2.md → Cluster C.)
 
 ---
 
@@ -161,17 +159,15 @@ linking.
 Allow adding a **watcher by email** even when that email doesn't belong to a workspace user —
 so external or not-yet-provisioned people can be watchers, not just existing members.
 
-- **To decide:** how a non-user watcher is stored (free email string vs a lightweight
-  contact record), how they receive watcher notifications (email-only, since there's no in-app
-  account), and whether any domain/allow-list or admin approval gates who can be added.
+- **DECIDED:** stored as a **free email** (no user id); **email-only** notifications; adding an
+  **outside email is WorkspaceAdmin-only** (Members can add existing members). (handoff-p2.md → Cluster F.)
 
 ### 10. Remove watchers as the request progresses
 Give the ability to **remove a watcher** at any point while the request moves through its
 lifecycle — so people who no longer need updates can be taken off, not just added at intake.
 
-- **To decide:** who can remove a watcher (any member, the person who added them, admins
-  only), whether removal is audited, and whether a removed watcher gets a final "you've been
-  removed" notification or none.
+- **DECIDED:** any **Member** can remove (admins always); **audited**; **no** "you've been removed"
+  email. (`usp_RemoveWatcher` already exists.)
 
 ---
 
@@ -187,11 +183,9 @@ fixed in code. It should let an admin:
 
 Goal: real flexibility over the request page without a code change per adjustment.
 
-- **Big item — likely its own design cycle.** To decide: the config data model (tab list +
-  per-tab field/section layout, workspace-scoped vs global), how a **new tab like "QA bugs"**
-  gets its own content/fields (ties to the fields catalog + custom objects/records work), how
-  built-in tabs (Status, Tasks & gates, Attachments) coexist with admin-defined ones, and
-  versioning/migration when the layout changes under existing records.
+- **FRAMING CAPTURED — needs its own design session before build.** First-cut config data model,
+  scope layering, custom-tab content options, and versioning/migration are spec'd in
+  **handoff-p2.md → Cluster H**. Confirm that framing before writing code.
 
 ### 27. Make the create forms configurable too — new request / new feature / new item
 Companion to [#26](#26-admin-page-to-configure-the-request-page--tabs-field-layout--order):
@@ -200,10 +194,9 @@ extend the same admin configurability to the **create/intake forms** — **New r
 and which are required, without a code change.
 
 - **Access:** available to **workspace admins and platform admins**.
-- **To decide:** whether create-form config is the same data model as the request-page config
-  (#26) or a separate "form layout" per object type; how platform-admin (global) config vs
-  workspace-admin (local) config layer; and how required-field rules here interact with
-  validation.
+- **FRAMING CAPTURED:** create-form layout = a separate, simpler ordered field list + required flags
+  per object type (create forms have no tabs), reusing the same field catalog + scope layering as #26.
+  Full framing in **handoff-p2.md → Cluster H** — confirm in the design session.
 
 ### 11. Workspace-admin screen to manage task bundles / templates
 Add a **workspace admin** screen to create, edit, rename, and delete the **task bundles**
@@ -243,10 +236,8 @@ their sole surface**.
 - **Context:** the data model and the bound-viewer surface already exist
   (`DashboardViewerPage`), but there's **no admin control to set it** today — Users & Access
   member add/edit doesn't expose it.
-- **To decide:** UI is a "Dashboard only" toggle that, when on, requires picking **which
-  dashboard** to bind; only valid for the **Viewer** level; how it interacts with the switcher /
-  nav (bound users see just that dashboard). Ties to platform-first user provisioning
-  ([#14](#14-add-platform-users-directly-without-them-first-existing-in-a-workspace-platform-first)).
+- **DECIDED:** a "Dashboard only" toggle in membership create/edit, **Viewer level only**, requires
+  **picking which dashboard** to bind; bound user's nav = just that dashboard. (handoff-p2.md → Cluster G.)
 
 ### 14. Add platform users directly, without them first existing in a workspace ("platform first")
 Let a **platform admin** add users at the **platform level** — by name/email — without requiring
@@ -256,9 +247,8 @@ platform tier first; they can then be granted into workspaces afterward.
 - **Why:** today a user effectively comes into being via workspace membership (and first-auth
   provisioning). This flips it so platform admins can seed people up front, independent of any
   workspace.
-- **To decide:** how a platform-first user is stored before any workspace grant, whether the
-  entry is by email (directory lookup) vs a free name, and how this reconciles with the
-  first-sign-in auto-provisioning so the same person doesn't get duplicated on first login.
+- **DECIDED:** add **by directory email lookup** (Graph); seed the user before any workspace grant;
+  reconcile on first sign-in by email so auto-provisioning doesn't duplicate. (handoff-p2.md → Cluster G.)
 
 ### 15. Platform crossing map — make workspace name selectable, and clarify field sources
 On the platform **crossing map**, allow selecting by **workspace name** in addition to the
@@ -267,8 +257,8 @@ existing **PG / dept** field and **AI solutions** field.
 - **Also:** it's not readily apparent where the PG/dept and AI-solutions field values come
   from — clarify/label their source on the screen (which catalog/field feeds each), so the
   map's inputs are self-explanatory.
-- **To decide:** whether workspace is a third independent selector or a filter that scopes the
-  other two, and the source-of-truth for each field's option list.
+- **DECIDED:** add **workspace** as an additional selectable dimension alongside PG/dept + AI-solutions,
+  and **label each field's source** on-screen. (handoff-p2.md → Cluster G.)
 
 ---
 
